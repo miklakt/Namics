@@ -38,6 +38,7 @@ if (debug) cout <<"Segment constructor" + name << endl;
 	freedom="free";
 	used_in_mol_nr=-2;
 	phi_LB_X=phi_UB_X=0;
+	phi_LB_Y=phi_UB_Y=0;
 	B=1; J=0;
 }
 Segment::~Segment() {
@@ -993,11 +994,32 @@ if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 
 void Segment::PutContraintBC() {
 if (debug) cout <<"PutConstraintBC Segment " + name << endl;
-	//int fjc=Lat[0]->fjc;
-	//int MX=Lat[0]->MX;
+	int gradients=Lat[0]->gradients;
 	int M=Lat[0]->M;
-	if (phi_LB_X>0) phi[0]=phi_LB_X;
-	if (phi_UB_X>0) phi[M-1]=phi_UB_X;  //we will assume phibulk values in upperboundary. This bound should be sumphi=1 and electroneutral.
+	int MX=Lat[0]->MX;
+	int MY=Lat[0]->MY;
+	int JX=Lat[0]->JX;
+	switch (gradients) {
+		case 1:
+			//int fjc=Lat[0]->fjc;
+			//int MX=Lat[0]->MX;
+
+			if (phi_LB_X>0) phi[0]=phi_LB_X;
+			if (phi_UB_X>0) phi[M-1]=phi_UB_X;
+			break;
+		case 2:
+				for (int x=1; x<MX+1; x++) {
+					phi[x*JX+0] = phi_LB_Y;
+					phi[x*JX+MY+1]=phi_UB_Y;
+				}
+				for (int y=1; y<MY+1; y++) {
+					phi[0+y] = phi_LB_X;
+					phi[(MX+1)*JX+y]=phi_UB_X;
+				}
+			break;
+		default:
+			break;
+	}
 }
 
 bool Segment::CheckInput(int start_) {
@@ -1817,6 +1839,8 @@ if (debug) cout <<"PushOutput for segment " + name << endl;
 	}
 	push("phi_LB_x",phi_LB_X);
 	push("phi_UB_x",phi_UB_X);
+	push("phi_LB_y",phi_LB_Y);
+	push("phi_UB_y",phi_UB_Y);
 	if (ns>1) {
 		state_theta.clear();
 		for (int i=0; i<ns; i++){

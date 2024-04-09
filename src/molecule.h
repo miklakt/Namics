@@ -121,6 +121,8 @@ virtual ~Molecule();
 	bool ring;
 	Real phi_LB_X;
 	Real phi_UB_X;
+	Real phi_LB_Y;
+	Real phi_UB_Y;
 	Real J;
 	Real B;
 	Real Delta_MU;

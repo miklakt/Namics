@@ -927,9 +927,9 @@ bool System::CheckInput(int start_)
 
 
 		if (CalculationType=="steady_state") {
-				//Steady state is in development. For the time being this option is quite limited. In time some of these constraints will be lifted.
-			if (Lat[0]->gradients>1) {
-				cout <<"For 'calculation_type : steady_state' is currently limited to 1 gradient calculations " << endl;
+			//Steady state is in development. For the time being this option is quite limited. In time some of these constraints will be lifted.
+			if (Lat[0]->gradients>2) {
+				cout <<"For 'calculation_type : steady_state' is currently limited to 1 gradient and 2 gradients calculations " << endl;
 				return false;
 			}
 			if (Lat[0]->fjc != 1) {
@@ -949,6 +949,8 @@ bool System::CheckInput(int start_)
 						if (Mol[i]->phi_LB_X > 0) {
 							Seg[Mol[i]->MolMonList[j]]->phi_LB_X=Mol[i]->phi_LB_X*Mol[i]->fraction(Mol[i]->MolMonList[j]);
 							Seg[Mol[i]->MolMonList[j]]->phi_UB_X=Mol[i]->phi_UB_X*Mol[i]->fraction(Mol[i]->MolMonList[j]);
+							Seg[Mol[i]->MolMonList[j]]->phi_LB_Y=Mol[i]->phi_LB_Y*Mol[i]->fraction(Mol[i]->MolMonList[j]);
+							Seg[Mol[i]->MolMonList[j]]->phi_UB_Y=Mol[i]->phi_UB_Y*Mol[i]->fraction(Mol[i]->MolMonList[j]);
 						}
 					} else {
 						cout <<"Multiple usage of seg " + Seg[Mol[i]->MolMonList[j]]->name + " in steady state system forbidden: each monomer may be used in only one molecule; it can not be used in multiple molecules. " << endl;
@@ -2251,12 +2253,43 @@ if (debug) cout <<"steady_residuals in scf mode in system " << endl;
 	Zero(g,iv);
 	Real Jtot=0;
 	Segment* Seg0=Seg[ItMonList[0]];
-	g[1]=Seg0->phi[0]/Seg0->phi[1]-1.0;
-	for (int z=2; z<M-2; z++) {
-		g[z]=1.0/phitot[z]-1.0;
-		//Seg0->dphidt[z]=0;
+
+/*
+				for (int x=1; x<MX+1; x++) {
+					phi[x*JX+0] = phi_LB_Y;
+					phi[x*JX+MY+1]=phi_UB_Y;
+				}
+				for (int y=1; y<MY+1; y++) {
+					phi[0+y] = phi_LB_X;
+					phi[(MX+1)*JX+y]=phi_UB_X;
+				}
+*/
+
+	int gradients=Lat[0]->gradients;
+	int MX=Lat[0]->MX;
+	int MY=Lat[0]->MY;
+	int JX=Lat[0]->JX;
+	for (int z=1; z<M-1; z++) g[z]=1.0/phitot[z]-1.0;
+
+	switch (gradients) {
+		case 1:
+			g[1]=Seg0->phi[0]/Seg0->phi[1]-1.0;
+			//g[M-2]=Seg0->phi[M-1]/Seg0->phi[M-2]-1.0;
+			g[MX]=Seg0->phi[MX+1]/Seg0->phi[MX]-1.0;
+			break;
+		case 2:
+			for (int x=1; x<MX+1; x++) {
+				g[x*JX+1]=Seg0->phi[x*JX+0]/Seg0->phi[x*JX+1]-1.0;
+				g[x*JX+MY]=Seg0->phi[x*JX+MY+1]/Seg0->phi[x*JX+MY]-1.0;
+			}
+			for (int y=1; y<MY+1; y++) {
+				g[JX+y]=Seg0->phi[0+y]/Seg0->phi[JX+y]-1.0;
+				g[MX*JX+y]=Seg0->phi[(MX+1)*JX+y]/Seg0->phi[MX*JX+y]-1.0;
+			}
+			break;
+		default:
+			break;
 	}
-	g[M-2]=Seg0->phi[M-1]/Seg0->phi[M-2]-1.0;
 	for (int i =1 ; i<itmonlistlength; i++) {
 		Segment* Segi=Seg[ItMonList[i]];
 		Segi->J=0;
@@ -2265,14 +2298,8 @@ if (debug) cout <<"steady_residuals in scf mode in system " << endl;
 			if (i !=k) Segi->J += Lat[0]->DphiDt(g+i*M,B_phitot,Segi->phi,Segk->phi,Segi->ALPHA,Segk->ALPHA,Segi->B,Segk->B);
 		}
 		Jtot +=Segi->J;
-		//if (residual < 0.01)
-		//for (int z=2; z<M-2; z++) {
-		//	Segi->dphidt[z]=g[i*M+z]/2.0;
-		//	Seg0->dphidt[z]-=g[i*M+z]/2.0;
-		//}
 	}
 	Seg[ItMonList[0]]->J=-Jtot;
-
 //
 //
 	//for (i=0; i<itstatelistlength; i++) Add(alpha,g+(itmonlistlength+i)*M,M);
@@ -2636,49 +2663,129 @@ for (int j=0; j<n_mol; j++) {
 	}
 //Real result=0;
 //Sum(result,phitot,M);
-//cout <<"phitot in computephia " << result << endl;
+//cout <<"phitot in compute phia " << result << endl;
 
 	if (CalculationType=="steady_state") {
 		Real PhiTot0=0;
 		Real PhiTotM=0;
 		Real Qtot0=0;
 		Real QtotM=0;
-		for (int i = 0; i < n_seg; i++) {
-			Seg[i]->PutContraintBC();
+		int MX=Lat[0]->MX;
+		int MY=Lat[0]->MY;
+		int JX=Lat[0]->JX;
+		int gradients=Lat[0]->gradients;
 
+		for (int i = 0; i < n_seg; i++) Seg[i]->PutContraintBC();
 					//make sure that both bounds have sumphi=1 and are neutral.
-			if (!(Seg[i]->used_in_mol_nr==solvent || Seg[i]->used_in_mol_nr==neutralizer)) {
-				PhiTot0+=Seg[i]->phi[0];
-				Qtot0+=Seg[i]->phi[0]*Seg[i]->valence;
-				PhiTotM+=Seg[i]->phi[M-1];
-				QtotM+=Seg[i]->phi[M-1]*Seg[i]->valence;
-			}
-		}
 
-		if (Qtot0!=0 && neutralizer==-1) cout <<"Error: neutralizer needed, but was not found. Outcome uncertain" << endl;
-		if (Qtot0!=0) {
-			Mol[neutralizer]->phitot[0]=-Qtot0/Mol[neutralizer]->Charge(); PhiTot0 +=Mol[neutralizer]->phitot[0];
-			Mol[neutralizer]->phitot[M-1]=-QtotM/Mol[neutralizer]->Charge(); PhiTotM +=Mol[neutralizer]->phitot[M-1];
-		}
+		switch (gradients) {
+			case 1:
+				for (int i = 0; i < n_seg; i++) {
+					if (!(Seg[i]->used_in_mol_nr==solvent || Seg[i]->used_in_mol_nr==neutralizer)) {
+						PhiTot0+=Seg[i]->phi[0];
+						Qtot0+=Seg[i]->phi[0]*Seg[i]->valence;
+						PhiTotM+=Seg[i]->phi[M-1];
+						QtotM+=Seg[i]->phi[M-1]*Seg[i]->valence;
+					}
+				}
 
-		Mol[solvent]->phitot[0]=1.0-PhiTot0;
-		Mol[solvent]->phitot[M-1]=1.0-PhiTotM;
+				if (Qtot0!=0 && neutralizer==-1) cout <<"Error: neutralizer needed, but was not found. Outcome uncertain" << endl;
+				if (Qtot0!=0) {
+					Mol[neutralizer]->phitot[0]=-Qtot0/Mol[neutralizer]->Charge(); PhiTot0 +=Mol[neutralizer]->phitot[0];
+					Mol[neutralizer]->phitot[M-1]=-QtotM/Mol[neutralizer]->Charge(); PhiTotM +=Mol[neutralizer]->phitot[M-1];
+				}
 
-		for (int i=0; i<n_seg; i++) {
+				Mol[solvent]->phitot[0]=1.0-PhiTot0;
+				Mol[solvent]->phitot[M-1]=1.0-PhiTotM;
 
-			if (Seg[i]->used_in_mol_nr==solvent) {
-				Seg[i]->phi[0]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[0];
-				Seg[i]->phi[M-1]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[M-1];
-			} //else
-			if (Seg[i]->used_in_mol_nr==neutralizer) {
-				Seg[i]->phi[0]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[0];
-				Seg[i]->phi[M-1]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[M-1];
-			} //else {
-			//	Seg[i]->phi[0]=Mol[Seg[i]->used_in_mol_nr]->fraction(i)*Mol[Seg[i]->used_in_mol_nr]->phitot[1];
-			//	Seg[i]->phi[M-1]=Mol[Seg[i]->used_in_mol_nr]->fraction(i)*Mol[Seg[i]->used_in_mol_nr]->phitot[M-2];
-			//}
-//cout <<"Seg " << Seg[i]->name << "phi0 = " << Seg[i]->phi[0] << endl;
-//cout <<"Seg " << Seg[i]->name << "phiM = " << Seg[i]->phi[M-1] << endl;
+				for (int i=0; i<n_seg; i++) {
+
+					if (Seg[i]->used_in_mol_nr==solvent) {
+						Seg[i]->phi[0]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[0];
+						Seg[i]->phi[M-1]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[M-1];
+					}
+					if (Seg[i]->used_in_mol_nr==neutralizer) {
+						Seg[i]->phi[0]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[0];
+						Seg[i]->phi[M-1]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[M-1];
+					}
+
+				}
+				break;
+			case 2:
+
+					for (int x=1; x<MX+1; x++) {
+						PhiTot0=0;
+						PhiTotM=0;
+						Qtot0=0;
+						QtotM=0;
+						for (int i = 0; i < n_seg; i++) {
+							if (!(Seg[i]->used_in_mol_nr==solvent || Seg[i]->used_in_mol_nr==neutralizer)) {
+								PhiTot0+=Seg[i]->phi[x*JX+0];
+								Qtot0+=Seg[i]->phi[x*JX+0]*Seg[i]->valence;
+								PhiTotM+=Seg[i]->phi[x*JX+MY+1];
+								QtotM+=Seg[i]->phi[x*JX+MY+1]*Seg[i]->valence;
+							}
+						}
+
+						if (Qtot0!=0) {
+							Mol[neutralizer]->phitot[x*JX+0]=-Qtot0/Mol[neutralizer]->Charge(); PhiTot0 +=Mol[neutralizer]->phitot[x*JX+0];
+							Mol[neutralizer]->phitot[x*JX+MY+1]=-QtotM/Mol[neutralizer]->Charge(); PhiTotM +=Mol[neutralizer]->phitot[x*JX+MY+1];
+						}
+
+						Mol[solvent]->phitot[x*JX+0]=1.0-PhiTot0;
+						Mol[solvent]->phitot[x*JX+MY+1]=1.0-PhiTotM;
+
+						for (int i=0; i<n_seg; i++) {
+
+							if (Seg[i]->used_in_mol_nr==solvent) {
+								Seg[i]->phi[x*JX+0]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[x*JX+0];
+								Seg[i]->phi[x*JX+MY+1]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[x*JX+MY+1];
+							}
+							if (Seg[i]->used_in_mol_nr==neutralizer) {
+								Seg[i]->phi[x*JX+0]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[x*JX+0];
+								Seg[i]->phi[x*JX+MY+1]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[x*JX+MY+1];
+							}
+
+						}
+					}
+					for (int y=1; y<MY+1; y++) {
+						PhiTot0=0;
+						PhiTotM=0;
+						Qtot0=0;
+						QtotM=0;
+						for (int i = 0; i < n_seg; i++) {
+							if (!(Seg[i]->used_in_mol_nr==solvent || Seg[i]->used_in_mol_nr==neutralizer)) {
+								PhiTot0+=Seg[i]->phi[0+y];
+								Qtot0+=Seg[i]->phi[0+y]*Seg[i]->valence;
+								PhiTotM+=Seg[i]->phi[(MX+1)*JX+y];
+								QtotM+=Seg[i]->phi[(MX+1)*JX+y]*Seg[i]->valence;
+							}
+						}
+
+						if (Qtot0!=0) {
+							Mol[neutralizer]->phitot[0+y]=-Qtot0/Mol[neutralizer]->Charge(); PhiTot0 +=Mol[neutralizer]->phitot[0+y];
+							Mol[neutralizer]->phitot[(MX+1)*JX+y]=-QtotM/Mol[neutralizer]->Charge(); PhiTotM +=Mol[neutralizer]->phitot[(MX+1)*JX+y];
+						}
+
+						Mol[solvent]->phitot[0+y]=1.0-PhiTot0;
+						Mol[solvent]->phitot[(MX+1)*JX+y]=1.0-PhiTotM;
+
+						for (int i=0; i<n_seg; i++) {
+
+							if (Seg[i]->used_in_mol_nr==solvent) {
+								Seg[i]->phi[0+y]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[0+y];
+								Seg[i]->phi[(MX+1)*JX+y]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[(MX+1)*JX+y];
+							} //else
+							if (Seg[i]->used_in_mol_nr==neutralizer) {
+								Seg[i]->phi[0+y]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[0+y];
+								Seg[i]->phi[(MX+1)*JX+y]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[(MX+1)*JX+y];
+							}
+
+						}
+					}
+				break;
+			default:
+				break;
 		}
 
 /*

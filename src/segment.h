@@ -91,6 +91,8 @@ public:
 	int used_in_mol_nr;
 	Real phi_LB_X;
 	Real phi_UB_X;
+	Real phi_LB_Y;
+	Real phi_UB_Y;
 
 	vector<string> ints;
 	vector<string> Reals;
