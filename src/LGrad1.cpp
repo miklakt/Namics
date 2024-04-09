@@ -975,7 +975,6 @@ bool LGrad1:: PutMask(int* MASK,vector<int>px,vector<int>py,vector<int>pz,int R)
 }
 
 Real LGrad1::DphiDt(Real* g, Real* B_phitot, Real* phiA, Real* phiB, Real* alphaA, Real* alphaB,Real B_A, Real B_B) {
-	//cout <<"LGrad1 : DphiDt not implemented yet " << endl;
 
 	Real AverageJ=0;
 	//Real Jplus,Jmin;
@@ -990,12 +989,6 @@ Real LGrad1::DphiDt(Real* g, Real* B_phitot, Real* phiA, Real* phiB, Real* alpha
 	for (int z=2; z<M-2; z++) {
 		a=b; b=c; c=phiA[z+1]*phiB[z+1]*B_B/B_phitot[z+1];
 		Ma=Mb; Mb=Mc; Mc=alphaA[z+1]-alphaB[z+1];
-		//Jmin =(a+b)*(Mb-Ma);
-		//if (Jmin <0) Jmin=-log(-Jmin); else Jmin=log(Jmin);
-		//Jplus = (b+c)*(Mc-Mb);
-		//if (Jplus <0) Jplus=-log(-Jplus); else Jplus=log(Jplus);
-		//g[z]=g[z]+ (Jmin-Jplus);
-		//g[z]=g[z]+ (Jmin-Jplus)/abs(Jmin+Jplus);
 		g[z] = g[z]  + (a+b)*(Mb-Ma)*lambda_1[z]-(b+c)*(Mc-Mb)*lambda1[z];///L[z];
 
 		AverageJ+=lambda_1[z]*L[z]*(a+b)*(Mb-Ma);

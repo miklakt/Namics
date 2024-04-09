@@ -18,11 +18,15 @@ if (debug) cout <<"Constructor for Mol " + name << endl;
 	KEYS.push_back("k_stiff");
 	KEYS.push_back("phi_LB_x");
 	KEYS.push_back("phi_UB_x");
+	KEYS.push_back("phi_LB_y");
+	KEYS.push_back("phi_UB_y");
 	KEYS.push_back("B");
 
 	width=0;
 	phi_LB_X=0.0;
 	phi_UB_X=0.0;
+	phi_LB_Y=0.0;
+	phi_UB_Y=0.0;
 	phi1=0;
 	phiM=0;
 	Dphi=0;
@@ -516,19 +520,42 @@ if (debug) cout <<"CheckInput for Mol " + name << endl;
 				}
 
 				if (freedom == "gradient") { //for the time being only in one-gradient systems; this is tested in system.
-					//if (GetValue("phibulk").size() >0) {
-					//	cout <<"In mol " + name + ", the setting 'freedom : gradient' should not be combined with a value for 'phibulk' but with values for 'phi_LB_x' and 'phi_UP_x' "<<endl; return false;
-					//} else {
-						if (GetValue("phi_LB_x").size()==0 || GetValue("phi_UB_x").size()==0) {
-							cout <<"in mol " + name + "the setting 'freedom : gradient' should be combined with values of 'phi_LB_x' and 'phi_UB_x'=phibulk " << endl; return false;
-						} else {
-							phi_UB_X=In[0]->Get_Real(GetValue("phi_UB_x"),-1); phibulk=phi_UB_X;
-							phi_LB_X=In[0]->Get_Real(GetValue("phi_LB_x"),-1);
-							if (phi_UB_X < 0 || phi_UB_X >1 || phi_LB_X <0 || phi_UB_X > 1 ) {
-								cout << "In mol " + name + ", the value of 'phi_UB_x' or 'phi_LB_x' is out of range 0 .. 1." << endl; return false;
+					if (GetValue("phibulk").size() >0) {
+						cout <<"Warning: In mol " + name + ", the setting 'freedom : gradient' should not be combined with a value for 'phibulk' but with values for 'phi_LB_x' and 'phi_UP_x' "<<endl;
+						cout <<"Your inputvalue for phibulk is ignored and replaced by the value given in phi_UB_x (1 gradient) or phi_UB_y (2 gradients) " << endl;
+					}
+					int gradients=Lat[0]->gradients;
+					switch (gradients) {
+						case 1:
+							if (GetValue("phi_LB_x").size()==0 || GetValue("phi_UB_x").size()==0) {
+								cout <<"in mol " + name + "the setting 'freedom : gradient' should be combined with values of 'phi_LB_x' and 'phi_UB_x'=phibulk " << endl; return false;
+							} else {
+								phi_UB_X=In[0]->Get_Real(GetValue("phi_UB_x"),-1); phibulk=phi_UB_X;
+								phi_LB_X=In[0]->Get_Real(GetValue("phi_LB_x"),-1);
+								if (phi_UB_X < 0 || phi_UB_X >1 || phi_LB_X <0 || phi_UB_X > 1 ) {
+									cout << "In mol " + name + ", the value of 'phi_UB_x' or 'phi_LB_x' is out of range 0 .. 1." << endl; return false;
+								}
 							}
-						}
-					//}
+							break;
+						case 2:
+							if (GetValue("phi_LB_x").size()==0 || GetValue("phi_UB_x").size()==0 || GetValue("phi_LB_y").size()==0 || GetValue("phi_UB_y").size()==0) {
+								cout <<"in mol " + name + "the setting 'freedom : gradient' should be combined with values of 'phi_LB_x', 'phi_UB_x', 'phi_LB_y' and 'phi_UB_y'=phibulk values."  << endl; return false;
+							} else {
+								phi_UB_X=In[0]->Get_Real(GetValue("phi_UB_x"),-1);
+								phi_LB_X=In[0]->Get_Real(GetValue("phi_LB_x"),-1);
+								phi_UB_Y=In[0]->Get_Real(GetValue("phi_UB_y"),-1); phibulk=phi_UB_Y;
+								phi_LB_Y=In[0]->Get_Real(GetValue("phi_LB_y"),-1);
+								if (phi_UB_X < 0 || phi_UB_X >1 || phi_LB_X <0 || phi_UB_X > 1 ) {
+									cout << "In mol " + name + ", the value of 'phi_UB_x' or 'phi_LB_x' is out of range 0 .. 1." << endl; return false;
+								}
+								if (phi_UB_Y < 0 || phi_UB_Y >1 || phi_LB_Y <0 || phi_UB_Y > 1 ) {
+									cout << "In mol " + name + ", the value of 'phi_UB_y' or 'phi_LB_y' is out of range 0 .. 1." << endl; return false;
+								}
+							}
+							break;
+						default:
+							cout <<" Freedom gradient only implemented for 1 and 2 gradient systems " << endl; return false;
+					}
 				}
 
 				if (freedom == "restricted" || freedom=="range_restricted") {
@@ -2010,6 +2037,8 @@ if (debug) cout <<"PushOutput for Mol " + name << endl;
         //cout <<"theta " << name << " = " << theta << endl;
 	Real thetaexc=theta-Lat[0]->volume*phibulk;
 	push("theta_exc",thetaexc);
+	push("n_exc",thetaexc/chainlength);
+	push("nexc",thetaexc/chainlength);
 	push("thetaexc",thetaexc);
 	push("theta_Gibbs",theta_Gibbs);
 	if (R_Gibbs>0) push("R_Gibbs",R_Gibbs);
@@ -2021,6 +2050,7 @@ if (debug) cout <<"PushOutput for Mol " + name << endl;
 		push("Kw",Kw);
 	}
 	push("Mu",Mu);
+	push("mu",Mu); push("MU",Mu);
 	if (Lat[0]->gradients==3) {
 		Real TrueVolume=Lat[0]->MX*Lat[0]->MY*Lat[0]->MZ;
 		Real Volume_particles=0;

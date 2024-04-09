@@ -8,7 +8,7 @@ lat : flat : lattice_type : simple_cubic
 mon : A : freedom : free
 mon : B : freedom : free
 
-mon : A : chi_B : 0.0000001
+mon : A : chi_B : 0.001
 
 mol : pol : composition : (A)1
 mol : pol : freedom : gradient

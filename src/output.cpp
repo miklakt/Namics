@@ -327,7 +327,7 @@ int Output::GetValue(string key, string name, string prop, int &int_result, Real
 if (debug) cout << "GetValue (long) in output " << endl;
 	int monlistlength=In[0]->MonList.size();
 	int mollistlength=In[0]->MolList.size();
-	int allistlength; 
+	int allistlength;
 	int choice=0;
 	int i,j;
 	if  (key=="sys") choice=1;
@@ -364,11 +364,11 @@ if (debug) cout << "GetValue (long) in output " << endl;
 		case 6:
 			return GetValue(prop,name,int_result,Real_result,string_result);
 			break;
-		case 7: 
+		case 7:
 			i=0;
 			while (i<mollistlength) {
 				j=0;
-				allistlength=Mol[i]->MolAlList.size(); 
+				allistlength=Mol[i]->MolAlList.size();
 				while(j<allistlength) {
 					if (name==Mol[i]->Al[j]->name) return Mol[i]->Al[j]->GetValue(prop,int_result,Real_result,string_result);
 					j++;
@@ -580,11 +580,15 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 	if (name=="ana") {
 		time_t now;
 		time(&now);
+		char timestamp_str [80];
+		strftime (timestamp_str,80,"%FT%T",localtime(&now));
 		FILE *fp;
 		if (append) fp=fopen(filename.c_str(),"a"); else fp=fopen(filename.c_str(),"w");
-		fprintf(fp,"version: %s %s",version.c_str(),ctime(&now));
+		//fprintf(fp,"version: %s %s",version.c_str(),ctime(&now));
 //System parameters
 		s="sys : " + Sys[0]->name + " :";
+		fprintf(fp,"%s version : %s\n",s.c_str(),version.c_str());
+		fprintf(fp,"%s datetime : %s\n",s.c_str(),timestamp_str);
 		length = Sys[0]->ints.size();
 		for (int i=0; i<length; i++)
 			fprintf(fp,"%s %s : %i \n",s.c_str(),Sys[0]->ints[i].c_str(),Sys[0]->ints_value[i]);
