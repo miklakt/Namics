@@ -31,6 +31,7 @@
 #include "solve_scf.h"
 #include "mesodyn.h"
 #include "microemulsion.h"
+#include <memory>
 
 string version = "2.2.2.2.2.1.1";
 // meaning:
@@ -131,34 +132,34 @@ int main(int argc, char *argv[])
 	SUM_RESULT = new Real;
 #endif
 
-	// All class instances are stored in the following vectors
-	vector<Input *> In;			// Inputs read from file
-	vector<Output *> Out;		// Outputs written to file
-	vector<Lattice *> Lat;
-	// Properties of the lattice
-	//Lat_preview* lat_p;
-	Lattice * lat_p;
-	//mol_preview* mol_p;
-	Molecule * mol_p;
-	vector<Molecule *> Mol; 		// Properties of entire molecule
-	vector<Segment *> Seg;		// Properties of molecule segments
+	// Single ownership
+	unique_ptr<Input> In;              // Inputs read from file
+	unique_ptr<Lattice> Lat;
+	unique_ptr<Lattice> Lat_spherical; // auxiliary lattice for microemulsion
+	unique_ptr<Lattice> lat_p;
+	unique_ptr<Molecule> mol_p;
+	unique_ptr<Solve_scf> New;         // Solver and iteration scheme
+	unique_ptr<System> Sys;
+	unique_ptr<Mesodyn> Mes;
+	unique_ptr<Cleng> Cle;             // engine for clamped molecules
+	unique_ptr<Teng> Ten;              // engine for pinned molecules
+	unique_ptr<Microemulsion> Micro;
+
+	// Multi-instance collections
+	vector<Output *> Out;              // Outputs written to file
+	vector<Molecule *> Mol;            // Properties of entire molecule
+	vector<Segment *> Seg;             // Properties of molecule segments
 	vector<State *> Sta;
 	vector<Reaction *> Rea;
-	vector<Solve_scf *> New;		// Solvers and iteration schemes
-	vector<System *> Sys;
 	vector<Variate *> Var;
-	vector<Mesodyn *> Mes;
-	vector<Cleng *> Cle; 		//enginge for clampled molecules
-	vector<Teng *> Ten;			//enginge for pinned molecules
-	vector<Microemulsion *> Micro;
 
 	// Create input class instance and handle errors(reference above)
-	In.push_back(new Input(filename.str()));
-	if (In[0]->Input_error)
+	In = make_unique<Input>(filename.str());
+	if (In->Input_error)
 	{
 		return 0;
 	}
-	n_starts = In[0]->GetNumStarts();
+	n_starts = In->GetNumStarts();
 	if (n_starts == 0)
 		n_starts++; // Default to 1 start..
 
@@ -169,19 +170,16 @@ int main(int argc, char *argv[])
 	{
 
 		start++;
-		if (!In[0]->MakeLists(start)) return 0;
+		if (!In->MakeLists(start)) return 0;
 		cout << "Problem nr " << start << " out of " << n_starts << endl;
 
 		/******** Class creation starts here ********/
 
 		// Create lattice class instance and check inputs (reference above)
-		//Lat.push_back(new Lattice(In, In[0]->LatList[0]));
+		//lat_p = new Lat_preview(In.get(), In->LatList[0]);
+		lat_p = make_unique<LGrad1>(In.get(), In->LatList[0]);
 
-
-		//lat_p = new Lat_preview(In, In[0]->LatList[0]);
-		lat_p = new LGrad1(In, In[0]->LatList[0]);
-
-		//Lat[0]->outputtest();
+		//Lat->outputtest();
 		if (!lat_p->CheckInput(start,true)) //-1 means that checkinput will stop when gradients and geometry are known.
 		{
 			return 0;
@@ -189,44 +187,44 @@ int main(int argc, char *argv[])
 		{ int gradients=lat_p->gradients;
 		  string geometry = lat_p->geometry;
 		  bool success;
-			delete lat_p;
+			lat_p.reset();
 			switch (gradients) {
 				case 1:
 					if (geometry=="planar") {
-						Lat.push_back(new LG1Planar(In,In[0]->LatList[0]));
+						Lat = make_unique<LG1Planar>(In.get(),In->LatList[0]);
 					} else {
-						Lat.push_back(new LGrad1(In,In[0]->LatList[0]));
+						Lat = make_unique<LGrad1>(In.get(),In->LatList[0]);
 					}
 
 					break;
 				case 2:
 					if (geometry=="planar") {
-						Lat.push_back(new LG2Planar(In,In[0]->LatList[0]));
+						Lat = make_unique<LG2Planar>(In.get(),In->LatList[0]);
 					} else {
-						Lat.push_back(new LGrad2(In,In[0]->LatList[0]));
+						Lat = make_unique<LGrad2>(In.get(),In->LatList[0]);
 					}
 					break;
 				case 3:
-					Lat.push_back(new LGrad3(In,In[0]->LatList[0]));
+					Lat = make_unique<LGrad3>(In.get(),In->LatList[0]);
 					break;
 				default :
 					break;
 
 			}
-			success=Lat[0]->CheckInput(start,false);
+			success=Lat->CheckInput(start,false);
 
 			if (!success) return 0;
 		}
 
 		// Create segment class instance and check inputs (reference above)
-		int n_seg = In[0]->MonList.size();
+		int n_seg = In->MonList.size();
 		for (int i = 0; i < n_seg; i++) {
-			Seg.push_back(new Segment(In, Lat, In[0]->MonList[i], i, n_seg));
+			Seg.push_back(new Segment(In.get(), Lat.get(), In->MonList[i], i, n_seg));
 		}
 		//Create state class instance and check inputs
-		int n_stat = In[0]->StateList.size();
+		int n_stat = In->StateList.size();
 		for (int i = 0; i < n_stat; i++)
-			Sta.push_back(new State(In, Seg, In[0]->StateList[i]));
+			Sta.push_back(new State(In.get(), Seg, In->StateList[i]));
 
 		for (int i = 0; i < n_seg; i++)
 		{
@@ -256,20 +254,20 @@ int main(int argc, char *argv[])
 		}
 
 		//Create reaction class instance and check inputs
-		int n_rea = In[0]->ReactionList.size();
+		int n_rea = In->ReactionList.size();
 		for (int i = 0; i < n_rea; i++)
 		{
-			Rea.push_back(new Reaction(In, Seg, Sta, In[0]->ReactionList[i]));
+			Rea.push_back(new Reaction(In.get(), Seg, Sta, In->ReactionList[i]));
 			if (!Rea[i]->CheckInput(start))
 				return 0;
 		}
 
 		// Create segment class instance and check inputs (reference above)
-		int n_mol = In[0]->MolList.size();
+		int n_mol = In->MolList.size();
 		for (int i = 0; i < n_mol; i++)
 		{
-			//mol_p = new mol_preview(In, Lat, Seg, In[0]->MolList[i]);
-			mol_p = new Molecule(In, Lat, Seg, In[0]->MolList[i]);
+			//mol_p = new mol_preview(In.get(), Lat.get(), Seg, In->MolList[i]);
+			mol_p = make_unique<Molecule>(In.get(), Lat.get(), Seg, In->MolList[i]);
 			if (!mol_p->CheckInput(start,true)) //'true' here means that checkinput can stop wehn Moltype and freedom are known.
 			{
 				return 0;
@@ -277,68 +275,68 @@ int main(int argc, char *argv[])
 				switch (mol_p->MolType) {
 
 				 	case monomer:
-						Mol.push_back(new Molecule(In, Lat, Seg, In[0]->MolList[i]));
+						Mol.push_back(new Molecule(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
 					case water:
-						Mol.push_back(new mol_water(In, Lat, Seg, In[0]->MolList[i]));
+						Mol.push_back(new mol_water(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
 					case linear:
 						if (mol_p->freedom=="clamped") {
-							Mol.push_back(new mol_clamp(In, Lat, Seg, In[0]->MolList[i]));
+							Mol.push_back(new mol_clamp(In.get(), Lat.get(), Seg, In->MolList[i]));
 						} else {
-							Mol.push_back(new mol_linear(In, Lat, Seg, In[0]->MolList[i]));
+							Mol.push_back(new mol_linear(In.get(), Lat.get(), Seg, In->MolList[i]));
 						}
 						break;
 					case branched:
-						Mol.push_back(new mol_branched(In, Lat, Seg, In[0]->MolList[i]));
+						Mol.push_back(new mol_branched(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
 					case dendrimer:
-						Mol.push_back(new mol_dend(In, Lat, Seg, In[0]->MolList[i]));
+						Mol.push_back(new mol_dend(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
 					case asym_dendrimer:
-						Mol.push_back(new mol_asym_dend(In, Lat, Seg, In[0]->MolList[i]));
+						Mol.push_back(new mol_asym_dend(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
 					case comb:
-						Mol.push_back(new mol_comb(In, Lat, Seg, In[0]->MolList[i]));
+						Mol.push_back(new mol_comb(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
 					default:
 						cout <<"Unknown MolType " << endl;
 						break;
 
 				}
-				delete mol_p;
+				mol_p.reset();
 				if (!Mol[i]->CheckInput(start,false)) return 0;
 			}
 		}
 
 		// Create system class instance and check inputs (reference above)
-		Sys.push_back(new System(In, Lat, Seg, Sta, Rea, Mol, In[0]->SysList[0]));
-		Sys[0]->cuda = cuda;
-		if (!Sys[0]->CheckInput(start)) return 0;
-		if (!Sys[0]->CheckChi_values(n_seg))return 0;
+		Sys = make_unique<System>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, In->SysList[0]);
+		Sys->cuda = cuda;
+		if (!Sys->CheckInput(start)) return 0;
+		if (!Sys->CheckChi_values(n_seg))return 0;
 
 
 		EngineType TheEngine;
 		TheEngine = SCF;
-		if (In[0]->MesodynList.size() > 0)
+		if (In->MesodynList.size() > 0)
 		{
 			TheEngine = MESODYN;
 		}
-		if (In[0]->ClengList.size() > 0)
+		if (In->ClengList.size() > 0)
 		{
 			TheEngine = CLENG;
 		}
-		if (In[0]->TengList.size() > 0)
+		if (In->TengList.size() > 0)
 		{
 			TheEngine = TENG;
 		}
-		if (In[0]->MicroList.size() > 0)
+		if (In->MicroList.size() > 0)
 		{
 			TheEngine = MICRO;
 		}
 
 		// Prepare variables used in variate class creation
-		int n_var = In[0]->VarList.size();
+		int n_var = In->VarList.size();
 		int n_search = 0;
 		int n_scan = 0;
 		int n_ets = 0;
@@ -350,7 +348,7 @@ int main(int argc, char *argv[])
 		// Create variate class instance and check inputs (reference above)
 		for (int k = 0; k < n_var; k++)
 		{
-			Var.push_back(new Variate(In, Lat, Seg, Sta, Rea, Mol, Sys, In[0]->VarList[k]));
+			Var.push_back(new Variate(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), In->VarList[k]));
 			if (!Var[k]->CheckInput(start)) return 0;
 
 			if (Var[k]->scanning > -1) {scan_nr = k; n_scan++; }
@@ -397,17 +395,17 @@ int main(int argc, char *argv[])
 
 
 		// Create newton class instance and check inputs (reference above)
-		New.push_back(new Solve_scf(In, Lat, Seg, Sta, Rea, Mol, Sys, Var, In[0]->NewtonList[0]));
-		if (!New[0]->CheckInput(start)) return 0;
+		New = make_unique<Solve_scf>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), Var, In->NewtonList[0]);
+		if (!New->CheckInput(start)) return 0;
 
 
 
 		//Guesses geometry
-		if (Sys[0]->initial_guess == "file")
+		if (Sys->initial_guess == "file")
 		{
 			MONLIST.clear();
 			STATELIST.clear();
-			if (!Lat[0]->ReadGuess(Sys[0]->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 0))
+			if (!Lat->ReadGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 0))
 			{
 				// last argument 0 is to first checkout sizes of system.
 				return 0;
@@ -438,7 +436,7 @@ int main(int argc, char *argv[])
 			}
 			MONLIST.clear();
 			STATELIST.clear();
-			Lat[0]->ReadGuess(Sys[0]->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 1);
+			Lat->ReadGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 1);
 			// last argument 1 is to read guess in X.
 		}
 
@@ -456,14 +454,14 @@ int main(int argc, char *argv[])
 		{
 		case SCF:
 			// Prepare, catch errors for output class creation
-			n_out = In[0]->OutputList.size();
+			n_out = In->OutputList.size();
 			if (n_out == 0)
 				cout << "Warning: no output defined!" << endl;
 
 			// Create output class instance and check inputs (reference above)
 			for (int ii = 0; ii < n_out; ii++)
 			{
-				Out.push_back(new Output(In, Lat, Seg, Sta, Rea, Mol, Sys, New, In[0]->OutputList[ii], ii, n_out));
+				Out.push_back(new Output(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), In->OutputList[ii], ii, n_out));
 				if (!Out[ii]->CheckInput(start))
 				{
 					cout << "input_error in output " << endl;
@@ -481,45 +479,45 @@ int main(int argc, char *argv[])
 				if (scan_nr > -1)
 					Var[scan_nr]->PutVarScan(subloop);
 
-				Sys[0]->MakeItsLists();
+				Sys->MakeItsLists();
 
-				New[0]->AllocateMemory();
-				//if (Sys[0]->initial_guess == "previous_result") {
-				//	Real iv_=New[0]->iv;
-				//	if (iv_<IV_new) Cp(New[0]->xx,X,iv_); else Cp(New[0]->xx,X,IV_new);
+				New->AllocateMemory();
+				//if (Sys->initial_guess == "previous_result") {
+				//	Real iv_=New->iv;
+				//	if (iv_<IV_new) Cp(New->xx,X,iv_); else Cp(New->xx,X,IV_new);
 				//} else
 
-				if (Sys[0]->initial_guess != "none")
-				New[0]->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
+				if (Sys->initial_guess != "none")
+				New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
 
 				if (search_nr < 0 && ets_nr < 0 && etm_nr < 0)
 				{
 					//bool print=true;
-					New[0]->Solve(true);
+					New->Solve(true);
 
-					if (Sys[0]->initial_guess == "previous_result" || Sys[0]->initial_guess == "file") {
-						if (New[0]->iv == IV_new) {
-							Cp(X,New[0]->xx,IV_new);
+					if (Sys->initial_guess == "previous_result" || Sys->initial_guess == "file") {
+						if (New->iv == IV_new) {
+							Cp(X,New->xx,IV_new);
 						} else {
 							if (X!=NULL) free(X);
-							IV_new=New[0]->iv;
+							IV_new=New->iv;
 							X = (Real *)malloc(IV_new * sizeof(Real));
-							Cp (X,New[0]->xx,IV_new);
-							MX=Lat[0]->MX;
-							MY=Lat[0]->MY;
-							MZ=Lat[0]->MZ;
-							fjc_old=Lat[0]->fjc;
-							mon_length = Sys[0]->ItMonList.size();
-							state_length = Sys[0]->ItStateList.size();
+							Cp (X,New->xx,IV_new);
+							MX=Lat->MX;
+							MY=Lat->MY;
+							MZ=Lat->MZ;
+							fjc_old=Lat->fjc;
+							mon_length = Sys->ItMonList.size();
+							state_length = Sys->ItStateList.size();
 							MONLIST.clear();
 							STATELIST.clear();
 							for (int i = 0; i < mon_length; i++)
 							{
-								MONLIST.push_back(Seg[Sys[0]->ItMonList[i]]->name);
+								MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
 							}
 							for (int i = 0; i < state_length; i++)
 							{
-								STATELIST.push_back(Sta[Sys[0]->ItStateList[i]]->name);
+								STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
 							}
 						}
 					}
@@ -528,29 +526,29 @@ int main(int argc, char *argv[])
 				{
 					if (!debug)
 						cout << "Solve towards superiteration " << endl;
-					New[0]->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
+					New->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
 				}
-				New[0]->PushOutput();
+				New->PushOutput();
 
 				for (int ii = 0; ii < n_out; ii++)
 				{
 					Out[ii]->WriteOutput(subloop);
 				}
-				if (Sys[0]->final_guess == "file")
+				if (Sys->final_guess == "file")
 				{
 					MONLIST.clear();
 					STATELIST.clear();
-					int mon_length = Sys[0]->ItMonList.size();
-					int state_length = Sys[0]->ItStateList.size();
+					int mon_length = Sys->ItMonList.size();
+					int state_length = Sys->ItStateList.size();
 					for (int i = 0; i < mon_length; i++)
 					{
-						MONLIST.push_back(Seg[Sys[0]->ItMonList[i]]->name);
+						MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
 					}
 					for (int i = 0; i < state_length; i++)
 					{
-						STATELIST.push_back(Sta[Sys[0]->ItStateList[i]]->name);
+						STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
 					}
-					Lat[0]->StoreGuess(Sys[0]->guess_outputfile, New[0]->xx, New[0]->SCF_method, MONLIST, STATELIST, Sys[0]->charged, start);
+					Lat->StoreGuess(Sys->guess_outputfile, New->xx, New->SCF_method, MONLIST, STATELIST, Sys->charged, start);
 				}
 
 
@@ -559,60 +557,63 @@ int main(int argc, char *argv[])
 
 			break;
 		case MESODYN:
-			New[0]->mesodyn = true;
-			New[0]->AllocateMemory();
-			New[0]->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
-			if (!In[0]->CheckParameters("mesodyn", In[0]->MesodynList[0], start, Mesodyn::KEYS, Mesodyn::PARAMETERS, Mesodyn::VALUES))
+			New->mesodyn = true;
+			New->AllocateMemory();
+			New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
+			if (!In->CheckParameters("mesodyn", In->MesodynList[0], start, Mesodyn::KEYS, Mesodyn::PARAMETERS, Mesodyn::VALUES))
 			{
 				cout << "Error loading mesodyn parameters" << endl;
 				exit(0);
 			}
 			if (debug)
 				cout << "Creating mesodyn" << endl;
-			Mes.push_back(new Mesodyn(start, In, Lat, Seg, Sta, Rea, Mol, Sys, New, In[0]->MesodynList[0]));
+			Mes = make_unique<Mesodyn>(start, In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), In->MesodynList[0]);
 			try
 			{
-				Mes[0]->mesodyn();
+				Mes->mesodyn();
 			}
 			catch (error RC)
 			{
 				cout << "Exiting Mesodyn with error: " << RC << ". Please check the documentation for details." << endl;
 				exit(RC);
 			}
-			delete Mes[0];
-			Mes.clear();
+			Mes.reset();
 			break;
 		case CLENG:
-			New[0]->AllocateMemory();
-			New[0]->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
+			New->AllocateMemory();
+			New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
 			if (!debug)
 				cout << "Creating Cleng module" << endl;
-			Cle.push_back(new Cleng(In, Lat, Seg, Sta, Rea, Mol, Sys, New, In[0]->ClengList[0]));
-			if (!Cle[0]->CheckInput(start))
+			Cle = make_unique<Cleng>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), In->ClengList[0]);
+			if (!Cle->CheckInput(start))
 			{
 				return 0;
 			}
 			break;
 		case TENG:
-			New[0]->AllocateMemory();
-			New[0]->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
+			New->AllocateMemory();
+			New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
 			cout << "Solving Teng problem" << endl;
-			Ten.push_back(new Teng(In, Lat, Seg, Sta, Rea, Mol, Sys, New, In[0]->TengList[0]));
-			if (!Ten[0]->CheckInput(start))
+			Ten = make_unique<Teng>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), In->TengList[0]);
+			if (!Ten->CheckInput(start))
 			{
 				return 0;
 			}
 			break;
 		case MICRO:
 
-				Lat.push_back(new LGrad1(In,In[0]->LatList[0])); //dummy added. used in microemulsion.
-				Lat[1]->CheckInput(start,false);
-				Lat[1]->geometry = "spherical";
-				Lat[1]->AllocateMemory();
-				Micro.clear();
-				Micro.push_back(new Microemulsion(In,Out, Lat, Seg, Sta, Rea, Mol, Sys, New,Var, In[0]->MicroList[0]));
-				success=Micro[0]->CheckInput(start);
-				if (success) Micro[0]->Doit(X,METHOD,MONLIST,STATELIST,CHARGED,MX,MY,MZ,fjc_old,search_nr,ets_nr,etm_nr,target_nr,bm_nr,subloop,kal_append);
+				Lat_spherical = make_unique<LGrad1>(In.get(),In->LatList[0]); // dummy added, used in microemulsion.
+				Lat_spherical->CheckInput(start,false);
+				Lat_spherical->geometry = "spherical";
+				Lat_spherical->AllocateMemory();
+				{
+					vector<Lattice*> MicroLat;
+					MicroLat.push_back(Lat.get());
+					MicroLat.push_back(Lat_spherical.get());
+					Micro = make_unique<Microemulsion>(In.get(),Out, MicroLat, Seg, Sta, Rea, Mol, Sys.get(), New.get(),Var, In->MicroList[0]);
+				}
+				success=Micro->CheckInput(start);
+				if (success) Micro->Doit(X,METHOD,MONLIST,STATELIST,CHARGED,MX,MY,MZ,fjc_old,search_nr,ets_nr,etm_nr,target_nr,bm_nr,subloop,kal_append);
 			break;
 		default:
 			cout << "TheEngine is unknown. Programming error " << endl;
@@ -625,15 +626,15 @@ int main(int argc, char *argv[])
 
 		if (scan_nr > -1)
 			Var[scan_nr]->ResetScanValue();
-		if (Sys[0]->initial_guess == "previous_result"|| Sys[0]->initial_guess == "file")
+		if (Sys->initial_guess == "previous_result"|| Sys->initial_guess == "file")
 		{
-			METHOD = New[0]->SCF_method; //check this..
-			MX = Lat[0]->MX;
-			MY = Lat[0]->MY;
-			MZ = Lat[0]->MZ;
-			CHARGED = Sys[0]->charged;
-			IV_new = New[0]->iv; //check this
-			if (start > 1 || (start == 1 && Sys[0]->initial_guess == "file"))
+			METHOD = New->SCF_method; //check this..
+			MX = Lat->MX;
+			MY = Lat->MY;
+			MZ = Lat->MZ;
+			CHARGED = Sys->charged;
+			IV_new = New->iv; //check this
+			if (start > 1 || (start == 1 && Sys->initial_guess == "file"))
 #ifdef CUDA
 				cudaFree(X);
 #else
@@ -644,39 +645,47 @@ int main(int argc, char *argv[])
 #else
 			X = (Real *)malloc(IV_new * sizeof(Real));
 #endif
-			Cp(X, New[0]->xx, IV_new);
-			fjc_old = Lat[0]->fjc;
-			mon_length = Sys[0]->ItMonList.size();
-			state_length = Sys[0]->ItStateList.size();
+			Cp(X, New->xx, IV_new);
+			fjc_old = Lat->fjc;
+			mon_length = Sys->ItMonList.size();
+			state_length = Sys->ItStateList.size();
 			MONLIST.clear();
 			STATELIST.clear();
 			for (int i = 0; i < mon_length; i++)
 			{
-				MONLIST.push_back(Seg[Sys[0]->ItMonList[i]]->name);
+				MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
 			}
 			for (int i = 0; i < state_length; i++)
 			{
-				STATELIST.push_back(Sta[Sys[0]->ItStateList[i]]->name);
+				STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
 			}
 		}
-		if (Sys[0]->final_guess == "file")
+		if (Sys->final_guess == "file")
 		{
 			MONLIST.clear();
 			STATELIST.clear();
-			int mon_length = Sys[0]->ItMonList.size();
-			int state_length = Sys[0]->ItStateList.size();
+			int mon_length = Sys->ItMonList.size();
+			int state_length = Sys->ItStateList.size();
 			for (int i = 0; i < mon_length; i++)
 			{
-				MONLIST.push_back(Seg[Sys[0]->ItMonList[i]]->name);
+				MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
 			}
 			for (int i = 0; i < state_length; i++)
 			{
-				STATELIST.push_back(Sta[Sys[0]->ItStateList[i]]->name);
+				STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
 			}
-			Lat[0]->StoreGuess(Sys[0]->guess_outputfile, New[0]->xx, New[0]->SCF_method, MONLIST, STATELIST, Sys[0]->charged, start);
+			Lat->StoreGuess(Sys->guess_outputfile, New->xx, New->SCF_method, MONLIST, STATELIST, Sys->charged, start);
 		}
 
 		/******** Clear all class instances ********/
+
+		Mes.reset();
+		Cle.reset();
+		Ten.reset();
+		Micro.reset();
+		Lat_spherical.reset();
+		lat_p.reset();
+		mol_p.reset();
 
 		for (int i = 0; i < n_out; i++)
 			delete Out[i];
@@ -684,10 +693,8 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < n_var; i++)
 			delete Var[i];
 		Var.clear();
-		delete New[0];
-		New.clear();
-		delete Sys[0];
-		Sys.clear();
+		New.reset();
+		Sys.reset();
 		for (int i = 0; i < n_mol; i++)
 			delete Mol[i];
 		Mol.clear();
@@ -700,15 +707,13 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < n_rea; i++)
 			delete Rea[i];
 		Rea.clear();
-		delete Lat[0];
-		Lat.clear();
+		Lat.reset();
 	} //loop over starts.
 #ifdef CUDA
 	cudaFree(X);
 #else
 	free(X);
 #endif
-	delete In[0];
-	In.clear();
+	In.reset();
 	return 0;
 }

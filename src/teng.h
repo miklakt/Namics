@@ -16,14 +16,14 @@
 class Teng {
 private:
   const string name;
-  const vector<Input*> In;
-  const vector<Lattice*> Lat;
+  Input* In;
+  Lattice* Lat;
   const vector<Molecule*> Mol;
   const vector<Segment*> Seg;
   const vector<State*> Sta;
   const vector<Reaction*> Rea;
-  const vector<System*> Sys;
-  const vector<Solve_scf*> New;
+  System* Sys;
+  Solve_scf* New;
   const string brand;
 
   Real seed;
@@ -31,7 +31,7 @@ private:
 
 
 public:
-  Teng(vector<Input*>, vector<Lattice*>, vector<Segment*>, vector<State*>, vector<Reaction*>, vector<Molecule*>, vector<System*>, vector<Solve_scf*>, string);
+  Teng(Input*, Lattice*, vector<Segment*>, vector<State*>, vector<Reaction*>, vector<Molecule*>, System*, Solve_scf*, string);
   ~Teng();
 
   int tag_seg;

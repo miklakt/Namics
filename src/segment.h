@@ -6,13 +6,13 @@
 #include "tools.h"
 class Segment {
 public:
-	Segment(vector<Input*>,vector<Lattice*>,string,int,int);
+	Segment(Input*,Lattice*,string,int,int);
 
 ~Segment();
 
 	string name;
-	vector<Input*> In;
-	vector<Lattice*> Lat;
+	Input* In;
+	Lattice* Lat;
 	Lattice* lat;
 	vector<int> px1;
 	vector<int> px2;

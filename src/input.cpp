@@ -363,7 +363,7 @@ bool Input:: InSet(vector<int> &Standard, int &pos, int keyword){
 	return success;
 }
 
-//In[0]->CheckParameters("mesodyn", name, start, KEYS, PARAMETERS, VALUES)
+//In->CheckParameters("mesodyn", name, start, KEYS, PARAMETERS, VALUES)
 bool Input:: CheckParameters(string keyword, string name,int start, std::vector<std::string> &Standard, std::vector<std::string> &Input,std::vector<std::string> &Input_values) {
 	bool success=true;
 	bool prop_found;

@@ -2,7 +2,7 @@
 #include "tools.h"
 #include <algorithm>
 
-System::System(vector<Input *> In_, vector<Lattice *> Lat_, vector<Segment *> Seg_, vector<State *> Sta_, vector<Reaction *> Rea_, vector<Molecule *> Mol_, string name_)
+System::System(Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, string name_)
 {
 	Seg = Seg_;
 	Mol = Mol_;
@@ -11,7 +11,7 @@ System::System(vector<Input *> In_, vector<Lattice *> Lat_, vector<Segment *> Se
 	name = name_;
 	Sta = Sta_;
 	Rea = Rea_;
-	lat=Lat[0];
+	lat=Lat;
 	prepared = false;
 	if (debug)
 		cout << "Constructor for system " << endl;
@@ -35,9 +35,9 @@ System::System(vector<Input *> In_, vector<Lattice *> Lat_, vector<Segment *> Se
 	KEYS.push_back("compute_Gibbs_excess");
 	KEYS.push_back("compute_kJ0");
 
-	//int length = In[0]->MonList.size();
+	//int length = In->MonList.size();
 	//for (int i=0; i<length; i++)
-	//  KEYS.push_back("guess-" + In[0]->MonList[i]);
+	//  KEYS.push_back("guess-" + In->MonList[i]);
 	charged=false;
 	constraintfields=false;
   	boundaryless_volume=0;
@@ -193,14 +193,14 @@ void System::AllocateMemory()
     Zero(EE, M);
     Zero(E,M);
   }
-	n_mol = In[0]->MolList.size();
+	n_mol = In->MolList.size();
 	lat->AllocateMemory();
-	int n_mon = In[0]->MonList.size();
+	int n_mon = In->MonList.size();
 	for (int i = 0; i < n_mon; ++i)
 		Seg[i]->AllocateMemory();
 	for (int i = 0; i < n_mol; ++i)
 		Mol[i]->AllocateMemory();
-	CheckChi_values(In[0]->MonList.size()); //Here CHI matrix is allocated.
+	CheckChi_values(In->MonList.size()); //Here CHI matrix is allocated.
 	all_system=true;
 }
 
@@ -212,7 +212,7 @@ bool System::generate_mask()
 	bool success = true;
 	extra_constraints=0;
 	FrozenList.clear();
-	int length = In[0]->MonList.size();
+	int length = In->MonList.size();
 	for (int i = 0; i < length; i++)
 	{
 
@@ -224,7 +224,7 @@ bool System::generate_mask()
 	}
 
 	//if (extra_constraints > 0) cout <<" Detected " << extra_constraints << " extra constraints" << endl;
-	if (FrozenList.size() + SysMonList.size() + SysTagList.size() + SysClampList.size() != In[0]->MonList.size())
+	if (FrozenList.size() + SysMonList.size() + SysTagList.size() + SysClampList.size() != In->MonList.size())
 	{
 		//cout << " There are un-used monomers in system. Remove these before starting" << endl;
 		//return false;
@@ -286,7 +286,7 @@ bool System::PrepareForCalculations(bool first_time)
 
 
 	// necessary part; essentially for cleng
-	if (In.back()->MesodynList.empty() or prepared == false) {
+	if (In->MesodynList.empty() or prepared == false) {
 		success = generate_mask();
 		prepared = true;
 	}
@@ -298,9 +298,9 @@ bool System::PrepareForCalculations(bool first_time)
 		//cin.get();
 	}
 
-	n_mol = In[0]->MolList.size();
+	n_mol = In->MolList.size();
 	success = lat->PrepareForCalculations();
-	int n_mon = In[0]->MonList.size();
+	int n_mon = In->MonList.size();
 
 	Filling=false;
 	for (int i = 0; i < n_mol; i++){
@@ -361,7 +361,7 @@ bool System::PrepareForCalculations(bool first_time)
 	{
 		success = Seg[i]->PrepareForCalculations(KSAM,first_time);
 		if (Filling) {
-			if (!In[0]->InSet(FillList,i) && Seg[i]->freedom =="free") {
+			if (!In->InSet(FillList,i) && Seg[i]->freedom =="free") {
 				Times(Seg[i]->G1,Seg[i]->G1,FILL,M);
 			}
 		}
@@ -432,7 +432,7 @@ bool System::PrepareForCalculations(bool first_time)
 
 bool System::MakeItsLists(void) {
 	bool changed=false;
-	int length = In[0]->MonList.size();
+	int length = In->MonList.size();
 	StatelessMonList.clear();
 	SysMolMonList.clear();
 	SysMonList.clear();
@@ -446,8 +446,8 @@ bool System::MakeItsLists(void) {
 	for (int i = 0; i < length; i++)
 		if (Seg[i]->state_name.size() == 0)
 			StatelessMonList.push_back(i);
-	length = In[0]->MolList.size();
-	int statelength = In[0]->StateList.size();
+	length = In->MolList.size();
+	int statelength = In->StateList.size();
 	int i = 0;
 	while (i < length)
 	{
@@ -456,7 +456,7 @@ bool System::MakeItsLists(void) {
 		while (j < LENGTH)
 		{
 			SysMolMonList.push_back(Mol[i]->MolMonList[j]);
-			if (!In[0]->InSet(SysMonList, Mol[i]->MolMonList[j]))
+			if (!In->InSet(SysMonList, Mol[i]->MolMonList[j]))
 			{
 				if (Seg[Mol[i]->MolMonList[j]]->freedom != "tagged" && Seg[Mol[i]->MolMonList[j]]->freedom != "clamp")
 				{
@@ -469,7 +469,7 @@ bool System::MakeItsLists(void) {
 			}
 			if (Seg[Mol[i]->MolMonList[j]]->freedom == "tagged")
 			{
-				if (In[0]->InSet(SysTagList, Mol[i]->MolMonList[j]))
+				if (In->InSet(SysTagList, Mol[i]->MolMonList[j]))
 				{
 					//cout <<"You can not use the 'tag monomer' " + GetMonName(Mol[i]->MolMonList[j]) + " in more than one molecule." << endl; success=false;
 				}
@@ -478,7 +478,7 @@ bool System::MakeItsLists(void) {
 			}
 			if (Seg[Mol[i]->MolMonList[j]]->freedom == "clamp")
 				{
-				if (In[0]->InSet(SysClampList, Mol[i]->MolMonList[j]))
+				if (In->InSet(SysClampList, Mol[i]->MolMonList[j]))
 				{
 					//cout <<"You can not use the 'clamp monomer' " + GetMonName(Mol[i]->MolMonList[j]) + " in more than one molecule." << endl; success=false;
 				}
@@ -520,12 +520,12 @@ bool System::CheckInput(int start_)
 	tag_segment = -1;
 	solvent = -1; //value -1 means no solvent defined. tag_segment=-1;
 	Real phibulktot = 0;
-	success = In[0]->CheckParameters("sys", name, start, KEYS, PARAMETERS, VALUES);
+	success = In->CheckParameters("sys", name, start, KEYS, PARAMETERS, VALUES);
 	if (success)
 	{
 		if (GetValue("find_local_solution").size()>0) {
 			split = 2;
-			local_solution=In[0]->Get_bool(GetValue("find_local_solution"),false);
+			local_solution=In->Get_bool(GetValue("find_local_solution"),false);
 			if (local_solution) {
 				if (lat->gradients!=3) {
 					local_solution =false; cout << "find_local_solution is rejected as it requires 3 gradient system. " << endl;
@@ -540,7 +540,7 @@ bool System::CheckInput(int start_)
 					}
 				}
 				if (GetValue("split").size()>0) {
-					split=In[0]->Get_int(GetValue("split"),2);
+					split=In->Get_int(GetValue("split"),2);
 					if (!(split ==2 || split ==4 || split ==8 ||split ==16 || split==32 || split==64 || split ==128) ) {
 						cout <<"Value for split should be 2^n, with n= 1,..,6. used split = 2 instead." << endl;
 						split =2;
@@ -554,7 +554,7 @@ bool System::CheckInput(int start_)
 			}
 		}
 
-		success = CheckChi_values(In[0]->MonList.size());
+		success = CheckChi_values(In->MonList.size());
 
 #ifdef LongReal
 		if (GetValue("overflow_protection").size()==0||GetValue("overflow_protection")=="false" || GetValue("overflow_protection")=="FALSE"){
@@ -565,7 +565,7 @@ bool System::CheckInput(int start_)
 		}
 #else
 		if (GetValue("overflow_protection").size() > 0) {
-			if (In[0]->Get_bool(GetValue("overflow_protection"),true)) {
+			if (In->Get_bool(GetValue("overflow_protection"),true)) {
 				cout<<"You request 'overflow_protection', but the program was not compiled with the #define LongReal" << endl;
 				cout<<"1. Go to namics.h in the /src directory and turn on #define LongReal  ." <<endl;
 				cout<<"2. Do not request 'overflow_protection'." << endl;
@@ -574,7 +574,7 @@ bool System::CheckInput(int start_)
 
 #endif
 
-		GPU = In[0]->Get_bool(GetValue("GPU"), false);
+		GPU = In->Get_bool(GetValue("GPU"), false);
 		if (GPU)
 			if (!cuda)
 			{
@@ -596,7 +596,7 @@ bool System::CheckInput(int start_)
 		}
 		MakeItsLists();
 
-		int length = In[0]->MolList.size();
+		int length = In->MolList.size();
 		int i = 0;
 		while (i < length)
 		{
@@ -617,12 +617,12 @@ bool System::CheckInput(int start_)
 		}
 
 /*
-		int length = In[0]->MonList.size();
+		int length = In->MonList.size();
 		for (int i = 0; i < length; i++)
 			if (Seg[i]->state_name.size() == 0)
 				StatelessMonList.push_back(i);
-		length = In[0]->MolList.size();
-		int statelength = In[0]->StateList.size();
+		length = In->MolList.size();
+		int statelength = In->StateList.size();
 		int i = 0;
 		while (i < length)
 		{
@@ -631,7 +631,7 @@ bool System::CheckInput(int start_)
 			while (j < LENGTH)
 			{
 				SysMolMonList.push_back(Mol[i]->MolMonList[j]);
-				if (!In[0]->InSet(SysMonList, Mol[i]->MolMonList[j]))
+				if (!In->InSet(SysMonList, Mol[i]->MolMonList[j]))
 				{
 					if (Seg[Mol[i]->MolMonList[j]]->freedom != "tagged" && Seg[Mol[i]->MolMonList[j]]->freedom != "clamp")
 					{
@@ -644,7 +644,7 @@ bool System::CheckInput(int start_)
 				}
 				if (Seg[Mol[i]->MolMonList[j]]->freedom == "tagged")
 				{
-					if (In[0]->InSet(SysTagList, Mol[i]->MolMonList[j]))
+					if (In->InSet(SysTagList, Mol[i]->MolMonList[j]))
 					{
 						//cout <<"You can not use the 'tag monomer' " + GetMonName(Mol[i]->MolMonList[j]) + " in more than one molecule." << endl; success=false;
 					}
@@ -653,7 +653,7 @@ bool System::CheckInput(int start_)
 				}
 				if (Seg[Mol[i]->MolMonList[j]]->freedom == "clamp")
 				{
-					if (In[0]->InSet(SysClampList, Mol[i]->MolMonList[j]))
+					if (In->InSet(SysClampList, Mol[i]->MolMonList[j]))
 					{
 						//cout <<"You can not use the 'clamp monomer' " + GetMonName(Mol[i]->MolMonList[j]) + " in more than one molecule." << endl; success=false;
 					}
@@ -688,7 +688,7 @@ bool System::CheckInput(int start_)
 			}
 		}
 */
-		if (!solvent_found && In[0]->MolList.size()==1) {
+		if (!solvent_found && In->MolList.size()==1) {
 			if (Mol[0]->IsPinned()) {
 				phibulktot=1; cout <<"WARNING: no solvent found. Expecting solvent free 'brush'" << endl;
 			} else {
@@ -708,7 +708,7 @@ bool System::CheckInput(int start_)
 			neutralizer = -1;
 			bool neutralizer_needed = false;
 
-			int length = In[0]->MolList.size();
+			int length = In->MolList.size();
 			for (int i = 0; i < length; i++)
 				if (Mol[i]->freedom == "neutralizer")
 					neutralizer = i;
@@ -741,13 +741,13 @@ bool System::CheckInput(int start_)
 			vector<string> constraints;
 			constraints.push_back("delta");
 			ConstraintType = "";
-			if (!In[0]->Get_string(GetValue("constraint"), ConstraintType, constraints, "Info about 'constraint' rejected"))
+			if (!In->Get_string(GetValue("constraint"), ConstraintType, constraints, "Info about 'constraint' rejected"))
 			{
 				success = false;
 			};
 			if (ConstraintType == "delta")
 			{
-				//if (In[0]->MolList.size()>2) {
+				//if (In->MolList.size()>2) {
 				//	cout <<"ConstraintType 'delta' not supported (yet) when there are more than 2 molecules in the system " << endl;
 				//	cout <<"This issue may be resolved though. Send request to support team."<< endl; return(0);
 				//}
@@ -782,12 +782,12 @@ bool System::CheckInput(int start_)
 					vector<string> sub;
 					vector<string> set;
 					vector<string> coor;
-					In[0]->split(s, ';', sub);
+					In->split(s, ';', sub);
 					int n_points = sub.size();
 					for (int i = 0; i < n_points; i++)
 					{
 						set.clear();
-						In[0]->split(sub[i], '(', set);
+						In->split(sub[i], '(', set);
 						int length = set.size();
 						if (length != 2)
 						{
@@ -812,7 +812,7 @@ bool System::CheckInput(int start_)
 						else
 						{
 							coor.clear();
-							In[0]->split(set[1], ',', coor);
+							In->split(set[1], ',', coor);
 							int grad = lat->gradients;
 							int corsize = coor.size();
 							if (corsize != grad)
@@ -828,16 +828,16 @@ bool System::CheckInput(int start_)
 							else
 							{
 								int rr;
-								rr=In[0]->Get_int(coor[0], -1)*units;
+								rr=In->Get_int(coor[0], -1)*units;
 								if (rr<0 || rr>lat->MX) {cout << "Coordinate x for delta_range is out of bonds. " << endl; success=false; }
 								else px.push_back(rr);
 								if (grad > 1) {
-									rr=In[0]->Get_int(coor[1], -1)*units;
+									rr=In->Get_int(coor[1], -1)*units;
 									if (rr<0 || rr>lat->MY) {cout << "Coordinate y for delta_range is out of bonds. " << endl; success=false; }
 									else py.push_back(rr);
 								}
 								if (grad > 2){
-									rr=In[0]->Get_int(coor[2], -1)*units;
+									rr=In->Get_int(coor[2], -1)*units;
 									if (rr<0 || rr>lat->MZ) {cout << "Coordinate z for delta_range is out of bonds. " << endl; success=false; }
 									pz.push_back(rr);
 								}
@@ -855,7 +855,7 @@ bool System::CheckInput(int start_)
 				{
 					string deltamols = GetValue("delta_molecules");
 					vector<string> sub;
-					In[0]->split(deltamols, ';', sub);
+					In->split(deltamols, ';', sub);
 					int length_sub = sub.size();
 					if (length_sub != 2)
 					{
@@ -865,7 +865,7 @@ bool System::CheckInput(int start_)
 					else
 					{
 						DeltaMolList.clear();
-						int length = In[0]->MolList.size();
+						int length = In->MolList.size();
 						for (int i = 0; i < length; i++)
 						{
 							if (sub[0] == Mol[i]->name)
@@ -900,7 +900,7 @@ bool System::CheckInput(int start_)
 						phi_ratio=1.0*Mol[DeltaMolList[0]]->chainlength/Mol[DeltaMolList[1]]->chainlength;
 						if (phi_ratio>0) phi_ratio=sqrt(phi_ratio);
 					}
-					else phi_ratio=In[0]->Get_Real(GetValue("phi_ratio"),-1);
+					else phi_ratio=In->Get_Real(GetValue("phi_ratio"),-1);
 					if (phi_ratio<0) {cout <<" phi_ratio shoud contain keyword 'critical_ratio' or a positive real number, typically 1. " << endl; success=false;}
 				} else {
 					success=false; cout <<"Please give a value for 'phi_ratio' (typically 1 or specify the keyword 'critical_ratio')" << endl;
@@ -917,12 +917,12 @@ bool System::CheckInput(int start_)
 		CalculationType = "";
 		if (GetValue("calculation_type").size() > 0)
 		{
-			if (!In[0]->Get_string(GetValue("calculation_type"), CalculationType, options, " Info about calculation_type rejected; options are: 'equilibrium' and 'steady_state'."))
+			if (!In->Get_string(GetValue("calculation_type"), CalculationType, options, " Info about calculation_type rejected; options are: 'equilibrium' and 'steady_state'."))
 			return false;
 		}
 
 		int num_of_gradient_settings=0;
-		int num_of_mol = In[0]->MolList.size();
+		int num_of_mol = In->MolList.size();
 		for (int i=0; i<num_of_mol; i++)
 			if (Mol[i]->freedom =="gradient") num_of_gradient_settings++;
 
@@ -980,7 +980,7 @@ bool System::CheckInput(int start_)
 			options.push_back("membrane");
 			options.push_back("micelle");
 			options.push_back("none");
-			In[0]->Get_string(GetValue("initial_guess"), initial_guess, options, " Info about 'initial_guess' rejected;");
+			In->Get_string(GetValue("initial_guess"), initial_guess, options, " Info about 'initial_guess' rejected;");
 			if (initial_guess == "file")
 			{
 				if (GetValue("guess_inputfile").size() > 0)
@@ -1030,7 +1030,7 @@ bool System::CheckInput(int start_)
 			options.clear();
 			options.push_back("next_problem");
 			options.push_back("file");
-			if (!In[0]->Get_string(GetValue("final_guess"), final_guess, options, " Info about 'final_guess' rejected; default: 'next_problem' used."))
+			if (!In->Get_string(GetValue("final_guess"), final_guess, options, " Info about 'final_guess' rejected; default: 'next_problem' used."))
 			{
 				final_guess = "next_problem";
 			}
@@ -1051,17 +1051,17 @@ bool System::CheckInput(int start_)
 
 	internal_states = false;
 
-	if (In[0]->StateList.size() > 1)
+	if (In->StateList.size() > 1)
 	{
 		internal_states = true;
 		int num_of_Seg_with_states = 0;
-		int num_of_Eqns = In[0]->ReactionList.size();
+		int num_of_Eqns = In->ReactionList.size();
 		int num_of_alphabulk_fixed = 0;
-		int num_of_states = In[0]->StateList.size();
+		int num_of_states = In->StateList.size();
 		for (int k = 0; k < num_of_states; k++)
 			if (Sta[k]->fixed)
 				num_of_alphabulk_fixed++;
-		int length = In[0]->MonList.size();
+		int length = In->MonList.size();
 		for (int k = 0; k < length; k++)
 			if (Seg[k]->state_name.size() > 1)
 				num_of_Seg_with_states++;
@@ -1110,7 +1110,7 @@ bool System::CheckInput(int start_)
 		string s = GetValue("X");
 		vector<string> sub;
 		vector<string> SUB;
-		In[0]->split(s, '-', sub);
+		In->split(s, '-', sub);
 		if (sub[0] != "F")
 		{
 			cout << "X is the characteristic function specified by user." << endl;
@@ -1129,18 +1129,18 @@ bool System::CheckInput(int start_)
 		else
 		{
 			int length_sub = sub.size();
-			int length_mol = In[0]->MolList.size();
-			int length_state = In[0]->StateList.size();
+			int length_mol = In->MolList.size();
+			int length_state = In->StateList.size();
 			for (int i = 1; i < length_sub; i++)
 			{
 				SUB.clear();
-				In[0]->split(sub[i], ',', SUB);
+				In->split(sub[i], ',', SUB);
 				if (SUB.size() == 1)
 				{ //want to see mol name
 					bool found = false;
 					for (int k = 0; k < length_mol; k++)
 					{
-						if (SUB[0] == In[0]->MolList[k])
+						if (SUB[0] == In->MolList[k])
 						{
 							XmolList.push_back(k);
 							found = true;
@@ -1164,18 +1164,18 @@ bool System::CheckInput(int start_)
 						bool found_1 = false, found_2 = false;
 						for (int k = 0; k < length_state; k++)
 						{
-							if (SUB[0].substr(1, SUB[0].length() - 1) == In[0]->StateList[k])
+							if (SUB[0].substr(1, SUB[0].length() - 1) == In->StateList[k])
 							{
 								found_1 = true;
 								XstateList_1.push_back(k);
 							}
-							if (SUB[1] == In[0]->StateList[k])
+							if (SUB[1] == In->StateList[k])
 							{
 								found_2 = true;
 								XstateList_2.push_back(k);
 							}
 						}
-						int sto = In[0]->Get_int(SUB[2].substr(0, SUB[2].length() - 1), -1);
+						int sto = In->Get_int(SUB[2].substr(0, SUB[2].length() - 1), -1);
 						if (sto < 0)
 						{
 							success = false;
@@ -1205,7 +1205,7 @@ bool System::CheckInput(int start_)
 		}
 	}
 
-	int length = In[0]->MonList.size();
+	int length = In->MonList.size();
 
 	int *bc =(int*) malloc(6*sizeof(int)); std::fill(bc,bc+6,0);
 	for (int i = 0; i < length; i++) {
@@ -1242,7 +1242,7 @@ bool System::IsUnique(int Segnr_, int Statenr_)
 	if (CalculationType=="steady_state") return true;
 	bool is_unique = true;
 	bool is_equal = true;
-	if (In[0]->MesodynList.size() > 0)
+	if (In->MesodynList.size() > 0)
 		return is_unique;
 	int Segnr = Segnr_, Statenr = Statenr_;
 	int length = 0;
@@ -1448,7 +1448,7 @@ bool System::IsCharged()
 	if (debug)
 		cout << "System::IsCharged " << endl;
 	bool success = false;
-	int length = In[0]->MolList.size();
+	int length = In->MolList.size();
 	for (int i = 0; i < length; i++)
 	{
 		if (Mol[i]->IsCharged())
@@ -1539,7 +1539,7 @@ void System::PushOutput()
 	if (GetValue("E").size() >0)
 	{
 		Real sumE=0;
-		int length= In[0]->MonList.size();
+		int length= In->MonList.size();
 		for (int i=0; i<length; i++)
 		for (int j=i+1; j<length; j++) {
 			Real Eij=GetE(i,j);
@@ -1553,7 +1553,7 @@ void System::PushOutput()
 
 	if (GetValue("delta_range").size()>0) push("delta_range",GetValue("delta_range"));
 	if (GetValue("phi_ratio").size()>0) push("phi_ratio",phi_ratio);
-	int n_seg=In[0]->MonList.size();
+	int n_seg=In->MonList.size();
 	for (int i=0; i<n_seg; i++)
 	for (int j=0; j<n_seg; j++){
 		push("chi_"+Seg[i]->name+"_"+Seg[j]->name,CHI[i * n_seg + j]);
@@ -1591,7 +1591,7 @@ void System::PushOutput()
 		Real mu = -999;
 		for (int i = 0; i < length_state; i++)
 		{
-			length_mol = In[0]->MolList.size();
+			length_mol = In->MolList.size();
 			for (int k = 0; k < length_mol; k++)
 			{
 				if (Mol[k]->chainlength == 1)
@@ -1601,7 +1601,7 @@ void System::PushOutput()
 					{
 						for (int j = 0; j < Seg[seg]->ns; j++)
 						{
-							if (Seg[seg]->state_name[j] == In[0]->StateList[XstateList_2[i]])
+							if (Seg[seg]->state_name[j] == In->StateList[XstateList_2[i]])
 							{
 								mu = Mol[k]->mu_state[j];
 							}
@@ -1611,7 +1611,7 @@ void System::PushOutput()
 			}
 			if (mu == -999)
 			{
-				cout << "Failed to find chemical potential for state " + In[0]->StateList[XstateList_2[i]] + ": (not a monomer?) In characteristic function X, mu is set to zero." << endl;
+				cout << "Failed to find chemical potential for state " + In->StateList[XstateList_2[i]] + ": (not a monomer?) In characteristic function X, mu is set to zero." << endl;
 				mu = 0;
 			}
 			X -= Seg[Sta[XstateList_1[i]]->mon_nr]->state_theta[Sta[XstateList_1[i]]->state_nr] * Xn_1[i] * mu;
@@ -1634,7 +1634,7 @@ void System::PushOutput()
 	push("free_energy_density", s);
 	s = "profile;6";
 	push("phitot", s);
-	int n_mol = In[0]->MolList.size();
+	int n_mol = In->MolList.size();
 	Real Sprod=0;
 	for (int i=0; i<n_mol; i++) {
 		Sprod += Mol[i]->J*Mol[i]->Delta_MU;
@@ -1665,7 +1665,7 @@ Real *System::GetPointer(string s, int &SIZE)
 		cout << "GetPointer for system " << endl;
 	vector<string> sub;
 	SIZE = lat->M;
-	In[0]->split(s, ';', sub);
+	In->split(s, ';', sub);
 	if (sub[1] == "0")
 		return H_alpha;
 	if (sub[1] == "1")
@@ -1687,7 +1687,7 @@ int *System::GetPointerInt(string s, int &SIZE)
 	if (debug)
 		cout << "GetPointerInt for system " << endl;
 	vector<string> sub;
-	In[0]->split(s, ';', sub);
+	In->split(s, ';', sub);
 	if (sub[0] == "array")
 	{ //set SIZE and return pointer of int array
 	}
@@ -1742,7 +1742,7 @@ int System::GetValue(string prop, int &int_result, Real &Real_result, string &st
 
 int System::GetMonNr(string MonName) {
 	int nr=-1;
-	int length=In[0]->MonList.size();
+	int length=In->MonList.size();
 	for (int i=0; i<length; i++) {
 		if (Seg[i]->name ==MonName) nr=i;
 	}
@@ -1758,7 +1758,7 @@ bool System::CheckChi_values(int n_seg)
 	for (int i = 0; i < n_seg; i++)
 		for (int k = 0; k < n_seg; k++)
 		{
-			CHI[i * n_seg + k] = In[0]->Get_Real(Seg[i]->GetValue("chi_" + Seg[k]->name), 123);
+			CHI[i * n_seg + k] = In->Get_Real(Seg[i]->GetValue("chi_" + Seg[k]->name), 123);
 		}
 	for (int i = 0; i < n_seg; i++)
 		for (int k = 0; k < n_seg; k++)
@@ -1808,8 +1808,8 @@ bool System::CheckChi_values(int n_seg)
 
 
 
-	int n_segments = In[0]->MonList.size();
-	int n_states = In[0]->StateList.size();
+	int n_segments = In->MonList.size();
+	int n_states = In->StateList.size();
 	if (n_states == 1)
 		n_states = 0;
 	int n_chi = n_segments + n_states;
@@ -1954,7 +1954,7 @@ bool System::CheckChi_values(int n_seg)
 void System::DoElectrostatics(Real *g, Real *x)
 {
 	int M = lat->M;
-	int n_seg = In[0]->MonList.size();
+	int n_seg = In->MonList.size();
 	Zero(q, M);
 	Zero(eps, M);
 	for (int i = 0; i < n_seg; i++)
@@ -1967,7 +1967,7 @@ void System::DoElectrostatics(Real *g, Real *x)
 		lat->set_bounds(Seg[i]->phi);
 		YplusisCtimesX(eps, Seg[i]->phi, Seg[i]->epsilon, M);
 	}
-	int statelistlength = In[0]->StateList.size();
+	int statelistlength = In->StateList.size();
 	for (int i = 0; i < statelistlength; i++)
 	{
 //cout <<"Seg: " << Seg[Sta[i]->mon_nr]->name << " state:  " << Sta[i]->state_nr << " valence " << Sta[i]->valence << endl;
@@ -2023,8 +2023,8 @@ if(debug) cout <<"PutU in  Solve " << endl;
 	int M=lat->M;
 	int itmonlistlength=ItMonList.size();
 	int itstatelistlength=ItStateList.size();
-	int monlistlength =In[0]->MonList.size();
-	int statelistlength=In[0]->StateList.size();
+	int monlistlength =In->MonList.size();
+	int statelistlength=In->StateList.size();
 	int k=0;
 
 	int itpos=(itmonlistlength+itstatelistlength)*M;
@@ -2105,7 +2105,7 @@ if(debug) cout <<"PutU in  Solve " << endl;
 	if (charged) itpos +=M;
 	if (constraintfields) {Cp(BETA,xx+itpos,M); itpos+=M;}
 	if (extra_constraints>0) { //this is only for 1D and should never go to GPU... Else we have to come up with different way to do the extra constraints.
-		int length = In[0]->MonList.size();
+		int length = In->MonList.size();
 		for (int i = 0; i < length; i++)
 		{
 			int constraint_size=Seg[i]->constraint_z.size();
@@ -2123,11 +2123,11 @@ void System::Classical_residual(Real* x,Real*g,Real residual, int iterations, in
 if (debug) cout <<"Classical_residuals in scf mode in system " << endl;
 	int M=lat->M;
 	Real chi;
-	int mon_length = In[0]->MonList.size(); //also frozen segments
+	int mon_length = In->MonList.size(); //also frozen segments
 	int i,k;
 
 	int itmonlistlength=ItMonList.size();
-	int state_length = In[0]->StateList.size();
+	int state_length = In->StateList.size();
 	int itstatelistlength=ItStateList.size();
 //	for (int i=0; i<itmonlistlength; i++) cout <<Seg[ItMonList[i]]->name << " " ;
 //	cout <<endl;
@@ -2223,7 +2223,7 @@ if (debug) cout <<"Classical_residuals in scf mode in system " << endl;
 	}
 */
 	if (extra_constraints>0) {
-		int length = In[0]->MonList.size();
+		int length = In->MonList.size();
 		for (int i = 0; i < length; i++)
 		{
 			int constraint_size=Seg[i]->constraint_z.size();
@@ -2240,12 +2240,12 @@ void System::Steady_residual(Real* x,Real*g,Real residual, int iterations, int i
 if (debug) cout <<"steady_residuals in scf mode in system " << endl;
 	int M=lat->M;
 	Real chi;
-	int mon_length = In[0]->MonList.size(); //also frozen segments
+	int mon_length = In->MonList.size(); //also frozen segments
 	int i,k;
 	//dphidt*=(Real*) malloc(iv*sizeof(Real);
 
 	int itmonlistlength=ItMonList.size();
-	int state_length = In[0]->StateList.size();
+	int state_length = In->StateList.size();
 	int itstatelistlength=ItStateList.size();
 
 	if (itstatelistlength>0) cout <<"currently, internal states of segments incompatible with steady state " << endl;
@@ -2380,7 +2380,7 @@ if (debug) cout <<"steady_residuals in scf mode in system " << endl;
 		itpos+=M;
 	}
 	if (extra_constraints>0) {
-		int length = In[0]->MonList.size();
+		int length = In->MonList.size();
 		for (int i = 0; i < length; i++)
 		{
 			int constraint_size=Seg[i]->constraint_z.size();
@@ -2681,7 +2681,7 @@ for (int j=0; j<n_mol; j++) {
 		}
 	}
 
-	int n_seg = In[0]->MonList.size();
+	int n_seg = In->MonList.size();
 	if (do_blocks) {
 		for (int k=0; k<n_mol; k++) {
 			if (Mol[k]->freedom =="restricted") {
@@ -2985,13 +2985,13 @@ Real System::GetFreeEnergy(void)
 	Real FreeEnergy = 0;
 	Real *F = FreeEnergyDensity;
 	Real constant = 0;
-	int n_seg = In[0]->MonList.size();
-	int n_mol = In[0]->MolList.size();
-	int n_states = In[0]->StateList.size();
+	int n_seg = In->MonList.size();
+	int n_mol = In->MolList.size();
+	int n_states = In->StateList.size();
 	for (int i=0; i<n_mol; i++) {
 		lat->remove_bounds(Mol[i]->phitot);
 	}
-	int n_mon = In[0]->MonList.size();
+	int n_mon = In->MonList.size();
 	for (int i = 0; i < n_mon; i++)
 	{
 		if (Seg[i]->ns < 2)
@@ -3228,8 +3228,8 @@ Real System::GetGrandPotential(void)
 		cout << "GetGrandPotential for system " << endl;
 	int M = lat->M;
 	Real *GP = GrandPotentialDensity;
-	int n_mol = In[0]->MolList.size();
-	//int n_mon=In[0]->MonList.size();
+	int n_mol = In->MolList.size();
+	//int n_mon=In->MonList.size();
 	Zero(GP, M);
 
 	for (int i = 0; i < n_mol; i++)
@@ -3270,10 +3270,10 @@ Real System::GetGrandPotential(void)
 	Real *phi;
 	Real *phi_side;
 	Real *u_ext;
-	int n_seg = In[0]->MonList.size();
-	int n_states = In[0]->StateList.size();
+	int n_seg = In->MonList.size();
+	int n_states = In->StateList.size();
 
-	int n_mon = In[0]->MonList.size();
+	int n_mon = In->MonList.size();
 	for (int i = 0; i < n_mon; i++) //if this is not done, in 3 gradients we have wrong results...
 	{
 		if (Seg[i]->ns < 2)
@@ -3437,8 +3437,8 @@ bool System::CreateMu(int pos)
 	Real constant;
 	Real n;
 	Real GN;
-	int n_mol = In[0]->MolList.size();
-	int n_mon = In[0]->MonList.size();
+	int n_mol = In->MolList.size();
+	int n_mon = In->MonList.size();
 	for (int i = 0; i < n_mol; i++)
 	{
 		Real Mu = 0;
@@ -3498,7 +3498,7 @@ bool System::CreateMu(int pos)
 		//Real *alpha;
 		//int n_states;
 		//int n_seg = Mol[i]->MolMonList.size();
-		int statelistlength = In[0]->StateList.size();
+		int statelistlength = In->StateList.size();
 
 		for (int j = 0; j < n_mon; j++)
 		{
@@ -3715,9 +3715,9 @@ bool System::CreateMu(int pos)
   Real FreeEnergy = 0;
   Real* F = FreeEnergyDensity;
   Real constant = 0;
-  int n_mol = In[0]->MolList.size();
+  int n_mol = In->MolList.size();
   //for (int i=0; i<n_mol; i++) lat->remove_bounds(Mol[i]->phitot);
-  int n_mon = In[0]->MonList.size();
+  int n_mon = In->MonList.size();
   for (int i = 0; i < n_mon; i++) {
     lat->remove_bounds(Seg[i]->phi_side);
   }
@@ -3829,8 +3829,8 @@ bool System::CreateMuOld() {
   Real constant;
   Real n;
   Real GN;
-  int n_mol = In[0]->MolList.size();
-  int n_mon = In[0]->MonList.size();
+  int n_mol = In->MolList.size();
+  int n_mon = In->MonList.size();
   for (int i = 0; i < n_mol; i++) {
     Real Mu = 0;
     Real NA = Mol[i]->chainlength;

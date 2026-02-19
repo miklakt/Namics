@@ -11,7 +11,7 @@ Molecule_density::Molecule_density(Molecule *molecule, Real molecule_total_mass)
     : m_monomer_fraction_of_molecule(0),
       m_molecule_total_mass{molecule_total_mass},
       m_total_monomer_densities(0),
-      m_lat(molecule->Lat[0])
+      m_lat(molecule->Lat)
 {
     assert(molecule->MolMonList.size() > 0);
     // The indices in MolMonList are accepted by molecule->fraction
@@ -74,7 +74,7 @@ Homogeneous_system_initializer::Homogeneous_system_initializer(System *system)
 {
     assert(system->boundaryless_volume > 0);
     assert(system->Mol.size() > 1);
-    assert(system->Lat.size() > 0);
+    assert(system->Lat != nullptr);
 
 /*     for (size_t i = 0 ; i < m_segments.size() ; ++i)
         if (m_segments[i]->freedom == "frozen")

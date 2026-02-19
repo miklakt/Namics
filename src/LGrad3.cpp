@@ -3,7 +3,7 @@
 #include "lattice.h"
 #include "LGrad3.h"
 
-LGrad3::LGrad3(vector<Input*> In_,string name_): Lattice(In_,name_) {}
+LGrad3::LGrad3(Input* In_,string name_): Lattice(In_,name_) {}
 
 LGrad3::~LGrad3() {
 if (debug) cout <<"LGrad3 destructor " << endl;
@@ -977,23 +977,23 @@ if (debug) cout <<"ReadRange in LGrad3 " << endl;
 	vector<string>set;
 	vector<string>coor;
 	vector<string>xyz;
-	In[0]->split(range,';',set);
+	In->split(range,';',set);
 	coor.clear();
-	block=true; In[0]->split(set[0],',',coor);
+	block=true; In->split(set[0],',',coor);
 
 	if (coor.size()!=3) {cout << "In mon " + 	seg_name + ", for 'pos 1', in '" + range_type + "' the coordiantes do not come in set of three: 'x,y,z'" << endl; success=false;}
 	else {
-		r[0]=In[0]->Get_int(coor[0],0);
-		r[1]=In[0]->Get_int(coor[1],0);
-		r[2]=In[0]->Get_int(coor[2],0);
+		r[0]=In->Get_int(coor[0],0);
+		r[1]=In->Get_int(coor[1],0);
+		r[2]=In->Get_int(coor[2],0);
 	}
-	coor.clear(); In[0]->split(set[1],',',coor);
+	coor.clear(); In->split(set[1],',',coor);
 
 	if (coor.size()!=3) {cout << "In mon " + seg_name+ ", for 'pos 2', in '" + range_type + "', the coordinates do not come in set of three: 'x,y,z'" << endl; success=false;}
 	else {
-		r[3]=In[0]->Get_int(coor[0],0);
-		r[4]=In[0]->Get_int(coor[1],0);
-		r[5]=In[0]->Get_int(coor[2],0);
+		r[3]=In->Get_int(coor[0],0);
+		r[4]=In->Get_int(coor[1],0);
+		r[5]=In->Get_int(coor[2],0);
 	}
 	if (r[0] > r[3]) {cout << "In mon " + seg_name+ ", for 'pos 1', the x-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
 	if (r[1] > r[4]) {cout << "In mon " + seg_name+ ", for 'pos 1', the y-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
@@ -1013,32 +1013,32 @@ if (debug) cout <<"ReadRangeFile in LGrad3 " << endl;
 	vector<string> lines;
 	vector<string> sub;
 	vector<string> xyz;
-	string Infilename=In[0]->name;
-	In[0]->split(Infilename,'.',sub);
+	string Infilename=In->name;
+	In->split(Infilename,'.',sub);
 
 	int length;
 	int length_xyz;
 	int px,py,pz,p_i,x,y,z;
 	int i=0;
-	if (!In[0]->ReadFile(sub[0].append(".").append(filename),content)) {
+	if (!In->ReadFile(sub[0].append(".").append(filename),content)) {
 		success=false;
 		return success;
 	}
 
-	In[0]->split(content,'#',lines);
+	In->split(content,'#',lines);
 	length = lines.size();
 	if (length == MX*MY*MZ) { //expect to read 'mask file';
 		i=0;
 		if (n_pos==0) {
 			while (i<length){
-				if (In[0]->Get_int(lines[i],0)==1) n_pos++;
+				if (In->Get_int(lines[i],0)==1) n_pos++;
 				i++;
 			};
 			if (n_pos==0) {cout << "Warning: Input file for locations of 'particles' does not contain any unities." << endl;}
 		} else {
 			i=0; p_i=0;
 			for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++) for (z=1; z<MZ+1; z++) {
-				if (In[0]->Get_int(lines[i],0)==1) {H_p[p_i]=x*JX+y*JY+fjc-1+z; p_i++;}
+				if (In->Get_int(lines[i],0)==1) {H_p[p_i]=x*JX+y*JY+fjc-1+z; p_i++;}
 				i++;
 			}
 		}
@@ -1048,16 +1048,16 @@ if (debug) cout <<"ReadRangeFile in LGrad3 " << endl;
 		else {
 			while (i<length) {
 				xyz.clear();
-				In[0]->split(lines[i],',',xyz);
+				In->split(lines[i],',',xyz);
 				length_xyz=xyz.size();
 				if (length_xyz!=3) {
 					cout << "In mon " + seg_name + " " +range_type+"_filename  the expected 'triple coordinate' structure 'x,y,z' was not found. " << endl;  success = false;
 				} else {
-					px=In[0]->Get_int(xyz[0],0);
+					px=In->Get_int(xyz[0],0);
 					if (px < 1 || px > MX) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the x-coordinate in "+range_type+"_filename out of bounds: 1.." << MX << endl; success =false;}
-					py=In[0]->Get_int(xyz[1],0);
+					py=In->Get_int(xyz[1],0);
 					if (py < 1 || py > MY) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MY << endl; success =false;}
-					pz=In[0]->Get_int(xyz[2],0);
+					pz=In->Get_int(xyz[2],0);
 					if (pz < 1 || pz > MZ) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MZ << endl; success =false;}
 				}
 				H_p[i]=px*JX+py*JY+fjc-1+pz;
@@ -1079,9 +1079,9 @@ bool LGrad3::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=In[0]->ReadFile(filename,content);
+		success=In->ReadFile(filename,content);
 		if (success) {
-			In[0]->split(content,'#',lines);
+			In->split(content,'#',lines);
 			length = lines.size();
 		}
 	}
@@ -1092,7 +1092,7 @@ bool LGrad3::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 		} else {
 			for (int x=1; x<MX+1; x++)
 			for (int y=1; y<MY+1; y++)
-			for (int z=1; z<MZ+1; z++) Mask[x*JX + y*JY + z]=In[0]->Get_int(lines[x*JX + y*JY + z],-1);
+			for (int z=1; z<MZ+1; z++) Mask[x*JX + y*JY + z]=In->Get_int(lines[x*JX + y*JY + z],-1);
 		}
 	} else  {
 		for (int i=0; i<length_px; i++) {

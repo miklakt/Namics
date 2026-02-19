@@ -1,6 +1,6 @@
 #include "state.h"
 
-State::State(vector<Input*> In_,vector<Segment*> Seg_, string name_) {
+State::State(Input* In_,vector<Segment*> Seg_, string name_) {
 	In=In_; name=name_;  Seg=Seg_;
 	KEYS.push_back("alphabulk");
 	KEYS.push_back("valence");
@@ -47,16 +47,16 @@ if (debug) cout <<"CheckInput in State " + name << endl;
 	state_id=-1;
 	state_nr_of_copy =-1;
 	seg_nr_of_copy =-1;
-	success= In[0]->CheckParameters("state",name,start,KEYS,PARAMETERS,VALUES);
-	int length=In[0]->MonList.size();
+	success= In->CheckParameters("state",name,start,KEYS,PARAMETERS,VALUES);
+	int length=In->MonList.size();
 	for (int k=0; k<length; k++) {
 		if (Seg[k]->name == name) { cout << "name of state can not be the same as the name of any mon in the system" << endl;
 		success=false;
 		}
 	}
-	int length_StateList=In[0]->StateList.size();
+	int length_StateList=In->StateList.size();
 	for (int k=0; k<length_StateList; k++) {
-		if (In[0]->StateList[k] == name) state_id=k;
+		if (In->StateList[k] == name) state_id=k;
 	}
 	if (state_id<0) cout << "error: state_id is negative " << endl;
 	if (success) {
@@ -80,7 +80,7 @@ if (debug) cout <<"CheckInput in State " + name << endl;
 			}
 			if (GetValue("alphabulk").size()>0) {
 				fixed=true;
-				alphabulk=In[0]->Get_Real(GetValue("alphabulk"),alphabulk);
+				alphabulk=In->Get_Real(GetValue("alphabulk"),alphabulk);
 				if (alphabulk <0 || alphabulk > 1) {
 					cout << "for state " << name << " value for alphabulk is out of range 0 ... 1 " << endl;
 					success=false;
@@ -88,7 +88,7 @@ if (debug) cout <<"CheckInput in State " + name << endl;
 			}
 			valence = 0;
 			if (GetValue("valence").size()>0) {
-				valence=In[0]->Get_Real(GetValue("valence"),valence);
+				valence=In->Get_Real(GetValue("valence"),valence);
 				if (valence <-10 || valence > 10) {
 					cout << "for state " << name << " value for valence " << GetValue("valence") << " is out of range -10 ... 10 " << endl;
 					success=false;
@@ -102,7 +102,7 @@ if (debug) cout <<"CheckInput in State " + name << endl;
 	for (int i=0; i<length; i++) {
 		Chi=-999;
 		if (GetValue("chi_"+chi_name[i]).size()>0) {
-			Chi=In[0]->Get_Real(GetValue("chi_"+chi_name[i]),Chi);
+			Chi=In->Get_Real(GetValue("chi_"+chi_name[i]),Chi);
 			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<GetValue("chi_"+chi_name[i]) << "not valid." << endl; }
 			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<GetValue("chi_"+chi_name[i]) << "value ignored: set to zero!" << endl; Chi=0;}
 
@@ -237,20 +237,20 @@ if (debug) cout << "State::PutVarInfo " << endl;
 		if (Var_target_=="alphabulk") {Var_target=0; Var_start_value=Seg[mon_nr]->state_alphabulk[state_nr] ;}
 		if (Var_target ==-1) {
 			vector<string>sub;
-			In[0]->split(Var_target_,'-',sub);
+			In->split(Var_target_,'-',sub);
 			if (sub.size()==2) {
 				if (sub[0]=="chi") {
-					length_mon=In[0]->MonList.size();
+					length_mon=In->MonList.size();
 					for (int i=0; i<length_mon; i++) {
-						if (sub[1]==In[0]->MonList[i]) {
+						if (sub[1]==In->MonList[i]) {
 							Var_target=1; Var_start_value=chi[i];
 							chi_var_seg=i;
 						}
 					}
 					if (Var_target!=1) {
-						length_state=In[0]->StateList.size();
+						length_state=In->StateList.size();
 						for (int i=0; i<length_state; i++) {
-							if (sub[1]==In[0]->StateList[i]) {
+							if (sub[1]==In->StateList[i]) {
 								Var_target = 1; Var_start_value=chi[i+length_mon];
 								chi_var_state=i;
 							}
@@ -321,7 +321,7 @@ if (debug) cout << "State::UpdateVarInfo " << endl;
 			if (scale=="exponential") {
 				cout <<"In var of chi-parameter, only linear scale is implemented" << endl; success=false;
 			} else {
-				length = In[0]->MonList.size();
+				length = In->MonList.size();
 				if (chi_var_seg>-1) {
 					chi[chi_var_seg]= Var_start_value+step_nr*Var_step;
 				}
@@ -347,7 +347,7 @@ if (debug) cout << "State::ResetInitValue() " << endl;
 			Seg[mon_nr]->state_alphabulk[state_nr]=alphabulk;
 			break;
 		case 1:
-			length = In[0]->MonList.size();
+			length = In->MonList.size();
 			if (chi_var_seg>-1) {
 				chi[chi_var_seg]= Var_start_value;
 			}
@@ -371,7 +371,7 @@ if (debug) cout << "State::PutValue() " << endl;
 			Seg[mon_nr]->state_alphabulk[state_nr]=alphabulk;
 			break;
 		case 1:
-			length = In[0]->MonList.size();
+			length = In->MonList.size();
 			if (chi_var_seg>-1) {
 				chi[chi_var_seg]= X;
 			}
@@ -395,7 +395,7 @@ if (debug) cout << "State::GetValue() " << endl;
 			X=Seg[mon_nr]->state_alphabulk[state_nr];
 			break;
 		case 1:
-			length = In[0]->MonList.size();
+			length = In->MonList.size();
 			if (chi_var_seg>-1) {
 				X=chi[chi_var_seg];
 			}

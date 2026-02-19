@@ -1,8 +1,8 @@
 #include "alias.h"
 
-Alias::Alias(vector<Input*> In_,vector<Lattice*> Lat_, string name_) {
+Alias::Alias(Input* In_,Lattice* Lat_, string name_) {
 	In=In_; name=name_;   Lat=Lat_;
-	lat=Lat[0];
+	lat=Lat;
 	KEYS.push_back("value");
 }
 Alias::~Alias() {
@@ -65,12 +65,12 @@ if (debug) cout <<"PutParameter in Alias " + name << endl;
 bool Alias::CheckInput(int start) {
 if (debug) cout <<"CheckInput in Alias " + name << endl;
 	bool success=true;
-	success= In[0]->CheckParameters("alias",name,start,KEYS,PARAMETERS,VALUES);
+	success= In->CheckParameters("alias",name,start,KEYS,PARAMETERS,VALUES);
 	if (success) {
 		value =0;
 		if (GetValue("value").size()>0) {
 			int defaultvalue=12345678;
-			value=In[0]->Get_int(GetValue("value"),defaultvalue);
+			value=In->Get_int(GetValue("value"),defaultvalue);
 			if (value==12345678) {composition=GetValue("value"); value=-1; }
 			else {
 				if (value < 0|| value >1e7 ) {cout <<"In alias " + name + " the numerical value of 'value' out of range 0 ... 1e7" << endl; success=false; }

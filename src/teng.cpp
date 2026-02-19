@@ -4,7 +4,7 @@
 #include "output.h"
 #include <string>
 // Constructor
-Teng::Teng(vector<Input *> In_, vector<Lattice *> Lat_, vector<Segment *> Seg_, vector<State *> Sta_, vector<Reaction *> Rea_, vector<Molecule *> Mol_, vector<System *> Sys_, vector<Solve_scf *> New_, string name_)
+Teng::Teng(Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_, Solve_scf* New_, string name_)
 		: name{name_},
 			In{In_},
 			Lat{Lat_},
@@ -40,15 +40,15 @@ bool Teng::MonteCarlo()
 	bool solved = false;
 	int time = 0;
 	Real *copyitvar;
-	copyitvar = (Real *)malloc(New[0]->iv * sizeof(Real));
-	New[0]->i_info = 100;
-	solved = New[0]->Solve(true);
+	copyitvar = (Real *)malloc(New->iv * sizeof(Real));
+	New->i_info = 100;
+	solved = New->Solve(true);
 	success = CP(to_teng);
-	for (int i = 0; i < New[0]->iv; i++)
+	for (int i = 0; i < New->iv; i++)
 	{
-		copyitvar[i] = New[0]->xx[i];
+		copyitvar[i] = New->xx[i];
 	}
-	Real F_bm = Sys[0]->FreeEnergy; //Real G_bm = Sys[0]->GrandPotential;
+	Real F_bm = Sys->FreeEnergy; //Real G_bm = Sys->GrandPotential;
 	Real F_am;
 	WriteOutput(time);
 	Real accepted = 0.0;
@@ -62,17 +62,17 @@ bool Teng::MonteCarlo()
 	{
 		success = CP(to_bm);
 		ChangeMode();
-		solved = New[0]->Solve(true);
-		F_am = Sys[0]->FreeEnergy;
+		solved = New->Solve(true);
+		F_am = Sys->FreeEnergy;
 
 		acceptance = GetRandom(one);
 
 		if ((F_am - F_bm <= 0 || acceptance < exp(-1.0 * (F_am - F_bm))) && solved)
 		{
-			F_bm = Sys[0]->FreeEnergy; // G_bm=Sys[0]->GrandPotential;
-			for (int i = 0; i < New[0]->iv; i++)
+			F_bm = Sys->FreeEnergy; // G_bm=Sys->GrandPotential;
+			for (int i = 0; i < New->iv; i++)
 			{
-				copyitvar[i] = New[0]->xx[i];
+				copyitvar[i] = New->xx[i];
 			}
 			accepted += 1.0;
 			cout << "Accepted. Number of MC moves accepted so far: " << accepted << endl;
@@ -81,12 +81,12 @@ bool Teng::MonteCarlo()
 		{
 			success = CP(reset);
 			success = CP(to_segment);
-			for (int j = 0; j < New[0]->iv; j++)
+			for (int j = 0; j < New->iv; j++)
 			{
-				New[0]->xx[j] = copyitvar[j];
+				New->xx[j] = copyitvar[j];
 			}
-			solved = New[0]->Solve(true);
-			F_bm = Sys[0]->FreeEnergy; //	G_bm=Sys[0]->GrandPotential;
+			solved = New->Solve(true);
+			F_bm = Sys->FreeEnergy; //	G_bm=Sys->GrandPotential;
 			rejected += 1.0;
 			cout << "Rejected. Number of MC moves rejected so far: " << rejected << endl;
 		}
@@ -131,7 +131,7 @@ bool Teng::ChangeMode()
 		Real Wavenumber;
 		//Real pi = 4.0 * atan(1.0);
 		Amplitude = GetRandom(one);
-		Wavenumber = round(GetRandom(Lat[0]->MZ / 2.0*one)) * 2; //creates even wavenumbers in uniform space
+		Wavenumber = round(GetRandom(Lat->MZ / 2.0*one)) * 2; //creates even wavenumbers in uniform space
 
 		//TODO : Select random number of particles and translate them randomly
 
@@ -141,7 +141,7 @@ bool Teng::ChangeMode()
 		{
 			X[i] = X[i];// + round(0.5 - round(GetRandom(1.0)));
 			Y[i] = Y[i];// + round(0.5 - round(GetRandom(1.0)));
-			Z[i] = Z[i] + round(0.5-round(GetRandom(one))); //round(Amplitude * (sin(Wavenumber * pi * X[i] / Lat[0]->MX) * sin(Wavenumber * pi * Y[i] / Lat[0]->MY)));
+			Z[i] = Z[i] + round(0.5-round(GetRandom(one))); //round(Amplitude * (sin(Wavenumber * pi * X[i] / Lat->MX) * sin(Wavenumber * pi * Y[i] / Lat->MY)));
 		}
 		success = IsLegal();
 		if (success)
@@ -156,52 +156,52 @@ bool Teng::IsLegal()
 {
 	bool success = true;
 	int i, j;
-	int xbox = Lat[0]->MX;
-	int ybox = Lat[0]->MY;
-	int zbox = Lat[0]->MZ;
+	int xbox = Lat->MX;
+	int ybox = Lat->MY;
+	int zbox = Lat->MZ;
 	// Put molecules back in periodic box or reflect them back based on boundaries.
 	for (i = 0; i < n_particles; i++)
 	{
-		if (X[i] < 1 && Lat[0]->BC[0] == "periodic")
+		if (X[i] < 1 && Lat->BC[0] == "periodic")
 			X[i] += xbox;
-		if (Y[i] < 1 && Lat[0]->BC[2] == "periodic")
+		if (Y[i] < 1 && Lat->BC[2] == "periodic")
 			Y[i] += ybox;
-		if (Z[i] < 1 && Lat[0]->BC[4] == "periodic")
+		if (Z[i] < 1 && Lat->BC[4] == "periodic")
 			Z[i] += zbox;
-		if (X[i] > xbox && Lat[0]->BC[0] == "periodic")
+		if (X[i] > xbox && Lat->BC[0] == "periodic")
 			X[i] -= xbox;
-		if (Y[i] > ybox && Lat[0]->BC[2] == "periodic")
+		if (Y[i] > ybox && Lat->BC[2] == "periodic")
 			Y[i] -= ybox;
-		if (Z[i] > zbox && Lat[0]->BC[4] == "periodic")
+		if (Z[i] > zbox && Lat->BC[4] == "periodic")
 			Z[i] -= zbox;
-		if (X[i] < 1 && Lat[0]->BC[0] == "mirror")
+		if (X[i] < 1 && Lat->BC[0] == "mirror")
 			X[i] = 1;
-		if (Y[i] < 1 && Lat[0]->BC[2] == "mirror")
+		if (Y[i] < 1 && Lat->BC[2] == "mirror")
 			Y[i] = 1;
-		if (Z[i] < 1 && Lat[0]->BC[4] == "mirror")
+		if (Z[i] < 1 && Lat->BC[4] == "mirror")
 			Z[i] = 1;
-		if (X[i] > xbox && Lat[0]->BC[0] == "mirror")
+		if (X[i] > xbox && Lat->BC[0] == "mirror")
 			X[i] = xbox;
-		if (Y[i] > ybox && Lat[0]->BC[2] == "mirror")
+		if (Y[i] > ybox && Lat->BC[2] == "mirror")
 			Y[i] = ybox;
-		if (Z[i] > zbox && Lat[0]->BC[4] == "mirror")
+		if (Z[i] > zbox && Lat->BC[4] == "mirror")
 			Z[i] = zbox;
 	}
 
 	// Checking for particle out of bounds
 	for (i = 0; i < n_particles; i++)
 	{
-		if (X[i] > Lat[0]->MX || X[i] < 1)
+		if (X[i] > Lat->MX || X[i] < 1)
 		{
 			success = false;
 			cout << "This particle with particle id: " << i << "wanted to leave the box in x-direction." << endl;
 		}
-		if (Y[i] > Lat[0]->MY || Y[i] < 1)
+		if (Y[i] > Lat->MY || Y[i] < 1)
 		{
 			success = false;
 			cout << "This particle with particle id: " << i << "wanted to leave the box in y-direction." << endl;
 		}
-		if (Z[i] > Lat[0]->MZ || Z[i] < 1)
+		if (Z[i] > Lat->MZ || Z[i] < 1)
 		{
 			success = false;
 			cout << "This particle with particle id: " << i << "wanted to leave the box in z-direction." << endl;
@@ -231,9 +231,9 @@ bool Teng::IsLegal()
 // Can it just use Mask file (is Mask file updated everytime?)
 bool Teng::CP(transfer tofrom)
 {
-	int JX = Lat[0]->JX;
-	int JY = Lat[0]->JY;
-	int M = Lat[0]->M;
+	int JX = Lat->JX;
+	int JY = Lat->JY;
+	int M = Lat->M;
 
 	bool success = true;
 	int i;
@@ -267,10 +267,10 @@ bool Teng::CP(transfer tofrom)
 			}
 		}
 		else {
-			Sys[0]->constraintfields=true;
-			Zero(Sys[0]->H_beta,M);
+			Sys->constraintfields=true;
+			Zero(Sys->H_beta,M);
 			for (i = 0; i < n_particles; i++){
-				Sys[0]->H_beta[X[i] * JX + Y[i] * JY + Z[i]] = 1;
+				Sys->H_beta[X[i] * JX + Y[i] * JY + Z[i]] = 1;
 			}
 
 		}
@@ -302,7 +302,7 @@ bool Teng::CP(transfer tofrom)
 bool Teng::TrackInterface(){
 	bool success=true;
 	n_particles=0;
-	int JX=Lat[0]->JX; int JY=Lat[0]->JY; int MX=Lat[0]->MX; int MY=Lat[0]->MY; int MZ=Lat[0]->MZ;
+	int JX=Lat->JX; int JY=Lat->JY; int MX=Lat->MX; int MY=Lat->MY; int MZ=Lat->MZ;
 	Real sum;
 	Real radius;
 	for(int i=1; i<=MX; i++){
@@ -343,7 +343,7 @@ void Teng::WriteOutput(int subloop_)
 	int subloop = subloop_;
 	PushOutput();
 	WritePdb(subloop);
-	New[0]->PushOutput();
+	New->PushOutput();
 	for (int i = 0; i < n_out; i++)
 	{
 		Out[i]->WriteOutput(subloop);
@@ -451,7 +451,7 @@ bool Teng::CheckInput(int start)
 	if (debug)
 		cout << "CheckInput in Teng" << endl;
 	bool success = true;
-	success = In[0]->CheckParameters("teng", name, start, KEYS, PARAMETERS, VALUES);
+	success = In->CheckParameters("teng", name, start, KEYS, PARAMETERS, VALUES);
 	// Checks what kind of engine is selected
 	if (success)
 	{
@@ -463,7 +463,7 @@ bool Teng::CheckInput(int start)
 			engines.push_back("MC");
 			engines.push_back("MD");
 			EngineType = "";
-			if (!In[0]->Get_string(GetValue("engine"), EngineType, engines, "At present TransientEngine (Teng) module can only perform 'MC' or 'MD.'"))
+			if (!In->Get_string(GetValue("engine"), EngineType, engines, "At present TransientEngine (Teng) module can only perform 'MC' or 'MD.'"))
 			{
 				success = false;
 			};
@@ -476,11 +476,11 @@ bool Teng::CheckInput(int start)
 		if (success && EngineType == "MC")
 		{
 			if (GetValue("MCS").size() > 0)
-				success = In[0]->Get_int(GetValue("MCS"), MCS, 1, 10000, "The number of timesteps should be between 1 and 10000");
+				success = In->Get_int(GetValue("MCS"), MCS, 1, 10000, "The number of timesteps should be between 1 and 10000");
 			if (debug)
 				cout << "MCS is " << MCS << endl;
 			if (GetValue("save_interval").size() > 0)
-				success = In[0]->Get_int(GetValue("save_interval"), save_interval, 1, MCS, "The save interval nr should be between 1 and MCS (specified)");
+				success = In->Get_int(GetValue("save_interval"), save_interval, 1, MCS, "The save interval nr should be between 1 and MCS (specified)");
 			if (debug)
 				cout << "Save_interval " << save_interval << endl;
 		}
@@ -500,7 +500,7 @@ bool Teng::CheckInput(int start)
 			moves.push_back("tags");
 			moves.push_back("interface");
 			MoveType = "";
-			if (!In[0]->Get_string(GetValue("move"), MoveType, moves, "At present TransientEngine (Teng) module can only perform moves on 'tags' or 'interface.'"))
+			if (!In->Get_string(GetValue("move"), MoveType, moves, "At present TransientEngine (Teng) module can only perform moves on 'tags' or 'interface.'"))
 			{
 				success = false;
 			};
@@ -512,13 +512,13 @@ bool Teng::CheckInput(int start)
 		}
 			
 		if (MoveType=="tags"){
-			if (Sys[0]->SysTagList.size() < 1){
+			if (Sys->SysTagList.size() < 1){
 				cout << "Teng needs to have tagged molecules in the system" << endl;
 				success = false;
 			}
 			else {
-				tag_seg = Sys[0]->SysTagList[0];
-				if (Sys[0]->SysTagList.size() > 1){
+				tag_seg = Sys->SysTagList[0];
+				if (Sys->SysTagList.size() > 1){
 					success = false;
 					cout << "Currently the Tagging is limited to one molecule per system. " << endl;
 				}
@@ -526,7 +526,7 @@ bool Teng::CheckInput(int start)
 			if (success){
 				n_particles = Seg[tag_seg]->n_pos;
 				tag_mol = -1;
-				int length = In[0]->MolList.size();
+				int length = In->MolList.size();
 				for (int i = 0; i < length; i++){
 					if (Mol[i]->freedom == "tagged") tag_mol = i;}
 			}
@@ -545,12 +545,12 @@ bool Teng::CheckInput(int start)
 	// Creates output class and calls Engine (Currently only Montecarlo is implemented.)
 	if (success)
 	{
-		n_out = In[0]->OutputList.size();
+		n_out = In->OutputList.size();
 		if (n_out == 0)
 			cout << "Warning: no output defined!" << endl;
 		for (int i = 0; i < n_out; i++)
 		{
-			Out.push_back(new Output(In, Lat, Seg, Sta, Rea, Mol, Sys, New, In[0]->OutputList[i], i, n_out));
+			Out.push_back(new Output(In, Lat, Seg, Sta, Rea, Mol, Sys, New, In->OutputList[i], i, n_out));
 			if (!Out[i]->CheckInput(start))
 			{
 				cout << "input_error in output " << endl;

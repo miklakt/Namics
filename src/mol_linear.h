@@ -8,7 +8,7 @@
 #include "tools.h"
 class mol_linear : public Molecule
 {
-	public: mol_linear(vector<Input*>,vector<Lattice*>,vector<Segment*>,string);
+	public: mol_linear(Input*,Lattice*,vector<Segment*>,string);
 	~mol_linear();
 
 	bool ComputePhi();

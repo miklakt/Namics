@@ -8,14 +8,14 @@
 #include "tools.h"
 class Molecule {
 public:
-	Molecule(vector<Input*>,vector<Lattice*>,vector<Segment*>,string);
+	Molecule(Input*,Lattice*,vector<Segment*>,string);
 virtual ~Molecule();
 
 	string name;
 	bool all_molecule;
-	vector<Input*> In;
+	Input* In;
 	vector<Segment*> Seg;
-	vector<Lattice*> Lat;
+	Lattice* Lat;
 	Lattice* lat;
 	vector<Alias*> Al;
 	vector<int> MolMonList;

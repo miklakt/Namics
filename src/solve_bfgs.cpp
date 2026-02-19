@@ -2,7 +2,7 @@
 #include "solve_bfgs.h"
 
 
-Solve_BFGS :: Solve_BFGS(vector<Input*>In_,vector<Lattice*>Lat_,vector<Segment*>Seg_,vector<State*>Sta_,vector<Reaction*>Rea_,vector<Molecule*>Mol_,vector<System*>Sys_,vector<Variate*>Var_,string name_) : 
+Solve_BFGS :: Solve_BFGS(Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_,vector<Reaction*> Rea_,vector<Molecule*> Mol_,System* Sys_,vector<Variate*> Var_,string name_) : 
                    Solve_scf(In_,Lat_,Seg_,Sta_,Rea_,Mol_,Sys_,Var_,name_) {	
 
 }
@@ -26,5 +26,5 @@ Real Solve_BFGS::operator()(Vector& x_, Vector& g_){
 //	iterations =mysolver.minimize(residue,x,res);
 //	cout <<" Residue : "<< res << endl; 
 //	cout <<endl <<"Problem solved: " << res << endl;
-//	Sys[0]->CheckResults(report_errors);
+//	Sys->CheckResults(report_errors);
 //}

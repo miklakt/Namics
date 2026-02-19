@@ -27,7 +27,7 @@ class Solve_scf : public SFNewton {
 public:
 	Solve_scf() {};
 
-	Solve_scf(vector<Input*>,vector<Lattice*>,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,vector<System*>,vector<Variate*>,string);
+	Solve_scf(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,vector<Variate*>,string);
 
 	~Solve_scf();
 
@@ -42,10 +42,10 @@ public:
 	rescue rescue_status;
 
 	string name;
-	vector<Input*> In;
-	vector<System*> Sys;
+	Input* In;
+	System* Sys;
 	vector<Segment*> Seg;
-	vector<Lattice*> Lat;
+	Lattice* Lat;
 	Lattice* lat;
 	vector<Molecule*> Mol;
 	vector<Variate*> Var;

@@ -44,14 +44,14 @@ static const string CLENG_VERSION = CLENG_MAJOR_VERSION + "." + CLENG_MINOR_VERS
 class Cleng {
 private:
     const string name;
-    const vector<Input *> In;
-    const vector<Lattice *> Lat;
+    Input* In;
+    Lattice* Lat;
     const vector<Segment *> Seg;
     const vector<State *> Sta;
     const vector<Reaction *> Rea;
     const vector<Molecule *> Mol;
-    const vector<System *> Sys;
-    const vector<Solve_scf *> New;
+    System* Sys;
+    Solve_scf* New;
     const string brand;
 
     int pseed{};
@@ -68,14 +68,14 @@ private:
 
 public:
     Cleng(
-            vector<Input *>,
-            vector<Lattice *>,
+            Input*,
+            Lattice*,
             vector<Segment *>,
             vector<State *>,
             vector<Reaction *>,
             vector<Molecule *>,
-            vector<System *>,
-            vector<Solve_scf *>,
+            System*,
+            Solve_scf*,
             string
     );
 
@@ -86,8 +86,8 @@ public:
     vector<string> VALUES;
 
     string filename;
-    Point box{Lat[0]->MX, Lat[0]->MY, Lat[0]->MZ};
-    Point J{Lat[0]->JX, Lat[0]->JY, 1};
+    Point box{Lat->MX, Lat->MY, Lat->MZ};
+    Point J{Lat->JX, Lat->JY, 1};
     // {row, col}
     vector<int> dims_vtk{box.x * box.y * box.z, 1};
     vector<int> dims_phi{box.x / 2 , 1};

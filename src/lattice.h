@@ -7,12 +7,12 @@
 
 class Lattice {
 public:
-	Lattice(vector<Input*>,string);
+	Lattice(Input*,string);
 
 virtual ~Lattice();
 
 	string name;
-	vector<Input*> In;
+	Input* In;
 	int MX,MY,MZ;
 	vector<int> mx;
 	vector<int> my;

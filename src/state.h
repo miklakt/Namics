@@ -5,12 +5,12 @@
 #include "segment.h"
 class State {
 public:
-	State(vector<Input*>,vector<Segment*>,string);
+	State(Input*,vector<Segment*>,string);
 
 ~State();
 	void DeAllocateMemory();
 	void AllocateMemory(int,int);
-	vector<Input*> In;	
+	Input* In;
 	vector<Segment*> Seg;
 	string name; 
 	vector<string> chi_name;
@@ -23,7 +23,7 @@ public:
 	string mon_name;
 	int mon_nr; //number of the monomer to which the state belongs
 	int state_nr; //number of the state of the monomer it belongs to
-	int state_id; //state number in In[0]->StateList
+	int state_id; //state number in In->StateList
 	string state_name;
 	Real alphabulk;
 	bool fixed;

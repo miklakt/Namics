@@ -90,7 +90,7 @@ bool Cleng::InSubBoxRange(int id_node_for_move) {
 
 bool Cleng::IsCommensuratable() {
     bool success = true;
-    int length = (int) In[0]->MolList.size();
+    int length = (int) In->MolList.size();
 
     // TODO: procedure goes throw all Molecules in the System...
     // TODO: Need to take only Polymer molecules...
@@ -133,13 +133,13 @@ if (debug) cout <<"NotViolatedFrozenStates " << endl;
     bool not_violated_frozen_states = true;
 
     //int sum = 0;
-    //Sum(sum, Sys[0]->KSAM, Lat[0]->MX*Lat[0]->MY*Lat[0]->MZ);
+    //Sum(sum, Sys->KSAM, Lat->MX*Lat->MY*Lat->MZ);
     //std::cout << sum << std::endl;
     //if (sum == 0) return true; // hack;
 
     // Apparently these quantities are available
-    int JX = Lat[0]->JX;
-    int JY = Lat[0]->JY;
+    int JX = Lat->JX;
+    int JY = Lat->JY;
 
     //cout << "JX:" << JX << endl;
     //cout << "JY:" << JY << endl;
@@ -173,15 +173,15 @@ if (debug) cout <<"NotViolatedFrozenStates " << endl;
         //cout << "s_y:" << s_y << " b_y:" << b_y << endl;
         //cout << "s_z:" << s_z << " b_z:" << b_z << endl;
         // it is possible to extend the range of checked hypothetical nodes
-		int MX=Lat[0]->MX;
-		int MY=Lat[0]->MY;
-		int MZ=Lat[0]->MZ;
+		int MX=Lat->MX;
+		int MY=Lat->MY;
+		int MZ=Lat->MZ;
 		//bool MirrorX=false;
 		//bool MirrorY=false;
 		//bool MirrorZ=false;
-		//if (Lat[0]->BC[0]=="mirror") {MirrorX=true; cout <<"mirrorx"<< endl;}
-		//if (Lat[0]->BC[1]=="mirror") {MirrorY=true; cout <<"mirrory"<< endl;}
-		//if (Lat[0]->BC[2]=="mirror") {MirrorZ=true; cout <<"mirrorz"<< endl;}
+		//if (Lat->BC[0]=="mirror") {MirrorX=true; cout <<"mirrorx"<< endl;}
+		//if (Lat->BC[1]=="mirror") {MirrorY=true; cout <<"mirrory"<< endl;}
+		//if (Lat->BC[2]=="mirror") {MirrorZ=true; cout <<"mirrorz"<< endl;}
 		if (s_x>MX ) s_x-=MX;
 		if (b_x>MX ) b_x-=MX;
 		if (s_y>MY ) s_y-=MY;
@@ -199,7 +199,7 @@ if (debug) cout <<"NotViolatedFrozenStates " << endl;
                     //cout << "{ " << _x << " " << _y << " " << _z << " }" << endl;
                     //cout << "KSAM[JX*x+JY*y+z] JX:" << JX << "| JY:" << JY << "|:" << Sys[0] -> KSAM[JX*_x + JY*_y + _z]  << endl;
 
-                    int length = In[0]->MonList.size();
+                    int length = In->MonList.size();
                     for (int i = 0; i < length; i++)
                     {
 
@@ -323,9 +323,9 @@ void signalHandler(int signum) {
 void Cleng::make_BC() {
 //    make boundary condition point => BC = {1,1,1} => minor; BC = {0,0,0} => periodic
     BC = {
-            Lat[0]->BC[0] == "mirror",
-            Lat[0]->BC[2] == "mirror",
-            Lat[0]->BC[4] == "mirror",
+            Lat->BC[0] == "mirror",
+            Lat->BC[2] == "mirror",
+            Lat->BC[4] == "mirror",
     };
 }
 
@@ -536,7 +536,7 @@ int Cleng::getLastMCS() const {
 void Cleng::WriteOutput(int num) {
     if (debug) cout << "WriteOutput in Cleng" << endl;
     PushOutput(num);
-    New[0]->PushOutput();
+    New->PushOutput();
     for (int i = 0; i < n_out; i++) Out[i]->WriteOutput(num);
 }
 
@@ -692,7 +692,7 @@ void Cleng::Write2File(int step, const string& what, const vector<Real>& values,
 }
 
 Real Cleng::GetN_times_mu() {
-    int n_mol = (int) In[0]->MolList.size();
+    int n_mol = (int) In->MolList.size();
     Real n_times_mu = 0;
     for (int i = 0; i < n_mol; i++) {
         Real Mu = Mol[i]->Mu;
@@ -799,10 +799,10 @@ Real Cleng::calcFreeEnergyBox(const Real& N, const Real& R, const Real& chi) {
 
 bool Cleng::solveAndCheckFreeEnergy() {
     bool success = true;
-    bool success_iteration = New[0]->Solve(true);
+    bool success_iteration = New->Solve(true);
     // breakpoint of free energy value
 //    //// Simulation without rescue procedure --->
-//    if (is_ieee754_nan(Sys[0]->GetFreeEnergy())) {
+//    if (is_ieee754_nan(Sys->GetFreeEnergy())) {
 //        cout << "#?# Sorry, Free Energy is NaN. " << endl;
 //        cout << "#?# Here is result from solver: " << success_iteration << endl;
 //
@@ -815,18 +815,18 @@ bool Cleng::solveAndCheckFreeEnergy() {
 //    //// Simulation without rescue procedure <---
 
     //// Simulation with rescue procedure --->
-    if (is_ieee754_nan(Sys[0]->GetFreeEnergy())) {
+    if (is_ieee754_nan(Sys->GetFreeEnergy())) {
         cout << "%?% Sorry, Free Energy is NaN.  " << endl;
         cout << "%?% Here is result from solver: " << success_iteration << endl;
 
-        // New[0]->attempt_DIIS_rescue("none");  // before the function expects char[]
-        New[0]->attempt_DIIS_rescue();
+        // New->attempt_DIIS_rescue("none");  // before the function expects char[]
+        New->attempt_DIIS_rescue();
         rescue_times ++;
 
         cout << "%?% Restarting iteration." << endl;
-        success_iteration = New[0]->Solve(true);
+        success_iteration = New->Solve(true);
 
-        if (is_ieee754_nan(Sys[0]->GetFreeEnergy())) {
+        if (is_ieee754_nan(Sys->GetFreeEnergy())) {
             cout << "%?% Sorry, Free Energy is still NaN. " << endl;
             cout << "%?% Here is result from solver: " << success_iteration << endl;
 

@@ -5,7 +5,7 @@
 
 //planar geometry is in LG1Planar.cpp
 
-LGrad1::LGrad1(vector<Input*> In_,string name_): Lattice(In_,name_) {
+LGrad1::LGrad1(Input* In_,string name_): Lattice(In_,name_) {
 if (debug) cout <<"LGrad1 constructor " << endl;
 }
 
@@ -465,18 +465,18 @@ if (debug) cout <<"ReadRange in LGrad1 " << endl;
 	vector<string>set;
 	vector<string>coor;
 	vector<string>xyz;
-	In[0]->split(range,';',set);
+	In->split(range,';',set);
 
 	coor.clear();
 	block=true;
-	In[0]->split(set[0],',',coor);
+	In->split(set[0],',',coor);
 	if (coor.size()!=1) {cout << "In mon " + seg_name + ", for 'pos 1', in '" + range_type + "' the coordiantes must come as a single coordinate 'x'" << endl; r[0]=0; success=false;}
-	else r[0]=In[0]->Get_int(coor[0],-1) ;
+	else r[0]=In->Get_int(coor[0],-1) ;
 
-	coor.clear(); In[0]->split(set[1],',',coor);
+	coor.clear(); In->split(set[1],',',coor);
 
 	if (coor.size()!=1) {cout << "In mon " + seg_name+ ", for 'pos 2', in '" + range_type + "' the coordinates must come as a single coordinate 'x'" << endl; r[3]=0; success=false;}
-	else r[3]=In[0]->Get_int(coor[0],-1);
+	else r[3]=In->Get_int(coor[0],-1);
 	if (r[0] > r[3]) {cout << "In mon " + seg_name+ ", for 'pos 1', the x-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
 
 	return success;
@@ -493,30 +493,30 @@ if (debug) cout <<"ReadRangeFile in LGrad1 " << endl;
 	vector<string> lines;
 	vector<string> sub;
 	vector<string> xyz;
-	string Infilename=In[0]->name;
-	In[0]->split(Infilename,'.',sub);
+	string Infilename=In->name;
+	In->split(Infilename,'.',sub);
 
 	int length;
 	int length_xyz;
 	int px,p_i,x;
 	int i=0;
-	if (!In[0]->ReadFile(sub[0].append(".").append(filename),content)) {
+	if (!In->ReadFile(sub[0].append(".").append(filename),content)) {
 		success=false;
 		return success;
 	}
 
-	In[0]->split(content,'#',lines);
+	In->split(content,'#',lines);
 	length = lines.size();
 	if (length == MX) { //expect to read 'mask file';
 		if (n_pos==0) {
 			for (i = 0 ; i < length ; ++i) {
-				if (In[0]->Get_int(lines[i],0)==1) n_pos++;
+				if (In->Get_int(lines[i],0)==1) n_pos++;
 			}
 			if (n_pos==0) {cout << "Warning: Input file for locations of 'particles' does not contain any elements." << endl;}
 		} else {
 			p_i=0;
 			for (x=1; x<MX+1; x++) {
-				if (In[0]->Get_int(lines[x-1],0)==1) {H_p[p_i]=x; p_i++;}
+				if (In->Get_int(lines[x-1],0)==1) {H_p[p_i]=x; p_i++;}
 			}
 		}
 	} else { //expect to read x only
@@ -525,12 +525,12 @@ if (debug) cout <<"ReadRangeFile in LGrad1 " << endl;
 		else {
 			while (i<length) {
 				xyz.clear();
-				In[0]->split(lines[i],',',xyz);
+				In->split(lines[i],',',xyz);
 				length_xyz=xyz.size();
 				if (length_xyz!=1) {
 					cout << "In mon " + seg_name + " " +range_type+"_filename  the expected 'single coordinate' 'x' was not found. " << endl;  success = false;
 				} else {
-					px=In[0]->Get_int(xyz[0],0);
+					px=In->Get_int(xyz[0],0);
 					if (px < 1 || px > MX) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the x-coordinate in "+range_type+"_filename out of bounds: 1.." << MX << endl; success =false;}
 				}
 				H_p[i]=px;
@@ -552,16 +552,16 @@ bool LGrad1::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=In[0]->ReadFile(filename,content);
+		success=In->ReadFile(filename,content);
 		if (success) {
-			In[0]->split(content,'#',lines);
+			In->split(content,'#',lines);
 			length = lines.size();
 		}
 	}
 	if (readfile) {
 		if (MX!=length) {success=false; cout <<"inputfile for filling delta_range has not expected length in x-direction" << endl;
 		} else {
-			for (int x=1; x<MX+1; x++) Mask[x]=In[0]->Get_int(lines[x],-1);
+			for (int x=1; x<MX+1; x++) Mask[x]=In->Get_int(lines[x],-1);
 		}
 	} else  {
 		for (int i=0; i<length_px; i++) {

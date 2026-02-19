@@ -1,7 +1,7 @@
 #include "microemulsion.h"
 #include "tools.h"
 
-Microemulsion::Microemulsion(vector<Input *> In_, vector<Output *> Out_, vector<Lattice *> Lat_, vector<Segment *> Seg_, vector<State *> Sta_, vector<Reaction *> Rea_, vector<Molecule *> Mol_, vector<System *> Sys_,vector<Solve_scf*> New_,vector<Variate*> Var_,string name_):
+Microemulsion::Microemulsion(Input* In_, vector<Output*> Out_, vector<Lattice*> Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_,Solve_scf* New_,vector<Variate*> Var_,string name_):
 	name{name_}, In{In_}, Out{Out_}, Lat{Lat_}, Mol{Mol_}, Seg{Seg_}, Sta{Sta_}, Rea{Rea_}, Sys{Sys_}, New{New_}, Var{Var_}
 {
 	if (debug)cout << "Constructor for microemulsion " << endl;
@@ -40,29 +40,29 @@ bool Microemulsion::CheckInput(int start_){
 	co_solvent_freedom="wrong";
 	control="wrong";
 	//int M=Lat[0]->M;
-	int length = In[0]->MolList.size();
-	success = In[0]->CheckParameters("micro", name, start, KEYS, PARAMETERS, VALUES);
+	int length = In->MolList.size();
+	success = In->CheckParameters("micro", name, start, KEYS, PARAMETERS, VALUES);
 	if (success) {
 		follow_factor=1.0;
 		if (GetValue("follow_factor").size()>0){
-			follow_factor=In[0]->Get_Real(GetValue("follow_factor"),follow_factor);
+			follow_factor=In->Get_Real(GetValue("follow_factor"),follow_factor);
 			if (follow_factor < 0) follow_factor=1;
 		}
 
 		caution_factor=1.0;
 		if (GetValue("caution_factor").size()>0){
-			caution_factor=In[0]->Get_Real(GetValue("caution_factor"),caution_factor);
+			caution_factor=In->Get_Real(GetValue("caution_factor"),caution_factor);
 			if (caution_factor < 0) caution_factor=1;
 		}
 
 		previous_guess=true;
 		if (GetValue("previous_guess").size()>0) {
-			previous_guess=In[0]->Get_bool(GetValue("previous_guess"),true);
+			previous_guess=In->Get_bool(GetValue("previous_guess"),true);
 		}
 		if (GetValue("oil").size()>0) {
 			molname=GetValue("oil");
 			for (int i=0; i<length; i++) {
-				if (In[0]->MolList[i]==molname) oil=i;
+				if (In->MolList[i]==molname) oil=i;
 			}
 		}
 		if (oil<0) {
@@ -72,7 +72,7 @@ bool Microemulsion::CheckInput(int start_){
 		if (GetValue("water").size()>0) {
 			molname=GetValue("water");
 			for (int i=0; i<length; i++) {
-				if (In[0]->MolList[i]==molname) water=i;
+				if (In->MolList[i]==molname) water=i;
 			}
 		}
 		if (water<0) {
@@ -83,7 +83,7 @@ bool Microemulsion::CheckInput(int start_){
 		if (GetValue("surfactant").size()>0) {
 			molname=GetValue("surfactant");
 			for (int i=0; i<length; i++) {
-				if (In[0]->MolList[i]==molname) surfactant=i;
+				if (In->MolList[i]==molname) surfactant=i;
 			}
 		}
 		if (surfactant<0) {
@@ -93,7 +93,7 @@ bool Microemulsion::CheckInput(int start_){
 		if (GetValue("co_solvent").size()>0) {
 			molname=GetValue("co_solvent");
 			for (int i=0; i<length; i++) {
-				if (In[0]->MolList[i]==molname) {
+				if (In->MolList[i]==molname) {
 					co_solvent=i;
 					co_solvent_freedom =Mol[co_solvent]->freedom;
 				}
@@ -109,7 +109,7 @@ bool Microemulsion::CheckInput(int start_){
 			options.push_back("co_solvent_theta"); // for linker and/or cosolvent and/or cosurfactant to balance microemulsion interface.
 			options.push_back("co_solvent_phibulk"); //for AOT and the like to tune J0
 			options.push_back("chi_monC_monD"); //for C12E5 mimicking change of temperature to modify J0
-			if (!In[0]->Get_string(GetValue("control_parameter"),control,options,"In microemulsion, the control_parameter has not found proper option. "))
+			if (!In->Get_string(GetValue("control_parameter"),control,options,"In microemulsion, the control_parameter has not found proper option. "))
 					success=false;
 			else {
 				monC=-1; monD=-1;
@@ -117,7 +117,7 @@ bool Microemulsion::CheckInput(int start_){
 					if (GetValue("monC").size()>0 && GetValue("monD").size()>0){
 						string MONC=GetValue("monC");
 						string MOND=GetValue("monD");
-						int length =In[0]->MonList.size();
+						int length =In->MonList.size();
 						monC=-1; monD=-1;
 						for (int i=0; i<length; i++) {
 							if (Seg[i]->name == MONC) monC=i;
@@ -150,28 +150,28 @@ bool Microemulsion::CheckInput(int start_){
 
 		g_tolerance = 1e-8;
 		if (GetValue("g_tolerance").size()>0) {
-			g_tolerance=In[0]->Get_Real(GetValue("g_tolerance"),g_tolerance);
+			g_tolerance=In->Get_Real(GetValue("g_tolerance"),g_tolerance);
 			if (g_tolerance>1e-5 || g_tolerance <0) {
 				success=false ; cout <<"g_tolerance not in proper range in microemulsion "<< endl;
 			}
 		}
 		j_tolerance = 1e-6;
 		if (GetValue("j_tolerance").size()>0) {
-			j_tolerance=In[0]->Get_Real(GetValue("j_tolerance"),j_tolerance);
+			j_tolerance=In->Get_Real(GetValue("j_tolerance"),j_tolerance);
 			if (j_tolerance>1e-2 || j_tolerance <0) {
 				success=false ; cout <<"j_tolerance not in proper range in microemulsion "<< endl;
 			}
 		}
 		g_info=5; j_info=3;
 		if (GetValue("g_info").size()>0) {
-			g_info=In[0]->Get_int(GetValue("g_info"),g_info);
+			g_info=In->Get_int(GetValue("g_info"),g_info);
 			if (g_info <0) {
 				cout <<"g_info should be positive integer. default g_info = 5 is used" << endl;
 				g_info=5;
 			}
 		}
 		if (GetValue("j_info").size()>0) {
-			j_info=In[0]->Get_int(GetValue("j_info"),j_info);
+			j_info=In->Get_int(GetValue("j_info"),j_info);
 			if (j_info <0) {
 				cout <<"j_info should be positive integer. default j_info = 3 is used" << endl;
 				j_info=3;
@@ -179,10 +179,10 @@ bool Microemulsion::CheckInput(int start_){
 		}
 		compute_kappa=false;
 	 	if (GetValue("compute_kappa").size()>0) {
-			compute_kappa=In[0]->Get_bool(GetValue("compute_kappa"),compute_kappa);
+			compute_kappa=In->Get_bool(GetValue("compute_kappa"),compute_kappa);
 		}
 
-		length =In[0]->MonList.size();
+		length =In->MonList.size();
 		monA=-1; monB=-1;
 		chi_start=-123;
 		chi_step=-123;
@@ -198,11 +198,11 @@ bool Microemulsion::CheckInput(int start_){
 				if (GetValue("var_chi_monA_monB").size()>0) {
 					string variate=GetValue("var_chi_monA_monB");
 					vector<string>sub;
-					In[0]->split(variate,';',sub);
+					In->split(variate,';',sub);
 					if (sub.size()==3) {
-						chi_start=In[0]->Get_Real(sub[0],-123);
-						chi_step=In[0]->Get_Real(sub[1],-123);
-						chi_end=In[0]->Get_Real(sub[2],-123);
+						chi_start=In->Get_Real(sub[0],-123);
+						chi_step=In->Get_Real(sub[1],-123);
+						chi_end=In->Get_Real(sub[2],-123);
 						n_steps=0;
 
 						if (chi_start !=-123 && chi_end!=-123) {
@@ -290,9 +290,9 @@ bool Microemulsion:: FixedPoint(Real Xs, Real Xc) {
 	if (debug) cout << "Fixed point in microemulsions " << endl;
 	int M=Lat[0]->M;
 	int fjc=Lat[0]->fjc;
-	Sys[0]->MakeItsLists();
-	New[0]->AllocateMemory();
-	New[0]->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
+	Sys->MakeItsLists();
+	New->AllocateMemory();
+	New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
 
 	Mol[surfactant]->PutTheta(ConvertSurfactantXtoT(Xs));
 	if (co_solvent_freedom=="restricted") {
@@ -305,10 +305,10 @@ bool Microemulsion:: FixedPoint(Real Xs, Real Xc) {
 		if (debug) cout << "Fixed point to solve " << endl;
 		//Mol[surfactant]->theta = ConvertSurfactantXtoT(Xs);
 		Mol[oil]->theta=(1.0*M/fjc-Mol[surfactant]->theta)/2.0-1.0;
-		New[0]->Solve(true);
+		New->Solve(true);
 	} else {
 		if (debug) cout << "Solve to superiteration " << endl;
-		New[0]->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
+		New->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
 	}
 	return true;
 }
@@ -316,7 +316,7 @@ bool Microemulsion:: FixedPoint(Real Xs, Real Xc) {
 Real Microemulsion::get_gamma(Real Xs, Real Xc){
 	if (debug) cout <<"In microemulsion: get_gamma" << endl;
     FixedPoint(Xs,Xc);
-    Real gamma=Sys[0]->GetGrandPotential();
+    Real gamma=Sys->GetGrandPotential();
     return gamma;
 }
 
@@ -418,7 +418,7 @@ Real Microemulsion::zero_J0(Real guessXs, Real GuessXc, Real GuessChi) {
 	}
 
     int j_calls=0;
-    Real fxa=Sys[0]->GetSpontaneousCurvature();
+    Real fxa=Sys->GetSpontaneousCurvature();
     if (abs(fxa) < j_tolerance){
         return ConvertCoSolventXtoT(GuessXc);
 	}
@@ -460,7 +460,7 @@ Real Microemulsion::zero_J0(Real guessXs, Real GuessXc, Real GuessChi) {
 			break;
 	}
 
-    Real fxb=Sys[0]->GetSpontaneousCurvature();
+    Real fxb=Sys->GetSpontaneousCurvature();
     while (fxa*fxb>0){
 		j_calls++;
         xa=xb;
@@ -484,7 +484,7 @@ Real Microemulsion::zero_J0(Real guessXs, Real GuessXc, Real GuessChi) {
 				break;
 		}
 
-        fxb=Sys[0]->GetSpontaneousCurvature();
+        fxb=Sys->GetSpontaneousCurvature();
 
         switch(ControlParameter) {
 			case co_solvent_theta:
@@ -511,7 +511,7 @@ Real Microemulsion::zero_J0(Real guessXs, Real GuessXc, Real GuessChi) {
 		    XS=zero_gamma(XS-0.01,xc);
 			break;
 	}
-    Real fxc=Sys[0]->GetSpontaneousCurvature();
+    Real fxc=Sys->GetSpontaneousCurvature();
     j_calls=0;
     while (abs(fxc)>j_tolerance) {
 		j_calls++;
@@ -531,7 +531,7 @@ Real Microemulsion::zero_J0(Real guessXs, Real GuessXc, Real GuessChi) {
 				break;
 		}
 
-        fxc=Sys[0]->GetSpontaneousCurvature();
+        fxc=Sys->GetSpontaneousCurvature();
 
         switch(ControlParameter) {
 			case co_solvent_theta:
@@ -573,9 +573,9 @@ Real Microemulsion::zero_J0(Real guessXs, Real GuessXc, Real GuessChi) {
 
 bool Microemulsion:: WriteResults() {
 	if (debug) cout << "In microemulsions writeResults " << endl;
-	int n_out = In[0]->OutputList.size();
+	int n_out = In->OutputList.size();
 	for (int ii = 0; ii < n_out; ii++) {
-		Out.push_back(new Output(In, Lat, Seg, Sta, Rea, Mol, Sys, New, In[0]->OutputList[ii], ii, n_out));
+		Out.push_back(new Output(In, Lat[0], Seg, Sta, Rea, Mol, Sys, New, In->OutputList[ii], ii, n_out));
 		if (!Out[ii]->CheckInput(start)){
 			cout << "input_error in output " << endl;
 			return 0;
@@ -586,16 +586,16 @@ bool Microemulsion:: WriteResults() {
 			}
 		}
 	}
-	New[0]->PushOutput();
+	New->PushOutput();
 	switch(ControlParameter) {
 		case co_solvent_theta:
-			cout <<"theta surfactant = " << Mol[surfactant]->theta << " theta co-solvent = " << Mol[co_solvent]->theta << " kBar = " << Sys[0]->GetKBar() << endl;
+			cout <<"theta surfactant = " << Mol[surfactant]->theta << " theta co-solvent = " << Mol[co_solvent]->theta << " kBar = " << Sys->GetKBar() << endl;
 			break;
 		case co_solvent_phibulk:
-			cout <<"theta surfactant = " << Mol[surfactant]->theta << " phibulk co-solvent = " << Mol[co_solvent]->phibulk << " kBar = " << Sys[0]->GetKBar() << endl;
+			cout <<"theta surfactant = " << Mol[surfactant]->theta << " phibulk co-solvent = " << Mol[co_solvent]->phibulk << " kBar = " << Sys->GetKBar() << endl;
 			break;
 		case chi_C_D:
-			cout <<"theta surfactant = " << Mol[surfactant]->theta << " chi_"<<Seg[monC]->name<<"_"<<Seg[monD]->name << " = " << Seg[monC]->chi[monD] << " kBar = " << Sys[0]->GetKBar() << endl;
+			cout <<"theta surfactant = " << Mol[surfactant]->theta << " chi_"<<Seg[monC]->name<<"_"<<Seg[monD]->name << " = " << Seg[monC]->chi[monD] << " kBar = " << Sys->GetKBar() << endl;
 			break;
 		default:
 		break;
@@ -604,8 +604,8 @@ bool Microemulsion:: WriteResults() {
 	for (int ii = 0; ii < n_out; ii++){
 		Out[ii]->WriteOutput(subloop);
 	}
-	if (Sys[0]->final_guess == "file"){ //if iv have changed: see namics variant.
-		Lat[0]->StoreGuess(Sys[0]->guess_outputfile, New[0]->xx , METHOD, MONLIST, STATELIST, CHARGED, start);
+	if (Sys->final_guess == "file"){ //if iv have changed: see namics variant.
+		Lat[0]->StoreGuess(Sys->guess_outputfile, New->xx , METHOD, MONLIST, STATELIST, CHARGED, start);
 	}
 	subloop++;
 	return true;
@@ -635,29 +635,29 @@ bool Microemulsion::SlipInSphericalCoordinates(){
 	}
 	Mol[surfactant]->freedom ="free";
 	Mol[surfactant]->phibulk=phibulk_surfactant;
-	New[0]->lat=Lat[1];
-	Sys[0]->lat=Lat[1];
-	int length = In[0]->MolList.size();
+	New->lat=Lat[1];
+	Sys->lat=Lat[1];
+	int length = In->MolList.size();
 	for (int i=0; i<length; i++) {
 		Mol[i]->lat=Lat[1];
 	}
-	length = In[0]->MonList.size();
+	length = In->MonList.size();
 	for (int i=0; i<length; i++) Seg[i]->lat=Lat[1];
-	length =  In[0]->OutputList.size();
+	length =  In->OutputList.size();
 	for (int i=0; i<length; i++) Out[i]->lat=Lat[1];
-	length = In[0]->VarList.size();
+	length = In->VarList.size();
 	for (int i=0; i<length; i++) {
 		Var[i]->lat=Lat[1];
 		Var[i]->CheckInput(start);
 	}
 
 	if (search_nr < 0 && ets_nr < 0 && etm_nr < 0) {
-			New[0]->Solve(true);
+			New->Solve(true);
 		} else {
-			New[0]->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
+			New->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
 	}
 
-	//New[0]->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
+	//New->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
 
 	WriteResults();
 	cout << "write result for spherical lattice" << endl;
@@ -670,17 +670,17 @@ bool Microemulsion::SlipInSphericalCoordinates(){
 	Mol[surfactant]->freedom ="restricted";
 	Mol[surfactant]->PutTheta(theta_surfactant);
 
-	New[0]->lat=Lat[0];
-	Sys[0]->lat=Lat[0];
-	length = In[0]->MolList.size();
+	New->lat=Lat[0];
+	Sys->lat=Lat[0];
+	length = In->MolList.size();
 	for (int i=0; i<length; i++) {
 		Mol[i]->lat=Lat[0];
 	}
-	length = In[0]->MonList.size();
+	length = In->MonList.size();
 	for (int i=0; i<length; i++) Seg[i]->lat=Lat[0];
-	length =  In[0]->OutputList.size();
+	length =  In->OutputList.size();
 	for (int i=0; i<length; i++) Out[i]->lat=Lat[0];
-	length = In[0]->VarList.size();
+	length = In->VarList.size();
 	for (int i=0; i<length; i++) {
 		Var[i]->lat=Lat[0];
 		Var[i]->CheckInput(start);
@@ -734,7 +734,7 @@ bool Microemulsion::Doit(Real* X_,string METHOD_,vector<string> MONLIST_,vector<
 			}
 			cout <<"write results planar system" << endl;
 			Mol[oil]->ComputeWidth();
-			Sys[0]->pos_interface=Mol[oil]->pos_interface;
+			Sys->pos_interface=Mol[oil]->pos_interface;
 			WriteResults();
 			if (compute_kappa) success=SlipInSphericalCoordinates();
 		}

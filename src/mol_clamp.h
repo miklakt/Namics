@@ -8,7 +8,7 @@
 #include "tools.h"
 class mol_clamp : public Molecule
 {
-	public: mol_clamp(vector<Input*>,vector<Lattice*>,vector<Segment*>,string);
+	public: mol_clamp(Input*,Lattice*,vector<Segment*>,string);
 	~mol_clamp();
 
 	//Real fraction(int);

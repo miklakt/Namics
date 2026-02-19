@@ -8,7 +8,7 @@
 #include "tools.h"
 class mol_water : public Molecule
 {
-	public: mol_water(vector<Input*>,vector<Lattice*>,vector<Segment*>,string);
+	public: mol_water(Input*,Lattice*,vector<Segment*>,string);
 	~mol_water();
 	
 	void AddToGP(Real*);

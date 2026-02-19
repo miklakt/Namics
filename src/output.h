@@ -15,20 +15,20 @@
 
 class Output {
 public:
-	Output(vector<Input*>,vector<Lattice*>,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,vector<System*>,vector<Solve_scf*>,string,int,int);
+	Output(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,string,int,int);
 
 ~Output();
 
 	string name;
-	vector<Input*> In;
-	vector<Lattice*> Lat;
+	Input* In;
+	Lattice* Lat;
 	Lattice* lat;
 	vector<Segment*> Seg;
 	vector<State*> Sta;
 	vector<Reaction*> Rea;
 	vector<Molecule*> Mol;
-	vector<System*> Sys;
-	vector<Solve_scf*> New;
+	System* Sys;
+	Solve_scf* New;
 	int n_output;
 	int subl;
 	int n_starts;

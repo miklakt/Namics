@@ -2,7 +2,7 @@
 #include "mol_asym_dendrimer.h"
 
 
-mol_asym_dend::mol_asym_dend(vector<Input*> In_,vector<Lattice*> Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
+mol_asym_dend::mol_asym_dend(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
 
 
 mol_asym_dend::~mol_asym_dend() {
@@ -52,7 +52,7 @@ if (debug) cout <<"Forward2ndO for mol_asym_dend " + name << endl;
 							lat->propagate(GS,Seg[mon_nr[b]]->G1,0,1,M);
 							lat->Initiate(Gg_f+s*M*size,GS+M,Markov,M);
 						} else {
-							Lat[0] ->propagateF(Gg_f,Seg[mon_nr[b]]->G1,P,s+1,s,M);
+							Lat->propagateF(Gg_f,Seg[mon_nr[b]]->G1,P,s+1,s,M);
 						}
 					}
 					s--;
@@ -169,9 +169,9 @@ if (debug) cout <<"Forward for mol_asym_dend " + name << endl;
 						lat->Initiate(Gg_f+s*M*size,Seg[mon_nr[b]]->G1,Markov,M);
 					} else {
 						if (b==bN &&k==0) {
-							Lat[0] ->propagate(Gg_f,Seg[mon_nr[b]]->G1,slast,s,M);
+							Lat->propagate(Gg_f,Seg[mon_nr[b]]->G1,slast,s,M);
 						} else {
-							Lat[0] ->propagate(Gg_f,Seg[mon_nr[b]]->G1,s+1,s,M);
+							Lat->propagate(Gg_f,Seg[mon_nr[b]]->G1,s+1,s,M);
 						}
 					}
 					s--;

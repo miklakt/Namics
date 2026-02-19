@@ -2,10 +2,10 @@
 #include <random>
 #include <fstream>
 
-Segment::Segment(vector<Input*> In_,vector<Lattice*> Lat_, string name_,int segnr,int N_seg) {
+Segment::Segment(Input* In_,Lattice* Lat_, string name_,int segnr,int N_seg) {
 	In=In_; Lat=Lat_; name=name_; n_seg=N_seg; seg_nr=segnr; prepared = 0;
 if (debug) cout <<"Segment constructor" + name << endl;
-	lat=Lat[0];
+	lat=Lat;
 	KEYS.push_back("freedom");
 	KEYS.push_back("valence");
 	KEYS.push_back("epsilon");
@@ -163,7 +163,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 		int m_x;
 		int MX=lat->MX;
 		if (GetValue("sub_box_size").size()>0) {
-			m_x=In[0]->Get_int(GetValue("sub_box_size"),-1);
+			m_x=In->Get_int(GetValue("sub_box_size"),-1);
 			if (m_x <1 || m_x > MX) {success=false; cout <<"Value of sub_box_size is out of bounds: 1 ... " << MX << endl; }
 			if (mx>0) {
 				if (m_x!=mx) {
@@ -199,7 +199,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				vector<string> sub;
 				vector<string> set;
 				vector<string> coor;
-				In[0]->split(s,';',sub);
+				In->split(s,';',sub);
 				n_box=sub.size();
 				px1.clear();
 				py1.clear();
@@ -212,28 +212,28 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				bz.clear();
 				for (int i=0; i<n_box; i++) {
 					set.clear();
-					In[0]->split(sub[i],'(',set);
+					In->split(sub[i],'(',set);
 					int length = set.size();
 					if (length!=3) {
 						success=false; cout <<" In 'clamp_info' for segment '"+name+"', for box number " << i << " the expected format (px1,py1,pz1)(px2,py2,pz2) was not found" << endl;
 					} else {
 						coor.clear();
-						In[0]->split(set[1],',',coor);
+						In->split(set[1],',',coor);
 						if (coor.size()!=3) {
 							success=false; cout <<" In 'clamp_info' for segment '"+name+"' for box number "<< i <<" the coordinates for the p1 position (px1,py1,pz1) not correct format: found " << set[1] << endl;
 						} else {
-							px1.push_back(In[0]->Get_int(coor[0],-10000));
-							py1.push_back(In[0]->Get_int(coor[1],-10000));
-							pz1.push_back(In[0]->Get_int(coor[2],-10000));
+							px1.push_back(In->Get_int(coor[0],-10000));
+							py1.push_back(In->Get_int(coor[1],-10000));
+							pz1.push_back(In->Get_int(coor[2],-10000));
 						}
 						coor.clear();
-						In[0]->split(set[2],',',coor);
+						In->split(set[2],',',coor);
 						if (coor.size()!=3) {
 							success=false; cout <<" In 'clamp_info' for segment '"+name+"' for box number "<< i <<" the coordinates for the box position (px2,py2,pz2) not correct format. " << endl;
 						} else {
-							px2.push_back(In[0]->Get_int(coor[0],-10000));
-							py2.push_back(In[0]->Get_int(coor[1],-10000));
-							pz2.push_back(In[0]->Get_int(coor[2],-10000));
+							px2.push_back(In->Get_int(coor[0],-10000));
+							py2.push_back(In->Get_int(coor[1],-10000));
+							pz2.push_back(In->Get_int(coor[2],-10000));
 						}
 						bx.push_back((px2[i]+px1[i]-mx)/2);
 						by.push_back((py2[i]+py1[i]-mx)/2);
@@ -258,12 +258,12 @@ if (debug) cout <<"ParseFreedoms " << endl;
 			s_freedom="pinned_range";
 			string p_range=GetValue("pinned_range");
 			vector<string>sub;
-			In[0]->split(p_range,';',sub);
+			In->split(p_range,';',sub);
 			int Lsub=sub.size();
 			vector<string>xyz;
 			for (int k=0; k<Lsub; k++) {
 				xyz.clear();
-				In[0]->split(sub[k],',',xyz);
+				In->split(sub[k],',',xyz);
 				int Lxyz=xyz.size();
 				for (int kk=0; kk<Lxyz; kk++){
 					if (xyz[kk]=="firstlayer") {
@@ -312,7 +312,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				cout<< "For mon " + name + ", you should provide either pinned_range or pinned_filename " <<endl; success=false;
 			}
 			sub.clear();
-			In[0]->split(p_range,';',sub);
+			In->split(p_range,';',sub);
 			p_range.clear();
 			Lsub=sub.size();
 
@@ -324,7 +324,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 
 			for (int k=0; k<Lsub; k++) {
 				xyz.clear();
-				In[0]->split(sub[k],',',xyz);
+				In->split(sub[k],',',xyz);
 				int Lxyz=xyz.size();
 				if (Lxyz<1 || Lxyz>3){
 					cout <<"For mon " + name + ", the parsing of 'pinned_range' failed. Number of coordinates should be 1, 2 or 3: e.g., x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, x1;x2 for 1, 2 or 3 gradients, respectively.  " << endl;
@@ -345,7 +345,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 						p_range.append(to_string(var_pos));
 
 					} else {
-						int cor=In[0]->Get_int(xyz[kk],-1);
+						int cor=In->Get_int(xyz[kk],-1);
 						if (((kk==0) && (cor <1 || cor > n_layers_x)) || ((kk==1) && (cor <1 || cor > n_layers_y))  ||((kk==2) && (cor <1 || cor > n_layers_z))) {
 							cout <<" For mon " + name+ ", the 'pinned_range' is not parsed properly! Coordinates either out of bounds or keywords 'var_pos', 'firstlayer', 'lastlayer' were not found" << endl;
 							success=false;
@@ -398,12 +398,12 @@ if (debug) cout <<"ParseFreedoms " << endl;
 			s_freedom="frozen_range";
 			string f_range=GetValue("frozen_range");
 			vector<string>sub;
-			In[0]->split(f_range,';',sub);
+			In->split(f_range,';',sub);
 			int Lsub=sub.size();
 			vector<string>xyz;
 			for (int k=0; k<Lsub; k++) {
 				xyz.clear();
-				In[0]->split(sub[k],',',xyz);
+				In->split(sub[k],',',xyz);
 				int Lxyz=xyz.size();
 				for (int kk=0; kk<Lxyz; kk++){
 					if (xyz[kk]=="lowerbound") {
@@ -446,7 +446,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 			}
 
 			sub.clear();
-			In[0]->split(f_range,';',sub);
+			In->split(f_range,';',sub);
 			f_range.clear();
 
 			Lsub=sub.size();
@@ -458,7 +458,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 			}
 			for (int k=0; k<Lsub; k++) {
 				xyz.clear();
-				In[0]->split(sub[k],',',xyz);
+				In->split(sub[k],',',xyz);
 				int Lxyz=xyz.size();
 				if (Lxyz<1 || Lxyz>3){
 					cout <<"For mon " + name + ", the parsing of 'frozen_range' failed. Number of coordinates should be 1, 2 or 3: e.g., x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, x1;x2 for 1, 2 or 3 gradients, respectively.  " << endl;
@@ -500,7 +500,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 					}
 
 					if (xyz[kk]!="firstlayer" && xyz[kk]!="lastlayer" && xyz[kk]!="lowerbound" && xyz[kk]!="upperbound" && xyz[kk]!="var_pos") {
-						int cor=In[0]->Get_int(xyz[kk],-1);
+						int cor=In->Get_int(xyz[kk],-1);
 						if ((kk==0 && (cor <0 || cor > n_layers_x+1)) || (kk==1 && (cor <0 || cor > n_layers_y+1))  ||(kk==2 && (cor <0 || cor > n_layers_z+1))) {
 							cout <<" For mon " + name+ ", the 'frozen_range' is not parsed properly! Coordinates either out of bounds or keywords  'var_pos', 'firstlayer', 'lastlayer', 'lowerbound', 'upperbound' were not found" << endl;
 							success=false;
@@ -567,8 +567,8 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				cout <<"Expecting values for 'n', 'pos' and 'size' for the definition of the particle at the axis of cylindrical coordonate system " << endl;
 				cout<< "More specifically we expect n : 1 ; size < n_layers_x and size < n_layers_y; pos : (0,y) " << endl;
 			}
-			n=In[0]->Get_int(GetValue("n"),-1); if (n!=1) {success = false; cout <<"expect value for 'n' to be unity, that is, 'n : 1' in this case"<< endl; }
-			R=In[0]->Get_int(GetValue("size"),-1); if (R<0) {success = false ; cout <<"expecting positive integer for 'size' " << endl; }
+			n=In->Get_int(GetValue("n"),-1); if (n!=1) {success = false; cout <<"expect value for 'n' to be unity, that is, 'n : 1' in this case"<< endl; }
+			R=In->Get_int(GetValue("size"),-1); if (R<0) {success = false ; cout <<"expecting positive integer for 'size' " << endl; }
 			R*=fjc; //R is expressed in grit-units
 			if (GetValue("pos")=="?") {success = false; cout <<" expect (0,y) coordinate in this case, in segment size units" << endl; }
 			if (success) {
@@ -578,7 +578,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				vector<int>close;
 				vector<string>sub;
 				string t=GetValue("pos");
-				if (!In[0]->EvenBrackets(t,open,close)) {cout << "Brackets in 'pos' not balanced "<<endl; success=false;};
+				if (!In->EvenBrackets(t,open,close)) {cout << "Brackets in 'pos' not balanced "<<endl; success=false;};
 				int opensize=open.size();
 			       	if (opensize !=n ) {
 					success=false; cout <<"number of positions not equal to 'n' " << endl;
@@ -586,13 +586,13 @@ if (debug) cout <<"ParseFreedoms " << endl;
 					for (int i=0; i<n; i++) {
 						sub.clear();
 						string tt=t.substr(open[i]+1,close[i]-open[i]-1); //cout << tt << endl;
-						In[0]->split(tt,',',sub);
+						In->split(tt,',',sub);
 						if (sub.size() !=2) {
 							success=false;
 							cout <<"pos does not contain expected (x,y) set. Problem occurred for for particle nr " << i << "We found: " +tt << endl;
 						} else {
-							px.push_back(In[0]->Get_int(sub[0],-1));px[i]*=fjc; //px in grit units
-							py.push_back(In[0]->Get_int(sub[1],-1));py[i]*=fjc; //py in grit units
+							px.push_back(In->Get_int(sub[0],-1));px[i]*=fjc; //px in grit units
+							py.push_back(In->Get_int(sub[1],-1));py[i]*=fjc; //py in grit units
 							if (px[i] !=0) {success=false; cout << "pos x for particle " << i << " is expected to be 0; we found " << px[i] << endl; }
 							if (py[i] <0 || py[i]>lat->MY) {success=false; cout << "pos y for particle " << i << " out of bounds or not an integer: " << py[i] << endl; }
 							pz.push_back(0);
@@ -609,8 +609,8 @@ if (debug) cout <<"ParseFreedoms " << endl;
 			if (GetValue("n").size()==0 || GetValue("pos").size()==0 || GetValue("size").size()==0) {
 				success=false; cout <<"Expecting values for 'n', 'pos' and 'size' for the definition of the set of spherical particles in the system. " << endl;
 			} else {
-				n=In[0]->Get_int(GetValue("n"),-1); if (n<0) {success=false; cout <<" expecting positive integer for 'n'" << endl;}
-				R=In[0]->Get_int(GetValue("size"),-1); if (R<0) {success =false ; cout <<" expecting positive integer for 'size' "<<endl; }
+				n=In->Get_int(GetValue("n"),-1); if (n<0) {success=false; cout <<" expecting positive integer for 'n'" << endl;}
+				R=In->Get_int(GetValue("size"),-1); if (R<0) {success =false ; cout <<" expecting positive integer for 'size' "<<endl; }
 				R*=fjc;  //here I alrady express R in grit units not segment units.
 				//if (GetValue("pos")=="random") {
 				//	found=true; srand(1);
@@ -677,7 +677,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 					vector<int>close;
 					vector<string>sub;
 					string t=GetValue("pos");
-					if (!In[0]->EvenBrackets(t,open,close)) {cout << "Brackets in 'pos' not balanced "<<endl; success=false;};
+					if (!In->EvenBrackets(t,open,close)) {cout << "Brackets in 'pos' not balanced "<<endl; success=false;};
 					int opensize=open.size();
 			        	if (opensize !=n ) {
 							success=false; cout <<"number of positions not equal to 'n' " << endl;
@@ -685,15 +685,15 @@ if (debug) cout <<"ParseFreedoms " << endl;
 							for (int i=0; i<n; i++) {
 								sub.clear();
 							string tt=t.substr(open[i]+1,close[i]-open[i]-1); //cout << tt << endl;
-							In[0]->split(tt,',',sub);
+							In->split(tt,',',sub);
 							if (sub.size() !=3) {
 								success=false;
 								cout <<"Format error: 'pos' did not contain the keywords 'regular' nor 'random'," << endl;
 								cout <<"nor did 'pos'  contain expected (x,y,z) sets. Problem occurred for for particle nr " << i << "We found: " +tt << endl;
 							} else {
-								px.push_back(In[0]->Get_int(sub[0],-1)); px[i]*=fjc;
-								py.push_back(In[0]->Get_int(sub[1],-1)); py[i]*=fjc;
-								pz.push_back(In[0]->Get_int(sub[2],-1)); pz[i]*=fjc;
+								px.push_back(In->Get_int(sub[0],-1)); px[i]*=fjc;
+								py.push_back(In->Get_int(sub[1],-1)); py[i]*=fjc;
+								pz.push_back(In->Get_int(sub[2],-1)); pz[i]*=fjc;
 								if (px[i] <0 || px[i]>lat->MX) {success=false; cout << "pos x for particle " << i << " out of bounds or not an integer: " << px[i] << endl; }
 								if (py[i] <0 || py[i]>lat->MY) {success=false; cout << "pos y for particle " << i << " out of bounds or not an integer: " << py[i] << endl; }
 								if (pz[i] <0 || pz[i]>lat->MZ) {success=false; cout << "pos z for particle " << i << " out of bounds or not an integer: " << pz[i] << endl; }
@@ -729,7 +729,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 		if (GetValue("tagged_range").size()>0) { s_freedom="tagged_range";
 			string t_range=GetValue("tagged_range");
 			vector<string>sub;
-			In[0]->split(t_range,';',sub);
+			In->split(t_range,';',sub);
 			t_range.clear();
 			vector<string>xyz;
 			int Lsub=sub.size();
@@ -744,7 +744,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 			int n_layers_z=(lat->MZ+1)/lat->fjc;
 			for (int k=0; k<Lsub; k++) {
 				xyz.clear();
-				In[0]->split(sub[k],',',xyz);
+				In->split(sub[k],',',xyz);
 				int Lxyz=xyz.size();
 				if (Lxyz<1 || Lxyz>3){
 					cout <<"For mon " + name + ", the parsing of 'tagged_range' failed. Number of coordinates should be 1, 2 or 3: e.g., x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, x1;x2 for 1, 2 or 3 gradients, respectively.  " << endl;
@@ -759,7 +759,7 @@ if (debug) cout <<"ParseFreedoms " << endl;
 						if (kk==1) t_range.append(to_string(n_layers_y));
 						if (kk==2) t_range.append(to_string(n_layers_z));
 					} else {
-						int cor=In[0]->Get_int(xyz[kk],-1);
+						int cor=In->Get_int(xyz[kk],-1);
 						if ((kk==0 && (cor <1 || cor > n_layers_x)) || (kk==1 && (cor <1 || cor > n_layers_y))  ||(kk==2 && (cor <1 || cor > n_layers_z))) {
 							cout <<" For mon " + name+ ", the 'tagged_range' is not parsed properly! Coordinates either out of bounds or keywords 'firstlayer', 'lastlayer' were not found" << endl;
 							success=false;
@@ -842,9 +842,9 @@ if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 
 	int M=lat->M;
 #ifdef CUDA
-	if (In[0]->MesodynList.empty() or prepared == false) {
+	if (In->MesodynList.empty() or prepared == false) {
 	TransferDataToDevice(H_MASK, MASK, M);
-		if (In[0]->MesodynList.empty())
+		if (In->MesodynList.empty())
 			TransferDataToDevice(H_u, u, M); //Wrong: This clears u for every CUDA application and messes up mesodyn
 		prepared = true;
 }
@@ -883,7 +883,7 @@ if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 	}
 	if (!(freedom ==" frozen" || freedom =="tagged")) Times(G1,G1,KSAM,M);
 	if (GetValue("seed").size()>0) {
-		seed=In[0]->Get_int(GetValue("seed"),1);
+		seed=In->Get_int(GetValue("seed"),1);
 	}
 	if (GetValue("fluctuation_potentials").size()>0&& first_time)
 	{
@@ -902,7 +902,7 @@ if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 		{
 			case 1:
 				s = GetValue("fluctuation_potentials");
-				In[0]->split(s, ',', sub);
+				In->split(s, ',', sub);
 				if (sub.size() !=1) {
 					success=false; cout <<"expecting in 'mon : " + name + " : fluctuation_potentials : '  coordinate info in 1d, such as: x"<<endl;
 				}
@@ -911,15 +911,15 @@ if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 					cout <<"putting u_ext" << endl;
 					for (int x=1; x<MX; x++) u_ext[x]+=Amplitude*(sin(2.0*PIE*x/labda));
 				} else {
-					int x=In[0]->Get_int(sub[0],MX/2);
+					int x=In->Get_int(sub[0],MX/2);
 					u_ext[x]=Amplitude;
 				}
 				break;
 			case 2:
 				s = GetValue("fluctuation_potentials");
-				In[0]->split(s, ',', sub);
+				In->split(s, ',', sub);
 				if (sub.size() !=2) {success=false; cout <<"expecting in 'mon : " + name + " : fluctuation_potentials : '  coordinate info in 2d, such as: x,5"<<endl; }
-				my=In[0]->Get_int(sub[1],0);
+				my=In->Get_int(sub[1],0);
 				if (my<0 || my>lat->MY) {success =false; cout << "in fluctuation potentials the y-coordinate is out of bounds."<< endl; }
 				labda_y=lat->MY;
 				JX=lat->JX;
@@ -927,7 +927,7 @@ if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 				break;
 			case 3:
 			s = GetValue("fluctuation_potentials");
-			In[0]->split(s, ',', sub);
+			In->split(s, ',', sub);
 			if (sub.size()<3)
 			{
 				success=false;
@@ -960,7 +960,7 @@ if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 					}
 				} else
 				{
-					int mz=In[0]->Get_int(sub[2],0);
+					int mz=In->Get_int(sub[2],0);
 					if (mz<1 || mz>lat->MZ)
 					{
 						success=false;
@@ -1043,9 +1043,9 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 	n_pos=0;
 
 	fixedPsi0=false;
-	success = In[0]->CheckParameters("mon",name,start,KEYS,PARAMETERS,VALUES);
+	success = In->CheckParameters("mon",name,start,KEYS,PARAMETERS,VALUES);
 	if(success) {
-		if (GetValue("var_pos").size()>0) var_pos=In[0]->Get_int(GetValue("var_pos"),0);
+		if (GetValue("var_pos").size()>0) var_pos=In->Get_int(GetValue("var_pos"),0);
 
 		copy_of.clear();
 		if (GetValue("set_equal_to").size()>0) {
@@ -1065,8 +1065,8 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		options.push_back("tagged");
 		options.push_back("clamp");
 		freedom="free";
-		freedom = In[0]->Get_string(GetValue("freedom"),"free");
-		if (!In[0]->InSet(options,freedom)) {
+		freedom = In->Get_string(GetValue("freedom"),"free");
+		if (!In->InSet(options,freedom)) {
 			cout << "Freedom: '"<< freedom  <<"' for mon " + name + " not recognized. "<< endl;
 			cout << "Freedom choices: free, pinned, frozen, tagged, clamp " << endl; success=false;
 		}
@@ -1082,13 +1082,13 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		valence =0;
 		if (GetValue("valence").size()>0) {
 			//if (copy_of.size()>0) cout <<"For segment " << name << " value for valence will be overwritten by the value of segment " << copy_of << endl;
-			valence=In[0]->Get_Real(GetValue("valence"),0);
+			valence=In->Get_Real(GetValue("valence"),0);
 			if (valence<-10 || valence > 10) cout <<"For mon " + name + " valence value out of range -10 .. 10. Default value used instead" << endl;
 		}
 		epsilon=80;
 		if (GetValue("epsilon").size()>0) {
 			if (copy_of.size()>0) cout <<"For segment " << name << "value for epsilon will be overwritten by the value of segment " << copy_of << endl;
-			epsilon=In[0]->Get_Real(GetValue("epsilon"),80);
+			epsilon=In->Get_Real(GetValue("epsilon"),80);
 			if (epsilon<1 || epsilon > 250) cout <<"For mon " + name + " relative epsilon value out of range 1 .. 250. Default value 80 used instead" << endl;
 		}
 		if (valence !=0) {
@@ -1101,7 +1101,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		if (GetValue("e.psi0/kT").size()>0) {
 			PSI0=0;
 			fixedPsi0=true;
-			PSI0=In[0]->Get_Real(GetValue("e.psi0/kT"),0);
+			PSI0=In->Get_Real(GetValue("e.psi0/kT"),0);
 			if (PSI0!=0 && valence !=0) {
 				success=false;
 				cout <<"You can set only 'valence' or 'e.psi0/kT', but not both " << endl;
@@ -1118,7 +1118,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 	}
 
 	//if (GetValue("B").size()>0) {
-	//	B=In[0]->Get_Real(GetValue("B"),B);
+	//	B=In->Get_Real(GetValue("B"),B);
 	//	if (B <1e-9) {
 	//		cout <<"For Seg " + name + " mobility B should have be positive value " << endl;
 	//	}
@@ -1136,7 +1136,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 	for (int i=0; i<length; i++) {
 		Chi=-999;
 		if (GetValue("chi_"+chi_name[i]).size()>0) {
-			Chi=In[0]->Get_Real(GetValue("chi_"+chi_name[i]),Chi);
+			Chi=In->Get_Real(GetValue("chi_"+chi_name[i]),Chi);
 			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<GetValue("chi_"+chi_name[i]) << "not valid." << endl; }
 			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<GetValue("chi_"+chi_name[i]) << "value ignored: set to zero!" << endl; Chi=0;}
 
@@ -1146,7 +1146,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 
 	if (GetValue("fluctuation_potentials").size()>0) {
 		if (GetValue("fluctuation_wavelength").size()>0) {
-				labda=In[0]->Get_int(GetValue("fluctuation_wavelength"),0);
+				labda=In->Get_int(GetValue("fluctuation_wavelength"),0);
 				if (labda<1 || labda>lat->MX || labda > lat->MY || labda > lat->MZ) {
 					success = false;cout <<"fluctuation_wavelength must be a positive number smaller or equal to the 'box' size" << endl;
 				}
@@ -1156,7 +1156,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		}
 		if (lat->gradients==2) {
 			labda = lat->MY;
-			labda=In[0]->Get_int(GetValue("fluctuation_wavelength"),labda);
+			labda=In->Get_int(GetValue("fluctuation_wavelength"),labda);
 			if (labda !=lat->MY) {
 				labda=lat->MY; cout <<"fluctuation_wavelength is set to n_layers_y." << endl;
 			}
@@ -1172,7 +1172,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 			}
 	}
 	if (GetValue("fluctuation_amplitude").size()>0) {
-		Amplitude = In[0]->Get_Real(GetValue("fluctuation_amplitude"),1);
+		Amplitude = In->Get_Real(GetValue("fluctuation_amplitude"),1);
 		if (GetValue("fluctuation_potentials").size()==0) {
 			success = false; cout <<"fluctuation_amplitude should be combined with fluctuation_potentials and optionally with fluctuation_wavelength" << endl;
 		}
@@ -1197,7 +1197,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		vector<int> close;
 		vector<string>sub;
 		open.clear(); close.clear();
-		if (!In[0]->EvenBrackets(s,open,close)) {
+		if (!In->EvenBrackets(s,open,close)) {
 			cout << "s : " << s << endl;
 			cout << "In constraints for segment " + name + " the backets are not balanced. For help use: 'mon : " +name + " : phi : ?' " << endl; success=false;
 		}
@@ -1206,9 +1206,9 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		while (k<length and success) {
 			string sA=s.substr(open[k]+1,close[k]-open[k]-1);
 			sub.clear();
-			In[0]->split(sA,',',sub);
-				int zz=In[0]->Get_int(sub[0],0);
-				Real RHO=In[0]->Get_Real(sub[1],-1);
+			In->split(sA,',',sub);
+				int zz=In->Get_int(sub[0],0);
+				Real RHO=In->Get_Real(sub[1],-1);
 				if (zz<1 || zz>lat->MX) {
 					cout <<"In constraints for segment " + name + "failed to understand '" + sA + "' no valid integer found for first argument. For help use: 'mon : " +name + " : phi : ?' " << endl; success=false;
 				} else constraint_z.push_back(zz);
@@ -1228,7 +1228,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		}
 	}
 
-	//valence=In[0]->Get_Real(GetValue("valence"),0);
+	//valence=In->Get_Real(GetValue("valence"),0);
 	bool HMD=false;
 	H_MASK = (Real*) malloc(lat->M*sizeof(Real));
 	r=(int*) malloc(6*sizeof(int)); std::fill(r,r+6,0);
@@ -1397,20 +1397,20 @@ if (debug) cout << "Segment::PutVarInfo " << endl;
 		if (Var_target_=="var_pos") {Var_target=4; Var_start_value=var_pos;}
 		if (Var_target ==-1) {
 			vector<string>sub;
-			In[0]->split(Var_target_,'_',sub);
+			In->split(Var_target_,'_',sub);
 			if (sub.size()==2) {
 				if (sub[0]=="chi") {
-					length_mon=In[0]->MonList.size();
+					length_mon=In->MonList.size();
 					for (i=0; i<length_mon; i++) {
-						if (sub[1]==In[0]->MonList[i]) {
+						if (sub[1]==In->MonList[i]) {
 							Var_target=2; Var_start_value=chi[i];
 							chi_var_seg=i;
 						}
 					}
 					if (Var_target!=2) {
-						length_state=In[0]->StateList.size();
+						length_state=In->StateList.size();
 						for (i=0; i<length_state; i++) {
-							if (sub[1]==In[0]->StateList[i]) {
+							if (sub[1]==In->StateList[i]) {
 								Var_target = 2; Var_start_value=chi[i+length_mon];
 								chi_var_state=i;
 							}
@@ -1494,7 +1494,7 @@ if (debug) cout << "Segment::UpdateVarInfo() " << endl;
 			if (scale=="exponential") {
 				cout <<"In var of chi-parameter, only linear scale is implemented" << endl; success=false;
 			} else {
-				length = In[0]->MonList.size();
+				length = In->MonList.size();
 				if (chi_var_seg>-1) {
 					chi[chi_var_seg]= Var_start_value+step_nr*Var_step;
 				}
@@ -1536,7 +1536,7 @@ if (debug) cout << "Segment::ResetInitValue() " << endl;
 			PSI0=Var_start_value;
 			break;
 		case 2:
-			length = In[0]->MonList.size();
+			length = In->MonList.size();
 			if (chi_var_seg>-1) {
 				chi[chi_var_seg]= Var_start_value;
 			}
@@ -1568,7 +1568,7 @@ if (debug) cout << "Segment::PutValue() " << endl;
 			PSI0=X;
 			break;
 		case 2:
-			length = In[0]->MonList.size();
+			length = In->MonList.size();
 			if (chi_var_seg>-1) {
 				chi[chi_var_seg]= X;
 			}
@@ -1600,7 +1600,7 @@ if (debug) cout << "Segment::GetValue() " << endl;
 			X=PSI0;
 			break;
 		case 2:
-			length = In[0]->MonList.size();
+			length = In->MonList.size();
 			if (chi_var_seg>-1) {
 				X=chi[chi_var_seg];
 			}
@@ -1642,38 +1642,38 @@ bool Segment::GetClamp(string filename) {
 				NN.clear();
 				in_file >> line_ >> NN >> line_ >> X >> Y >> Z >> line_ >> line_ >> line_ >> line_;
 				if (NN.size()>0) {
-				if (!In[0]->Get_int(NN,pos,"")) { success=false; cout<<" length of 'fragment' not an integer " << endl; }
+				if (!In->Get_int(NN,pos,"")) { success=false; cout<<" length of 'fragment' not an integer " << endl; }
 				else {if (N>0) {if (N!=pos) {cout <<"lengths of fregment are not equal " << endl; success=false;}} else N = pos;}
-				if (!In[0]->Get_int(X,pos,"")) {success=false; cout <<"X-value for sub_box size is not integer " << endl;  }
+				if (!In->Get_int(X,pos,"")) {success=false; cout <<"X-value for sub_box size is not integer " << endl;  }
 				else {if (mx>0) {if (mx !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else mx=pos; }
-				if (!In[0]->Get_int(Y,pos,"")) {success=false; cout <<"Y-value for sub_box size is not integer " << endl;  }
+				if (!In->Get_int(Y,pos,"")) {success=false; cout <<"Y-value for sub_box size is not integer " << endl;  }
 				else {if (my>0) {if (my !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else my=pos; }
-				if (!In[0]->Get_int(Z,pos,"")) {success=false; cout <<"Z-value for sub_box size is not integer " << endl;  }
+				if (!In->Get_int(Z,pos,"")) {success=false; cout <<"Z-value for sub_box size is not integer " << endl;  }
 				else {if (mz>0) {if (mz !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else mz=pos; }
 				}
 			}
 			if (i==2) {in_file>>X>>Y>>Z;
-				if (!In[0]->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
 				else bx.push_back(pos);
-				if (!In[0]->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
 				else by.push_back(pos);
-				if (!In[0]->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
 				else bz.push_back(pos);
 			}
 			if (i==3) {in_file>>X>>Y>>Z;
-				if (!In[0]->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
 				else px1.push_back(pos);
-				if (!In[0]->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
 				else py1.push_back(pos);
-				if (!In[0]->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
 				else pz1.push_back(pos);
 			}
 			if (i==4) {i=0;in_file>>X>>Y>>Z;
-				if (!In[0]->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
 				else px2.push_back(pos);
-				if (!In[0]->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
 				else py2.push_back(pos);
-				if (!In[0]->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!In->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
 				else pz2.push_back(pos);
 			}
 		}
@@ -1900,7 +1900,7 @@ if (debug) cout <<"Get Pointer for segment " + name << endl;
 	vector<string> sub;
 	int M=lat->M;
 	SIZE=lat->M;
-	In[0]->split(s,';',sub);
+	In->split(s,';',sub);
 	if (sub[0]=="profile") {
 
 	if (sub[1]=="0") {
@@ -1951,7 +1951,7 @@ int* Segment::GetPointerInt(string s, int &SIZE) {
 if (debug) cout <<"GetPointerInt for segment " + name << endl;
 	vector<string> sub;
 	SIZE=lat->M;
-	In[0]->split(s,';',sub);
+	In->split(s,';',sub);
 	if (sub[0]=="array") {// set SIZE and return int pointer.
 	}
 	return NULL;
@@ -2015,7 +2015,7 @@ if (debug) cout <<"AddState " << id_ <<" to seg " << name << endl;
 	int ID=id_;
 	for (int k=0; k<length; k++) {
 		if (state_id[k]==ID) {
-			state_name[k]=In[0]->StateList[ID];
+			state_name[k]=In->StateList[ID];
 			found=true;
 			state_alphabulk[k]=alphabulk;
 			state_valence[k]=valence;
@@ -2025,14 +2025,14 @@ if (debug) cout <<"AddState " << id_ <<" to seg " << name << endl;
 	}
 	if (!found) {
 		state_id.push_back(ID);
-		state_name.push_back(In[0]->StateList[ID]);
+		state_name.push_back(In->StateList[ID]);
 		state_alphabulk.push_back(alphabulk);
 		state_phibulk.push_back(0);
 		state_valence.push_back(valence);
 		if (fixed) state_change.push_back(false); else state_change.push_back(true);
 		state_number=state_change.size()-1;
-		length=In[0]->StateList.size();
-		for (int k=0; k<length; k++) {if (name==In[0]->StateList[k]) state_nr.push_back(k);}
+		length=In->StateList.size();
+		for (int k=0; k<length; k++) {if (name==In->StateList[k]) state_nr.push_back(k);}
 	}
 
 	if (valence !=0) {

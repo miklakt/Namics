@@ -2,7 +2,7 @@
 #define LGRAD1_H
 class LGrad1 : public Lattice
 {
-	public: LGrad1(vector<Input*> In_,string name_);
+	public: LGrad1(Input* In_,string name_);
 	virtual ~LGrad1();
 
 

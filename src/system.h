@@ -9,19 +9,19 @@
 
 class System {
 public:
-	System(vector<Input*>,vector<Lattice*>,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,string);
+	System(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,string);
 
 ~System();
 
 	string name;
 	bool all_system;
-	vector<Input*> In;
+	Input* In;
 	Real* CHI;
 	vector<Segment*> Seg;
 	vector<State*> Sta;
 	vector<Reaction*> Rea;
 	vector<Molecule*> Mol;
-	vector<Lattice*> Lat;
+	Lattice* Lat;
 	Lattice* lat;
 	vector<int> SysMonList;
 	vector<int> ItMonList;

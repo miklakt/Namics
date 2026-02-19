@@ -2,11 +2,11 @@
 #include "output.h"
 #include "time.h"
 
-Output::Output(vector<Input*> In_,vector<Lattice*> Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,vector<System*> Sys_,vector<Solve_scf*> New_,string name_,int outnr,int N_out) {
+Output::Output(Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_,int outnr,int N_out) {
 if (debug) cout <<"constructor in Output "<< endl;
 	In=In_; Lat = Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; n_output=N_out; output_nr=outnr;  New=New_;
 	//KEYS.push_back("write_output");
-	lat=Lat[0];
+	lat=Lat;
 	KEYS.push_back("write_bounds");
 	KEYS.push_back("append");
 	KEYS.push_back("use_output_folder");
@@ -20,7 +20,7 @@ if (debug) cout <<"constructor in Output "<< endl;
 	use_output_folder = true; // LINUX ONLY, when you remove this, add it as a default to its CheckInputs part.
 	//if (!CheckOutInput()) {input_error = true; cout << "Error found in ChcekOutInput in output module "<<endl;}
 	//if (!Load()) {input_error=true;  cout <<"Error found in load output items in output module " << endl; }
-	n_starts = In[0]->GetNumStarts();
+	n_starts = In->GetNumStarts();
 	first=0;
 
 }
@@ -36,23 +36,23 @@ bool Output::Load() {
 if (debug) cout <<"Load in output " << endl;
 	bool success=true;
 	int molnr=0;
-	success= In[0]->LoadItems(name, OUT_key, OUT_name, OUT_prop);
+	success= In->LoadItems(name, OUT_key, OUT_name, OUT_prop);
 	if (success) {
 		int length=OUT_key.size();
 
 		for (int i=0; i<length; i++) {
 			if (OUT_key[i]=="mol"){
 				vector<string> sub;
-				In[0]->split(OUT_prop[i],'*',sub);
+				In->split(OUT_prop[i],'*',sub);
 
 
 				if (!(sub[0]==OUT_prop[i])){
 					bool wildmon;
 					if (sub[0] =="") wildmon=false; else wildmon=true;
 
-					int k=0; int mollength=In[0]->MolList.size();
+					int k=0; int mollength=In->MolList.size();
 					while (k<mollength) {
-						if (In[0]->MolList[k]==OUT_name[i]) molnr=k;
+						if (In->MolList[k]==OUT_name[i]) molnr=k;
 						k++;
 					}
 					if (wildmon) {
@@ -103,16 +103,16 @@ if (debug) cout << "CheckInput in output " << endl;
 	start=start_;
 
 	bool success=true;
-	success=In[0]->CheckParameters("output",name,start,KEYS,PARAMETERS,VALUES);
+	success=In->CheckParameters("output",name,start,KEYS,PARAMETERS,VALUES);
 	if (success) {
 		DOS=false;
 		if (GetValue("DOS").size()>0) {
-			DOS=In[0]->Get_bool(GetValue("DOS"),DOS);
+			DOS=In->Get_bool(GetValue("DOS"),DOS);
 		}
 
 		if (GetValue("append").size()>0) {
 			if (name=="ana") append=true;
-			append=In[0]->Get_bool(GetValue("append"),append);
+			append=In->Get_bool(GetValue("append"),append);
 
 			if (name=="pro") {
 					if (append) cout << "Warning: for output of type 'pro', the append is set to 'false'." << endl;
@@ -132,8 +132,8 @@ if (debug) cout << "CheckInput in output " << endl;
 			if (name=="vec") append=false;
 		}
 
-		write_bounds = In[0]->Get_bool(GetValue("write_bounds"),false);
-		write  = In[0]->Get_bool(GetValue("write"),true);
+		write_bounds = In->Get_bool(GetValue("write_bounds"),false);
+		write  = In->Get_bool(GetValue("write"),true);
 
 		if (GetValue("header_separator").size()>0) {
 			sep=GetValue("header_separator");
@@ -151,7 +151,7 @@ if (debug) cout << "CheckInput in output " << endl;
 		}
 
 		if (GetValue("use_output_folder").size()>0) {
-			use_output_folder = In[0]->Get_bool(GetValue("use_output_folder"),use_output_folder);
+			use_output_folder = In->Get_bool(GetValue("use_output_folder"),use_output_folder);
 		} // default is set in the constructor
 
 		if (success) {
@@ -166,7 +166,7 @@ if (debug) cout << "CheckInput in output " << endl;
 			option_list.push_back("always");
 			option_list.push_back("no_error");
 			option_list.push_back("never");
-			if (!In[0]->Get_string(GetValue("write_output"),write_option,option_list,"In output: 'write_output' not recognised. Use 'always', 'never', or 'no_error'. The last value is default.")){
+			if (!In->Get_string(GetValue("write_output"),write_option,option_list,"In output: 'write_output' not recognised. Use 'always', 'never', or 'no_error'. The last value is default.")){
 				cout <<"continue with write_output : no_error" << endl;
 			}
 		}
@@ -187,9 +187,9 @@ if (debug) cout << "GetValue in output " << endl;
 
 int* Output::GetPointerInt(string key, string name, string prop, int &Size) {
 if (debug) cout << "GetPointerInt in output " << endl;
-	int monlistlength=In[0]->MonList.size();
-	int mollistlength=In[0]->MolList.size();
-	//int aliaslistlength=In[0]->AliasList.size();
+	int monlistlength=In->MonList.size();
+	int mollistlength=In->MolList.size();
+	//int aliaslistlength=In->AliasList.size();
 	//cout << key << " " << name << " " << prop << " " << Size << endl;
 	int listlength;
 	int choice;
@@ -202,17 +202,17 @@ if (debug) cout << "GetPointerInt in output " << endl;
 
 	switch(choice) {
 		case 1:
-			listlength=Sys[0]->strings.size();
+			listlength=Sys->strings.size();
 			j=0;
 			while (j<listlength) {
-				if (prop==Sys[0]->strings[j]) return Sys[0]->GetPointerInt(Sys[0]->strings_value[j],Size);
+				if (prop==Sys->strings[j]) return Sys->GetPointerInt(Sys->strings_value[j],Size);
 				j++;
 			}
 			break;
 		case 2:
 			i=0;
 			while (i<mollistlength){
-				if (name==In[0]->MolList[i]) {
+				if (name==In->MolList[i]) {
 					listlength= Mol[i]->strings.size();
 					j=0;
 					while (j<listlength) {
@@ -226,7 +226,7 @@ if (debug) cout << "GetPointerInt in output " << endl;
 		case 3:
 			i=0;
 			while (i<monlistlength){
-				if (name==In[0]->MonList[i]) {
+				if (name==In->MonList[i]) {
 					listlength= Seg[i]->strings.size();
 					j=0;
 					while (j<listlength) {
@@ -260,8 +260,8 @@ if (debug) cout << "GetPointerInt in output " << endl;
 }
 Real* Output::GetPointer(string key, string name, string prop, int &Size) {
 if (debug) cout << "GetPointer in output " << endl;
-	int monlistlength=In[0]->MonList.size();
-	int mollistlength=In[0]->MolList.size();
+	int monlistlength=In->MonList.size();
+	int mollistlength=In->MolList.size();
 	//int aliaslistlength;
 	int listlength;
 	int choice;
@@ -274,18 +274,18 @@ if (debug) cout << "GetPointer in output " << endl;
 
 	switch(choice) {
 		case 1:
-			listlength=Sys[0]->strings.size();
+			listlength=Sys->strings.size();
 			j=0;
 			while (j<listlength) {
-				if (prop==Sys[0]->strings[j]) return Sys[0]->GetPointer(Sys[0]->strings_value[j],Size);
+				if (prop==Sys->strings[j]) return Sys->GetPointer(Sys->strings_value[j],Size);
 				j++;
 			}
-			//return Sys[0]->GetPointer(prop,Size);
+			//return Sys->GetPointer(prop,Size);
 			break;
 		case 2:
 			i=0;
 			while (i<mollistlength){
-				if (name==In[0]->MolList[i]) {
+				if (name==In->MolList[i]) {
 					listlength= Mol[i]->strings.size();
 					j=0;
 					while (j<listlength) {
@@ -299,7 +299,7 @@ if (debug) cout << "GetPointer in output " << endl;
 		case 3:
 			i=0;
 			while (i<monlistlength){
-				if (name==In[0]->MonList[i]) {
+				if (name==In->MonList[i]) {
 					listlength= Seg[i]->strings.size();
 					j=0;
 					while (j<listlength) {
@@ -333,8 +333,8 @@ if (debug) cout << "GetPointer in output " << endl;
 }
 int Output::GetValue(string key, string name, string prop, int &int_result, Real &Real_result, string &string_result) {
 if (debug) cout << "GetValue (long) in output " << endl;
-	int monlistlength=In[0]->MonList.size();
-	int mollistlength=In[0]->MolList.size();
+	int monlistlength=In->MonList.size();
+	int mollistlength=In->MolList.size();
 	int allistlength;
 	int choice=0;
 	int i,j;
@@ -347,24 +347,24 @@ if (debug) cout << "GetValue (long) in output " << endl;
 	if  (key=="alias") choice=7;
 	switch(choice) {
 		case 1:
-			return Sys[0]->GetValue(prop,int_result,Real_result,string_result);
+			return Sys->GetValue(prop,int_result,Real_result,string_result);
 			break;
 		case 2:
 			i=0;
 			while (i<mollistlength){
-				if (name==In[0]->MolList[i]) return Mol[i]->GetValue(prop,int_result,Real_result,string_result);
+				if (name==In->MolList[i]) return Mol[i]->GetValue(prop,int_result,Real_result,string_result);
 				i++;
 			}
 			break;
 		case 3:
 			i=0;
 			while (i<monlistlength){
-				if (name==In[0]->MonList[i]) return Seg[i]->GetValue(prop,int_result,Real_result,string_result);
+				if (name==In->MonList[i]) return Seg[i]->GetValue(prop,int_result,Real_result,string_result);
 				i++;
 			}
 			break;
 		case 4:
-			return New[0]->GetValue(prop,int_result,Real_result,string_result);
+			return New->GetValue(prop,int_result,Real_result,string_result);
 			break;
 		case 5:
 			return lat->GetValue(prop,int_result,Real_result,string_result);
@@ -401,9 +401,9 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 	string filename;
 	vector<string> sub;
 
-	string infilename = In[0]->name;
+	string infilename = In->name;
 	if (GetValue("filename").size()>0) infilename=GetValue("filename");
-	In[0]->split(infilename,'.',sub);
+	In->split(infilename,'.',sub);
 	string key;
 
 	if (use_output_folder == true) {
@@ -435,7 +435,7 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 		if (n_starts>1 && subl >0)  filename=sub[0].append("_").append(numcc).append("_").append(numc).append(".").append(name);
 	}
 
-	filename = In[0]->output_info.getOutputPath() + filename;
+	filename = In->output_info.getOutputPath() + filename;
 	if (name=="pos") {
 		length=OUT_key.size();
 		FILE *fp;
@@ -515,7 +515,7 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 			} else {cout << " Error for 'pro' output. It is only possible to output quantities known to be a 'profile'. That is why output quantity " + s + " is rejected. " << endl;}
 		}
 		if (DOS) fprintf(fp,"\r\n"); else fprintf(fp,"\n");
-		Lat[0] -> PutProfiles(fp,pointer,write_bounds,DOS);
+		Lat-> PutProfiles(fp,pointer,write_bounds,DOS);
 
 		fclose(fp);
 	}
@@ -548,7 +548,7 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 			Real Real_result=0;
 			string string_result;
 			vector<string> sub;
-			In[0] -> split(OUT_prop[i],'(',sub);
+			In-> split(OUT_prop[i],'(',sub);
 			result_nr= GetValue(OUT_key[i],OUT_name[i],sub[0],int_result,Real_result,string_result);
 			if (result_nr==0) {if (i<length-1) fprintf(fp,"NiN\t"); else fprintf(fp,"NiN");}
 			if (result_nr==1) {if (i<length-1) fprintf(fp,"%i\t",int_result); else fprintf(fp,"%i",int_result);}
@@ -575,7 +575,7 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 	}
 
 	if (name=="vtk") {
-		if (New[0]->mesodyn == true) {
+		if (New->mesodyn == true) {
 			// do nothing, 'cause Mesodyn likes to run its own business.
 		} else {
 			Real*  X = GetPointer(OUT_key[0],OUT_name[0],OUT_prop[0],Size);
@@ -596,25 +596,25 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 		if (append) fp=fopen(filename.c_str(),"a"); else fp=fopen(filename.c_str(),"w");
 		//fprintf(fp,"version: %s %s",version.c_str(),ctime(&now));
 //System parameters
-		s="sys : " + Sys[0]->name + " :";
+		s="sys : " + Sys->name + " :";
 		fprintf(fp,"%s version : %s\n",s.c_str(),version.c_str());
 		fprintf(fp,"%s datetime : %s\n",s.c_str(),timestamp_str);
-		length = Sys[0]->ints.size();
+		length = Sys->ints.size();
 		for (int i=0; i<length; i++)
-			fprintf(fp,"%s %s : %i \n",s.c_str(),Sys[0]->ints[i].c_str(),Sys[0]->ints_value[i]);
-		length = Sys[0]->Reals.size();
+			fprintf(fp,"%s %s : %i \n",s.c_str(),Sys->ints[i].c_str(),Sys->ints_value[i]);
+		length = Sys->Reals.size();
 #ifdef LongReal
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),Sys[0]->Reals[i].c_str(),Sys[0]->Reals_value[i]);
+		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),Sys->Reals[i].c_str(),Sys->Reals_value[i]);
 #else
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),Sys[0]->Reals[i].c_str(),Sys[0]->Reals_value[i]);
+		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),Sys->Reals[i].c_str(),Sys->Reals_value[i]);
 #endif
 		length = lat->bools.size();
 		for (int i=0; i<length; i++) {
-			if (Sys[0]->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),Sys[0]->bools[i].c_str(),"true");
-			else fprintf(fp,"%s %s : %s \n",s.c_str(),Sys[0]->bools[i].c_str(),"false");
+			if (Sys->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),Sys->bools[i].c_str(),"true");
+			else fprintf(fp,"%s %s : %s \n",s.c_str(),Sys->bools[i].c_str(),"false");
 		}
-		length = Sys[0]->strings.size();
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),Sys[0]->strings[i].c_str(),Sys[0]->strings_value[i].c_str());
+		length = Sys->strings.size();
+		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),Sys->strings[i].c_str(),Sys->strings_value[i].c_str());
 
 //Lattice parameters
 		s="lat : " + lat->name + " :";
@@ -636,26 +636,26 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),lat->strings[i].c_str(),lat->strings_value[i].c_str());
 
 //Newton parameters
-		s="newton : " + New[0]->name + " :";
-		length = New[0]->ints.size();
+		s="newton : " + New->name + " :";
+		length = New->ints.size();
 		for (int i=0; i<length; i++)
-			fprintf(fp,"%s %s : %i \n",s.c_str(),New[0]->ints[i].c_str(),New[0]->ints_value[i]);
-		length = New[0]->Reals.size();
+			fprintf(fp,"%s %s : %i \n",s.c_str(),New->ints[i].c_str(),New->ints_value[i]);
+		length = New->Reals.size();
 #ifdef LongReal
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),New[0]->Reals[i].c_str(),New[0]->Reals_value[i]);
+		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),New->Reals[i].c_str(),New->Reals_value[i]);
 #else
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),New[0]->Reals[i].c_str(),New[0]->Reals_value[i]);
+		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),New->Reals[i].c_str(),New->Reals_value[i]);
 #endif
-		length = New[0]->bools.size();
+		length = New->bools.size();
 		for (int i=0; i<length; i++) {
-			if (New[0]->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),New[0]->bools[i].c_str(),"true");
-			else fprintf(fp,"%s %s : %s \n",s.c_str(),New[0]->bools[i].c_str(),"false");
+			if (New->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),New->bools[i].c_str(),"true");
+			else fprintf(fp,"%s %s : %s \n",s.c_str(),New->bools[i].c_str(),"false");
 		}
-		length = New[0]->strings.size();
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),New[0]->strings[i].c_str(),New[0]->strings_value[i].c_str());
+		length = New->strings.size();
+		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),New->strings[i].c_str(),New->strings_value[i].c_str());
 
 //segment parameters
-		int length_A=In[0]->MonList.size();
+		int length_A=In->MonList.size();
 		for (int j=0; j<length_A; j++) {
 			s="mon : " + Seg[j]->name + " :";
 			length = Seg[j]->ints.size();
@@ -676,7 +676,7 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 			for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),Seg[j]->strings[i].c_str(),Seg[j]->strings_value[i].c_str());
 		}
 //molecule parameters
-		length_A=In[0]->MolList.size();
+		length_A=In->MolList.size();
 		for (int j=0; j<length_A; j++) {
 			s="mol : " + Mol[j]->name + " :";
 			length = Mol[j]->ints.size();
@@ -744,10 +744,10 @@ if (debug) cout << "vtk in output " << endl;
 
 void Output::density(){
 if (debug) cout << "density in output " << endl;
-	int length=In[0]->MolList.size();
+	int length=In->MolList.size();
 	string fname;
 	for (int i=0; i<length; i++) {
-		fname = "output/Molecule_" +In[0]->MolList[i]+ "_Density.vtk";
+		fname = "output/Molecule_" +In->MolList[i]+ "_Density.vtk";
 		vtk(fname,Mol[i]->phitot);
 	}
 }
@@ -762,25 +762,25 @@ if (debug) cout << "printlist in output " << endl;
 
 
 	writefile << "-------------------- Input list details -----------------------" << endl;
-	int length = In[0]->MonList.size();
+	int length = In->MonList.size();
 	writefile << " " << endl;
 	writefile << "MonList" << endl;
 	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << In[0]->MonList[i] << endl;
+	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << In->MonList[i] << endl;
 
-	length = In[0]->MolList.size();
+	length = In->MolList.size();
 	writefile << " " << endl;
 	writefile << "MolList" << endl;
 	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << In[0]->MolList[i] << endl;
+	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << In->MolList[i] << endl;
 	writefile << "---------------------------------------------------------------" << endl;
 	writefile << " " << endl;
 
 	writefile << "-------------------- Molecule list details -----------------------" << endl;
-	int n_mol = In[0]->MolList.size();
+	int n_mol = In->MolList.size();
 	for (int j=0; j<n_mol; j++){
 		writefile << " " << endl;
-		writefile << "Molecule: " << In[0]->MolList[j]<< endl;
+		writefile << "Molecule: " << In->MolList[j]<< endl;
 		writefile << " " << endl;
 
 		length = Mol[j]->MolMonList.size();
@@ -803,25 +803,25 @@ if (debug) cout << "printlist in output " << endl;
 	writefile << " " << endl;
 
 	writefile << "-------------------- System list details -----------------------" << endl;
-	length = Sys[0]->SysMonList.size();
+	length = Sys->SysMonList.size();
 	writefile << " " << endl;
 	writefile << "SysMonList" << endl;
 	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys[0]->SysMonList[i] << endl;
+	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys->SysMonList[i] << endl;
 
-	length = Sys[0]->SysTagList.size();
+	length = Sys->SysTagList.size();
 	writefile << " " << endl;
 	writefile << "SysTagList" << endl;
 	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys[0]->SysTagList[i] << endl;
+	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys->SysTagList[i] << endl;
 	writefile << "---------------------------------------------------------------" << endl;
 	writefile << " " << endl;
 
-	length = Sys[0]->FrozenList.size();
+	length = Sys->FrozenList.size();
 	writefile << " " << endl;
 	writefile << "FrozenList" << endl;
 	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys[0]->FrozenList[i] << endl;
+	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys->FrozenList[i] << endl;
 	writefile << "---------------------------------------------------------------" << endl;
 	writefile << " " << endl;
 	writefile.close();

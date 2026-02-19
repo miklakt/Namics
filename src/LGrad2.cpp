@@ -3,7 +3,7 @@
 #include "lattice.h"
 #include "LGrad2.h"
 
-LGrad2::LGrad2(vector<Input*> In_,string name_): Lattice(In_,name_) {}
+LGrad2::LGrad2(Input* In_,string name_): Lattice(In_,name_) {}
 
 LGrad2::~LGrad2() {
 if (debug) cout <<"LGrad2 destructor " << endl;
@@ -1244,20 +1244,20 @@ if (debug) cout <<"ReadRange in LGrad2 " << endl;
 	vector<string>set;
 	vector<string>coor;
 	vector<string>xyz;
-	In[0]->split(range,';',set);
+	In->split(range,';',set);
 	coor.clear();
-	block=true; In[0]->split(set[0],',',coor);
+	block=true; In->split(set[0],',',coor);
 	if (coor.size()!=2) {cout << "In mon " + 	seg_name + ", for 'pos 1', in '" + range_type + "' the coordiantes do not come in set of two: 'x,y'" << endl; success=false;}
 	else {
-		r[0]=In[0]->Get_int(coor[0],0);
-		r[1]=In[0]->Get_int(coor[1],0);
+		r[0]=In->Get_int(coor[0],0);
+		r[1]=In->Get_int(coor[1],0);
 	}
-	coor.clear(); In[0]->split(set[1],',',coor);
+	coor.clear(); In->split(set[1],',',coor);
 
 	if (coor.size()!=2) {cout << "In mon " + seg_name+ ", for 'pos 2', in '" + range_type + "', the coordinates do not come in set of two: 'x,y'" << endl; success=false;}
 	else {
-		r[3]=In[0]->Get_int(coor[0],0);
-		r[4]=In[0]->Get_int(coor[1],0);
+		r[3]=In->Get_int(coor[0],0);
+		r[4]=In->Get_int(coor[1],0);
 	}
 	if (r[0] > r[3]) {cout << "In mon " + seg_name+ ", for 'pos 1', the x-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
 	if (r[1] > r[4]) {cout << "In mon " + seg_name+ ", for 'pos 1', the y-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
@@ -1277,19 +1277,19 @@ if (debug) cout <<"ReadRangeFile in LGrad2 " << endl;
 	vector<string> lines;
 	vector<string> sub;
 	vector<string> xyz;
-	string Infilename=In[0]->name;
-	In[0]->split(Infilename,'.',sub);
+	string Infilename=In->name;
+	In->split(Infilename,'.',sub);
 
 	int length;
 	int length_xyz;
 	int px,py,p_i,x,y;
 	int i=0;
-	if (!In[0]->ReadFile(sub[0].append(".").append(filename),content)) {
+	if (!In->ReadFile(sub[0].append(".").append(filename),content)) {
 		success=false;
 		return success;
 	}
 
-	In[0]->split(content,'#',lines);
+	In->split(content,'#',lines);
 	length = lines.size();
 
 
@@ -1297,14 +1297,14 @@ if (debug) cout <<"ReadRangeFile in LGrad2 " << endl;
 		i=0;
 		if (n_pos==0) {
 			while (i<length){
-				if (In[0]->Get_int(lines[i],0)==1) n_pos++;
+				if (In->Get_int(lines[i],0)==1) n_pos++;
 				i++;
 			};
 			if (n_pos==0) {cout << "Warning: Input file for locations of 'particles' does not contain any unities." << endl;}
 		} else {
 			i=0; p_i=0;
 			for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++)  {
-				if (In[0]->Get_int(lines[i],0)==1) {H_p[p_i]=P(x,y); p_i++;}
+				if (In->Get_int(lines[i],0)==1) {H_p[p_i]=P(x,y); p_i++;}
 				i++;
 			}
 		}
@@ -1314,14 +1314,14 @@ if (debug) cout <<"ReadRangeFile in LGrad2 " << endl;
 		else {
 			while (i<length) {
 				xyz.clear();
-				In[0]->split(lines[i],',',xyz);
+				In->split(lines[i],',',xyz);
 				length_xyz=xyz.size();
 				if (length_xyz!=2) {
 					cout << "In mon " + seg_name + " " +range_type+"_filename  the expected 'pair of coordinates' 'x,y' was not found. " << endl;  success = false;
 				} else {
-					px=In[0]->Get_int(xyz[0],0);
+					px=In->Get_int(xyz[0],0);
 					if (px < 1 || px > MX) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the x-coordinate in "+range_type+"_filename out of bounds: 1.." << MX << endl; success =false;}
-					py=In[0]->Get_int(xyz[1],0);
+					py=In->Get_int(xyz[1],0);
 					if (py < 1 || py > MY) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MY << endl; success =false;}
 				}
 				cout <<"reading px " << px << " and py " << py << endl;
@@ -1344,9 +1344,9 @@ bool LGrad2::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=In[0]->ReadFile(filename,content);
+		success=In->ReadFile(filename,content);
 		if (success) {
-			In[0]->split(content,'#',lines);
+			In->split(content,'#',lines);
 			length = lines.size();
 		}
 	}
@@ -1354,7 +1354,7 @@ bool LGrad2::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 		if (MX*MY!=length) {success=false; cout <<"inputfile for filling delta_range has not expected length in x,y-directions" << endl;
 		} else {
 			for (int x=1; x<MX+1; x++)
-			for (int y=1; y<MY+1; y++) Mask[x*JX + y]=In[0]->Get_int(lines[x*JX+y],-1);
+			for (int y=1; y<MY+1; y++) Mask[x*JX + y]=In->Get_int(lines[x*JX+y],-1);
 		}
 	} else  {
 		for (int i=0; i<length_px; i++) {

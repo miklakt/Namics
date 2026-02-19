@@ -14,19 +14,19 @@
 
 class Microemulsion {
 public:
-	Microemulsion(vector<Input*>,vector<Output*>,vector<Lattice*>,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,vector<System*>,vector<Solve_scf*>,vector<Variate*>,string);
+	Microemulsion(Input*,vector<Output*>,vector<Lattice*>,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,vector<Variate*>,string);
 
 ~Microemulsion();
   	const string name;
-  	const vector<Input*> In;
+  	Input* In;
   	vector<Output*> Out;
   	const vector<Lattice*> Lat;
   	const vector<Molecule*> Mol;
   	const vector<Segment*> Seg;
   	const vector<State*> Sta;
 	const vector<Reaction*> Rea;
-  	const vector<System*> Sys;
- 	const vector<Solve_scf*> New;
+  	System* Sys;
+ 	Solve_scf* New;
  	const vector<Variate*> Var;
  	CP ControlParameter;
 	std::vector<string> KEYS;

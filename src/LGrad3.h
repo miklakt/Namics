@@ -2,7 +2,7 @@
 #define LGRAD3_H
 class LGrad3 : public Lattice
 {
-	public:	LGrad3(vector<Input*> In_,string name_);
+	public:	LGrad3(Input* In_,string name_);
 	~LGrad3();
 
 	void ComputeLambdas(void);

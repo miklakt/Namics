@@ -6,12 +6,12 @@
 #include "tools.h"
 class Alias {
 public:
-	Alias(vector<Input*>,vector<Lattice*>,string);
+	Alias(Input*,Lattice*,string);
 
 ~Alias();
 	void DeAllocateMemory();
 	void AllocateMemory(int,int);
-	vector<Lattice*> Lat;
+	Lattice* Lat;
 	Lattice* lat;
 	int value;
 	string composition;
@@ -23,7 +23,7 @@ public:
 	bool clamp;
 
 	string name;
-	vector<Input*> In;
+	Input* In;
 
 	vector<string> ints;
 	vector<string> Reals;

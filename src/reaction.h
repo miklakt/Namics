@@ -9,7 +9,7 @@
 
 class Reaction {
 public:
-	Reaction(vector<Input*>,vector<Segment*>,vector<State*>,string);
+	Reaction(Input*,vector<Segment*>,vector<State*>,string);
 
 ~Reaction();
 	void DeAllocateMemory();
@@ -38,8 +38,7 @@ public:
 	Real Var_target_value;
 	
 	string name; 
-	vector<Input*> In; 
-
+	Input* In;
 	vector<string> ints;
 	vector<string> Reals;
 	vector<string> bools;

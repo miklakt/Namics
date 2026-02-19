@@ -2,7 +2,7 @@
 #include "mol_branched.h"
 
 
-mol_branched::mol_branched(vector<Input*> In_,vector<Lattice*> Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {
+mol_branched::mol_branched(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {
 
 }
 

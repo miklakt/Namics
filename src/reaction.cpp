@@ -1,6 +1,6 @@
 #include "reaction.h"
 
-Reaction::Reaction(vector<Input*> In_,vector<Segment*> Seg_, vector<State*> Sta_, string name_) {
+Reaction::Reaction(Input* In_,vector<Segment*> Seg_, vector<State*> Sta_, string name_) {
 	In=In_; name=name_;   Sta=Sta_; Seg=Seg_;
 	KEYS.push_back("K"); 
 	KEYS.push_back("pK");
@@ -44,17 +44,17 @@ if (debug) cout <<"CheckInput in Reaction " + name << endl;
 	pK=-100;
 	Sto.clear();
 	State_nr.clear();
-	success= In[0]->CheckParameters("reaction",name,start,KEYS,PARAMETERS,VALUES);
+	success= In->CheckParameters("reaction",name,start,KEYS,PARAMETERS,VALUES);
 	if (success) {
 		if (GetValue("K").size()==0 && GetValue("pK").size()==0)  {
 			cout <<" reaction " << name << " has no K nor pK value" << endl; success=false;
 		} else {
 			if (GetValue("K").size() ==0) {
-				pK=In[0]->Get_Real(GetValue("pK"),pK);
+				pK=In->Get_Real(GetValue("pK"),pK);
 				if (pK==-100) {cout <<" reaction " << name << " no valid pK value found " << endl; success=false; }
 				K=pow(10,-pK); 
 			} else {
-				K=In[0]->Get_Real(GetValue("K"),pK);
+				K=In->Get_Real(GetValue("K"),pK);
 				if (K<0) {
 					cout <<" reaction " << name << " has not a positive value for 'K' " << endl; success=false;
 				} else {
@@ -68,29 +68,29 @@ if (debug) cout <<"CheckInput in Reaction " + name << endl;
 		} else {
 			string s=equation; 
 			vector<string>sub_equal;
-			In[0]->split(s,'=',sub_equal);
+			In->split(s,'=',sub_equal);
 			if (sub_equal.size()!=2) {
 				cout <<" reaction : " << name << " equation : " << equation << "should have one '=' sign" << endl; 
 				success=false; 
 			} else {
 				for (int k=0; k<2; k++) {
 					vector<string>sub_plus;
-					In[0]->split(sub_equal[k],'+',sub_plus);
+					In->split(sub_equal[k],'+',sub_plus);
 					int sub_l=sub_plus.size();
 					for (int l=0; l<sub_l; l++) { 
 						vector<int>open;
 						vector<int>close;
-						In[0]->EvenBrackets(sub_plus[l], open, close);
+						In->EvenBrackets(sub_plus[l], open, close);
 						int length=open.size();
 						if (length !=1) {
 							cout <<" reaction : " << name << " equation " << equation << " has too many mon types in between '+' signs " << endl; 
 							success=false; 
 						} else  {
 							string state_name=sub_plus[l].substr(open[0]+1,close[0]-open[0]-1);
-							int num_states=In[0]->StateList.size(); 
+							int num_states=In->StateList.size(); 
 							bool found=false;
 							for (int i=0; i<num_states; i++) {
-								string s_name=In[0]->StateList[i];
+								string s_name=In->StateList[i];
 								if (state_name == s_name) {
 									found = true; 
 									State_nr.push_back(i); 
@@ -103,7 +103,7 @@ if (debug) cout <<"CheckInput in Reaction " + name << endl;
 							}
 							if (!found) {cout << " reaction : " << name << " equation " << equation << " state " << state_name << " not found " << endl; success=false;  }
 							
-							int sto=In[0]->Get_int(sub_plus[l].substr(0,open[0]),0);
+							int sto=In->Get_int(sub_plus[l].substr(0,open[0]),0);
 							if (sto<1) {
 								if (sto==0) cout << " reaction : " << name << " equation : " << equation << " has a zero as stocheometry number " << endl;
 								else
@@ -120,7 +120,7 @@ if (debug) cout <<"CheckInput in Reaction " + name << endl;
 
 		} 
 	}
-	int length=In[0]->MonList.size();
+	int length=In->MonList.size();
 	int LENGTH=Sto.size();  
 	for (int i=0; i<length; i++) {
 		int sum=0;
@@ -130,7 +130,7 @@ if (debug) cout <<"CheckInput in Reaction " + name << endl;
 		}
 		if (sum !=0 ) {
 			success=false;
-			cout <<" reaction : " << name << " equation : " << equation << " not balanced for internal states of mon type: " << In[0]->MonList[i] << endl; 
+			cout <<" reaction : " << name << " equation : " << equation << " not balanced for internal states of mon type: " << In->MonList[i] << endl; 
 		}
 	}
 	Real charge=0;
@@ -248,8 +248,8 @@ if (debug) cout <<"GetValue (long)  in Reaction " + name << endl;
 Real Reaction::ChemIntBulk(State* sta) {
 	Real value=0;
 	
-	int mon_length=In[0]->MonList.size();
-	int state_length=In[0]->StateList.size();
+	int mon_length=In->MonList.size();
+	int state_length=In->StateList.size();
 	for (int i=0; i<mon_length; i++) 
 		if (Seg[i]->ns<2) {value+=sta->chi[i]*Seg[i]->phibulk;}
 	for (int i=0; i<state_length; i++) {value+=sta->chi[mon_length+i]*Seg[Sta[i]->mon_nr]->state_phibulk[Sta[i]->state_nr];}

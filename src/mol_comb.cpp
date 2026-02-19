@@ -2,7 +2,7 @@
 #include "mol_comb.h"
 
 
-mol_comb::mol_comb(vector<Input*> In_,vector<Lattice*> Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
+mol_comb::mol_comb(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
 
 
 mol_comb::~mol_comb() {

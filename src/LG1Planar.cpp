@@ -2,7 +2,7 @@
 #include "lattice.h"
 #include "LG1Planar.h"
 
-LG1Planar::LG1Planar(vector<Input*> In_,string name_): LGrad1(In_,name_) {}
+LG1Planar::LG1Planar(Input* In_,string name_): LGrad1(In_,name_) {}
 
 LG1Planar::~LG1Planar() {
 if (debug) cout <<"LG1Planar destructor " << endl;

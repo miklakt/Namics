@@ -3,7 +3,7 @@
 #include "lattice.h"
 #include "LG2Planar.h"
 
-LG2Planar::LG2Planar(vector<Input*> In_,string name_): LGrad2(In_,name_) {
+LG2Planar::LG2Planar(Input* In_,string name_): LGrad2(In_,name_) {
 	JY=1;
 }
 

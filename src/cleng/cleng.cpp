@@ -5,14 +5,14 @@
 using namespace std;
 
 Cleng::Cleng(
-        vector<Input *> In_,
-        vector<Lattice *> Lat_,
+        Input* In_,
+        Lattice* Lat_,
         vector<Segment *> Seg_,
         vector<State *> Sta_,
         vector<Reaction *> Rea_,
         vector<Molecule *> Mol_,
-        vector<System *> Sys_,
-        vector<Solve_scf *> New_,
+        System* Sys_,
+        Solve_scf* New_,
         string name_
 ) : name(std::move(name_)),
     In(std::move(In_)),
@@ -74,19 +74,19 @@ bool Cleng::CheckInput(int start) {
     if (debug) cout << "CheckInput in Cleng" << endl;
     bool success;
 
-    success = In[0]->CheckParameters("cleng", name, start, KEYS, PARAMETERS, VALUES);
+    success = In->CheckParameters("cleng", name, start, KEYS, PARAMETERS, VALUES);
     if (success) {
 
         // MCS
         if (!GetValue("MCS").empty()) {
-            success = In[0]->Get_int(GetValue("MCS"), MCS, 0, 10000000, "The number of Monte Carlo steps should be between 0 and 10_000_000; MCS = 0 is special case for calculating using only SCF part and Cleng tools.");
+            success = In->Get_int(GetValue("MCS"), MCS, 0, 10000000, "The number of Monte Carlo steps should be between 0 and 10_000_000; MCS = 0 is special case for calculating using only SCF part and Cleng tools.");
             if (!success) { MCS = 1; cout << "MCS will be equal to " << MCS << endl; }
         } else MCS = 0;
         if (debug) cout << "MCS is " << MCS << endl;
         
         // mcs
         if (!GetValue("mcs").empty()) {
-            success = In[0]->Get_int(GetValue("mcs"), mcs, 1, 10000000, "The number of inner Monte Carlo steps should be between 1 and 10_000_000;");
+            success = In->Get_int(GetValue("mcs"), mcs, 1, 10000000, "The number of inner Monte Carlo steps should be between 1 and 10_000_000;");
             if (!success) { mcs = 10; cout << "Inner mcs will be equal to " << mcs << endl; }
         } else mcs = 0;
         if ( (MCS == 0) && (mcs != 0) ) {
@@ -99,7 +99,7 @@ bool Cleng::CheckInput(int start) {
 
         // start_inner_loop_from SILF
         if (!GetValue("start_inner_loop_from").empty()) {
-            success = In[0]->Get_int(GetValue("start_inner_loop_from"), SILF, 1, MCS, "Starting point for inner loop should be between 1 and MCS flag.");
+            success = In->Get_int(GetValue("start_inner_loop_from"), SILF, 1, MCS, "Starting point for inner loop should be between 1 and MCS flag.");
             if (!success) { SILF = 1; cout << "Starting point for inner loop will be equal to " << SILF << endl; }
         } else SILF = MCS+5;
         if ( (mcs != 0 ) && (SILF == 0) ) {
@@ -111,7 +111,7 @@ bool Cleng::CheckInput(int start) {
 
         // inner_loop_each ILE
         if (!GetValue("inner_loop_each").empty()) {
-            success = In[0]->Get_int(GetValue("inner_loop_each"), ILE, 1, MCS, "Entrance to inner loop should be between 1 and MCS flag;");
+            success = In->Get_int(GetValue("inner_loop_each"), ILE, 1, MCS, "Entrance to inner loop should be between 1 and MCS flag;");
             if (!success) { ILE = 1; cout << "ILE will be equal to " << ILE << endl; }
         } else ILE = 0;
         if ( (ILE == 0) && (mcs != 0) ) {
@@ -121,7 +121,7 @@ bool Cleng::CheckInput(int start) {
 
         // seed
         if (!GetValue("seed").empty()) {
-            success = In[0]->Get_int(GetValue("seed"), pseed, 1, 1000, "The seed should be between 1 and 1000");
+            success = In->Get_int(GetValue("seed"), pseed, 1, 1000, "The seed should be between 1 and 1000");
             if (!success) { pseed = 1; cout << "The seed will be equal to " << pseed << endl; }
         } else pseed = 0;
         rand = pseed==0 ? Random() : Random(pseed);
@@ -129,7 +129,7 @@ bool Cleng::CheckInput(int start) {
 
         // delta_step
         if (!GetValue("delta_step").empty()) {
-            success = In[0]->Get_int(GetValue("delta_step"), delta_step, 1, 5, "The number of delta_step should be between 1 and 5");
+            success = In->Get_int(GetValue("delta_step"), delta_step, 1, 5, "The number of delta_step should be between 1 and 5");
             if (!success) { delta_step = 1; cout << "The delta_step will be equal to " << delta_step << endl; }
         } else delta_step = 0;
         if (debug) cout << "delta_step is " << delta_step << endl;
@@ -137,7 +137,7 @@ bool Cleng::CheckInput(int start) {
 
         // pivot_move
         if (!GetValue("pivot_move").empty()) {
-            success = In[0]->Get_int(GetValue("pivot_move"), pivot_move, 1, 360, "The angle of pivot_move should be between 1 and 360");
+            success = In->Get_int(GetValue("pivot_move"), pivot_move, 1, 360, "The angle of pivot_move should be between 1 and 360");
             if (!success) { cout << "The pivot_move will be disable." << endl; pivot_move = 0;}
         } else pivot_move = 0;
         if (debug) cout << "pivot_move is " << pivot_move << endl;
@@ -145,7 +145,7 @@ bool Cleng::CheckInput(int start) {
         // pivot_axis
         if (pivot_move) {
             if (!GetValue("pivot_axis").empty()) {
-                success = In[0]->Get_int(GetValue("pivot_axis"), pivot_axis, 1, 3,
+                success = In->Get_int(GetValue("pivot_axis"), pivot_axis, 1, 3,
                                          "The axis of pivot_move should be between 1 and 3");
                 if (!success) {
                     cout << "The pivot_axis will be:  all axis." << endl;
@@ -157,7 +157,7 @@ bool Cleng::CheckInput(int start) {
 
         // one_node HACK: clean up after
         if (!GetValue("one_node").empty()) {
-            bool one_node_flag = In[0]->Get_bool(GetValue("one_node"), false);
+            bool one_node_flag = In->Get_bool(GetValue("one_node"), false);
             if (pivot_move) {
                 if (one_node_flag) {
                     cout << "Sorry, if you like to use combination pivot+one_node move, please, specify pivot movement "
@@ -175,7 +175,7 @@ bool Cleng::CheckInput(int start) {
 
         // pivot+one_node
         if (!GetValue("pivot+one_node").empty()) {
-            pivot_one_node = In[0]->Get_bool(GetValue("pivot+one_node"), false);
+            pivot_one_node = In->Get_bool(GetValue("pivot+one_node"), false);
         } else pivot_one_node = false;
         if (debug) cout << "pivot+one_node " << pivot_one_node << endl;
         if ((pivot_one_node) and (!pivot_move)) {
@@ -187,7 +187,7 @@ bool Cleng::CheckInput(int start) {
 
         // pivot+one_bond
         if (!GetValue("pivot+one_bond").empty()) {
-            pivot_one_bond = In[0]->Get_bool(GetValue("pivot+one_bond"), false);
+            pivot_one_bond = In->Get_bool(GetValue("pivot+one_bond"), false);
         } else pivot_one_bond = false;
         if (debug) cout << "pivot+one_node " << pivot_one_bond << endl;
         if ((pivot_one_bond) and (!pivot_move)) {
@@ -208,57 +208,57 @@ bool Cleng::CheckInput(int start) {
         // DEBUG Energy SCF and box model 
         if (!GetValue("ESCF_Ebox").empty()) {
             cout << "[WARNING] It is experimental/debug feature. Please, be sure what you do." << endl;
-            escf_ebox_flag = In[0]->Get_bool(GetValue("ESCF_Ebox"), false);
+            escf_ebox_flag = In->Get_bool(GetValue("ESCF_Ebox"), false);
         }
         if (debug) cout << "one_node " << pivot_one_node << endl;
 
         // delta_save
         if (!GetValue("delta_save").empty()) {
-            success = In[0]->Get_int(GetValue("delta_save"), delta_save, 1, MCS+1, "The delta_save interval should be between 1 and " + to_string(MCS+1));
+            success = In->Get_int(GetValue("delta_save"), delta_save, 1, MCS+1, "The delta_save interval should be between 1 and " + to_string(MCS+1));
         } else delta_save = 1;
         if (debug) cout << "delta_save_interval " << delta_save << endl;
 
         // Cleng molecules
-        if (Sys[0]->SysClampList.empty()) {
+        if (Sys->SysClampList.empty()) {
             cout << "Cleng needs to have clamped molecules in the system" << endl;
             success = false;
         } else {
-            clamp_seg = Sys[0]->SysClampList[0];
-            if (Sys[0]->SysClampList.size() > 1) {
+            clamp_seg = Sys->SysClampList[0];
+            if (Sys->SysClampList.size() > 1) {
                 success = false;
                 cout << "Currently the clamping is limited to one molecule per system. " << endl;
             }
         }
 
         // checkpoint save
-        if (!GetValue("checkpoint_save").empty()) {checkpoint_save = In[0]->Get_bool(GetValue("checkpoint_save"), false);}
+        if (!GetValue("checkpoint_save").empty()) {checkpoint_save = In->Get_bool(GetValue("checkpoint_save"), false);}
         else checkpoint_save = false;
         if (debug) cout << "checkpoint_save " << checkpoint_save << endl;
 
         // checkpoint load
-        if (!GetValue("checkpoint_load").empty()) {checkpoint_load = In[0]->Get_bool(GetValue("checkpoint_load"), false);}
+        if (!GetValue("checkpoint_load").empty()) {checkpoint_load = In->Get_bool(GetValue("checkpoint_load"), false);}
         else checkpoint_load = false;
         if (debug) cout << "checkpoint_load " << checkpoint_load << endl;
 
         // saving cleng position of nodes_map
-        if (!GetValue("cleng_pos").empty()) {cleng_pos = In[0]->Get_bool(GetValue("cleng_pos"), false);}
+        if (!GetValue("cleng_pos").empty()) {cleng_pos = In->Get_bool(GetValue("cleng_pos"), false);}
         else cleng_pos = false;
         if (debug) cout << "cleng_pos " << cleng_pos << endl;
 
         // saving distance between of nodes_map
-        if (!GetValue("cleng_dis").empty()) {cleng_dis = In[0]->Get_bool(GetValue("cleng_dis"), false);}
+        if (!GetValue("cleng_dis").empty()) {cleng_dis = In->Get_bool(GetValue("cleng_dis"), false);}
         else cleng_dis = false;
         if (debug) cout << "cleng_dis " << cleng_dis << endl;
 
         // simultaneously
-        if (!GetValue("simultaneously").empty()) simultaneously = In[0]->Get_bool(GetValue("simultaneously"), false);
+        if (!GetValue("simultaneously").empty()) simultaneously = In->Get_bool(GetValue("simultaneously"), false);
         else simultaneously = false;
         if (debug) cout << "simultaneously move " << simultaneously << endl;
 
         // movement_along
         if (!GetValue("movement_along").empty()) {
             cout << "Warning!!! In movement_along mode delta step will be ignored! Monte Carlo step will be {sign_move*2} depending on axis " << endl;
-            success = In[0]->Get_int(GetValue("movement_along"), axis, 1, 3, "The number of delta_step should be between 1 and 3");
+            success = In->Get_int(GetValue("movement_along"), axis, 1, 3, "The number of delta_step should be between 1 and 3");
             if (!success) {
                 cout << "Sorry, you provide incorrect axis number. The movement_along will be disable" << endl;
                 axis = 0;
@@ -269,13 +269,13 @@ bool Cleng::CheckInput(int start) {
 
         // warming_up_steps  NOT IMPLEMENTED
         if (!GetValue("warming_up_steps").empty()) {
-            success = In[0]->Get_int(GetValue("warming_up_steps"), warming_up_steps, 1, 1000, "The warming_up_steps should be between 1 and 1000");
+            success = In->Get_int(GetValue("warming_up_steps"), warming_up_steps, 1, 1000, "The warming_up_steps should be between 1 and 1000");
             if (!success) { warming_up_steps = 10; cout << "The warming_up steps will be equal to " << warming_up_steps << endl; }
         } else warming_up_steps = 10;
         if (debug) cout << "warming_up_steps is " << warming_up_steps << endl;
 
         // warming_up stage  NOT IMPLEMENTED
-        if (!GetValue("warming_up_stage").empty()) do_warming_up_stage = In[0]->Get_bool(GetValue("warming_up_stage"), false);
+        if (!GetValue("warming_up_stage").empty()) do_warming_up_stage = In->Get_bool(GetValue("warming_up_stage"), false);
         else do_warming_up_stage = false;
         if (debug) cout << "do_warming_up_stage " << do_warming_up_stage << endl;
 
@@ -283,7 +283,7 @@ bool Cleng::CheckInput(int start) {
         vector<string> options {"+", "-"};
         if (axis) {
             if (!GetValue("sign_move").empty()) {
-                success = In[0]->Get_string(GetValue("sign_move"), sign_move, options, "The sigh could be ether + or -");
+                success = In->Get_string(GetValue("sign_move"), sign_move, options, "The sigh could be ether + or -");
             } else { sign_move = "+";}
         } else {
             if (!GetValue("sign_move").empty()) {
@@ -297,7 +297,7 @@ bool Cleng::CheckInput(int start) {
         // user_node_move_id
         string struser_node_move_id;
         if (!GetValue("user_node_id_move").empty()) {
-            success = In[0]->Get_string(GetValue("user_node_id_move"), struser_node_move_id, "");
+            success = In->Get_string(GetValue("user_node_id_move"), struser_node_move_id, "");
             string node_id;
             string _ ;
             stringstream stream(struser_node_move_id);
@@ -325,18 +325,18 @@ bool Cleng::CheckInput(int start) {
         if (debug) for (auto &&id:ids_node4fix)  cout << "user_node_id_fix:  "  << id << endl;
 
         // 2 end extension mode
-        if (!GetValue("two_ends_extension").empty()) {two_ends_extension = In[0]->Get_bool(GetValue("two_ends_extension"), false);}
+        if (!GetValue("two_ends_extension").empty()) {two_ends_extension = In->Get_bool(GetValue("two_ends_extension"), false);}
         else two_ends_extension = false;
         if (debug) cout << "two_ends_extension " << two_ends_extension << endl;
 
         // metropolis enable/disable
-        if (!GetValue("metropolis").empty()) {metropolis = In[0]->Get_bool(GetValue("metropolis"), false);}
+        if (!GetValue("metropolis").empty()) {metropolis = In->Get_bool(GetValue("metropolis"), false);}
         else metropolis = true;
         if (debug) cout << "metropolis " << metropolis << endl;
 
         // prefactor kT constant
         if (!GetValue("prefactor_kT").empty()) {
-            success = In[0]->Get_Real(GetValue("prefactor_kT"), prefactor_kT, 0, 10,
+            success = In->Get_Real(GetValue("prefactor_kT"), prefactor_kT, 0, 10,
                     "Prefactor_kT is a constant in Metropolis algorithm (-1/C1) * (delta Fs/kT), where C1 - prefactor.\n"
                     "Currently available range is from 0 to 10.");
             if (!success) {return success;}
@@ -349,7 +349,7 @@ bool Cleng::CheckInput(int start) {
 
         string values2h5;
         if (!GetValue("h5").empty()) {
-            success = In[0]->Get_string(GetValue("h5"), values2h5, "");
+            success = In->Get_string(GetValue("h5"), values2h5, "");
             // cutting {first, last}
             values2h5.erase(0, 1);
             values2h5.erase(values2h5.length()-1, values2h5.length());
@@ -384,16 +384,16 @@ bool Cleng::CheckInput(int start) {
             sub_box_size = {Seg[clamp_seg]->mx, Seg[clamp_seg]->my, Seg[clamp_seg]->mz};
         }
         clp_mol = -1;
-        int length = (int) In[0]->MolList.size();
+        int length = (int) In->MolList.size();
         for (int i = 0; i < length; i++) if (Mol[i]->freedom == "clamped") clp_mol = i;
     }
 
     if (success) {
-        n_out = (int) In[0]->OutputList.size();
+        n_out = (int) In->OutputList.size();
         if (n_out == 0) cout << "Warning: no output defined!" << endl;
 
         for (int i = 0; i < n_out; i++) {
-            Out.push_back(new Output(In, Lat, Seg, Sta, Rea, Mol, Sys, New, In[0]->OutputList[i], i, n_out));
+            Out.push_back(new Output(In, Lat, Seg, Sta, Rea, Mol, Sys, New, In->OutputList[i], i, n_out));
             if (!Out[i]->CheckInput(start)) {
                 cout << "input_error in output " << endl;
                 success = false;
@@ -402,8 +402,8 @@ bool Cleng::CheckInput(int start) {
         }
 
         vector<string> sub;
-        In[0]->split(In[0]->name, '.', sub);
-        filename = In[0]->output_info.getOutputPath() + sub[0];
+        In->split(In->name, '.', sub);
+        filename = In->output_info.getOutputPath() + sub[0];
 
         cout << CLENG_VERSION << endl;
         t0_simulation = std::chrono::steady_clock::now();
@@ -442,9 +442,9 @@ bool Cleng::CP(transfer tofrom) {
             break;
 
         case to_segment:
-            //Zero(clamped->H_MASK, Lat[0]->M);  [CLENG]
+            //Zero(clamped->H_MASK, Lat->M);  [CLENG]
             // merged:
-            std::fill(clamped->H_MASK, clamped->H_MASK+Lat[0]->M, 0);
+            std::fill(clamped->H_MASK, clamped->H_MASK+Lat->M, 0);
             //std::fill(Seg[clamp_seg]->H_MASK, Seg[clamp_seg]->H_MASK+M, 0); [Master]
 
             for (auto &&SN : Enumerate(simpleNodeList)) {
@@ -613,7 +613,7 @@ bool Cleng::MonteCarlo(bool save_vector) {
     success = initSystemOutlook();
     if (!success) exit(1);
 
-    free_energy_current = Sys[0]->GetFreeEnergy();
+    free_energy_current = Sys->GetFreeEnergy();
     if (save_vector) test_vector.push_back(free_energy_current);
 
     // central node of the star
@@ -655,9 +655,9 @@ bool Cleng::MonteCarlo(bool save_vector) {
                     success = solveAndCheckFreeEnergy(); // free energy is not Nan
                     if (!success) break;
 
-                    free_energy_trial = Sys[0]->GetFreeEnergy();
+                    free_energy_trial = Sys->GetFreeEnergy();
                     // TESTING
-                    if (save_vector) test_vector.push_back(Sys[0]->GetFreeEnergy());
+                    if (save_vector) test_vector.push_back(Sys->GetFreeEnergy());
                     // notification
                     cout << "Free Energy (c): " << free_energy_current << endl;
                     cout << "            (t): " << free_energy_trial << endl;
@@ -689,7 +689,7 @@ bool Cleng::MonteCarlo(bool save_vector) {
                             cout << "... [Done]" << endl;
                             //notification();
                             //cout << "CHECK THIS1" << endl;
-                            free_energy_current = Sys[0]->GetFreeEnergy();  // in case of small tolerance could be differences
+                            free_energy_current = Sys->GetFreeEnergy();  // in case of small tolerance could be differences
                         }
                     }
 
@@ -712,7 +712,7 @@ bool Cleng::MonteCarlo(bool save_vector) {
                     if ( (MC_attempt % 100 == 0) && (mcs_done > 0) ) update_correction = true;
                     if ( update_correction ) {
                         Real F_proposed_ = getFreeEnergyBox();      // current proposed free energy
-                        Real SCF_        = Sys[0]->GetFreeEnergy();
+                        Real SCF_        = Sys->GetFreeEnergy();
                         correction = abs(abs(F_proposed_) - abs(SCF_));  // absolute diff
                         if (F_proposed_ > SCF_) correction = -correction;
                         correction = 0.0;
@@ -764,7 +764,7 @@ bool Cleng::MonteCarlo(bool save_vector) {
                     notification();
                     success          = solveAndCheckFreeEnergy();
                     if (!success) break;
-                    free_energy_trial = Sys[0]->GetFreeEnergy();
+                    free_energy_trial = Sys->GetFreeEnergy();
                 } else {
                     // TODO: do standard behavior;
                     //cout << "Not just right attempt." << endl;
@@ -826,7 +826,7 @@ bool Cleng::MonteCarlo(bool save_vector) {
                         cout << "... [Done]" << endl;
                         notification();
                         //cout << "CHECK THIS" << endl;
-                        free_energy_current = Sys[0]->GetFreeEnergy();  // in case of small tolerance could be differences
+                        free_energy_current = Sys->GetFreeEnergy();  // in case of small tolerance could be differences
                     }
                 }
                 // notification

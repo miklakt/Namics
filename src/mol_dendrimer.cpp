@@ -2,7 +2,7 @@
 #include "mol_dendrimer.h"
 
 
-mol_dend::mol_dend(vector<Input*> In_,vector<Lattice*> Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
+mol_dend::mol_dend(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
 
 
 mol_dend::~mol_dend() {

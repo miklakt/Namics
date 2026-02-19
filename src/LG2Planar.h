@@ -3,7 +3,7 @@
 #include "LGrad2.h"
 class LG2Planar : public LGrad2
 {
-	public:	LG2Planar(vector<Input*> In_,string name_);
+	public:	LG2Planar(Input* In_,string name_);
 	~LG2Planar();
 
 	void ComputeLambdas(void);

@@ -44,14 +44,14 @@ class Mesodyn : public Lattice_accessor {
 private:
   /* Constructor arguments*/
   const string name;
-  const vector<Input*> In;
-  const vector<Lattice*> Lat;
+  Input* In;
+  Lattice* Lat;
   const vector<Molecule*> Mol;
   const vector<Segment*> Seg;
   const vector<State*> Sta;
 	const vector<Reaction*> Rea;
-  const vector<System*> Sys;
-  const vector<Solve_scf*> New;
+  System* Sys;
+  Solve_scf* New;
   vector <Output*> Out;
   const string brand;
 
@@ -140,7 +140,7 @@ private:
 
 
 public:
-  Mesodyn(int, vector<Input*>, vector<Lattice*>, vector<Segment*>, vector<State*>, vector<Reaction*>, vector<Molecule*>, vector<System*>, vector<Solve_scf*>, string);
+  Mesodyn(int, Input*, Lattice*, vector<Segment*>, vector<State*>, vector<Reaction*>, vector<Molecule*>, System*, Solve_scf*, string);
   ~Mesodyn();
 
   bool mesodyn();

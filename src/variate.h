@@ -10,19 +10,19 @@
 #include "system.h"
 class Variate {
 public:
-	Variate(vector<Input*>,vector<Lattice*>,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,vector<System*>,string);
+	Variate(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,string);
 
 ~Variate();
 	void DeAllocateMemory();
 	void AllocateMemory();
-	vector<Input*> In;
-	vector<Lattice*> Lat;
+	Input* In;
+	Lattice* Lat;
 	Lattice* lat;
 	vector<Segment*> Seg;
 	vector<State*> Sta;
 	vector<Reaction*> Rea;
 	vector<Molecule*> Mol;
-	vector<System*> Sys;
+	System* Sys;
 
 	string name;
 	int search_nr;
