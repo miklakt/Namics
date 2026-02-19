@@ -187,4 +187,7 @@ endif
 
 
 #Non-File Targets
-.PHONY: all remake clean cleaner resources
+test-homopolymer-adsorption:
+	@./tests/homopolymer_adsorption_test.sh
+
+.PHONY: all remake clean cleaner resources test-homopolymer-adsorption
