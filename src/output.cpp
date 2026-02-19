@@ -2,7 +2,7 @@
 #include "output.h"
 #include "time.h"
 
-Output::Output(Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_,int outnr,int N_out) {
+Output::Output(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_,int outnr,int N_out) {
 if (debug) cout <<"constructor in Output "<< endl;
 	In=In_; Lat = Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; n_output=N_out; output_nr=outnr;  New=New_;
 	//KEYS.push_back("write_output");
@@ -103,7 +103,7 @@ if (debug) cout << "CheckInput in output " << endl;
 	start=start_;
 
 	bool success=true;
-	success=In->CheckParameters("output",name,start,KEYS,PARAMETERS,VALUES);
+	success=In->CheckParameters("output",name,start, KEYS, PARAMETERS);
 	if (success) {
 		DOS=false;
 		if (GetValue("DOS").size()>0) {
@@ -176,12 +176,8 @@ if (debug) cout << "CheckInput in output " << endl;
 
 string Output::GetValue(string parameter) {
 if (debug) cout << "GetValue in output " << endl;
-	int length = PARAMETERS.size();
-	int i=0;
-	while (i<length) {
-		if (PARAMETERS[i]==parameter) {return VALUES[i];}
-		i++;
-	}
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 

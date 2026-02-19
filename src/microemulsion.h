@@ -14,11 +14,11 @@
 
 class Microemulsion {
 public:
-	Microemulsion(Input*,vector<Output*>,vector<Lattice*>,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,vector<Variate*>,string);
+	Microemulsion(const Input*,vector<Output*>,vector<Lattice*>,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,vector<Variate*>,string);
 
 ~Microemulsion();
   	const string name;
-  	Input* In;
+  	const Input* In;
   	vector<Output*> Out;
   	const vector<Lattice*> Lat;
   	const vector<Molecule*> Mol;
@@ -30,8 +30,7 @@ public:
  	const vector<Variate*> Var;
  	CP ControlParameter;
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	Real *phi_oil;
 	int surfactant;
 	int co_solvent;

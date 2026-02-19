@@ -4,7 +4,7 @@
 #include "output.h"
 #include <string>
 // Constructor
-Teng::Teng(Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_, Solve_scf* New_, string name_)
+Teng::Teng(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_, Solve_scf* New_, string name_)
 		: name{name_},
 			In{In_},
 			Lat{Lat_},
@@ -428,16 +428,8 @@ void Teng::PutParameter(string new_param)
 // Gets value. See if this object could be made a const object. Most parameters obtained are probably not changed in runtime. 
 string Teng::GetValue(string parameter)
 {
-	int i = 0;
-	int length = PARAMETERS.size();
-	while (i < length)
-	{
-		if (parameter == PARAMETERS[i])
-		{
-			return VALUES[i];
-		}
-		i++;
-	}
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
@@ -451,7 +443,7 @@ bool Teng::CheckInput(int start)
 	if (debug)
 		cout << "CheckInput in Teng" << endl;
 	bool success = true;
-	success = In->CheckParameters("teng", name, start, KEYS, PARAMETERS, VALUES);
+	success = In->CheckParameters("teng", name, start, KEYS, PARAMETERS);
 	// Checks what kind of engine is selected
 	if (success)
 	{

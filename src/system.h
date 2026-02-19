@@ -9,13 +9,13 @@
 
 class System {
 public:
-	System(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,string);
+	System(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,string);
 
 ~System();
 
 	string name;
 	bool all_system;
-	Input* In;
+	const Input* In;
 	Real* CHI;
 	vector<Segment*> Seg;
 	vector<State*> Sta;
@@ -137,8 +137,7 @@ public:
 	string GuessType; // {lamellae,Im3m,FCC,BCC,HEX,gyroid,Real_gyroid,Real_diamond,perforated_lamellae};
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	void DeAllocateMemory();
 	bool CheckInput(int);
 	void PutParameter(string);

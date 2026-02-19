@@ -44,7 +44,7 @@ class Mesodyn : public Lattice_accessor {
 private:
   /* Constructor arguments*/
   const string name;
-  Input* In;
+  const Input* In;
   Lattice* Lat;
   const vector<Molecule*> Mol;
   const vector<Segment*> Seg;
@@ -140,14 +140,13 @@ private:
 
 
 public:
-  Mesodyn(int, Input*, Lattice*, vector<Segment*>, vector<State*>, vector<Reaction*>, vector<Molecule*>, System*, Solve_scf*, string);
+  Mesodyn(int, const Input*, Lattice*, vector<Segment*>, vector<State*>, vector<Reaction*>, vector<Molecule*>, System*, Solve_scf*, string);
   ~Mesodyn();
 
   bool mesodyn();
 
   static std::vector<string> KEYS;
-  static std::vector<string> PARAMETERS;
-  static std::vector<string> VALUES;
+    static ParameterStore PARAMETERS;
 
   /* Inputs / output class interface functions */
 
@@ -160,35 +159,26 @@ public:
   //Const-correct way of initializing member variables from file.
   template<typename Datatype>
   Datatype initialize(string option, Datatype default_value) {
-
-    for (size_t i = 0 ; i < Mesodyn::PARAMETERS.size(); ++i)
-		  if (option==Mesodyn::PARAMETERS[i]) {
-          Datatype value;
-          std::istringstream buffer{VALUES[i]};
-          buffer >> value;
-          return value;
-      }
-     return default_value;
+    auto it = Mesodyn::PARAMETERS.find(option);
+    if (it == Mesodyn::PARAMETERS.end()) return default_value;
+    Datatype value;
+    std::istringstream buffer{it->second};
+    buffer >> value;
+    return value;
   }
 
   template<typename Datatype>
   Datatype initialize_enum(string option, Datatype default_value, std::map<std::string, Datatype> map) {
-
-    for (size_t i = 0 ; i < Mesodyn::PARAMETERS.size(); ++i) 
-    {
-		  if (option==Mesodyn::PARAMETERS[i]) {
-          if ( map.find(VALUES[i]) == map.end() ) {
-            cerr << "Value '" << VALUES[i] << "' is not a valid option for '" << PARAMETERS[i]
-            << "'. Please select from: " << endl;
-            for (auto& entry : map)
-              cerr << entry.first << endl;
-            exit(0);
-          } else
-            return map[VALUES[i]];
-      }
+    auto it = Mesodyn::PARAMETERS.find(option);
+    if (it == Mesodyn::PARAMETERS.end()) return default_value;
+    if (map.find(it->second) == map.end()) {
+      cerr << "Value '" << it->second << "' is not a valid option for '" << option
+      << "'. Please select from: " << endl;
+      for (auto& entry : map)
+        cerr << entry.first << endl;
+      exit(0);
     }
-
-    return default_value;
+    return map[it->second];
   }
 
   template <typename Datatype>

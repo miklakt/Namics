@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 
 		// Create lattice class instance and check inputs (reference above)
 		//lat_p = new Lat_preview(In.get(), In->LatList[0]);
-		lat_p = make_unique<LGrad1>(In.get(), In->LatList[0]);
+		lat_p = make_unique<LGrad1>(*In, In->LatList[0]);
 
 		//Lat->outputtest();
 		if (!lat_p->CheckInput(start,true)) //-1 means that checkinput will stop when gradients and geometry are known.
@@ -191,21 +191,21 @@ int main(int argc, char *argv[])
 			switch (gradients) {
 				case 1:
 					if (geometry=="planar") {
-						Lat = make_unique<LG1Planar>(In.get(),In->LatList[0]);
+						Lat = make_unique<LG1Planar>(*In,In->LatList[0]);
 					} else {
-						Lat = make_unique<LGrad1>(In.get(),In->LatList[0]);
+						Lat = make_unique<LGrad1>(*In,In->LatList[0]);
 					}
 
 					break;
 				case 2:
 					if (geometry=="planar") {
-						Lat = make_unique<LG2Planar>(In.get(),In->LatList[0]);
+						Lat = make_unique<LG2Planar>(*In,In->LatList[0]);
 					} else {
-						Lat = make_unique<LGrad2>(In.get(),In->LatList[0]);
+						Lat = make_unique<LGrad2>(*In,In->LatList[0]);
 					}
 					break;
 				case 3:
-					Lat = make_unique<LGrad3>(In.get(),In->LatList[0]);
+					Lat = make_unique<LGrad3>(*In,In->LatList[0]);
 					break;
 				default :
 					break;
@@ -560,7 +560,7 @@ int main(int argc, char *argv[])
 			New->mesodyn = true;
 			New->AllocateMemory();
 			New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
-			if (!In->CheckParameters("mesodyn", In->MesodynList[0], start, Mesodyn::KEYS, Mesodyn::PARAMETERS, Mesodyn::VALUES))
+			if (!In->CheckParameters("mesodyn", In->MesodynList[0], start, Mesodyn::KEYS, Mesodyn::PARAMETERS))
 			{
 				cout << "Error loading mesodyn parameters" << endl;
 				exit(0);
@@ -602,7 +602,7 @@ int main(int argc, char *argv[])
 			break;
 		case MICRO:
 
-				Lat_spherical = make_unique<LGrad1>(In.get(),In->LatList[0]); // dummy added, used in microemulsion.
+				Lat_spherical = make_unique<LGrad1>(*In,In->LatList[0]); // dummy added, used in microemulsion.
 				Lat_spherical->CheckInput(start,false);
 				Lat_spherical->geometry = "spherical";
 				Lat_spherical->AllocateMemory();

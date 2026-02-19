@@ -1,6 +1,6 @@
 #include "state.h"
 
-State::State(Input* In_,vector<Segment*> Seg_, string name_) {
+State::State(const Input* In_,vector<Segment*> Seg_, string name_) {
 	In=In_; name=name_;  Seg=Seg_;
 	KEYS.push_back("alphabulk");
 	KEYS.push_back("valence");
@@ -47,7 +47,7 @@ if (debug) cout <<"CheckInput in State " + name << endl;
 	state_id=-1;
 	state_nr_of_copy =-1;
 	seg_nr_of_copy =-1;
-	success= In->CheckParameters("state",name,start,KEYS,PARAMETERS,VALUES);
+	success= In->CheckParameters("state",name,start, KEYS, PARAMETERS);
 	int length=In->MonList.size();
 	for (int k=0; k<length; k++) {
 		if (Seg[k]->name == name) { cout << "name of state can not be the same as the name of any mon in the system" << endl;
@@ -115,15 +115,9 @@ if (debug) cout <<"CheckInput in State " + name << endl;
 
 string State::GetValue(string parameter){
 if (debug) cout <<"GetValue in State " + name << endl;
-	int i=0;
-	int length = PARAMETERS.size();
-	while (i<length) {
-		if (parameter==PARAMETERS[i]) {
-			return VALUES[i];
-		}
-		i++;
-	}
-	return "" ;
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
+	return "";
 }
 
 void State::PutChiKEY(string new_name) {
@@ -424,5 +418,4 @@ if (debug) cout << "State::GetError " << endl;
 	}
 	return Error;
 }
-
 

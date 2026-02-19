@@ -6,12 +6,12 @@
 #include "tools.h"
 class Segment {
 public:
-	Segment(Input*,Lattice*,string,int,int);
+	Segment(const Input*,Lattice*,string,int,int);
 
 ~Segment();
 
 	string name;
-	Input* In;
+	const Input* In;
 	Lattice* Lat;
 	Lattice* lat;
 	vector<int> px1;
@@ -148,8 +148,7 @@ public:
 	Real J;
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
- 	 std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	bool CheckInput(int);
 	void PutChiKEY(string);
 	string GetValue(string);

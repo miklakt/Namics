@@ -5,12 +5,12 @@
 #include "segment.h"
 class State {
 public:
-	State(Input*,vector<Segment*>,string);
+	State(const Input*,vector<Segment*>,string);
 
 ~State();
 	void DeAllocateMemory();
 	void AllocateMemory(int,int);
-	Input* In;
+	const Input* In;
 	vector<Segment*> Seg;
 	string name; 
 	vector<string> chi_name;
@@ -63,8 +63,7 @@ public:
 	void PrepareForCalculations();
 	void PutChiKEY(string);
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	bool CheckInput(int);
 	void PutParameter(string); 
 	string GetValue(string); 

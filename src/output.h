@@ -15,12 +15,12 @@
 
 class Output {
 public:
-	Output(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,string,int,int);
+	Output(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,string,int,int);
 
 ~Output();
 
 	string name;
-	Input* In;
+	const Input* In;
 	Lattice* Lat;
 	Lattice* lat;
 	vector<Segment*> Seg;
@@ -66,8 +66,7 @@ public:
 
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	bool CheckInput(int);
 	void PutParameter(string);
 	string GetValue(string);

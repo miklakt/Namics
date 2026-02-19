@@ -2,7 +2,7 @@
 #include <random>
 #include <fstream>
 
-Segment::Segment(Input* In_,Lattice* Lat_, string name_,int segnr,int N_seg) {
+Segment::Segment(const Input* In_,Lattice* Lat_, string name_,int segnr,int N_seg) {
 	In=In_; Lat=Lat_; name=name_; n_seg=N_seg; seg_nr=segnr; prepared = 0;
 if (debug) cout <<"Segment constructor" + name << endl;
 	lat=Lat;
@@ -1043,7 +1043,7 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 	n_pos=0;
 
 	fixedPsi0=false;
-	success = In->CheckParameters("mon",name,start,KEYS,PARAMETERS,VALUES);
+	success = In->CheckParameters("mon",name,start, KEYS, PARAMETERS);
 	if(success) {
 		if (GetValue("var_pos").size()>0) var_pos=In->Get_int(GetValue("var_pos"),0);
 
@@ -1735,12 +1735,8 @@ if (debug) cout <<"PutChiKey " + name << endl;
 
 string Segment::GetValue(string parameter) {
 if (debug) cout <<"GetValue for segment " + name + " for parameter " + parameter << endl;
-	int length = PARAMETERS.size();
-	int i=0;
-	while (i<length) {
-		if (PARAMETERS[i]==parameter) { return VALUES[i];}
-		i++;
-	}
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 

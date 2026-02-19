@@ -1,9 +1,9 @@
 #include "lattice.h"
-Lattice::Lattice(Input* In_,string name_) :
+Lattice::Lattice(const Input& In_,const string& name_) :
 	BC(6) // resize the boundary condition vector to 6 for Mesodyn
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
 if (debug) cout <<"Lattice constructor" << endl;
-	In=In_; name=name_;
+	In=&In_; name=name_;
 	KEYS.push_back("gradients"); KEYS.push_back("n_layers"); KEYS.push_back("offset_first_layer");
 	KEYS.push_back("geometry");
 	KEYS.push_back("n_layers_x");   KEYS.push_back("n_layers_y"); KEYS.push_back("n_layers_z");
@@ -270,7 +270,7 @@ if (debug) cout <<"CheckInput in lattice " << endl;
 	mx.push_back(0); my.push_back(0); mz.push_back(0); jx.push_back(0); jy.push_back(0); m.push_back(0); n_box.push_back(0);
 	string Value;
 
-	success = In->CheckParameters("lat",name,start,KEYS,PARAMETERS,VALUES);
+	success = In->CheckParameters("lat",name,start, KEYS, PARAMETERS);
 	if (!success) return success;
 		vector<string> options;
 		if (checking) {
@@ -710,15 +710,9 @@ if (debug) cout <<"PutParameters in lattice " << endl;
 
 string Lattice::GetValue(string parameter){
 if (debug) cout << "GetValue in lattice " << endl;
-	int i=0;
-	int length = PARAMETERS.size();
-	while (i<length) {
-		if (parameter==PARAMETERS[i]) {
-			return VALUES[i];
-		}
-		i++;
-	}
-	return "" ;
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
+	return "";
 }
 
 Real Lattice::GetValue(Real* X,string s){
@@ -1101,6 +1095,3 @@ if (debug) cout << "GuessVar in Lattice " << endl;
 	}
 	return success;
 }
-
-
-

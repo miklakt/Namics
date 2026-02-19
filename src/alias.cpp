@@ -1,6 +1,6 @@
 #include "alias.h"
 
-Alias::Alias(Input* In_,Lattice* Lat_, string name_) {
+Alias::Alias(const Input* In_,Lattice* Lat_, string name_) {
 	In=In_; name=name_;   Lat=Lat_;
 	lat=Lat;
 	KEYS.push_back("value");
@@ -65,7 +65,7 @@ if (debug) cout <<"PutParameter in Alias " + name << endl;
 bool Alias::CheckInput(int start) {
 if (debug) cout <<"CheckInput in Alias " + name << endl;
 	bool success=true;
-	success= In->CheckParameters("alias",name,start,KEYS,PARAMETERS,VALUES);
+	success= In->CheckParameters("alias",name,start, KEYS, PARAMETERS);
 	if (success) {
 		value =0;
 		if (GetValue("value").size()>0) {
@@ -85,15 +85,9 @@ if (debug) cout <<"CheckInput in Alias " + name << endl;
 
 string Alias::GetValue(string parameter){
 if (debug) cout <<"GetValue in Alias " + name << endl;
-	int i=0;
-	int length = PARAMETERS.size();
-	while (i<length) {
-		if (parameter==PARAMETERS[i]) {
-			return VALUES[i];
-		}
-		i++;
-	}
-	return "" ;
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
+	return "";
 }
 
 void Alias::push(string s, Real X) {

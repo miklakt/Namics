@@ -1,6 +1,6 @@
 #include "reaction.h"
 
-Reaction::Reaction(Input* In_,vector<Segment*> Seg_, vector<State*> Sta_, string name_) {
+Reaction::Reaction(const Input* In_,vector<Segment*> Seg_, vector<State*> Sta_, string name_) {
 	In=In_; name=name_;   Sta=Sta_; Seg=Seg_;
 	KEYS.push_back("K"); 
 	KEYS.push_back("pK");
@@ -44,7 +44,7 @@ if (debug) cout <<"CheckInput in Reaction " + name << endl;
 	pK=-100;
 	Sto.clear();
 	State_nr.clear();
-	success= In->CheckParameters("reaction",name,start,KEYS,PARAMETERS,VALUES);
+	success= In->CheckParameters("reaction",name,start, KEYS, PARAMETERS);
 	if (success) {
 		if (GetValue("K").size()==0 && GetValue("pK").size()==0)  {
 			cout <<" reaction " << name << " has no K nor pK value" << endl; success=false;
@@ -146,15 +146,9 @@ if (debug) cout <<"CheckInput in Reaction " + name << endl;
  
 string Reaction::GetValue(string parameter){
 if (debug) cout <<"GetValue in Reaction " + name << endl;
-	int i=0;
-	int length = PARAMETERS.size();
-	while (i<length) {
-		if (parameter==PARAMETERS[i]) {
-			return VALUES[i]; 
-		}
-		i++;
-	}
-	return "" ; 
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
+	return ""; 
 }
  
 void Reaction::push(string s, Real X) {
@@ -492,4 +486,3 @@ if (debug) cout << "Reaction::GetError " << endl;
 	}
 	return Error;
 }
-

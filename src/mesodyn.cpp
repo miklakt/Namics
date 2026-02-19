@@ -3,8 +3,7 @@
 /* Mesoscale dynamics module written by Daniel Emmery as part of a master's thesis, 2018-2019 */
 /* Most of the physics in this module is based on the work of Fraaije et al. in the 1990s  */
 
-vector<string> Mesodyn::PARAMETERS;
-vector<string> Mesodyn::VALUES;
+ParameterStore Mesodyn::PARAMETERS;
 vector<string> Mesodyn::KEYS
 {
     "read_pro",
@@ -39,7 +38,7 @@ vector<string> Mesodyn::KEYS
     "correlated_noise"
 };
 
-Mesodyn::Mesodyn(int start, Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_, Solve_scf* New_, string name_)
+Mesodyn::Mesodyn(int start, const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_, Solve_scf* New_, string name_)
     : 
       Lattice_accessor(Lat_),
       name{name_}, In{In_}, Lat{Lat_}, Mol{Mol_}, Seg{Seg_}, Sta{Sta_}, Rea{Rea_}, Sys{Sys_}, New{New_},
@@ -120,8 +119,8 @@ bool Mesodyn::CheckInput() {
     if (input_data_filetype != Readable_filetype::NONE)
       initialization_mode = Mesodyn::INIT_FROMFILE;
 
-    if ( find(PARAMETERS.begin(), PARAMETERS.end(), "grand_cannonical_time_average") != PARAMETERS.end() 
-      or find(PARAMETERS.begin(), PARAMETERS.end(), "grand_cannonical_molecule") != PARAMETERS.end()  )
+    if ( PARAMETERS.find("grand_cannonical_time_average") != PARAMETERS.end()
+      or PARAMETERS.find("grand_cannonical_molecule") != PARAMETERS.end() )
         if( grand_cannonical == false )
         {
           cout << "Please enable grand_cannonical in input or remove grand_cannonical options!" << endl;

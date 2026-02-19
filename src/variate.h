@@ -10,12 +10,12 @@
 #include "system.h"
 class Variate {
 public:
-	Variate(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,string);
+	Variate(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,string);
 
 ~Variate();
 	void DeAllocateMemory();
 	void AllocateMemory();
-	Input* In;
+	const Input* In;
 	Lattice* Lat;
 	Lattice* lat;
 	vector<Segment*> Seg;
@@ -70,8 +70,7 @@ public:
 	void PrepareForCalculations();
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 
 	bool CheckInput(int);
 

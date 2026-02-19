@@ -7,12 +7,12 @@
 
 class Lattice {
 public:
-	Lattice(Input*,string);
+	Lattice(const Input&,const string&);
 
 virtual ~Lattice();
 
 	string name;
-	Input* In;
+	const Input* In;
 	int MX,MY,MZ;
 	vector<int> mx;
 	vector<int> my;
@@ -73,8 +73,7 @@ virtual ~Lattice();
 	int Var_end_value;
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 
 	vector<string> ints;
 	vector<string> Reals;

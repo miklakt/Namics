@@ -16,7 +16,7 @@
 class Teng {
 private:
   const string name;
-  Input* In;
+  const Input* In;
   Lattice* Lat;
   const vector<Molecule*> Mol;
   const vector<Segment*> Seg;
@@ -31,7 +31,7 @@ private:
 
 
 public:
-  Teng(Input*, Lattice*, vector<Segment*>, vector<State*>, vector<Reaction*>, vector<Molecule*>, System*, Solve_scf*, string);
+  Teng(const Input*, Lattice*, vector<Segment*>, vector<State*>, vector<Reaction*>, vector<Molecule*>, System*, Solve_scf*, string);
   ~Teng();
 
   int tag_seg;
@@ -81,8 +81,7 @@ public:
   Real GetRandom(Real);
 
   std::vector<string> KEYS;
-  std::vector<string> PARAMETERS;
-  std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
   bool CheckInput(int);
   void PutParameter(string);
   string GetValue(string);

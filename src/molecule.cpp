@@ -1,7 +1,7 @@
 #include "molecule.h"
 
 
-Molecule::Molecule(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) {
+Molecule::Molecule(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) {
 	In=In_; Seg=Seg_; name=name_;  Lat=Lat_;
 if (debug) cout <<"Constructor for Mol " + name << endl;
 	lat=Lat;
@@ -368,7 +368,7 @@ norm=0;
 var_al_nr=-1;
 if (debug) cout <<"CheckInput for Mol " + name << endl;
 	bool success=true;
-	if (!In->CheckParameters("mol",name,start,KEYS,PARAMETERS,VALUES)) {
+	if (!In->CheckParameters("mol",name,start, KEYS, PARAMETERS)) {
 		success=false;
 	} else {
 		save_memory=false;
@@ -1932,12 +1932,8 @@ if (debug) cout <<"PutParameter for Mol " + name << endl;
 
 string Molecule::GetValue(string parameter) {
 if (debug) cout <<"GetValue " + parameter + " for Mol " + name << endl;
-	int length = PARAMETERS.size();
-	int i=0;
-	while (i<length) {
-		if (PARAMETERS[i]==parameter) { return VALUES[i];}
-		i++;
-	}
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
@@ -2734,5 +2730,4 @@ if (debug) cout <<"fraction for mol_test " + name << endl; //default for monomer
 	}
 	return 1.0*Nseg/chainlength;
 }
-
 

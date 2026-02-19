@@ -1,6 +1,6 @@
 #include "input.h"
 
-Input::Input(string name_) {
+Input::Input(const string& name_) {
 	name=name_;
 	KEYS.push_back("start");
 	KEYS.push_back("sys");
@@ -80,14 +80,14 @@ Input::Input(string name_) {
 Input::~Input() {
 }
 
-bool Input::ArePair(char opening,char closing){
+bool Input::ArePair(char opening,char closing) const {
 	if (opening == '(' && closing == ')') return true;
 	else if (opening == '[' && closing == ']') return true;
 	//else if (opening == '{' && closing == '}') return true;
 	return false;
 }
 
-bool Input::EvenSquareBrackets(string exp,vector<int> &open, vector<int> &close) {
+bool Input::EvenSquareBrackets(const string& exp,vector<int> &open, vector<int> &close) const {
 	vector <char> S;
 	int length = exp.size();
 	for (int i=0; i<length; i++) {
@@ -101,7 +101,7 @@ bool Input::EvenSquareBrackets(string exp,vector<int> &open, vector<int> &close)
 	return S.size()==0 ? true:false;
 }
 
-bool Input::EvenBrackets(string exp,vector<int> &open, vector<int> &close) {
+bool Input::EvenBrackets(const string& exp,vector<int> &open, vector<int> &close) const {
 	vector <char> S;
 	int length = exp.size();
 	for (int i=0; i<length; i++) {
@@ -115,7 +115,7 @@ bool Input::EvenBrackets(string exp,vector<int> &open, vector<int> &close) {
 	return S.size()==0 ? true:false;
 }
 
-bool Input::ReadFile(string fname, string &In_buffer) {
+bool Input::ReadFile(const string& fname, string &In_buffer) const {
 	ifstream this_file;
 	bool success=true;
 	bool add;
@@ -137,13 +137,13 @@ bool Input::ReadFile(string fname, string &In_buffer) {
 }
 
 
-void Input::PrintList(std::vector<std::string> LIST) {
+void Input::PrintList(const std::vector<std::string>& LIST) const {
 	int length=LIST.size();
 	int i=0;
 	while (i<length) {cout << LIST[i] << " ; "; i++; }
 }
 
-std::vector<std::string>& Input::split(std::string s, char delim, std::vector<std::string>&elems){
+std::vector<std::string>& Input::split(const std::string& s, char delim, std::vector<std::string>&elems) const {
 	bool add=true;
 	std::stringstream ss(s);
 	std::string item;
@@ -156,11 +156,11 @@ std::vector<std::string>& Input::split(std::string s, char delim, std::vector<st
 	return elems;
 }
 
-bool Input:: IsDigit(string &s) {
+bool Input:: IsDigit(const string& s) const {
 	return (s=="0" || s=="1" ||s=="2" || s=="3" || s=="4" || s=="5" ||s=="6" || s=="7" || s=="8" || s=="9" || s=="10");
 }
 
-int Input:: Get_int(string s, int ss) {
+int Input:: Get_int(const string& s, int ss) const {
 	bool success = false;
 	int sss;
 	stringstream string_s;
@@ -174,7 +174,7 @@ int Input:: Get_int(string s, int ss) {
 	return  sss;
 }
 
-bool Input:: Get_int(string s, int &ss, const std::string &error) {
+bool Input:: Get_int(const string& s, int &ss, const std::string &error) const {
 	bool success = false;
 	stringstream string_s;
         string_s << s;
@@ -187,7 +187,7 @@ bool Input:: Get_int(string s, int &ss, const std::string &error) {
 	return success;
 }
 
-bool Input:: Get_int(string s, int &ss, int low, int high, const std::string &error) {
+bool Input:: Get_int(const string& s, int &ss, int low, int high, const std::string &error) const {
 	bool success = false;
 	stringstream string_s;
         string_s << s;
@@ -204,17 +204,17 @@ bool Input:: Get_int(string s, int &ss, int low, int high, const std::string &er
 	return success;
 }
 
-string Input:: Get_string(string s, const string &ss) {
+string Input:: Get_string(const string& s, const string &ss) const {
 	if (s.length() > 0) { return s;} else {return ss;}
 
 }
-bool Input:: Get_string(string s, string &ss, const  std::string &error) {
+bool Input:: Get_string(const string& s, string &ss, const  std::string &error) const {
 	bool success = false;
 	if (s.length() > 0) { ss=s; success = true;}
 	if (!success) cout << error << endl;
 	return success;
 }
-bool Input:: Get_string(string s, string &ss, std::vector<std::string>&S, const std::string &error) {
+bool Input:: Get_string(const string& s, string &ss, const std::vector<std::string>&S, const std::string &error) const {
 	bool success = false;
 	if (s.length() > 0) { ss=s; success = true;}
 	if (!success) {cout << error << endl;}
@@ -226,7 +226,7 @@ bool Input:: Get_string(string s, string &ss, std::vector<std::string>&S, const 
 	return success;
 }
 
-Real Input:: Get_Real(string s, Real ss) {
+Real Input:: Get_Real(const string& s, Real ss) const {
 	bool success=false;
 	Real sss;
 	stringstream string_s;
@@ -239,7 +239,7 @@ Real Input:: Get_Real(string s, Real ss) {
 	if (!success) sss=ss;
 	return sss;
 }
-bool Input:: Get_Real(string s, Real &ss, const std::string &error) {
+bool Input:: Get_Real(const string& s, Real &ss, const std::string &error) const {
 	bool success=false;
 	stringstream string_s;
 	string_s << s ;
@@ -251,7 +251,7 @@ bool Input:: Get_Real(string s, Real &ss, const std::string &error) {
 	if (!success) cout << error << endl;
 	return success;
 }
-bool Input:: Get_Real(string s, Real &ss, Real low, Real high, const  std::string &error) {
+bool Input:: Get_Real(const string& s, Real &ss, Real low, Real high, const  std::string &error) const {
 	bool success=false;
 	stringstream string_s;
 	string_s << s ;
@@ -268,7 +268,7 @@ bool Input:: Get_Real(string s, Real &ss, Real low, Real high, const  std::strin
 	return success;
 }
 
-bool Input:: Get_bool(string s, bool ss) {
+bool Input:: Get_bool(const string& s, bool ss) const {
 	bool success=true;
 	bool sss;
 	if (s =="true" || s =="True" || s =="TRUE") {sss=true; success=true;} else
@@ -276,7 +276,7 @@ bool Input:: Get_bool(string s, bool ss) {
 	if (!success) sss=ss;
 	return sss;
 }
-bool Input:: Get_bool(string s, bool &ss, const std::string &error) {
+bool Input:: Get_bool(const string& s, bool &ss, const std::string &error) const {
 	bool success=false;
 	if (s =="true" ||  s =="True" || s =="TRUE") {ss=true; success=true;} else
 	if (s =="false" ||  s =="False" || s =="FALSE") ss=false; else success=false;
@@ -284,7 +284,7 @@ bool Input:: Get_bool(string s, bool &ss, const std::string &error) {
 	return success;
 }
 
-bool Input:: TestNum(std::vector<std::string> &S, string c,int num_low, int num_high, int UptoStartNumber ) {
+bool Input:: TestNum(std::vector<std::string> &S, const string& c,int num_low, int num_high, int UptoStartNumber ) const {
 	bool InList=false;
 	int i=0;
 	int length = elems.size();
@@ -306,7 +306,7 @@ bool Input:: TestNum(std::vector<std::string> &S, string c,int num_low, int num_
 	return false;
 }
 
-int Input:: GetNumStarts() {
+int Input:: GetNumStarts() const {
 	int length = elems.size();
 	int number=0;
 	for (int i=0; i<length; i++) {
@@ -321,7 +321,7 @@ int Input:: GetNumStarts() {
 	return number;
 }
 
-bool Input:: InSet(std::vector<std::string> &Standard, string keyword){
+bool Input:: InSet(const std::vector<std::string> &Standard, const string& keyword) const {
 	bool success=false;
 	int S_length = Standard.size();
 	int i=0;
@@ -331,7 +331,7 @@ bool Input:: InSet(std::vector<std::string> &Standard, string keyword){
 	}
 	return success;
 }
-bool Input:: InSet(std::vector<std::string> &Standard, int &pos, string keyword){
+bool Input:: InSet(const std::vector<std::string> &Standard, int &pos, const string& keyword) const {
 	bool success=false;
 	int S_length = Standard.size();
 	int i=0;
@@ -342,7 +342,7 @@ bool Input:: InSet(std::vector<std::string> &Standard, int &pos, string keyword)
 	return success;
 }
 
-bool Input:: InSet(vector<int> &Standard, int keyword){
+bool Input:: InSet(const vector<int> &Standard, int keyword) const {
 	bool success=false;
 	int S_length = Standard.size();
 	int i=0;
@@ -352,7 +352,7 @@ bool Input:: InSet(vector<int> &Standard, int keyword){
 	}
 	return success;
 }
-bool Input:: InSet(vector<int> &Standard, int &pos, int keyword){
+bool Input:: InSet(const vector<int> &Standard, int &pos, int keyword) const {
 	bool success=false;
 	int S_length = Standard.size();
 	int i=0;
@@ -363,8 +363,8 @@ bool Input:: InSet(vector<int> &Standard, int &pos, int keyword){
 	return success;
 }
 
-//In->CheckParameters("mesodyn", name, start, KEYS, PARAMETERS, VALUES)
-bool Input:: CheckParameters(string keyword, string name,int start, std::vector<std::string> &Standard, std::vector<std::string> &Input,std::vector<std::string> &Input_values) {
+// In->CheckParameters("mesodyn", name, start, KEYS, PARAMETERS)
+bool Input::CheckParameters(const string& keyword, const string& name, int start, const std::vector<std::string>& Standard, ParameterStore& Input) const {
 	bool success=true;
 	bool prop_found;
 	int length = elems.size();
@@ -375,6 +375,8 @@ bool Input:: CheckParameters(string keyword, string name,int start, std::vector<
 	int n_found=0;
 	int i=0;
 	int j;
+	std::vector<std::string> input_keys;
+	std::vector<std::string> input_values;
 
 	while (i<length && n_start<start){
 		vector<std::string> set;
@@ -382,17 +384,17 @@ bool Input:: CheckParameters(string keyword, string name,int start, std::vector<
 		if (set[1]=="start") {
 			n_start++;
 			int k=0;
-			int k_length=Input.size();
+			int k_length=input_keys.size();
 			while (k<k_length) { //remove doubles and keep last value; erase duplicates
 				int l=k+1;
-				int l_length=Input.size();
+				int l_length=input_keys.size();
 				while (l<l_length) {
-					if (Input[k]==Input[l]) {
-						Input_values[k]=Input_values[l];
-						Input.erase(Input.begin()+l);
-						if (n_start==1) cout <<"Warning: " << Input[k] << " found twice.... " << Input_values[k] << " is used!" << endl;
-						if (Input_values.begin()+l != Input_values.end()) Input_values.erase(Input_values.begin()+l);
-						else Input_values.erase(--Input_values.end());
+					if (input_keys[k]==input_keys[l]) {
+						input_values[k]=input_values[l];
+						input_keys.erase(input_keys.begin()+l);
+						if (n_start==1) cout <<"Warning: " << input_keys[k] << " found twice.... " << input_values[k] << " is used!" << endl;
+						if (input_values.begin()+l != input_values.end()) input_values.erase(input_values.begin()+l);
+						else input_values.erase(--input_values.end());
 						l_length--;
 						k_length--;
 						l--;
@@ -413,15 +415,15 @@ bool Input:: CheckParameters(string keyword, string name,int start, std::vector<
 				if (!prop_found) {success=false; cout <<"In line " << set[0] << " "  << keyword << " property '" << parameter << "' is unknown. Select from: "<< endl;
 					for (int k=0; k<S_length; k++) cout << Standard[k] << endl;
 				} else {
-					j=0; I_length = Input.size(); prop_found=false; n_found=0;
+					j=0; I_length = input_keys.size(); prop_found=false; n_found=0;
 					while (j<I_length) {
-						if (Input[j]==parameter) {prop_found = true; n_found++;}
+						if (input_keys[j]==parameter) {prop_found = true; n_found++;}
 						j++;
 					}
 					if (prop_found && n_found>1 && n_start==0) {success=false; cout <<n_start<<" "  << start << endl;  cout <<"In line " << set[0] << " " << keyword << " property '" << parameter << "' is already defined. "<< endl; }
 					else {
 						if (prop_found && n_found>1) {success=false; cout <<"After 'start' " << n_start << ", in line " << set[0] << " " << keyword << " property '" << parameter << "' is already defined. "<< endl; }
-						else {Input.push_back(parameter); Input_values.push_back(set[4]);
+						else {input_keys.push_back(parameter); input_values.push_back(set[4]);
 						}
 					}
 				}
@@ -429,11 +431,17 @@ bool Input:: CheckParameters(string keyword, string name,int start, std::vector<
 		}
 		i++;
 	}
+
+	Input.clear();
+	for (size_t idx = 0; idx < input_keys.size(); ++idx) {
+		Input[input_keys[idx]] = input_values[idx];
+	}
+
 	return success;
 }
 
 
-bool Input:: LoadItems(string template_,std::vector<std::string> &Out_key, std::vector<std::string> &Out_name, std::vector<std::string> &Out_prop) {
+bool Input:: LoadItems(const string& template_,std::vector<std::string> &Out_key, std::vector<std::string> &Out_name, std::vector<std::string> &Out_prop) const {
 if (debug) cout <<"LoadItems in Input " << endl;
 	Out_key.clear();
 	Out_name.clear();

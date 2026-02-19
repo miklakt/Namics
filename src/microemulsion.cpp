@@ -1,7 +1,7 @@
 #include "microemulsion.h"
 #include "tools.h"
 
-Microemulsion::Microemulsion(Input* In_, vector<Output*> Out_, vector<Lattice*> Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_,Solve_scf* New_,vector<Variate*> Var_,string name_):
+Microemulsion::Microemulsion(const Input* In_, vector<Output*> Out_, vector<Lattice*> Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_,Solve_scf* New_,vector<Variate*> Var_,string name_):
 	name{name_}, In{In_}, Out{Out_}, Lat{Lat_}, Mol{Mol_}, Seg{Seg_}, Sta{Sta_}, Rea{Rea_}, Sys{Sys_}, New{New_}, Var{Var_}
 {
 	if (debug)cout << "Constructor for microemulsion " << endl;
@@ -41,7 +41,7 @@ bool Microemulsion::CheckInput(int start_){
 	control="wrong";
 	//int M=Lat[0]->M;
 	int length = In->MolList.size();
-	success = In->CheckParameters("micro", name, start, KEYS, PARAMETERS, VALUES);
+	success = In->CheckParameters("micro", name, start, KEYS, PARAMETERS);
 	if (success) {
 		follow_factor=1.0;
 		if (GetValue("follow_factor").size()>0){
@@ -246,15 +246,8 @@ bool Microemulsion::CheckInput(int start_){
 string Microemulsion::GetValue(string parameter)
 {
 	if (debug) cout << "GetValue " + parameter + " for microemulsion " << endl;
-	int length = PARAMETERS.size();
-	for (int i = 0; i < length; ++i)
-	{
-		if (parameter == PARAMETERS[i])
-		{
-			//cout << "return " << VALUES[i] << endl;
-			return VALUES[i];
-		}
-	}
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
@@ -759,4 +752,3 @@ bool Microemulsion::Doit(Real* X_,string METHOD_,vector<string> MONLIST_,vector<
 	kal_append_=true;
 	return success;
 }
-

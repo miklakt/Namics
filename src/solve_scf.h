@@ -27,7 +27,7 @@ class Solve_scf : public SFNewton {
 public:
 	Solve_scf() {};
 
-	Solve_scf(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,vector<Variate*>,string);
+	Solve_scf(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,vector<Variate*>,string);
 
 	~Solve_scf();
 
@@ -42,7 +42,7 @@ public:
 	rescue rescue_status;
 
 	string name;
-	Input* In;
+	const Input* In;
 	System* Sys;
 	vector<Segment*> Seg;
 	Lattice* Lat;
@@ -116,8 +116,7 @@ public:
 	int value_bm,old_value_bm;
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	bool CheckInput(int);
 	void PutParameter(string);
 	string GetValue(string);

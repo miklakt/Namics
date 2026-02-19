@@ -5,7 +5,7 @@
 using namespace std;
 
 Cleng::Cleng(
-        Input* In_,
+        const Input* In_,
         Lattice* Lat_,
         vector<Segment *> Seg_,
         vector<State *> Sta_,
@@ -74,7 +74,7 @@ bool Cleng::CheckInput(int start) {
     if (debug) cout << "CheckInput in Cleng" << endl;
     bool success;
 
-    success = In->CheckParameters("cleng", name, start, KEYS, PARAMETERS, VALUES);
+    success = In->CheckParameters("cleng", name, start, KEYS, PARAMETERS);
     if (success) {
 
         // MCS

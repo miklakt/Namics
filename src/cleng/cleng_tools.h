@@ -704,14 +704,8 @@ Real Cleng::GetN_times_mu() {
 }
 
 string Cleng::GetValue(const string& parameter) {
-    int i = 0;
-    int length = (int) PARAMETERS.size();
-    while (i < length) {
-        if (parameter == PARAMETERS[i]) {
-            return VALUES[i];
-        }
-        i++;
-    }
+    auto it = PARAMETERS.find(parameter);
+    if (it != PARAMETERS.end()) return it->second;
     return "";
 }
 

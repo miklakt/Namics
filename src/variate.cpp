@@ -1,6 +1,6 @@
 #include "variate.h"
 
-Variate::Variate(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_, string name_) {
+Variate::Variate(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_, string name_) {
 	In=In_; name=name_;   Lat=Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_;
 	lat=Lat;
 	KEYS.push_back("scan");
@@ -62,7 +62,7 @@ if (debug) cout <<"CheckInput in Variate " + name << endl;
 	//for (int i=0; i<length; i++) KEYS.push_back("chi_"+In->MonList[i]);
 	//length=In->StateList.size();
 	//for (int i=0; i<length; i++) KEYS.push_back("chi_"+In->StateList[i]);
-	success= In->CheckParameters("var",name,start,KEYS,PARAMETERS,VALUES);
+	success= In->CheckParameters("var",name,start, KEYS, PARAMETERS);
 	if (success && name != "noname") {
 		vector<string>sub;
 		In->split(name,'-',sub);
@@ -549,15 +549,9 @@ bool Variate::ResetScanValue(void) {
 
 string Variate::GetValue(string parameter){
 if (debug) cout <<"GetValue in Variate " + name << " " <<parameter << endl;
-	int i=0;
-	int length = PARAMETERS.size();
-	while (i<length) {
-		if (parameter==PARAMETERS[i]) {
-			return VALUES[i];
-		}
-		i++;
-	}
-	return "" ;
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
+	return "";
 }
 
 void Variate::push(string s, Real X) {

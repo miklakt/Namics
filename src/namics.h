@@ -15,12 +15,14 @@
 #include <vector>
 #include <iterator>
 #include <algorithm>
+#include <unordered_map>
 //#include <f2c.h>
 
 #include <iomanip>
 
 
 using namespace std;
+using ParameterStore = std::unordered_map<std::string, std::string>;
 //these are our options.
 #ifdef LongReal
 typedef long double Real; //See comment at top of file.

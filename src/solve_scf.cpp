@@ -1,7 +1,7 @@
 #include "solve_scf.h"
 #include <iostream>
 
-Solve_scf::Solve_scf(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,vector<Variate*>Var_,string name_) :
+Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,vector<Variate*>Var_,string name_) :
 	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, Lat{Lat_}, Mol{Mol_}, Var{Var_}, Sta{Sta_}, Rea{Rea_}
 {
 if(debug) cout <<"Constructor in Solve_scf " << endl;
@@ -133,7 +133,7 @@ if(debug) cout <<"CheckInput in Solve " << endl;
 	gradient=classical;
 	residual=1;
 	m=10;
-	success=In->CheckParameters("newton",name,start,KEYS,PARAMETERS,VALUES);
+	success=In->CheckParameters("newton",name,start, KEYS, PARAMETERS);
 	if (success) {
 		iterationlimit=In->Get_int(GetValue("iterationlimit"),1000);
 		if (iterationlimit < 0 || iterationlimit>1e6) {iterationlimit = 1000;}
@@ -297,15 +297,9 @@ if(debug) cout <<"PutParameter in Solve " << endl;
 
 string Solve_scf::GetValue(string parameter){
 if(debug) cout <<"GetValue " + parameter + " in  Solve " << endl;
-	int i=0;
-	int length = PARAMETERS.size();
-	while (i<length) {
-		if (parameter==PARAMETERS[i]) {
-			return VALUES[i];
-		}
-		i++;
-	}
-	return "" ;
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
+	return "";
 }
 
 void Solve_scf::push(string s, Real X) {
@@ -535,7 +529,7 @@ bool Solve_scf::Guess(Real *X, string METHOD, vector<string> MONLIST, vector<str
 class SCF_LBFGS
 {
 private:
-    Input* In;
+    const Input* In;
     Lattice* Lat;
     vector<Segment*> Seg;
     vector<State*> Sta;
@@ -546,7 +540,7 @@ private:
     int iterations =0;
      Real residual=1;
 public:
-    SCF_LBFGS(Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_,vector<Reaction*> Rea_,vector<Molecule*> Mol_,System* Sys_,vector<Variate*> Var_) :
+    SCF_LBFGS(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_,vector<Reaction*> Rea_,vector<Molecule*> Mol_,System* Sys_,vector<Variate*> Var_) :
       In(In_),Lat(Lat_),Seg(Seg_),Sta(Sta_),Rea(Rea_),Mol(Mol_),Sys(Sys_),Var(Var_)  {
 
 	}

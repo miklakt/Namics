@@ -8,12 +8,12 @@
 #include "tools.h"
 class Molecule {
 public:
-	Molecule(Input*,Lattice*,vector<Segment*>,string);
+	Molecule(const Input*,Lattice*,vector<Segment*>,string);
 virtual ~Molecule();
 
 	string name;
 	bool all_molecule;
-	Input* In;
+	const Input* In;
 	vector<Segment*> Seg;
 	Lattice* Lat;
 	Lattice* lat;
@@ -161,8 +161,7 @@ virtual ~Molecule();
 	bool Filling;
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	bool CheckInput(int,bool);
 	void PutParameter(string);
 	bool ExpandAlias(vector<string>,string&);

@@ -2,7 +2,7 @@
 #include "tools.h"
 #include <algorithm>
 
-System::System(Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, string name_)
+System::System(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, string name_)
 {
 	Seg = Seg_;
 	Mol = Mol_;
@@ -520,7 +520,7 @@ bool System::CheckInput(int start_)
 	tag_segment = -1;
 	solvent = -1; //value -1 means no solvent defined. tag_segment=-1;
 	Real phibulktot = 0;
-	success = In->CheckParameters("sys", name, start, KEYS, PARAMETERS, VALUES);
+	success = In->CheckParameters("sys", name, start, KEYS, PARAMETERS);
 	if (success)
 	{
 		if (GetValue("find_local_solution").size()>0) {
@@ -1468,14 +1468,8 @@ string System::GetValue(string parameter)
 {
 	if (debug)
 		cout << "GetValue " + parameter + " for system " << endl;
-	int length = PARAMETERS.size();
-	for (int i = 0; i < length; ++i)
-	{
-		if (parameter == PARAMETERS[i])
-		{
-			return VALUES[i];
-		}
-	}
+	auto it = PARAMETERS.find(parameter);
+	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 

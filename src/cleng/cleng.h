@@ -44,7 +44,7 @@ static const string CLENG_VERSION = CLENG_MAJOR_VERSION + "." + CLENG_MINOR_VERS
 class Cleng {
 private:
     const string name;
-    Input* In;
+    const Input* In;
     Lattice* Lat;
     const vector<Segment *> Seg;
     const vector<State *> Sta;
@@ -68,7 +68,7 @@ private:
 
 public:
     Cleng(
-            Input*,
+            const Input*,
             Lattice*,
             vector<Segment *>,
             vector<State *>,
@@ -82,8 +82,7 @@ public:
     ~Cleng();
 
     vector<string> KEYS;
-    vector<string> PARAMETERS;
-    vector<string> VALUES;
+	ParameterStore PARAMETERS;
 
     string filename;
     Point box{Lat->MX, Lat->MY, Lat->MZ};

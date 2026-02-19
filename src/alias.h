@@ -6,7 +6,7 @@
 #include "tools.h"
 class Alias {
 public:
-	Alias(Input*,Lattice*,string);
+	Alias(const Input*,Lattice*,string);
 
 ~Alias();
 	void DeAllocateMemory();
@@ -23,7 +23,7 @@ public:
 	bool clamp;
 
 	string name;
-	Input* In;
+	const Input* In;
 
 	vector<string> ints;
 	vector<string> Reals;
@@ -43,8 +43,7 @@ public:
 	void PrepareForCalculations();
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	bool CheckInput(int);
 	void PutParameter(string);
 	string GetValue(string);

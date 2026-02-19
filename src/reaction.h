@@ -9,7 +9,7 @@
 
 class Reaction {
 public:
-	Reaction(Input*,vector<Segment*>,vector<State*>,string);
+	Reaction(const Input*,vector<Segment*>,vector<State*>,string);
 
 ~Reaction();
 	void DeAllocateMemory();
@@ -38,7 +38,7 @@ public:
 	Real Var_target_value;
 	
 	string name; 
-	Input* In;
+	const Input* In;
 	vector<string> ints;
 	vector<string> Reals;
 	vector<string> bools;
@@ -58,8 +58,7 @@ public:
 	void PrepareForCalculations();
 
 	std::vector<string> KEYS;
-	std::vector<string> PARAMETERS;
-	std::vector<string> VALUES;
+	ParameterStore PARAMETERS;
 	bool CheckInput(int);
 	void PutParameter(string); 
 	string GetValue(string); 
