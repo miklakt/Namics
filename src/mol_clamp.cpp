@@ -2,7 +2,7 @@
 #include "mol_clamp.h"
 
 
-mol_clamp::mol_clamp(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
+mol_clamp::mol_clamp(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
 
 
 mol_clamp::~mol_clamp() {

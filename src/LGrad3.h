@@ -2,7 +2,7 @@
 #define LGRAD3_H
 class LGrad3 : public Lattice
 {
-	public:	LGrad3(Input* In_,string name_);
+	public:	LGrad3(const Input& In_,const string& name_);
 	~LGrad3();
 
 	void ComputeLambdas(void);
@@ -47,4 +47,3 @@ class LGrad3 : public Lattice
 	bool PutMask(Real* ,vector<int>,vector<int>,vector<int>,int);
 };
 #endif
-

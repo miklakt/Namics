@@ -2,7 +2,7 @@
 #include "mol_asym_dendrimer.h"
 
 
-mol_asym_dend::mol_asym_dend(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
+mol_asym_dend::mol_asym_dend(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
 
 
 mol_asym_dend::~mol_asym_dend() {

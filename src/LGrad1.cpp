@@ -5,7 +5,7 @@
 
 //planar geometry is in LG1Planar.cpp
 
-LGrad1::LGrad1(Input* In_,string name_): Lattice(In_,name_) {
+LGrad1::LGrad1(const Input& In_,const string& name_): Lattice(In_,name_) {
 if (debug) cout <<"LGrad1 constructor " << endl;
 }
 

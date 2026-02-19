@@ -2,7 +2,7 @@
 #define LGRAD2_H
 class LGrad2 : public Lattice
 {
-	public:	LGrad2(Input* In_,string name_);
+	public:	LGrad2(const Input& In_,const string& name_);
 	~LGrad2();
 
 	void ComputeLambdas(void);
@@ -48,4 +48,3 @@ class LGrad2 : public Lattice
 	Real DphiDt(Real*,Real*,Real*,Real*,Real*,Real*,Real,Real);
 };
 #endif
-

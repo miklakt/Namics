@@ -8,7 +8,7 @@
 #include "tools.h"
 class mol_asym_dend : public Molecule
 {
-	public: mol_asym_dend(Input*,Lattice*,vector<Segment*>,string);
+	public: mol_asym_dend(const Input*,Lattice*,vector<Segment*>,string);
 	~mol_asym_dend();
 
 	Real fraction(int);

@@ -8,7 +8,7 @@
 #include "tools.h"
 class mol_comb : public Molecule
 {
-	public: mol_comb(Input*,Lattice*,vector<Segment*>,string);
+	public: mol_comb(const Input*,Lattice*,vector<Segment*>,string);
 	~mol_comb();
 
 	Real fraction(int);

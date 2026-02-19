@@ -2,7 +2,7 @@
 #include "solve_bfgs.h"
 
 
-Solve_BFGS :: Solve_BFGS(Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_,vector<Reaction*> Rea_,vector<Molecule*> Mol_,System* Sys_,vector<Variate*> Var_,string name_) : 
+Solve_BFGS :: Solve_BFGS(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_,vector<Reaction*> Rea_,vector<Molecule*> Mol_,System* Sys_,vector<Variate*> Var_,string name_) : 
                    Solve_scf(In_,Lat_,Seg_,Sta_,Rea_,Mol_,Sys_,Var_,name_) {	
 
 }

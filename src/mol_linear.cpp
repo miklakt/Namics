@@ -2,7 +2,7 @@
 #include "mol_linear.h"
 
 
-mol_linear::mol_linear(Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
+mol_linear::mol_linear(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) : Molecule(In_,Lat_,Seg_,name_) {}
 
 
 mol_linear::~mol_linear() {

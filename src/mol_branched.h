@@ -8,7 +8,7 @@
 #include "tools.h"
 class mol_branched : public Molecule
 {
-	public: mol_branched(Input*,Lattice*,vector<Segment*>,string);
+	public: mol_branched(const Input*,Lattice*,vector<Segment*>,string);
 	~mol_branched();
 
 	Real* ForwardBra(Real*, int generation, int &s);

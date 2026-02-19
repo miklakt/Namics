@@ -2,7 +2,7 @@
 #define LGRAD1_H
 class LGrad1 : public Lattice
 {
-	public: LGrad1(Input* In_,string name_);
+	public: LGrad1(const Input& In_,const string& name_);
 	virtual ~LGrad1();
 
 
@@ -46,4 +46,3 @@ class LGrad1 : public Lattice
 	virtual Real DphiDt(Real*,Real*,Real*,Real*,Real*,Real*,Real,Real);
 };
 #endif
-

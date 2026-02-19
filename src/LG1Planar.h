@@ -3,7 +3,7 @@
 #include "LGrad1.h"
 class LG1Planar : public LGrad1
 {
-	public:	LG1Planar(Input* In_,string name_);
+	public:	LG1Planar(const Input& In_,const string& name_);
 	~LG1Planar();
 
 	void ComputeLambdas(void);
@@ -19,4 +19,3 @@ class LG1Planar : public LGrad1
 	Real DphiDt(Real*,Real*,Real*,Real*,Real*,Real*,Real,Real);
 };
 #endif
-

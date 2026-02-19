@@ -7,7 +7,7 @@ class Solve_BFGS : public Solve_scf
 {
 public:
 
-	Solve_BFGS(Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,vector<Variate*>,string);
+	Solve_BFGS(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,vector<Variate*>,string);
 
 	~Solve_BFGS();
 

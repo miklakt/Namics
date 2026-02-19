@@ -3,7 +3,7 @@
 #include "lattice.h"
 #include "LGrad3.h"
 
-LGrad3::LGrad3(Input* In_,string name_): Lattice(In_,name_) {}
+LGrad3::LGrad3(const Input& In_,const string& name_): Lattice(In_,name_) {}
 
 LGrad3::~LGrad3() {
 if (debug) cout <<"LGrad3 destructor " << endl;
