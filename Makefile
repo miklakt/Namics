@@ -190,4 +190,7 @@ endif
 test-homopolymer-adsorption:
 	@./tests/homopolymer_adsorption_test.sh
 
-.PHONY: all remake clean cleaner resources test-homopolymer-adsorption
+test-frozen-range-input-file:
+	@./tests/test_frozen_range_input_file.sh
+
+.PHONY: all remake clean cleaner resources test-homopolymer-adsorption test-frozen-range-input-file

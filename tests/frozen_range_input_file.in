@@ -1,0 +1,18 @@
+// This input file was automatically generated.
+// Task 1
+//----------------------------------------------------
+lat:flat:geometry:flat
+lat:flat:gradients:2
+lat:flat:lattice_type:simple_cubic
+lat:flat:n_layers_x:54
+lat:flat:n_layers_y:54
+mon:S:freedom:free
+mol:SOLVENT:composition:(S)1
+mol:SOLVENT:freedom:solvent
+mon:W:freedom:frozen
+mon:W:frozen_filename:frozen
+output:pro:append:false
+output:pro:filename:frozen_range_input_file
+pro:mon:*:phi
+pro:mol:*:phi
+start
