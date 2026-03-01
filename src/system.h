@@ -76,7 +76,6 @@ public:
 	Real phi_ratio;
 	Real* H_beta;
 	Real* beta;
-	bool GPU;
 	bool first_pass;
 	int n_mol;
 	int solvent;
@@ -85,7 +84,6 @@ public:
 	Real volume;
 	int boundaryless_volume;
 	bool input_error;
-	bool cuda;
 	bool charged;
 	bool internal_states;
 	bool local_solution;

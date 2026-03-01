@@ -25,11 +25,7 @@ if (debug) cout <<"fraction for mol_comb " + name << endl;
 bool mol_comb::GoBackAndForth2ndO(Real *Mask,Real* G0) {
 	int N;
 	int M=lat->M;
-#ifdef CUDA
-	Real* GB = (Real*)AllOnDev(2*M); Zero(GB,2*M);
-#else
-	Real* GB = new Real[2*M]; Zero(GB,2*M);
-#endif
+	Real* GB = new Real[2*M]; std::fill_n(GB, 2*M, 0);
 
 	bool success=true;
 	int slast=0,sfirst=0;
@@ -86,10 +82,10 @@ bool mol_comb::GoBackAndForth2ndO(Real *Mask,Real* G0) {
 		}
 		if (g==2) {
 			lat->propagateF(Gg_f,Seg[mon_nr[b0-1]]->G1,P,s+1,(last_s[0]+1),M); //go to the branching point
-			for (int k=0; k<size; k++) Times(Gg_f+(last_s[0]+1)*M*size+k*M,Gg_f+(last_s[0]+1)*M*size+k*M,GB,M); //connect side
+			for (int k=0; k<size; k++) for (int __i = 0; __i < (M); ++__i) (Gg_f+(last_s[0]+1)*M*size+k*M)[__i] = (Gg_f+(last_s[0]+1)*M*size+k*M)[__i] * (GB)[__i]; //connect side
 		} else {
 			lat->propagateF(Gg_f,Seg[mon_nr[b0-1]]->G1,P,s+1,s,M); //go to the branching point
-			for (int k=0; k<size; k++) Times(Gg_f+s*M*size+k*M,Gg_f+s*M*size+k*M,GB,M); //connect side
+			for (int k=0; k<size; k++) for (int __i = 0; __i < (M); ++__i) (Gg_f+s*M*size+k*M)[__i] = (Gg_f+s*M*size+k*M)[__i] * (GB)[__i]; //connect side
 		}
 		s--;
 	}
@@ -103,7 +99,7 @@ bool mol_comb::GoBackAndForth2ndO(Real *Mask,Real* G0) {
 		}
 	}
 	if (ring) {
-		for (int k=0; k<size; k++) Times(Gg_f+k*M,Gg_f+k*M,Mask,M);
+		for (int k=0; k<size; k++) for (int __i = 0; __i < (M); ++__i) (Gg_f+k*M)[__i] = (Gg_f+k*M)[__i] * (Mask)[__i];
 
 	}
 	GN+=lat->ComputeGN(Gg_f,Markov,M);
@@ -133,11 +129,11 @@ bool mol_comb::GoBackAndForth2ndO(Real *Mask,Real* G0) {
 	for (g=2; g<=n_arms+1; g++) { //only do the spacer and keep semiflexibility
 		lat->propagateB(Gg_b,Seg[mon_nr[first_b[g]-1]]->G1,P,s%2,(s+1)%2,M);
 		lat->AddPhiS(rho+molmon_nr[first_b[g]-1]*M,Gg_b+((s+1)%2)*M*size,Gg_f+(s+1)*M*size,Markov,M); //this should add phi's for the branch point
-		Times(Gg_f+(s+1)*M*size,Gg_b+((s+1)%2)*M*size,Gg_f+(s+1)*M*size,M*size);
+		for (int __i = 0; __i < (M*size); ++__i) (Gg_f+(s+1)*M*size)[__i] = (Gg_b+((s+1)%2)*M*size)[__i] * (Gg_f+(s+1)*M*size)[__i];
 		for (int k=0; k<size; k++) {
-			Div(Gg_f+(s+1)*M*size+k*M,GB,M);
-			Div(Gg_f+(s+1)*M*size+k*M,Seg[mon_nr[first_b[g]-1]]->G1 ,M); //getting ready for phi side computation!
-			Times(Gg_b+((first_s[g]-1)%2)*M*size+k*M,Gg_b+((s+1)%2)*M*size+k*M,GB,M); //getting ready to propagate along backbone
+			for (int __i = 0; __i < (M); ++__i) (Gg_f+(s+1)*M*size+k*M)[__i] = ((GB)[__i] != 0) ? ((Gg_f+(s+1)*M*size+k*M)[__i] / (GB)[__i]) : 0;
+			for (int __i = 0; __i < (M); ++__i) (Gg_f+(s+1)*M*size+k*M)[__i] = ((Seg[mon_nr[first_b[g]-1]]->G1)[__i] != 0) ? ((Gg_f+(s+1)*M*size+k*M)[__i] / (Seg[mon_nr[first_b[g]-1]]->G1)[__i]) : 0; //getting ready for phi side computation!
+			for (int __i = 0; __i < (M); ++__i) (Gg_b+((first_s[g]-1)%2)*M*size+k*M)[__i] = (Gg_b+((s+1)%2)*M*size+k*M)[__i] * (GB)[__i]; //getting ready to propagate along backbone
 
 		}
 
@@ -203,11 +199,7 @@ bool mol_comb::GoBackAndForth2ndO(Real *Mask,Real* G0) {
 		}
 	}
 
-#ifdef CUDA
-	cudaFree(GB);
-#else
 	delete [] GB;
-#endif
 	return success;
 
 }
@@ -215,11 +207,7 @@ bool mol_comb::GoBackAndForth2ndO(Real *Mask,Real* G0) {
 bool mol_comb::GoBackAndForth(Real *Mask,Real* G0) {
 	int N;
 	int M=lat->M;
-#ifdef CUDA
-	Real* GB = (Real*)AllOnDev(2*M); Zero(GB,2*M);
-#else
-	Real* GB = new Real[2*M]; Zero(GB,2*M);
-#endif
+	Real* GB = new Real[2*M]; std::fill_n(GB, 2*M, 0);
 
 	bool success=true;
 	int slast=0,sfirst=0;
@@ -276,10 +264,10 @@ bool mol_comb::GoBackAndForth(Real *Mask,Real* G0) {
 		}
 		if (g==2) {
 			lat->propagate(Gg_f,Seg[mon_nr[b0-1]]->G1,s+1,(last_s[0]+1),M); //go to the branching point
-			Times(Gg_f+(last_s[0]+1)*M,Gg_f+(last_s[0]+1)*M,GB,M); //connect side
+			for (int __i = 0; __i < (M); ++__i) (Gg_f+(last_s[0]+1)*M)[__i] = (Gg_f+(last_s[0]+1)*M)[__i] * (GB)[__i]; //connect side
 		} else {
 			lat->propagate(Gg_f,Seg[mon_nr[b0-1]]->G1,s+1,s,M); //go to the branching point
-			Times(Gg_f+s*M,Gg_f+s*M,GB,M); //connect side
+			for (int __i = 0; __i < (M); ++__i) (Gg_f+s*M)[__i] = (Gg_f+s*M)[__i] * (GB)[__i]; //connect side
 		}
 		s--;
 	}
@@ -293,7 +281,7 @@ bool mol_comb::GoBackAndForth(Real *Mask,Real* G0) {
 		}
 	}
 	if (ring) {
-		Times(Gg_f,Gg_f,Mask,M);
+		for (int __i = 0; __i < (M); ++__i) (Gg_f)[__i] = (Gg_f)[__i] * (Mask)[__i];
 
 	}
 	GN+=lat->ComputeGN(Gg_f,Markov,M);
@@ -323,10 +311,10 @@ bool mol_comb::GoBackAndForth(Real *Mask,Real* G0) {
 	for (g=2; g<=n_arms+1; g++) { //only do the spacer and keep semiflexibility
 		lat->propagate(Gg_b,Seg[mon_nr[first_b[g]-1]]->G1,s%2,(s+1)%2,M);
 		lat->AddPhiS(rho+molmon_nr[first_b[g]-1]*M,Gg_b+((s+1)%2)*M*size,Gg_f+(s+1)*M*size,Markov,M); //this should add phi's for the branch point
-		Times(Gg_f+(s+1)*M*size,Gg_b+((s+1)%2)*M*size,Gg_f+(s+1)*M*size,M*size);
-		Div(Gg_f+(s+1)*M,GB,M);
-			Div(Gg_f+(s+1)*M,Seg[mon_nr[first_b[g]-1]]->G1 ,M); //getting ready for phi side computation!
-			Times(Gg_b+((first_s[g]-1)%2)*M,Gg_b+((s+1)%2)*M,GB,M); //getting ready to propagate along backbone
+		for (int __i = 0; __i < (M*size); ++__i) (Gg_f+(s+1)*M*size)[__i] = (Gg_b+((s+1)%2)*M*size)[__i] * (Gg_f+(s+1)*M*size)[__i];
+		for (int __i = 0; __i < (M); ++__i) (Gg_f+(s+1)*M)[__i] = ((GB)[__i] != 0) ? ((Gg_f+(s+1)*M)[__i] / (GB)[__i]) : 0;
+			for (int __i = 0; __i < (M); ++__i) (Gg_f+(s+1)*M)[__i] = ((Seg[mon_nr[first_b[g]-1]]->G1)[__i] != 0) ? ((Gg_f+(s+1)*M)[__i] / (Seg[mon_nr[first_b[g]-1]]->G1)[__i]) : 0; //getting ready for phi side computation!
+			for (int __i = 0; __i < (M); ++__i) (Gg_b+((first_s[g]-1)%2)*M)[__i] = (Gg_b+((s+1)%2)*M)[__i] * (GB)[__i]; //getting ready to propagate along backbone
 
 		b0=first_b[g];
 		bN=last_b[g];
@@ -389,11 +377,7 @@ bool mol_comb::GoBackAndForth(Real *Mask,Real* G0) {
 		}
 	}
 
-#ifdef CUDA
-	cudaFree(GB);
-#else
 	delete [] GB;
-#endif
 	return success;
 
 }
@@ -403,13 +387,8 @@ bool mol_comb::ComputePhi() {
 	if (debug) cout <<"ComputePhi for mol_comb " + name << endl;
 	bool success=true;
 	int M=lat->M;
-#ifdef CUDA
-	Real* G0 = (Real*)AllManagedOnDev(M); Zero(G0,M);
-	Real* Mask = (Real*)AllManagedOnDev(M); Zero(Mask,M);
-#else
-	Real* G0 = new Real[M]; Zero(G0,M);
-	Real* Mask = new Real[M]; Zero(Mask,M);
-#endif
+	Real* G0 = new Real[M]; std::fill_n(G0, M, 0);
+	Real* Mask = new Real[M]; std::fill_n(Mask, M, 0);
 	int gradients=lat->gradients;
 
 	int MX=lat->MX;
@@ -449,7 +428,6 @@ bool mol_comb::ComputePhi() {
 					}
 				}
 				if (Ds1<Ds2) Ds.push_back(Ds1); else Ds.push_back(Ds2); //shortest distance along contour to 'ends' of the chain
-				//cout <<"Ds for "<<SegPinned[j] << " : " << Ds[j] << endl;
 			}
 		}
 
@@ -468,7 +446,7 @@ bool mol_comb::ComputePhi() {
 						if (doit) doit=Seg[SegPinned[j]]->CanBeReached(x,y,z,Ds[j]*lat->fjc); //make sure that the pinned positions can be reached.
 					}
 					if (Seg[mon_nr[0]]->G1[i]>0 && doit) {
-						Times(G0,Mask,Seg[mon_nr[0]]->G1,M);
+						for (int __i = 0; __i < (M); ++__i) (G0)[__i] = (Mask)[__i] * (Seg[mon_nr[0]]->G1)[__i];
 
 						if (Markov==2) success = GoBackAndForth2ndO(Mask,G0); else success = GoBackAndForth(Mask,G0);
 					}
@@ -481,11 +459,7 @@ bool mol_comb::ComputePhi() {
 
 	if (Markov==2) success = GoBackAndForth2ndO(Mask,G0); else success = GoBackAndForth(Mask,G0);
 
-#ifdef CUDA
-	cudaFree(G0); cudaFree(Mask);
-#else
 	delete [] G0; delete [] Mask;
-#endif
 
 	return success;
 }

@@ -75,9 +75,9 @@ The main type entries are:
 \item \texttt{pro} specifies entries what goes in the so-called 'pro'-files
 \item \texttt{var} for automatic variation of variables. see section \ref{sec:varying}
 \item \texttt{alias} is of use to define and vary the composition of the molecules. see section \ref{sec:alias}
-\item \texttt{mesodyn} Mesodyn entries. These will not be covered in this manual. If you want to use mesodyn (dynamic density functional calculations) contact frans.leermakers@wur.nl.
-\item \texttt{cleng} cleng entries. Special module which uses fragments pinned at both locations. With such a tool you can model, e.g., gells. Cleng entries will not be covered in this manual.
-\item \texttt{teng} teng entries. Special module which uses monte carlo simulations in combination with SCF. Teng entries will not be covered in this manual.
+\item \texttt{dynamic_engine} DynamicEngine entries. These will not be covered in this manual. If you want to use dynamic_engine (dynamic density functional calculations) contact frans.leermakers@wur.nl.
+\item \texttt{clamped_engine} clamped_engine entries. Special module which uses fragments pinned at both locations. With such a tool you can model, e.g., gells. ClampedEngine entries will not be covered in this manual.
+\item \texttt{tagged_engine} tagged_engine entries. Special module which uses monte carlo simulations in combination with SCF. TaggedEngine entries will not be covered in this manual.
 \end{itemize}
 
 Multiple calculations can be separated in the input file by placing the keyword \texttt{start} on a separate line. \texttt{start} may be set at the end of the last calculation but this is not necessary. Having multiple \texttt{start} statements will execute consecutive calculations wherefore the previous calculation is by default the guess for the next calculation. 
@@ -193,13 +193,13 @@ When defining a \texttt{chi\_ }parameter for a segment that is not explicitly de
 
 \begin{itemize}
 
-\item{\tt freedom} ({\tt free}/{\tt pinned}/{\tt frozen}{\tt grafted}/{\tt tagged}/{\tt clamp}) It is possible to restrict the freedom of {\tt mon}omers.  The value {\tt free} means that in principle the {\tt mon}omers can be anywhere on the lattice/system.  The value {\tt pinned} means that the {\tt mon}omer is restricted to a certain area/sub-space, defined by setting \verb=pinned_range=.  The value {\tt frozen} means that the segment is exclusively in a certain place on the lattice, defined by setting \verb=frozen_range=.  It will fully occupy the specified lattice sites and act as a solid, no iteration variables are generated, unless different internal states are defined (not implemented yet). The value of {\tt tagged} is typically used in 'teng'-module (which we do not cover in this manual yet). The value of {\tt clamp} is typically used in 'cling'-module which is not covered in the current manual yet.  
+\item{\tt freedom} ({\tt free}/{\tt pinned}/{\tt frozen}{\tt grafted}/{\tt tagged}/{\tt clamp}) It is possible to restrict the freedom of {\tt mon}omers.  The value {\tt free} means that in principle the {\tt mon}omers can be anywhere on the lattice/system.  The value {\tt pinned} means that the {\tt mon}omer is restricted to a certain area/sub-space, defined by setting \verb=pinned_range=.  The value {\tt frozen} means that the segment is exclusively in a certain place on the lattice, defined by setting \verb=frozen_range=.  It will fully occupy the specified lattice sites and act as a solid, no iteration variables are generated, unless different internal states are defined (not implemented yet). The value of {\tt tagged} is typically used in 'tagged_engine'-module (which we do not cover in this manual yet). The value of {\tt clamp} is typically used in 'cling'-module which is not covered in the current manual yet.  
 
 \item {\tt pinned\_range } Defines the range on the lattice where the segment is pinned.  See section \ref{sec:ranges}.
  
 \item {\tt frozen\_range } Defines the range on the lattice where the segment is frozen. See section \ref{sec:ranges}.
 
-\item{\tt tagged\_range} Defines the range on the lattice where the segment is tagged. See section \ref{sec:ranges}. Used by 'teng' which we do not cover here in this manual yet. 
+\item{\tt tagged\_range} Defines the range on the lattice where the segment is tagged. See section \ref{sec:ranges}. Used by 'tagged_engine' which we do not cover here in this manual yet. 
 
 \item{\tt clamp\_info} This is information on the 'clamp'-coordinates. This is used in the 'cling' module. We do not cover this in this manual.
 
@@ -208,7 +208,7 @@ When defining a \texttt{chi\_ }parameter for a segment that is not explicitly de
 \item{\tt tagged\_filename} You can specify a file in which you specify the tagged\_ranges. Use this option when you have strange pinned\_range conditions. (not often used)
 \item{\tt clamp\_filename} You can specify a file in which you specify the clamp\_ranges. Use this option when you have strange pinned\_range conditions. (not often used)
 
-\item{\tt sub\_box\_size} This is used in the 'cleng'-module. (we do not cover this here.
+\item{\tt sub\_box\_size} This is used in the 'clamped_engine'-module. (we do not cover this here.
 
 \item {\tt valence} (real) The electrostatic charge of a monomer (default: 0). 
 
@@ -563,8 +563,6 @@ Parameters set in the 'sys'-block affect the entire calculation. Currently the s
 
 \item {\tt delta\_range\_units}  {\tt bondlength}/{\tt gritsize} The natural choice here is {\tt bondlength} because {n\_layers}, etc are also given in bondlength units. If {\tt FJC\_choices > 3} (see section \ref{sec:lattice}) the grit as a smaller size than the bondlength and the value specified with {\tt delta\_range} will bring your interface to a lower x-value (by a factor of 2, 3, $\cdots$).
 
-\item {\tt GPU} {\tt true}/{\tt false} (default {\tt false}.  {\tt GPU : true} will trigger the use of a GPU. This is only relevant for 3 gradient calculations, as the use of GPU is only effective when the number of computations per iteration is huge. There are only a few settings in which this setting will work properly. For example only linear chains are currently supported. Mesodyn applications my also work smoothly using the GPU. With some work other applications should also work in the GPU mode, but currently we can not guarantee this. Please contact frans.leermakers@wur.nl when you experience severe issues. Currently the use of GPU is not recommended.
-
 \item {\tt find\_local\_solution} {\tt true}{\tt false} (default {\tt false}). Turn this option on in 3 gradient calculations when the convergence is very poor (e.g when capillary bridges are generated between a random collection of particles. (this is a highly specialized flag. The advice is not to use this option at all.) It is used in combination with {\tt split}.
 
 \item {\tt split} (integer) (default 2). This quantity is only needed when {\tt find\_local\_solution : true}. The total 3d volume is subdivided by some integer; that is, you have a number of sub-boxes given by the 'spit'-entry. Then the amount that is found in each part of the system is fixed and the SCF solution is searched per sub-box. This may help the system to find a solution when many potential solutions compete. You are not adviced to use this option. These developments are at best in some 'experimental' stage. 
@@ -779,7 +777,7 @@ The internal Newton variable alpha defines the relative step length of an iterat
 \item {\tt max\_n\_small\_alpha} (int, 1 - iterationlimit) Defines what is meant by a long time.  Time is measured in number of iterations.  When alpha is smaller than {\tt small\_alpha} for {\tt max\_n\_small\_alpha} iterations in succession, the iteration will be restarted (default: 50). Use this only in combination with {\tt linesearch : Scheutjens }.
  
 
-\item {\tt stop\_criterion} {\tt norm\_of\_g} / {\tt max\_of\_element\_of\_|g|} (default {\tt norm\_of\_g}) The alternative for the default stopping criterion is only used in mesodyn. We do not cover this module. 
+\item {\tt stop\_criterion} {\tt norm\_of\_g} / {\tt max\_of\_element\_of\_|g|} (default {\tt norm\_of\_g}) The alternative for the default stopping criterion is only used in dynamic_engine. We do not cover this module. 
 \end{itemize}
 
 \subsection{Residual functions}
@@ -789,11 +787,11 @@ In classical calculations we need to solve the SCF equations. This means that th
 
 The \namics\ program can solve for different types of residual functions. In particular this information can be selected using:
 \begin{itemize}
-\item {\tt gradient\_type} {\tt classical}/{\tt mesodyn} default {\tt classical}
+\item {\tt gradient\_type} {\tt classical}/{\tt dynamic_engine} default {\tt classical}
 
 -{\tt classical} This approach is presented first by Evers et al. (Macromolecules 1990 23, 5221) and ingeniously combines all these requirements in a single set of residual functions. It basically uses the segment potentials as iteration variables. In steady state calculations, we still can choose this option, as the residual functions differ only little. %TODO introduce steady state in this option. 
 
--{\tt mesodyn} In this case the system searches for the best segment potentials belonging to imposed volume fraction profiles. For the time being we do not cover mesodyn in this manual.
+-{\tt dynamic_engine} In this case the system searches for the best segment potentials belonging to imposed volume fraction profiles. For the time being we do not cover dynamic_engine in this manual.
 \end{itemize}
 
 \subsection{Super iterations}
@@ -1061,10 +1059,10 @@ What happens (at a pre-processing step) is not difficult to understant. At the p
 One of the ways to work with \namics\ is to run the program from and analyse results with Jupyter notebooks. A few examples how to do this are available. 
 Sometimes it is more efficient to write separate modules that work intimately together with the \namics\ modules. Currently there are three associated modules linked to the \namics\ program. When you have an idea to work on such a module, feel free to contact frans.leermakers@wur.nl, and join the \namics\ team. 
 
-\subsection {Mesodyn} Written by Daniel Emmery. The model aims to predict how a system which is off-equilibrium proceeds towards equilibrium using Fickian like transport equations. This method has been pioneered by Hans Fraaije (Groningen university/Leiden university) in the 80's-90's of previous century. Example files are available how to use this module. 
+\subsection {DynamicEngine} Written by Daniel Emmery. The model aims to predict how a system which is off-equilibrium proceeds towards equilibrium using Fickian like transport equations. This method has been pioneered by Hans Fraaije (Groningen university/Leiden university) in the 80's-90's of previous century. Example files are available how to use this module. 
 
-\subsection {Cleng: Monte Carlo routine sampling clamped fragments}  Written by Alexander Kazakov. Example files are available on how to use this module.
+\subsection {ClampedEngine: Monte Carlo routine sampling clamped fragments}  Written by Alexander Kazakov. Example files are available on how to use this module.
 
-\subsection {Teng: Monte Carlo routine sampling tagged chains positions} Chain conformations are done on the SCF level. One segment per molecule is sampled using MC algorithm. Free energy of SCF is used in the Metropolis Algorithm.  Written by Ramanatan Varadharajan.
+\subsection {TaggedEngine: Monte Carlo routine sampling tagged chains positions} Chain conformations are done on the SCF level. One segment per molecule is sampled using MC algorithm. Free energy of SCF is used in the Metropolis Algorithm.  Written by Ramanatan Varadharajan.
 
 \end{document}

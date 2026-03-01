@@ -6,11 +6,38 @@
 #define LBFGS_H
 
 #include <Eigen/Core>
-#include "LBFGSpp/Param.h"
-#include "LBFGSpp/BFGSMat.h"
+#include <LBFGSpp/Param.h>
+#include <LBFGSpp/BFGSMat.h>
 #include <iostream>
 
 namespace LBFGSpp {
+
+template <typename Scalar = double>
+class NamicsLBFGSParam : public LBFGSParam<Scalar>
+{
+public:
+    Scalar delta_max;
+    Scalar delta_min;
+    bool e_info;
+    int i_info;
+
+    NamicsLBFGSParam() :
+        LBFGSParam<Scalar>(),
+        delta_max(Scalar(0.5)),
+        delta_min(Scalar(1e-4)),
+        e_info(true),
+        i_info(1)
+    {}
+
+    inline void check_param() const
+    {
+        LBFGSParam<Scalar>::check_param();
+        if(delta_max < Scalar(0))
+            throw std::invalid_argument("delta_max must be non-negative");
+        if(delta_min < Scalar(0))
+            throw std::invalid_argument("delta_min must be non-negative");
+    }
+};
 
 template < typename Scalar>
 class LBFGSSolver
@@ -20,7 +47,7 @@ private:
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> Matrix;
     typedef Eigen::Map<Vector> MapVec;
 
-    LBFGSParam<Scalar>& m_param;  // Parameters to control the LBFGS algorithm
+    NamicsLBFGSParam<Scalar>& m_param;  // Parameters to control the LBFGS algorithm
     BFGSMat<Scalar>           m_bfgs;   // Approximation to the Hessian matrix
     Vector                    m_xp;     // Old x
     Vector                    m_grad;   // New gradient
@@ -43,6 +70,7 @@ private:
 
 
 	Scalar stepchange(Vector g, Vector g0, int nvar) {
+		(void)nvar;
 		Scalar normg,normg0,gg0;
 		normg0= g0.norm();
 		gg0=g.dot(g0);
@@ -66,7 +94,7 @@ private:
     }
 
 public:
-    LBFGSSolver(LBFGSParam<Scalar>& param) :
+    LBFGSSolver(NamicsLBFGSParam<Scalar>& param) :
        m_param(param)
     {
         m_param.check_param();

@@ -39,7 +39,6 @@ bool Microemulsion::CheckInput(int start_){
 	string molname;
 	co_solvent_freedom="wrong";
 	control="wrong";
-	//int M=Lat[0]->M;
 	int length = In->MolList.size();
 	success = In->CheckParameters("micro", name, start, KEYS, PARAMETERS);
 	if (success) {
@@ -468,7 +467,6 @@ Real Microemulsion::zero_J0(Real guessXs, Real GuessXc, Real GuessChi) {
 				XS=zero_gamma(XS-0.01,xb);
 				break;
 			case chi_C_D:
-				//cout <<"not implemented yet" << endl;
 				if (fxa<0) xb=xa+cx; else xb=xa-cx;
 				PutChi(xb);
 				XS=zero_gamma(XS-0.01,GuessXc);
@@ -616,11 +614,11 @@ bool Microemulsion::SlipInSphericalCoordinates(){
 		theta_cosolvent=Mol[co_solvent]->theta;
 	}
 	int M=Lat[0]->M;
-	phi_oil=(Real*)malloc(M*sizeof(Real)); Zero(phi_oil,M);
-	Cp(phi_oil,Mol[oil]->phitot,M);
+	phi_oil=(Real*)malloc(M*sizeof(Real)); std::fill_n(phi_oil, M, 0);
+	std::copy_n(Mol[oil]->phitot, M, phi_oil);
 	Lat[0]->remove_bounds(phi_oil);
 	Real new_oil_theta=0;
-	Dot(new_oil_theta,phi_oil,Lat[1]->L,M);
+	(new_oil_theta) = 0; for (int __i = 0; __i < (M); ++__i) (new_oil_theta) += (phi_oil)[__i] * (Lat[1]->L)[__i];
 	Mol[oil]->PutTheta(new_oil_theta);
 	if (co_solvent_freedom=="restricted") {
 		Mol[co_solvent]->freedom ="free";

@@ -23,19 +23,11 @@ Variate::~Variate() {
 void Variate::DeAllocateMemory(){
 if (debug) cout <<"Destructor for variate " + name << endl;
 
-#ifdef CUDA
 
-#else
-
-#endif
 }
 
 void Variate::AllocateMemory() {
-#ifdef CUDA
 
-#else
-
-#endif
 
 }
 
@@ -58,10 +50,6 @@ if (debug) cout <<"CheckInput in Variate " + name << endl;
 	targeting =-1;
 	searching=-1;
 	num_of_cals=0;
-	//int length=In->MonList.size();
-	//for (int i=0; i<length; i++) KEYS.push_back("chi_"+In->MonList[i]);
-	//length=In->StateList.size();
-	//for (int i=0; i<length; i++) KEYS.push_back("chi_"+In->StateList[i]);
 	success= In->CheckParameters("var",name,start, KEYS, PARAMETERS);
 	if (success && name != "noname") {
 		vector<string>sub;
@@ -195,10 +183,6 @@ if (debug) cout <<"CheckInput in Variate " + name << endl;
 								}
 							} else {dubbel = true;}
 						}
-						//if (R_target == -123.0) {
-						//	success=false;
-						//	cout <<"In var:" + name + ", we need either 'scan' or 'search' as third parameter." << endl;
-						//	cout <<"or targets selected from {mu, theta, n, phibulk} "  << endl;
 						//}
 					} //else {
 
@@ -584,12 +568,10 @@ if (debug) cout <<"PushOutput in Variate " + name << endl;
 	Reals_value.clear();
 	ints.clear();
 	ints_value.clear();
-#ifdef CUDA
-//	TransferDataToHost(H_phi,phi,M);
-#endif
 }
 
 Real* Variate::GetPointer(string s) {
+	(void)s;
 if (debug) cout <<"GetPointer in Variate " + name << endl;
 	return NULL;
 }

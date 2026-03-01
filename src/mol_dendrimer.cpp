@@ -27,11 +27,7 @@ if (debug) cout <<"BackAndForth2ndO for mol_dend " + name << endl;
 
 	int N;
 	int M=lat->M;
-#ifdef CUDA
-	Real* GS = (Real*)AllOnDev(3*M);
-#else
 	Real* GS = new Real[3*M];
-#endif
 
 	bool success=true;
 	int n_g=first_a.size();
@@ -39,7 +35,7 @@ if (debug) cout <<"BackAndForth2ndO for mol_dend " + name << endl;
 	int s=slast;
 
 	for (int g=n_g-1; g>=0; g--) {
-		Cp(GS+2*M,UNITY,M);
+		std::copy_n(UNITY, M, GS+2*M);
 		int b0=first_b[g], bN=last_b[g];
 		for (int b=bN; b>=b0; b--) {
 			N= n_mon[b];
@@ -62,7 +58,7 @@ if (debug) cout <<"BackAndForth2ndO for mol_dend " + name << endl;
 		lat->Terminate(GS,Gg_f+(s+1)*M*size,Markov,M);
 		lat->propagate(GS,UNITY,0,1,M);
 		lat->propagate(GS,Seg[mon_nr[b0-1]]->G1,0,2,M);
-		for (int k=0; k<n_arm[g]-1; k++) Times(GS+2*M,GS+2*M,GS+M,M); //Times(GS+2*M,GS+2*M,GS+M,M);
+		for (int k=0; k<n_arm[g]-1; k++) for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i]; //for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
 		lat->Initiate(Gg_f+s*M*size,GS+2*M,Markov,M);
 		s--;
 	}
@@ -72,11 +68,11 @@ if (debug) cout <<"BackAndForth2ndO for mol_dend " + name << endl;
 	lat->AddPhiS(rho+molmon_nr[0]*M,Gg_f,Gg_b,Markov,M);
 
 	s=0;
-	Cp(GS+2*M,UNITY,M);
+	std::copy_n(UNITY, M, GS+2*M);
 	//lat->Terminate(GS,Gg_f+M*size,Markov,M); //GS heeft  al Gg_f+M*size
 	lat->propagate(GS,UNITY,0,1,M);
-	for (int k=0; k<n_arm[0]-1; k++) Times(GS+2*M,GS+2*M,GS+M,M);
-	Times(GS+2*M,GS+2*M,Seg[mon_nr[0]]->G1,M);
+	for (int k=0; k<n_arm[0]-1; k++) for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
+	for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (Seg[mon_nr[0]]->G1)[__i];
 	lat->Initiate(Gg_b,GS+2*M,Markov,M);
 	for (int g=0; g<n_g; g++) {
 		int b0=first_b[g], bN=last_b[g];
@@ -96,24 +92,20 @@ if (debug) cout <<"BackAndForth2ndO for mol_dend " + name << endl;
 			}
 		}
 		if (s<slast) {
-			Cp(GS+2*M,UNITY,M);
+			std::copy_n(UNITY, M, GS+2*M);
 			lat->Terminate(GS,Gg_f+(s+2)*M*size,Markov,M);
 			lat->propagate(GS,UNITY,0,1,M);
-			for (int k=0; k<n_arm[g+1]-1; k++) Times(GS+2*M,GS+2*M,GS+M,M);
+			for (int k=0; k<n_arm[g+1]-1; k++) for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
 			lat->Terminate(GS,Gg_b+(s%2)*M*size,Markov,M);
 			lat->propagate(GS,Seg[mon_nr[bN+1]]->G1,0,1,M);
 			lat->Initiate(Gg_b+((s+1)%2)*M*size,GS+M,Markov,M);
 			s++;
 			lat->AddPhiS(rho+molmon_nr[bN+1]*M, Gg_f+(s)*M*size, Gg_b+(s%2)*M*size,d_mon[bN+1],Markov, M);
-			Times(GS+M,GS+M,GS+2*M,M);
+			for (int __i = 0; __i < (M); ++__i) (GS+M)[__i] = (GS+M)[__i] * (GS+2*M)[__i];
 			lat->Initiate(Gg_b+(s%2)*M*size,GS+M,Markov,M);
 		}
 	}
-#ifdef CUDA
-	cudaFree(GS);
-#else
 	delete [] GS;
-#endif
 	return success;
 }
 
@@ -123,11 +115,7 @@ if (debug) cout <<"BackAndForth for mol_dend " + name << endl;
 
 	int N;
 	int M=lat->M;
-#ifdef CUDA
-	Real* GS = (Real*)AllOnDev(3*M);
-#else
 	Real* GS = new Real[3*M];
-#endif
 
 	bool success=true;
 	int n_g=first_a.size();
@@ -135,7 +123,7 @@ if (debug) cout <<"BackAndForth for mol_dend " + name << endl;
 	int s=slast;
 
 	for (int g=n_g-1; g>=0; g--) {
-			Cp(GS+2*M,UNITY,M);
+			std::copy_n(UNITY, M, GS+2*M);
 			int b0=first_b[g], bN=last_b[g];
 			for (int b=bN; b>=b0; b--) {
 				N= n_mon[b];
@@ -152,7 +140,7 @@ if (debug) cout <<"BackAndForth for mol_dend " + name << endl;
 			lat->Terminate(GS,Gg_f+(s+1)*M*size,Markov,M);
 			lat->propagate(GS,UNITY,0,1,M);
 			lat->propagate(GS,Seg[mon_nr[b0-1]]->G1,0,2,M);
-			for (int k=0; k<n_arm[g]-1; k++) Times(GS+2*M,GS+2*M,GS+M,M); //Times(GS+2*M,GS+2*M,GS+M,M);
+			for (int k=0; k<n_arm[g]-1; k++) for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i]; //for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
 			lat->Initiate(Gg_f+s*M*size,GS+2*M,Markov,M);
 			s--;
 	}
@@ -162,14 +150,14 @@ if (debug) cout <<"BackAndForth for mol_dend " + name << endl;
 	lat->AddPhiS(rho+molmon_nr[0]*M,Gg_f,Gg_b,Markov,M);
 
 	s=0;
-	Cp(GS+2*M,UNITY,M);
+	std::copy_n(UNITY, M, GS+2*M);
 	lat->Terminate(GS,Gg_f+M*size,Markov,M);
 	lat->propagate(GS,UNITY,0,1,M);
-	for (int k=0; k<n_arm[0]-1; k++) Times(GS+2*M,GS+2*M,GS+M,M);
-	Times(GS+2*M,GS+2*M,Seg[mon_nr[0]]->G1,M);
+	for (int k=0; k<n_arm[0]-1; k++) for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
+	for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (Seg[mon_nr[0]]->G1)[__i];
 	lat->Initiate(Gg_b,GS+2*M,Markov,M);
 	for (int g=0; g<n_g; g++) {
-		Cp(GS+2*M,UNITY,M);
+		std::copy_n(UNITY, M, GS+2*M);
 		int b0=first_b[g], bN=last_b[g];
 		for (int b=b0; b<=bN; b++) {
 			N= n_mon[b];
@@ -179,23 +167,19 @@ if (debug) cout <<"BackAndForth for mol_dend " + name << endl;
 				lat->AddPhiS(rho+molmon_nr[b]*M, Gg_f+s*M*size, Gg_b+(s%2)*M*size,d_mon[b],Markov,M); 			}
 		}
 		if (s<slast) {
-			Cp(GS+2*M,UNITY,M);
+			std::copy_n(UNITY, M, GS+2*M);
 			lat->Terminate(GS,Gg_f+(s+2)*M*size,Markov,M);
 			lat->propagate(GS,UNITY,0,1,M);
-			for (int k=0; k<n_arm[g+1]-1; k++) Times(GS+2*M,GS+2*M,GS+M,M);
+			for (int k=0; k<n_arm[g+1]-1; k++) for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
 			lat->propagate(Gg_b,Seg[mon_nr[bN+1]]->G1,s%2,(s+1)%2,M);
 			s++;
 			lat->AddPhiS(rho+molmon_nr[bN+1]*M, Gg_f+(s)*M*size, Gg_b+(s%2)*M*size,d_mon[bN+1],Markov, M);
 			lat->Terminate(GS,Gg_b+(s%2)*M*size,Markov,M);
-			Times(GS,GS,GS+2*M,M);
+			for (int __i = 0; __i < (M); ++__i) (GS)[__i] = (GS)[__i] * (GS+2*M)[__i];
 			lat->Initiate(Gg_b+(s%2)*M,GS,Markov,M);
 		}
 	}
-#ifdef CUDA
-	cudaFree(GS);
-#else
 	delete [] GS;
-#endif
 	return success;
 }
 

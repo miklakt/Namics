@@ -12,14 +12,6 @@ void Alias::DeAllocateMemory(){
 if (debug) cout <<"Destructor for alias " + name << endl;
 	free(H_phi);
 	if (clamp) free(rho);
-#ifdef CUDA
-	cudaFree(phi);
-	if (clamp) {
-		cudaFree(rho);
-		cudaFree(phi);
-	} else cudaFree(phi);
-#else
-#endif
 }
 
 void Alias::AllocateMemory(int Clamp_nr, int n_box) {
@@ -29,15 +21,6 @@ if (debug) cout <<"AllocateMemory in Alias " + name << endl;
 	int m=0;
 	if (clamp) m=lat->m[Clamp_nr];
 	H_phi = (Real*) malloc(M*sizeof(Real)); H_Zero(H_phi,M);
-#ifdef CUDA
-	if (clamp) {
-		rho=(Real*)AllOnDev(m*n_box);
-		phi=(Real*)AllOnDev(M); Zero(phi,M);
-	} else {
-		phi=(Real*)AllOnDev(M); Zero(phi,M);
-		rho=phi;
-	}
-#else
 	if (clamp) {
 		rho=(Real*) malloc(m*n_box*sizeof(Real));
 		phi=H_phi;
@@ -45,7 +28,6 @@ if (debug) cout <<"AllocateMemory in Alias " + name << endl;
 		phi=H_phi;
 		rho=phi;
 	}
-#endif
 
 }
 
@@ -53,7 +35,7 @@ void Alias::PrepareForCalculations() {
 if (debug) cout <<"PrepareForCalculations in Alias " + name << endl;
 
 	int M= lat->M;
-	Zero(phi,M);
+	std::fill_n(phi, M, 0);
 }
 
 
@@ -122,12 +104,10 @@ if (debug) cout <<"PushOutput in Alias " + name << endl;
 	ints_value.clear();
 
 	push("value",value);
-#ifdef CUDA
-	TransferDataToHost(H_phi,phi,lat->M);
-#endif
 }
 
 Real* Alias::GetPointer(string s) {
+	(void)s;
 if (debug) cout <<"GetPointer in Alias " + name << endl;
 	return NULL;
 }

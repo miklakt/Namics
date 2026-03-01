@@ -9,9 +9,6 @@ Input::Input(const string& name_) {
 	KEYS.push_back("alias");
  	KEYS.push_back("lat");
 	KEYS.push_back("newton");
-	KEYS.push_back("mesodyn");
-	KEYS.push_back("cleng");
-	KEYS.push_back("teng");
 	KEYS.push_back("output");
 	KEYS.push_back("var");
 	KEYS.push_back(OutputInfo::IN_CLASS_NAME);
@@ -363,7 +360,7 @@ bool Input:: InSet(const vector<int> &Standard, int &pos, int keyword) const {
 	return success;
 }
 
-// In->CheckParameters("mesodyn", name, start, KEYS, PARAMETERS)
+// In->CheckParameters("keyword", name, start, KEYS, PARAMETERS)
 bool Input::CheckParameters(const string& keyword, const string& name, int start, const std::vector<std::string>& Standard, ParameterStore& Input) const {
 	bool success=true;
 	bool prop_found;
@@ -464,7 +461,6 @@ if (debug) cout <<"LoadItems in Input " << endl;
 					switch (j-1) {
 						case 0:
 							if (set[3]=="*") set[3]=SysList[0];
-							//if (set[1]=="var" || set[1]=="search") name_found=true;
 							name_found = (SysList[0]==set[3]);
 							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
 								PrintList(SysList);}
@@ -472,7 +468,6 @@ if (debug) cout <<"LoadItems in Input " << endl;
 						case 1:
 							name_found=false;
 							if (set[3]=="*") { name_found = true; wild_mollist=true;}
-							//if (set[1]=="var" || set[1]=="search") name_found=true;
 							k=0; name_length=MolList.size();
 							while (k<name_length && !name_found) {
 								if (MolList[k]==set[3]) name_found=true;
@@ -485,7 +480,6 @@ if (debug) cout <<"LoadItems in Input " << endl;
 						case 2:
 							name_found=false;
 							if (set[3]=="*") {name_found=true; wild_monlist=true;}
-							//if (set[1]=="var") name_found=true;
 							k=0; name_length=MonList.size();
 							while (k<name_length && !name_found) {
 								if (MonList[k]==set[3]) name_found=true;
@@ -499,7 +493,6 @@ if (debug) cout <<"LoadItems in Input " << endl;
 							name_found=false;
 							k=0; name_length=AliasList.size();
 							if (set[3]=="*") {name_found=true; wild_aliaslist=true;}
-                                                        //if (set[1]=="var") name_found=true;
 
 							while (k<name_length && !name_found) {
 								if (AliasList[k]==set[3]) name_found=true;
@@ -525,7 +518,6 @@ if (debug) cout <<"LoadItems in Input " << endl;
 							break;
 						case 6:
 							k=0; name_length=OutputList.size(); name_found=false;
-                                                        //if (set[1]=="var") name_found=true;
 							while (k<name_length) {
 								if (OutputList[k]==set[3]) name_found=true;
 								k++;
@@ -545,40 +537,26 @@ if (debug) cout <<"LoadItems in Input " << endl;
 								PrintList(MonList);
 							}
 							break;
-						case 8:name_found=true;
-
-							break;
-						case 9:name_found=true;
-
-							break;
-						case 10:
+						case 8:
 							name_found=true;
 							break;
-						case 11:
-							name_found=true;
-							break;
-						case 12:
-							name_found=true;
-							break;
-						case 13:
+						case 9:
 							name_found=false;
 							k=0; name_length=StateList.size();
 							while (k<name_length && !name_found) {
 								if (StateList[k]==set[3]) name_found=true;
 								k++;
 							}
-
 							break;
-						case 14:
+						case 10:
 							name_found=false;
 							k=0; name_length=ReactionList.size();
 							while (k<name_length && !name_found) {
 								if (ReactionList[k]==set[3]) name_found=true;
 								k++;
 							}
-
 							break;
-						case 15:
+						case 11:
 							name_found=false;
 							k=0; name_length=MicroList.size();
 							while (k<name_length && !name_found) {
@@ -680,22 +658,7 @@ bool Input:: CheckInput(void) {
 
 		}
 
-/*
-			if (set[1]=="search"){
-			vector<string> options;
-			options.push_back("sys"); options.push_back("mol");
-			string option;
-			if (!Get_string(set[2],option,options, "Cannot search in ' " +set[2]+"'. Choose from options.")) {success=false;}
-			else {
-				cout << "checking input" << endl;
-				key_length=MolList.size(); bool molfound=false;
-				cout << key_length << endl;
-				for (int j=0; j<key_length; j++) {cout << set[3]<<":" <<MolList[j] << endl; if(set[3]==MolList[j]) {cout << "Molecule '"+MolList[j]+"' value of '"+set[4]+"' will be searched to find target" << endl; molfound=true;}}
-				if (set[2]==options[0] && !molfound) {cout << "check1" << endl; if (set[3]!="GrandPotential") {cout << "In 'sys' I can only search for GrandPotential(case sensitive) and not '"+set[3]+"'. Execution stopped." << endl; success=false; return 0;} }
-				else if (set[2]==options[1] && !molfound){if(set[3]!="phibulk"){cout << "In 'mol' I can only serach for 'phibulk' and not '"+set[3]+"'. Executions stopped." << endl; success=false; return 0;}}
-			}
-		}
-*/
+
 
 
 		i++;
@@ -734,9 +697,6 @@ bool Input::MakeLists(int start) {
 	MonList.clear();
 	MolList.clear();
 	OutputList.clear();
-	MesodynList.clear();
-	ClengList.clear();
-	TengList.clear();
 	MicroList.clear();
 	VarList.clear();
 	StateList.clear();
@@ -750,16 +710,11 @@ bool Input::MakeLists(int start) {
 	if (!TestNum(NewtonList,"newton",0,1,start)) {cout << "There can be no more than 1 'newton name' in input" << endl; success=false;}
 	if (!TestNum(MonList,"mon",1,1000,start)) {cout << "There must be at least one 'mon name' in input" << endl; success=false;}
 	if (!TestNum(StateList,"state",0,1000,start)) {cout << "There can not be more than 1000 'state name's in input" << endl; success=false;}
-	//if (StateList.size()==0) StateList.push_back("NN");
 	if (!TestNum(ReactionList,"reaction",0,1000,start)) {cout << "There can not be more than 1000 reaction name's in input" << endl; success=false;}
-	//if (ReactionList.size()==0) ReactionList.push_back("NN");
 	TestNum(AliasList,"alias",0,1000,start);
 	if (AliasList.size()==0) AliasList.push_back("NN");
 	if (!TestNum(MolList,"mol",1,1000,start)) {cout << "There must be at least one 'mol name' in input" << endl; success=false;}
 	if (!TestNum(OutputList,"output",1,1000,start)) {cout << "No output defined! " << endl;}
-	if (!TestNum(MesodynList,"mesodyn",0,1,start)) {cout << "There can be no more than 1 'mesodyn' engine brand name in the input " << endl; success=false;}
-	if (!TestNum(ClengList,"cleng",0,1,start)) {cout << "There can be no more than 1 'cleng' engine brand name in the input " << endl; success=false;}
-	if (!TestNum(TengList,"teng",0,1,start)) {cout << "There can be no more than 1 'teng' engine brand name in the input " << endl; success=false;}
 	if (!TestNum(MicroList,"micro",0,1,start)) {cout << "There can be no more than 1 'micro' engine brand name in the input " << endl; success=false;}
 	if (!TestNum(VarList,"var",0,10,start))
 	if (VarList.size()==0) VarList.push_back("NN");

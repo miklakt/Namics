@@ -11,17 +11,13 @@ State::~State() {
 }
 void State::DeAllocateMemory(){
 if (debug) cout <<"Destructor for State " + name << endl;
-#ifdef CUDA
-#else
-#endif
 }
 
 void State::AllocateMemory(int Clamp_nr, int n_box) {
+	(void)n_box;
+	(void)Clamp_nr;
 if (debug) cout <<"AllocateMemory in State " + name << endl;
 
-#ifdef CUDA
-#else
-#endif
 }
 
 void State::PrepareForCalculations() {
@@ -108,7 +104,6 @@ if (debug) cout <<"CheckInput in State " + name << endl;
 
 		}
 		chi[i]=Chi;
-//if (Chi!=-999) {cout << name << " and " << chi_name[i] << "=" << Chi << endl; }
 	}
 	return success;
 }
@@ -162,16 +157,18 @@ if (debug) cout <<"PushOutput in State " + name << endl;
 	push("valence",valence);
 	int length=chi_name.size();
 	for (int i=0; i<length; i++) push("chi_"+chi_name[i],chi[i]);
-#ifdef CUDA
-#endif
 }
 
 Real* State::GetPointer(string s,int &SIZE) {
+	(void)SIZE;
+	(void)s;
 if (debug) cout <<"GetPointer in State " + name << endl;
 	return NULL;
 }
 
 int* State::GetPointerInt(string s,int &SIZE) {
+	(void)SIZE;
+	(void)s;
 if (debug) cout <<"GetPointerInt in State " + name << endl;
 	return NULL;
 }
@@ -219,6 +216,7 @@ if (debug) cout <<"GetValue (long)  in State " + name << endl;
 }
 
 bool State::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
+	(void)Var_target_value_;
 if (debug) cout << "State::PutVarInfo " << endl;
 	bool success=true;
 	int length_mon,length_state;
@@ -322,7 +320,6 @@ if (debug) cout << "State::UpdateVarInfo " << endl;
 				if (chi_var_state>-1) {
 					chi[length+chi_var_state] =Var_start_value+step_nr*Var_step;
 				}
-				//chi_value = Var_start_value+step_nr*Var_step;
 			}
 			break;
 		default:
@@ -418,4 +415,3 @@ if (debug) cout << "State::GetError " << endl;
 	}
 	return Error;
 }
-

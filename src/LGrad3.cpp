@@ -23,17 +23,21 @@ if (debug) cout << "PutM in LGrad3 " << endl;
 }
 
 void LGrad3::TimesL(Real* X){
+	(void)X;
 if (debug) cout << "TimesL in LGrad3 " << endl;
 }
 
 void LGrad3::DivL(Real* X){
+	(void)X;
 if (debug) cout << "DivL in LGrad3 " << endl;
 }
 
 Real LGrad3:: Moment(Real* X,Real Xb, int n) {
+	(void)n;
+	(void)Xb;
+	(void)X;
 if (debug) cout << "Moment in LGrad3 " << endl;
 	Real Result=0;
-	//cout <<"Moment analysis not implemented in LGrad3 " << endl;
 	return Result/fjc;
 }
 
@@ -41,7 +45,7 @@ Real LGrad3::WeightedSum(Real* X){
 if (debug) cout << "weighted sum in LGrad3 " << endl;
 	Real sum{0};
 	remove_bounds(X);
-	Sum(sum,X,M);
+	(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i];
 	return sum;
 }
 
@@ -103,119 +107,105 @@ if (debug) cout <<"PutProfiles in LGrad3 " << endl;
 void LGrad3::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
 if (debug) cout <<" Side in LGrad3 " << endl;
 	if (ignore_sites) {
-		Cp(X_side,X,M); return;
+		std::copy_n(X, M, X_side); return;
 	}
-	Zero(X_side,M);//set_bounds(X);
+	std::fill_n(X_side, M, 0);//set_bounds(X);
 	Real Two=2.0;
 	Real Four=4.0;
 	if (!stencil_full) {
-		Add(X_side+JX,X   ,M-JX);
-		Add(X_side   ,X+JX,M-JX);
-		Add(X_side+JY,X   ,M-JY);
-		Add(X_side   ,X+JY,M-JY);
-		Add(X_side+1 ,X   ,M-1);
-		Add(X_side   ,X+1 ,M-1);
+		for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X)[__i];
+		for (int __i = 0; __i < (M-JX); ++__i) (X_side)[__i] += (X+JX)[__i];
+		for (int __i = 0; __i < (M-JY); ++__i) (X_side+JY)[__i] += (X)[__i];
+		for (int __i = 0; __i < (M-JY); ++__i) (X_side)[__i] += (X+JY)[__i];
+		for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (X)[__i];
+		for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (X+1)[__i];
 
 		if (lattice_type == simple_cubic) {
-			Norm(X_side,Four,M);
+			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Four);
 		} else {
-			Norm(X_side,Two,M);
+			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two);
 		}
-		Add(X_side+JX+JY, X,       M-JX-JY);
-		Add(X_side,       X+JX+JY, M-JX-JY);
-		Add(X_side+JY,    X+JX,    M-JY-JX);
-		Add(X_side+JX,    X+JY,    M-JY-JX);
-		Add(X_side+JX+1,  X,       M-JX-1);
-		Add(X_side,       X+JX+1,  M-JX-1);
-		Add(X_side+JX,    X+1,     M-JX);
-		Add(X_side+1,     X+JX,    M-JX);
-		Add(X_side+JY+1,  X,       M-JY-1);
-		Add(X_side,       X+JY+1,  M-JX-1);
-		Add(X_side+JY,    X+1,     M-JY);
-		Add(X_side+1,     X+JY,    M-JY);
+		for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side+JX+JY)[__i] += (X)[__i];
+		for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side)[__i] += (X+JX+JY)[__i];
+		for (int __i = 0; __i < (M-JY-JX); ++__i) (X_side+JY)[__i] += (X+JX)[__i];
+		for (int __i = 0; __i < (M-JY-JX); ++__i) (X_side+JX)[__i] += (X+JY)[__i];
+		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX+1)[__i] += (X)[__i];
+		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JX+1)[__i];
+		for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X+1)[__i];
+		for (int __i = 0; __i < (M-JX); ++__i) (X_side+1)[__i] += (X+JX)[__i];
+		for (int __i = 0; __i < (M-JY-1); ++__i) (X_side+JY+1)[__i] += (X)[__i];
+		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JY+1)[__i];
+		for (int __i = 0; __i < (M-JY); ++__i) (X_side+JY)[__i] += (X+1)[__i];
+		for (int __i = 0; __i < (M-JY); ++__i) (X_side+1)[__i] += (X+JY)[__i];
 		if (lattice_type == simple_cubic) {
-			Norm(X_side,Four,M);
+			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Four);
 		} else {
-			Norm(X_side,Two,M);
+			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two);
 		}
-		Add(X_side+JX+JY+1,  X,	    M-JX-JY-1);
-		Add(X_side,          X+JX+JY+1, M-JX-JY-1);
-		Add(X_side+JX+JY,    X+1,       M-JX-JY-1);
-		Add(X_side+1,        X+JX+JY,   M-JX-JY-1);
-		Add(X_side+JX+1,     X+JY,      M-JX-JY-1);
-		Add(X_side+JY,       X+JX+1,    M-JX-JY-1);
-		Add(X_side+JY+1,     X+JX,      M-JX-JY-1);
-		Add(X_side+JX,       X+JY+1,    M-JX-JY-1);
+		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+JY+1)[__i] += (X)[__i];
+		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side)[__i] += (X+JX+JY+1)[__i];
+		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+JY)[__i] += (X+1)[__i];
+		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+1)[__i] += (X+JX+JY)[__i];
+		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+1)[__i] += (X+JY)[__i];
+		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JY)[__i] += (X+JX+1)[__i];
+		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JY+1)[__i] += (X+JX)[__i];
+		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX)[__i] += (X+JY+1)[__i];
 		if (lattice_type == simple_cubic) {
 			Real C=1.0/152.0;
-			Norm(X_side,C,M);
+			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
 		} else {
 			Real C=1.0/56.0;
-			Norm(X_side,C,M);
+			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
 		}
 	} else {
 		if (lattice_type==simple_cubic) {
 			Real C=1.0/6.0;
-			Add(X_side+JX,X   ,M-JX);
-			Add(X_side   ,X+JX,M-JX);
-			Add(X_side+JY,X   ,M-JY);
-			Add(X_side   ,X+JY,M-JY);
-			Add(X_side+JZ,X   ,M-JZ);
-			Add(X_side   ,X+JZ,M-JZ);
-	 		Norm(X_side,C,M);
+			for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (X_side)[__i] += (X+JX)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (X_side+JY)[__i] += (X)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (X_side)[__i] += (X+JY)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (X_side+JZ)[__i] += (X)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (X_side)[__i] += (X+JZ)[__i];
+	 		for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
 		} else { //hexagonal
 			if (fjc==1) {
 				Real Two=2.0;
 				Real C=1.0/40.0;
-				YplusisCtimesX(X_side,X,Two,M);
-				Add(X_side+JX,X,   M-JX);
-				Add(X_side,   X+JX,M-JX);
-				Add(X_side+JY,X,   M-JY);
-				Add(X_side,   X+JY,M-JY);
-				Add(X_side+1, X,   M-1);
-				Add(X_side,   X+1, M-1);
-				Norm(X_side,Two,M);
+				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (Two) * (X)[__i];
+				for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X)[__i];
+				for (int __i = 0; __i < (M-JX); ++__i) (X_side)[__i] += (X+JX)[__i];
+				for (int __i = 0; __i < (M-JY); ++__i) (X_side+JY)[__i] += (X)[__i];
+				for (int __i = 0; __i < (M-JY); ++__i) (X_side)[__i] += (X+JY)[__i];
+				for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (X)[__i];
+				for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (X+1)[__i];
+				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two);
 
-				Add(X_side+JX+JY,   X,      M-JX-JY);
-				Add(X_side,         X+JX+JY,M-JX-JY);
-				Add(X_side+JX,      X+JY,   M-JX-JY);
-				Add(X_side+JY,      X+JX,   M-JX-JY);
-				Add(X_side+JX+1,    X,       M-JX-1);
-				Add(X_side+1,       X+JX,    M-JX-1);
-				Add(X_side+JY+1,    X,       M-JY-1);
-				Add(X_side+1,       X+JY,    M-JY-1);
-				Add(X_side+JX,      X+1,     M-JX-1);
-				Add(X_side,         X+JX+1,  M-JX-1);
-				Add(X_side+JY,      X+1,     M-JY-1);
-				Add(X_side,         X+JY+1,  M-JY-1);
-				Norm(X_side,Two,M);
+				for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side+JX+JY)[__i] += (X)[__i];
+				for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side)[__i] += (X+JX+JY)[__i];
+				for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side+JX)[__i] += (X+JY)[__i];
+				for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side+JY)[__i] += (X+JX)[__i];
+				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX+1)[__i] += (X)[__i];
+				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+1)[__i] += (X+JX)[__i];
+				for (int __i = 0; __i < (M-JY-1); ++__i) (X_side+JY+1)[__i] += (X)[__i];
+				for (int __i = 0; __i < (M-JY-1); ++__i) (X_side+1)[__i] += (X+JY)[__i];
+				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX)[__i] += (X+1)[__i];
+				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JX+1)[__i];
+				for (int __i = 0; __i < (M-JY-1); ++__i) (X_side+JY)[__i] += (X+1)[__i];
+				for (int __i = 0; __i < (M-JY-1); ++__i) (X_side)[__i] += (X+JY+1)[__i];
+				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two);
 
-				Add(X_side+JX+JY+1,X,        M-JX-JY-1);
-				Add(X_side,        X+JX+JY+1,M-JX-JY-1);
-				Add(X_side+JX+JY,  X+1,      M-JX-JY-1);
-				Add(X_side+1,      X+JX+JY,  M-JX-JY-1);
-				Add(X_side+JX+1,   X+JY,     M-JX-JY-1);
-				Add(X_side+JY,     X+JX+1,   M-JX-JY-1);
-				Add(X_side+JY+1,   X+JX,     M-JX-JY-1);
-				Add(X_side+JX,     X+JY+1,   M-JX-JY-1);
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+JY+1)[__i] += (X)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side)[__i] += (X+JX+JY+1)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+JY)[__i] += (X+1)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+1)[__i] += (X+JX+JY)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+1)[__i] += (X+JY)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JY)[__i] += (X+JX+1)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JY+1)[__i] += (X+JX)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX)[__i] += (X+JY+1)[__i];
 
-				Norm(X_side,C,M);
+				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
 
-/*
-				Add(X_side+JX ,X,    M-JX);
-				Add(X_side    ,X+JX ,M-JX);
-				Add(X_side+JX ,X+JY ,M-JX-JY);
-				Add(X_side    ,X+JY ,M-JY);
-				Add(X_side+JY ,X    ,M-JY);
-				Add(X_side+JY ,X+JX ,M-JX-JY);
-				Add(X_side+JZ ,X+JY ,M-JY-JZ);
-				Add(X_side+JZ ,X    ,M-JZ);
-				Add(X_side+JZ ,X+JX ,M-JX-JZ);
-				Add(X_side+JX ,X+JZ ,M-JX-JZ);
-				Add(X_side    ,X+JZ ,M-JZ);
-				Add(X_side+JY ,X+JZ ,M-JY-JZ);
-				Norm(X_side,1.0/12.0,M);
-*/
+
 			} else { //fjc==2
 				for (int block=0; block<4; block++){
 					Real Two=2.0;
@@ -231,10 +221,10 @@ if (debug) cout <<" Side in LGrad3 " << endl;
 							if (x<0) a =-x*JX; else b=x*JX;
 							if (y<0) a -=y*JY; else b+=y*JY;
 							if (z<0) a -=z*JZ; else b+=z*JZ;
-							Add(X_side+a,X+b,M-a-b);
+							for (int __i = 0; __i < (M-a-b); ++__i) (X_side+a)[__i] += (X+b)[__i];
 						}
 					}
-					if (block !=3) Norm(X_side,Two,M); else Norm(X_side,C,M);
+					if (block !=3) for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two); else for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
 
 				}
 			}
@@ -255,147 +245,147 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			Real *gx0=gs,   *gx1=gs+M, *gx2=gs+2*M, *gx3=gs+3*M, *gx4=gs+4*M, *gx5=gs+5*M, *gx6=gs+6*M, *gx7=gs+7*M, *gx8=gs+8*M, *gx9=gs+9*M, *gx10=gs+10*M, *gx11=gs+11*M;
 			Real *g=G1;
 
-			Zero(gs,12*M);
+			std::fill_n(gs, 12*M, 0);
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0,0); set_bounds_x(gz1,gz10,0,0);set_bounds_x(gz2,gz9,0,0); set_bounds_x(gz3,gz8,0,0); set_bounds_x(gz4,gz7,0,0); set_bounds_x(gz5,gz6,0,0);
 
-			YplusisCtimesX(gx0+JX,gz0,P[0],M-JX);
-			YplusisCtimesX(gx0+JX,gz1,P[0],M-JX);
-			YplusisCtimesX(gx0+JX,gz2,P[0],M-JX);
-			YplusisCtimesX(gx0+JX,gz3,P[1],M-JX);
-			YplusisCtimesX(gx0+JX,gz4,P[1],M-JX);
-			YplusisCtimesX(gx0+JX,gz5,P[1],M-JX);
-			YplusisCtimesX(gx0+JX,gz6,P[1],M-JX);
-			YplusisCtimesX(gx0+JX,gz7,P[1],M-JX);
-			YplusisCtimesX(gx0+JX,gz8,P[1],M-JX);
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz0)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz1)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz2)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz4)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz5)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz7)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz8)[__i];
 
-			YplusisCtimesX(gx11,gz3+JX,P[1],M-JX);
-			YplusisCtimesX(gx11,gz4+JX,P[1],M-JX);
-			YplusisCtimesX(gx11,gz5+JX,P[1],M-JX);
-			YplusisCtimesX(gx11,gz6+JX,P[1],M-JX);
-			YplusisCtimesX(gx11,gz7+JX,P[1],M-JX);
-			YplusisCtimesX(gx11,gz8+JX,P[1],M-JX);
-			YplusisCtimesX(gx11,gz9+JX,P[0],M-JX);
-			YplusisCtimesX(gx11,gz10+JX,P[0],M-JX);
-			YplusisCtimesX(gx11,gz11+JX,P[0],M-JX);
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz3+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz4+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz5+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz6+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz7+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz8+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz9+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz10+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz11+JX)[__i];
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_y(gz2,gz9,0,0);  set_bounds_y(gz3,gz8,0,0); set_bounds_y(gz4,gz7,0,0); set_bounds_y(gz0,gz11,0,0); set_bounds_y(gz1,gz10,0,0); set_bounds_y(gz5,gz6,0,0);
 
-			YplusisCtimesX(gx3+JY,gz0,P[1],M-JY);
-			YplusisCtimesX(gx3+JY,gz1,P[1],M-JY);
-			YplusisCtimesX(gx3+JY,gz2,P[1],M-JY);
-			YplusisCtimesX(gx3+JY,gz3,P[0],M-JY);
-			YplusisCtimesX(gx3+JY,gz4,P[0],M-JY);
-			YplusisCtimesX(gx3+JY,gz5,P[0],M-JY);
-			YplusisCtimesX(gx3+JY,gz9,P[1],M-JY);
-			YplusisCtimesX(gx3+JY,gz10,P[1],M-JY);
-			YplusisCtimesX(gx3+JY,gz11,P[1],M-JY);
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz0)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz1)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz2)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz4)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz5)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz9)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz10)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz11)[__i];
 
-			YplusisCtimesX(gx8,gz0+JY,P[1],M-JY);
-			YplusisCtimesX(gx8,gz1+JY,P[1],M-JY);
-			YplusisCtimesX(gx8,gz2+JY,P[1],M-JY);
-			YplusisCtimesX(gx8,gz6+JY,P[0],M-JY);
-			YplusisCtimesX(gx8,gz7+JY,P[0],M-JY);
-			YplusisCtimesX(gx8,gz8+JY,P[0],M-JY);
-			YplusisCtimesX(gx8,gz9+JY,P[1],M-JY);
-			YplusisCtimesX(gx8,gz10+JY,P[1],M-JY);
-			YplusisCtimesX(gx8,gz11+JY,P[1],M-JY);
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz0+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz1+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz2+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz6+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz7+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz8+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz10+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz11+JY)[__i];
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_z(gz1,gz10,0,0); set_bounds_z(gz4,gz7,0,0); set_bounds_z(gz5,gz6,0,0); set_bounds_z(gz0,gz11,0,0); set_bounds_z(gz2,gz9,0,0); set_bounds_z(gz3,gz8,0,0);
 
-			YplusisCtimesX(gx5+JZ,gz0,P[1],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz1,P[1],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz2,P[1],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz3,P[0],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz4,P[0],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz5,P[0],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz9,P[1],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz10,P[1],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz11,P[1],M-JZ);
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz0)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz1)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz2)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[0]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[0]) * (gz4)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[0]) * (gz5)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz9)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz10)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz11)[__i];
 
-			YplusisCtimesX(gx6,gz0+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx6,gz1+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx6,gz2+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx6,gz6+JZ,P[0],M-JZ);
-			YplusisCtimesX(gx6,gz7+JZ,P[0],M-JZ);
-			YplusisCtimesX(gx6,gz8+JZ,P[0],M-JZ);
-			YplusisCtimesX(gx6,gz9+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx6,gz10+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx6,gz11+JZ,P[1],M-JZ);
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz0+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz1+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz2+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[0]) * (gz6+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[0]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[0]) * (gz8+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz9+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz11+JZ)[__i];
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0,-1); set_bounds_x(gz1,gz10,0,-1);set_bounds_x(gz2,gz9,0,-1); set_bounds_x(gz3,gz8,0,-1); set_bounds_x(gz4,gz7,0,-1); set_bounds_x(gz5,gz6,0,-1);
 
-			YplusisCtimesX(gx1+JX,gz0+JZ,P[0],M-JX-JZ);
-			YplusisCtimesX(gx1+JX,gz1+JZ,P[0],M-JX-JZ);
-			YplusisCtimesX(gx1+JX,gz2+JZ,P[0],M-JX-JZ);
-			YplusisCtimesX(gx1+JX,gz3+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx1+JX,gz4+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx1+JX,gz5+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx1+JX,gz6+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx1+JX,gz7+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx1+JX,gz8+JZ,P[1],M-JX-JZ);
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[0]) * (gz0+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[0]) * (gz1+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[0]) * (gz2+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[1]) * (gz3+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[1]) * (gz4+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[1]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[1]) * (gz6+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[1]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[1]) * (gz8+JZ)[__i];
 
-			YplusisCtimesX(gx10+JZ,gz3+JX,P[1],M-JX-JZ);
-			YplusisCtimesX(gx10+JZ,gz4+JX,P[1],M-JX-JZ);
-			YplusisCtimesX(gx10+JZ,gz5+JX,P[1],M-JX-JZ);
-			YplusisCtimesX(gx10+JZ,gz6+JX,P[1],M-JX-JZ);
-			YplusisCtimesX(gx10+JZ,gz7+JX,P[1],M-JX-JZ);
-			YplusisCtimesX(gx10+JZ,gz8+JX,P[1],M-JX-JZ);
-			YplusisCtimesX(gx10+JZ,gz9+JX,P[0],M-JX-JZ);
-			YplusisCtimesX(gx10+JZ,gz10+JX,P[0],M-JX-JZ);
-			YplusisCtimesX(gx10+JZ,gz11+JX,P[0],M-JX-JZ);
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz3+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz4+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz5+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz6+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz7+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz8+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[0]) * (gz9+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[0]) * (gz10+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[0]) * (gz11+JX)[__i];
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_y(gz2,gz9,-1,0);  set_bounds_y(gz3,gz8,-1,0); set_bounds_y(gz4,gz7,-1,0); set_bounds_y(gz0,gz11,-1,0); set_bounds_y(gz1,gz10,-1,0); set_bounds_y(gz5,gz6,-1,0);
 
-			YplusisCtimesX(gx2+JX,gz0+JY,P[0],M-JX-JY);
-			YplusisCtimesX(gx2+JX,gz1+JY,P[0],M-JX-JY);
-			YplusisCtimesX(gx2+JX,gz2+JY,P[0],M-JX-JY);
-			YplusisCtimesX(gx2+JX,gz3+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx2+JX,gz4+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx2+JX,gz5+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx2+JX,gz6+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx2+JX,gz7+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx2+JX,gz8+JY,P[1],M-JX-JY);
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[0]) * (gz0+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[0]) * (gz1+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[0]) * (gz2+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[1]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[1]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[1]) * (gz5+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[1]) * (gz6+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[1]) * (gz7+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[1]) * (gz8+JY)[__i];
 
-			YplusisCtimesX(gx9+JY,gz3+JX,P[1],M-JX-JY);
-			YplusisCtimesX(gx9+JY,gz4+JX,P[1],M-JX-JY);
-			YplusisCtimesX(gx9+JY,gz5+JX,P[1],M-JX-JY);
-			YplusisCtimesX(gx9+JY,gz6+JX,P[1],M-JX-JY);
-			YplusisCtimesX(gx9+JY,gz7+JX,P[1],M-JX-JY);
-			YplusisCtimesX(gx9+JY,gz8+JX,P[1],M-JX-JY);
-			YplusisCtimesX(gx9+JY,gz9+JX,P[0],M-JX-JY);
-			YplusisCtimesX(gx9+JY,gz10+JX,P[0],M-JX-JY);
-			YplusisCtimesX(gx9+JY,gz11+JX,P[0],M-JX-JY);
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz3+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz4+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz5+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz6+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz7+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz8+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz9+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz10+JX)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz11+JX)[__i];
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_z(gz1,gz10,0,-1); set_bounds_z(gz4,gz7,0,-1); set_bounds_z(gz5,gz6,0,-1); set_bounds_z(gz0,gz11,0,-1); set_bounds_z(gz2,gz9,0,-1); set_bounds_z(gz3,gz8,0,-1);
 
 
-			YplusisCtimesX(gx4+JY,gz0+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx4+JY,gz1+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx4+JY,gz2+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx4+JY,gz3+JZ,P[0],M-JY-JZ);
-			YplusisCtimesX(gx4+JY,gz4+JZ,P[0],M-JY-JZ);
-			YplusisCtimesX(gx4+JY,gz5+JZ,P[0],M-JY-JZ);
-			YplusisCtimesX(gx4+JY,gz9+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx4+JY,gz10+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx4+JY,gz11+JZ,P[1],M-JY-JZ);
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[1]) * (gz0+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[1]) * (gz1+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[1]) * (gz2+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[0]) * (gz3+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[0]) * (gz4+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[0]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[1]) * (gz9+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[1]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JY)[__i] += (P[1]) * (gz11+JZ)[__i];
 
-			YplusisCtimesX(gx7+JZ,gz0+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx7+JZ,gz1+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx7+JZ,gz2+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx7+JZ,gz6+JY,P[0],M-JY-JZ);
-			YplusisCtimesX(gx7+JZ,gz7+JY,P[0],M-JY-JZ);
-			YplusisCtimesX(gx7+JZ,gz8+JY,P[0],M-JY-JZ);
-			YplusisCtimesX(gx7+JZ,gz9+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx7+JZ,gz10+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx7+JZ,gz11+JY,P[1],M-JY-JZ);
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz0+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz1+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz2+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[0]) * (gz6+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[0]) * (gz7+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[0]) * (gz8+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz10+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz11+JY)[__i];
 
-			for (int k=0; k<12; k++) Times(gs+k*M,gs+k*M,g,M);
+			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		} else {
 			Real *gs=G+M*6*s_to;
 			Real *gs_1=G+M*6*s_from;
@@ -407,44 +397,44 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			Real *gx0=gs, *gx1=gs+M, *gx2=gs+2*M, *gx3=gs+3*M, *gx4=gs+4*M, *gx5=gs+5*M;
 			Real *g=G1;
 
-			Zero(gs,6*M);
-			YplusisCtimesX(gx0+JX,gz0,P[0],M-JX);
-			YplusisCtimesX(gx0+JX,gz1,P[1],M-JX);
-			YplusisCtimesX(gx0+JX,gz2,P[1],M-JX);
-			YplusisCtimesX(gx0+JX,gz3,P[1],M-JX);
-			YplusisCtimesX(gx0+JX,gz4,P[1],M-JX);
+			std::fill_n(gs, 6*M, 0);
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz0)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz1)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz2)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz4)[__i];
 
-			YplusisCtimesX(gx1+JY,gz0,P[1],M-JY);
-			YplusisCtimesX(gx1+JY,gz1,P[0],M-JY);
-			YplusisCtimesX(gx1+JY,gz2,P[1],M-JY);
-			YplusisCtimesX(gx1+JY,gz3,P[1],M-JY);
-			YplusisCtimesX(gx1+JY,gz5,P[1],M-JY);
+			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz0)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[0]) * (gz1)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz2)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz5)[__i];
 
-			YplusisCtimesX(gx2+JZ,gz0,P[1],M-JZ);
-			YplusisCtimesX(gx2+JZ,gz1,P[1],M-JZ);
-			YplusisCtimesX(gx2+JZ,gz2,P[0],M-JZ);
-			YplusisCtimesX(gx2+JZ,gz4,P[1],M-JZ);
-			YplusisCtimesX(gx2+JZ,gz5,P[1],M-JZ);
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx2+JZ)[__i] += (P[1]) * (gz0)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx2+JZ)[__i] += (P[1]) * (gz1)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx2+JZ)[__i] += (P[0]) * (gz2)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx2+JZ)[__i] += (P[1]) * (gz4)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx2+JZ)[__i] += (P[1]) * (gz5)[__i];
 
-			YplusisCtimesX(gx3,gz0+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx3,gz1+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx3,gz3+JZ,P[0],M-JZ);
-			YplusisCtimesX(gx3,gz4+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx3,gz5+JZ,P[1],M-JZ);
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx3)[__i] += (P[1]) * (gz0+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx3)[__i] += (P[1]) * (gz1+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx3)[__i] += (P[0]) * (gz3+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx3)[__i] += (P[1]) * (gz4+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx3)[__i] += (P[1]) * (gz5+JZ)[__i];
 
-			YplusisCtimesX(gx4,gz0+JY,P[1],M-JY);
-			YplusisCtimesX(gx4,gz2+JY,P[1],M-JY);
-			YplusisCtimesX(gx4,gz3+JY,P[1],M-JY);
-			YplusisCtimesX(gx4,gz4+JY,P[0],M-JY);
-			YplusisCtimesX(gx4,gz5+JY,P[1],M-JY);
+			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[1]) * (gz0+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[1]) * (gz2+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[1]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[0]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[1]) * (gz5+JY)[__i];
 
-			YplusisCtimesX(gx5,gz1+JX,P[1],M-JX);
-			YplusisCtimesX(gx5,gz2+JX,P[1],M-JX);
-			YplusisCtimesX(gx5,gz3+JX,P[1],M-JX);
-			YplusisCtimesX(gx5,gz4+JX,P[1],M-JX);
-			YplusisCtimesX(gx5,gz5+JX,P[0],M-JX);
+			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[1]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[1]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[1]) * (gz3+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[1]) * (gz4+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[0]) * (gz5+JX)[__i];
 
-			for (int k=0; k<6; k++) Times(gs+k*M,gs+k*M,g,M);
+			for (int k=0; k<6; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		}
 	} else {
 		if (lattice_type ==simple_cubic) {
@@ -466,148 +456,148 @@ void LGrad3::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			Real *gx0=gs, *gx1=gs+M, *gx2=gs+2*M, *gx3=gs+3*M, *gx4=gs+4*M, *gx5=gs+5*M, *gx6=gs+6*M, *gx7=gs+7*M, *gx8=gs+8*M, *gx9=gs+9*M, *gx10=gs+10*M, *gx11=gs+11*M;
 			Real *g=G1;
 
-			Zero(gs,12*M);
+			std::fill_n(gs, 12*M, 0);
 			for (int k=0; k<12; k++) remove_bounds(gs_1+k*M);
 			//remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);
 			//remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0,0);
 
-			YplusisCtimesX(gx3+JX,gz11,P[1],M-JX);
-			YplusisCtimesX(gx4+JX,gz11,P[1],M-JX);
-			YplusisCtimesX(gx5+JX,gz11,P[1],M-JX);
-			YplusisCtimesX(gx6+JX,gz11,P[1],M-JX);
-			YplusisCtimesX(gx7+JX,gz11,P[1],M-JX);
-			YplusisCtimesX(gx8+JX,gz11,P[1],M-JX);
-			YplusisCtimesX(gx9+JX,gz11,P[0],M-JX);
-			YplusisCtimesX(gx10+JX,gz11,P[0],M-JX);
-			YplusisCtimesX(gx11+JX,gz11,P[0],M-JX);
+			for (int __i = 0; __i < (M-JX); ++__i) (gx3+JX)[__i] += (P[1]) * (gz11)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx4+JX)[__i] += (P[1]) * (gz11)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx5+JX)[__i] += (P[1]) * (gz11)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx6+JX)[__i] += (P[1]) * (gz11)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx7+JX)[__i] += (P[1]) * (gz11)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx8+JX)[__i] += (P[1]) * (gz11)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx9+JX)[__i] += (P[0]) * (gz11)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx10+JX)[__i] += (P[0]) * (gz11)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx11+JX)[__i] += (P[0]) * (gz11)[__i];
 
-			YplusisCtimesX(gx0,gz0+JX,P[0],M-JX);
-			YplusisCtimesX(gx1,gz0+JX,P[0],M-JX);
-			YplusisCtimesX(gx2,gz0+JX,P[0],M-JX);
-			YplusisCtimesX(gx3,gz0+JX,P[1],M-JX);
-			YplusisCtimesX(gx4,gz0+JX,P[1],M-JX);
-			YplusisCtimesX(gx5,gz0+JX,P[1],M-JX);
-			YplusisCtimesX(gx6,gz0+JX,P[1],M-JX);
-			YplusisCtimesX(gx7,gz0+JX,P[1],M-JX);
-			YplusisCtimesX(gx8,gz0+JX,P[1],M-JX);
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0)[__i] += (P[0]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx1)[__i] += (P[0]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx2)[__i] += (P[0]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx3)[__i] += (P[1]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (P[1]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[1]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx6)[__i] += (P[1]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx7)[__i] += (P[1]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx8)[__i] += (P[1]) * (gz0+JX)[__i];
 
 			remove_bounds(gz0);remove_bounds(gz11);
 			set_bounds_y(gz3,gz8,0,0);
 
-			YplusisCtimesX(gx0+JY,gz8,P[1],M-JY);
-			YplusisCtimesX(gx1+JY,gz8,P[1],M-JY);
-			YplusisCtimesX(gx2+JY,gz8,P[1],M-JY);
-			YplusisCtimesX(gx6+JY,gz8,P[0],M-JY);
-			YplusisCtimesX(gx7+JY,gz8,P[0],M-JY);
-			YplusisCtimesX(gx8+JY,gz8,P[0],M-JY);
-			YplusisCtimesX(gx9+JY,gz8,P[1],M-JY);
-			YplusisCtimesX(gx10+JY,gz8,P[1],M-JY);
-			YplusisCtimesX(gx11+JY,gz8,P[1],M-JY);
+			for (int __i = 0; __i < (M-JY); ++__i) (gx0+JY)[__i] += (P[1]) * (gz8)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz8)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx2+JY)[__i] += (P[1]) * (gz8)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx6+JY)[__i] += (P[0]) * (gz8)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx7+JY)[__i] += (P[0]) * (gz8)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx8+JY)[__i] += (P[0]) * (gz8)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz8)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx10+JY)[__i] += (P[1]) * (gz8)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx11+JY)[__i] += (P[1]) * (gz8)[__i];
 
-			YplusisCtimesX(gx0,gz3+JY,P[1],M-JY);
-			YplusisCtimesX(gx1,gz3+JY,P[1],M-JY);
-			YplusisCtimesX(gx2,gz3+JY,P[1],M-JY);
-			YplusisCtimesX(gx3,gz3+JY,P[0],M-JY);
-			YplusisCtimesX(gx4,gz3+JY,P[0],M-JY);
-			YplusisCtimesX(gx5,gz3+JY,P[0],M-JY);
-			YplusisCtimesX(gx9,gz3+JY,P[1],M-JY);
-			YplusisCtimesX(gx10,gz3+JY,P[1],M-JY);
-			YplusisCtimesX(gx11,gz3+JY,P[1],M-JY);
+			for (int __i = 0; __i < (M-JY); ++__i) (gx0)[__i] += (P[1]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx1)[__i] += (P[1]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[0]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[0]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx5)[__i] += (P[0]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx9)[__i] += (P[1]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx10)[__i] += (P[1]) * (gz3+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx11)[__i] += (P[1]) * (gz3+JY)[__i];
 
 			remove_bounds(gz3);remove_bounds(gz8);
 			set_bounds_z(gz5,gz6,0,0);
 
-			YplusisCtimesX(gx0+JZ,gz6,P[1],M-JZ);
-			YplusisCtimesX(gx1+JZ,gz6,P[1],M-JZ);
-			YplusisCtimesX(gx2+JZ,gz6,P[1],M-JZ);
-			YplusisCtimesX(gx6+JZ,gz6,P[0],M-JZ);
-			YplusisCtimesX(gx7+JZ,gz6,P[0],M-JZ);
-			YplusisCtimesX(gx8+JZ,gz6,P[0],M-JZ);
-			YplusisCtimesX(gx9+JZ,gz6,P[1],M-JZ);
-			YplusisCtimesX(gx10+JZ,gz6,P[1],M-JZ);
-			YplusisCtimesX(gx11+JZ,gz6,P[1],M-JZ);
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx0+JZ)[__i] += (P[1]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx1+JZ)[__i] += (P[1]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx2+JZ)[__i] += (P[1]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx6+JZ)[__i] += (P[0]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx7+JZ)[__i] += (P[0]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx8+JZ)[__i] += (P[0]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx9+JZ)[__i] += (P[1]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz6)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx11+JZ)[__i] += (P[1]) * (gz6)[__i];
 
-			YplusisCtimesX(gx0,gz5+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx1,gz5+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx2,gz5+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx3,gz5+JZ,P[0],M-JZ);
-			YplusisCtimesX(gx4,gz5+JZ,P[0],M-JZ);
-			YplusisCtimesX(gx5,gz5+JZ,P[0],M-JZ);
-			YplusisCtimesX(gx9,gz5+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx10,gz5+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx11,gz5+JZ,P[1],M-JZ);
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx0)[__i] += (P[1]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx1)[__i] += (P[1]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx2)[__i] += (P[1]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx3)[__i] += (P[0]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx4)[__i] += (P[0]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5)[__i] += (P[0]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx9)[__i] += (P[1]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx10)[__i] += (P[1]) * (gz5+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx11)[__i] += (P[1]) * (gz5+JZ)[__i];
 
 			remove_bounds(gz5); remove_bounds(gz6);
 			set_bounds_x(gz1,gz10,0,-1);
 
-			YplusisCtimesX(gx3+JX,gz10+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx4+JX,gz10+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx5+JX,gz10+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx6+JX,gz10+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx7+JX,gz10+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx8+JX,gz10+JZ,P[1],M-JX-JZ);
-			YplusisCtimesX(gx9+JX,gz10+JZ,P[0],M-JX-JZ);
-			YplusisCtimesX(gx10+JX,gz10+JZ,P[0],M-JX-JZ);
-			YplusisCtimesX(gx11+JX,gz10+JZ,P[0],M-JX-JZ);
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx3+JX)[__i] += (P[1]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx4+JX)[__i] += (P[1]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx5+JX)[__i] += (P[1]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx6+JX)[__i] += (P[1]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx7+JX)[__i] += (P[1]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx8+JX)[__i] += (P[1]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx9+JX)[__i] += (P[0]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JX)[__i] += (P[0]) * (gz10+JZ)[__i];
+			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx11+JX)[__i] += (P[0]) * (gz10+JZ)[__i];
 
-			YplusisCtimesX(gx0+JZ,gz1+JX,P[0],M-JZ-JX);
-			YplusisCtimesX(gx1+JZ,gz1+JX,P[0],M-JZ-JX);
-			YplusisCtimesX(gx2+JZ,gz1+JX,P[0],M-JZ-JX);
-			YplusisCtimesX(gx3+JZ,gz1+JX,P[1],M-JZ-JX);
-			YplusisCtimesX(gx4+JZ,gz1+JX,P[1],M-JZ-JX);
-			YplusisCtimesX(gx5+JZ,gz1+JX,P[1],M-JZ-JX);
-			YplusisCtimesX(gx6+JZ,gz1+JX,P[1],M-JZ-JX);
-			YplusisCtimesX(gx7+JZ,gz1+JX,P[1],M-JZ-JX);
-			YplusisCtimesX(gx8+JZ,gz1+JX,P[1],M-JZ-JX);
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx0+JZ)[__i] += (P[0]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx1+JZ)[__i] += (P[0]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx2+JZ)[__i] += (P[0]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx3+JZ)[__i] += (P[1]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx4+JZ)[__i] += (P[1]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx6+JZ)[__i] += (P[1]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz1+JX)[__i];
+			for (int __i = 0; __i < (M-JZ-JX); ++__i) (gx8+JZ)[__i] += (P[1]) * (gz1+JX)[__i];
 
 			remove_bounds(gz1);remove_bounds(gz10);
 			set_bounds_y(gz2,gz9,-1,0);
 
-			YplusisCtimesX(gx3+JX,gz9+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx4+JX,gz9+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx5+JX,gz9+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx6+JX,gz9+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx7+JX,gz9+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx8+JX,gz9+JY,P[1],M-JX-JY);
-			YplusisCtimesX(gx9+JX,gz9+JY,P[0],M-JX-JY);
-			YplusisCtimesX(gx10+JX,gz9+JY,P[0],M-JX-JY);
-			YplusisCtimesX(gx11+JX,gz9+JY,P[0],M-JX-JY);
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx3+JX)[__i] += (P[1]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx4+JX)[__i] += (P[1]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx5+JX)[__i] += (P[1]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx6+JX)[__i] += (P[1]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx7+JX)[__i] += (P[1]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx8+JX)[__i] += (P[1]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JX)[__i] += (P[0]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx10+JX)[__i] += (P[0]) * (gz9+JY)[__i];
+			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx11+JX)[__i] += (P[0]) * (gz9+JY)[__i];
 
-			YplusisCtimesX(gx0+JY,gz2+JX,P[0],M-JY-JX);
-			YplusisCtimesX(gx1+JY,gz2+JX,P[0],M-JY-JX);
-			YplusisCtimesX(gx2+JY,gz2+JX,P[0],M-JY-JX);
-			YplusisCtimesX(gx3+JY,gz2+JX,P[1],M-JY-JX);
-			YplusisCtimesX(gx4+JY,gz2+JX,P[1],M-JY-JX);
-			YplusisCtimesX(gx5+JY,gz2+JX,P[1],M-JY-JX);
-			YplusisCtimesX(gx6+JY,gz2+JX,P[1],M-JY-JX);
-			YplusisCtimesX(gx7+JY,gz2+JX,P[1],M-JY-JX);
-			YplusisCtimesX(gx8+JY,gz2+JX,P[1],M-JY-JX);
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx0+JY)[__i] += (P[0]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx1+JY)[__i] += (P[0]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx2+JY)[__i] += (P[0]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx3+JY)[__i] += (P[1]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx4+JY)[__i] += (P[1]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx5+JY)[__i] += (P[1]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx6+JY)[__i] += (P[1]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx7+JY)[__i] += (P[1]) * (gz2+JX)[__i];
+			for (int __i = 0; __i < (M-JY-JX); ++__i) (gx8+JY)[__i] += (P[1]) * (gz2+JX)[__i];
 
 			remove_bounds(gz2);remove_bounds(gz9);
 			set_bounds_z(gz4,gz7,0,-1);
 
-			YplusisCtimesX(gx0+JY,gz7+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx1+JY,gz7+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx2+JY,gz7+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx6+JY,gz7+JZ,P[0],M-JY-JZ);
-			YplusisCtimesX(gx7+JY,gz7+JZ,P[0],M-JY-JZ);
-			YplusisCtimesX(gx8+JY,gz7+JZ,P[0],M-JY-JZ);
-			YplusisCtimesX(gx9+JY,gz7+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx10+JY,gz7+JZ,P[1],M-JY-JZ);
-			YplusisCtimesX(gx11+JY,gz7+JZ,P[1],M-JY-JZ);
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx0+JY)[__i] += (P[1]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx1+JY)[__i] += (P[1]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx2+JY)[__i] += (P[1]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx6+JY)[__i] += (P[0]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JY)[__i] += (P[0]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx8+JY)[__i] += (P[0]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx9+JY)[__i] += (P[1]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx10+JY)[__i] += (P[1]) * (gz7+JZ)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx11+JY)[__i] += (P[1]) * (gz7+JZ)[__i];
 
-			YplusisCtimesX(gx0+JZ,gz4+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx1+JZ,gz4+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx2+JZ,gz4+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx3+JZ,gz4+JY,P[0],M-JY-JZ);
-			YplusisCtimesX(gx4+JZ,gz4+JY,P[0],M-JY-JZ);
-			YplusisCtimesX(gx5+JZ,gz4+JY,P[0],M-JY-JZ);
-			YplusisCtimesX(gx9+JZ,gz4+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx10+JZ,gz4+JY,P[1],M-JY-JZ);
-			YplusisCtimesX(gx11+JZ,gz4+JY,P[1],M-JY-JZ);
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx0+JZ)[__i] += (P[1]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx1+JZ)[__i] += (P[1]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx2+JZ)[__i] += (P[1]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx3+JZ)[__i] += (P[0]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx4+JZ)[__i] += (P[0]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx5+JZ)[__i] += (P[0]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx9+JZ)[__i] += (P[1]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz4+JY)[__i];
+			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx11+JZ)[__i] += (P[1]) * (gz4+JY)[__i];
 
-			for (int k=0; k<12; k++) Times(gs+k*M,gs+k*M,g,M);
+			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 
 		} else {
 			Real *gs=G+M*6*s_to;
@@ -616,50 +606,50 @@ void LGrad3::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			Real *gx0=gs,   *gx1=gs+M,   *gx2=gs+2*M,   *gx3=gs+3*M,   *gx4=gs+4*M,   *gx5=gs+5*M;
 			Real *g=G1;
 
-			Zero(gs,6*M);
+			std::fill_n(gs, 6*M, 0);
 			set_bounds_x(gz0,gz5,0,0);
 
-			YplusisCtimesX(gx1+JX,gz5,P[1],M-JX);
-			YplusisCtimesX(gx2+JX,gz5,P[1],M-JX);
-			YplusisCtimesX(gx3+JX,gz5,P[1],M-JX);
-			YplusisCtimesX(gx4+JX,gz5,P[1],M-JX);
-			YplusisCtimesX(gx5+JX,gz5,P[0],M-JX);
+			for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz5)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx2+JX)[__i] += (P[1]) * (gz5)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx3+JX)[__i] += (P[1]) * (gz5)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx4+JX)[__i] += (P[1]) * (gz5)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx5+JX)[__i] += (P[0]) * (gz5)[__i];
 
 			set_bounds_y(gz1,gz4,0,0);
 
-			YplusisCtimesX(gx0+JY,gz4,P[1],M-JY);
-			YplusisCtimesX(gx2+JY,gz4,P[1],M-JY);
-			YplusisCtimesX(gx3+JY,gz4,P[1],M-JY);
-			YplusisCtimesX(gx4+JY,gz4,P[0],M-JY);
-			YplusisCtimesX(gx5+JY,gz4,P[1],M-JY);
+			for (int __i = 0; __i < (M-JY); ++__i) (gx0+JY)[__i] += (P[1]) * (gz4)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx2+JY)[__i] += (P[1]) * (gz4)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz4)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[0]) * (gz4)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx5+JY)[__i] += (P[1]) * (gz4)[__i];
 
 			set_bounds_z(gz2,gz3,0,0);
 
-			YplusisCtimesX(gx0+JZ,gz3,P[1],M-JZ);
-			YplusisCtimesX(gx1+JZ,gz3,P[1],M-JZ);
-			YplusisCtimesX(gx3+JZ,gz3,P[0],M-JZ);
-			YplusisCtimesX(gx4+JZ,gz3,P[1],M-JZ);
-			YplusisCtimesX(gx5+JZ,gz3,P[1],M-JZ);
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx0+JZ)[__i] += (P[1]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx1+JZ)[__i] += (P[1]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx3+JZ)[__i] += (P[0]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx4+JZ)[__i] += (P[1]) * (gz3)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz3)[__i];
 
-			YplusisCtimesX(gx0,gz2+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx1,gz2+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx2,gz2+JZ,P[0],M-JZ);
-			YplusisCtimesX(gx4,gz2+JZ,P[1],M-JZ);
-			YplusisCtimesX(gx5,gz2+JZ,P[1],M-JZ);
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx0)[__i] += (P[1]) * (gz2+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx1)[__i] += (P[1]) * (gz2+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx2)[__i] += (P[0]) * (gz2+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx4)[__i] += (P[1]) * (gz2+JZ)[__i];
+			for (int __i = 0; __i < (M-JZ); ++__i) (gx5)[__i] += (P[1]) * (gz2+JZ)[__i];
 
-			YplusisCtimesX(gx0,gz1+JY,P[1],M-JY);
-			YplusisCtimesX(gx1,gz1+JY,P[0],M-JY);
-			YplusisCtimesX(gx2,gz1+JY,P[1],M-JY);
-			YplusisCtimesX(gx3,gz1+JY,P[1],M-JY);
-			YplusisCtimesX(gx5,gz1+JY,P[1],M-JY);
+			for (int __i = 0; __i < (M-JY); ++__i) (gx0)[__i] += (P[1]) * (gz1+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx1)[__i] += (P[0]) * (gz1+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz1+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[1]) * (gz1+JY)[__i];
+			for (int __i = 0; __i < (M-JY); ++__i) (gx5)[__i] += (P[1]) * (gz1+JY)[__i];
 
-			YplusisCtimesX(gx0,gz0+JX,P[0],M-JX);
-			YplusisCtimesX(gx1,gz0+JX,P[1],M-JX);
-			YplusisCtimesX(gx2,gz0+JX,P[1],M-JX);
-			YplusisCtimesX(gx3,gz0+JX,P[1],M-JX);
-			YplusisCtimesX(gx4,gz0+JX,P[1],M-JX);
+			for (int __i = 0; __i < (M-JX); ++__i) (gx0)[__i] += (P[0]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx1)[__i] += (P[1]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx2)[__i] += (P[1]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx3)[__i] += (P[1]) * (gz0+JX)[__i];
+			for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (P[1]) * (gz0+JX)[__i];
 
-			for (int k=0; k<6; k++) Times(gs+k*M,gs+k*M,g,M);
+			for (int k=0; k<6; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		}
 	} else {
 		if (lattice_type==simple_cubic) {
@@ -676,7 +666,7 @@ if (debug) cout <<" propagate in LGrad3 " << endl;
 	int JX_=JX, JY_=JY;
 	int k=sub_box_on;
 
-	Zero(gs,M);
+	std::fill_n(gs, M, 0);
 	set_bounds(gs_1);
 	if (k>0) {
 		JX_=jx[k];
@@ -684,128 +674,97 @@ if (debug) cout <<" propagate in LGrad3 " << endl;
 	}
 
 	if (!stencil_full) {
-		//cout<<"not tested"<< endl;
-		Add(gs+JX_,gs_1,M-JX_);
-		Add(gs,gs_1+JX_,M-JX_);
-		Add(gs+JY_,gs_1,M-JY_);
-		Add(gs,gs_1+JY_,M-JY_);
-		Add(gs+1,gs_1,M-1);
-		Add(gs,gs_1+1, M-1);
+		for (int __i = 0; __i < (M-JX_); ++__i) (gs+JX_)[__i] += (gs_1)[__i];
+		for (int __i = 0; __i < (M-JX_); ++__i) (gs)[__i] += (gs_1+JX_)[__i];
+		for (int __i = 0; __i < (M-JY_); ++__i) (gs+JY_)[__i] += (gs_1)[__i];
+		for (int __i = 0; __i < (M-JY_); ++__i) (gs)[__i] += (gs_1+JY_)[__i];
+		for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (gs_1)[__i];
+		for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (gs_1+1)[__i];
 		if (lattice_type == simple_cubic) {
-			Norm(gs,4.0,M);
+			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (4.0);
 		} else {
-			Norm(gs,2.0,M);
+			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (2.0);
 		}
-		Add(gs+JX_+JY_,gs_1,M-JX_-JY_);
-		Add(gs,gs_1+JX_+JY_,M-JX_-JY_);
-		Add(gs+JY_,gs_1+JX,M-JY_-JX_);
-		Add(gs+JX,gs_1+JY_,M-JY_-JX_);
-		Add(gs+JX_+1,gs_1,M-JX_-1);
-		Add(gs,gs_1+JX_+1,M-JX_-1);
-		Add(gs+JX_,gs_1+1,M-JX_);
-		Add(gs+1,gs_1+JX_,M-JX_);
-		Add(gs+JY_+1,gs_1,M-JY_-1);
-		Add(gs,gs_1+JY_+1,M-JX_-1);
-		Add(gs+JY_,gs_1+1,M-JY_);
-		Add(gs+1,gs_1+JY_,M-JY_);
+		for (int __i = 0; __i < (M-JX_-JY_); ++__i) (gs+JX_+JY_)[__i] += (gs_1)[__i];
+		for (int __i = 0; __i < (M-JX_-JY_); ++__i) (gs)[__i] += (gs_1+JX_+JY_)[__i];
+		for (int __i = 0; __i < (M-JY_-JX_); ++__i) (gs+JY_)[__i] += (gs_1+JX)[__i];
+		for (int __i = 0; __i < (M-JY_-JX_); ++__i) (gs+JX)[__i] += (gs_1+JY_)[__i];
+		for (int __i = 0; __i < (M-JX_-1); ++__i) (gs+JX_+1)[__i] += (gs_1)[__i];
+		for (int __i = 0; __i < (M-JX_-1); ++__i) (gs)[__i] += (gs_1+JX_+1)[__i];
+		for (int __i = 0; __i < (M-JX_); ++__i) (gs+JX_)[__i] += (gs_1+1)[__i];
+		for (int __i = 0; __i < (M-JX_); ++__i) (gs+1)[__i] += (gs_1+JX_)[__i];
+		for (int __i = 0; __i < (M-JY_-1); ++__i) (gs+JY_+1)[__i] += (gs_1)[__i];
+		for (int __i = 0; __i < (M-JX_-1); ++__i) (gs)[__i] += (gs_1+JY_+1)[__i];
+		for (int __i = 0; __i < (M-JY_); ++__i) (gs+JY_)[__i] += (gs_1+1)[__i];
+		for (int __i = 0; __i < (M-JY_); ++__i) (gs+1)[__i] += (gs_1+JY_)[__i];
 		if (lattice_type == simple_cubic) {
-			Norm(gs,4.0,M);
+			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (4.0);
 		} else {
-			Norm(gs,2.0,M);
+			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (2.0);
 		}
-		Add(gs+JX_+JY_+1,gs_1,M-JX_-JY_-1);
-		Add(gs,gs_1+JX_+JY_+1,M-JX_-JY_-1);
-		Add(gs+JX_+JY_,gs_1+1,M-JX_-JY_-1);
-		Add(gs+1,gs_1+JX_+JY_,M-JX_-JY_-1);
-		Add(gs+JX_+1,gs_1+JY_,M-JX_-JY_-1);
-		Add(gs+JY_,gs_1+JX_+1,M-JX_-JY_-1);
-		Add(gs+JY_+1,gs_1+JX_,M-JX_-JY_-1);
-		Add(gs+JX_,gs_1+JY_+1,M-JX_-JY_-1);
+		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JX_+JY_+1)[__i] += (gs_1)[__i];
+		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs)[__i] += (gs_1+JX_+JY_+1)[__i];
+		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JX_+JY_)[__i] += (gs_1+1)[__i];
+		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+1)[__i] += (gs_1+JX_+JY_)[__i];
+		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JX_+1)[__i] += (gs_1+JY_)[__i];
+		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JY_)[__i] += (gs_1+JX_+1)[__i];
+		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JY_+1)[__i] += (gs_1+JX_)[__i];
+		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JX_)[__i] += (gs_1+JY_+1)[__i];
 		if (lattice_type == simple_cubic) {
-			Norm(gs,1.0/152.0,M);
+			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (1.0/152.0);
 		} else {
-			Norm(gs,1.0/56.0,M);
+			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (1.0/56.0);
 		}
-		Times(gs,gs,G1,M);
+		for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 	} else {
 		if (lattice_type==simple_cubic) {
-			//if (fjc>1) cout <<" in simple cubic lattice FJC_choices >3 not implemented" << endl;
-#ifdef CUDA
-			Propagate_gs_locality(gs, gs_1, G1, JX, JY, JZ, M);
-#else
-			Add(gs+JX_,gs_1    ,M-JX_);
-			Add(gs    ,gs_1+JX_,M-JX_);
-			Add(gs+JY_,gs_1    ,M-JY_);
-			Add(gs    ,gs_1+JY_,M-JY_);
-			Add(gs+1  ,gs_1    ,M-1);
-			Add(gs    ,gs_1+1  ,M-1);
-			Norm(gs,1.0/6.0,M);
-			Times(gs,gs,G1,M);
-#endif
+			for (int __i = 0; __i < (M-JX_); ++__i) (gs+JX_)[__i] += (gs_1)[__i];
+			for (int __i = 0; __i < (M-JX_); ++__i) (gs)[__i] += (gs_1+JX_)[__i];
+			for (int __i = 0; __i < (M-JY_); ++__i) (gs+JY_)[__i] += (gs_1)[__i];
+			for (int __i = 0; __i < (M-JY_); ++__i) (gs)[__i] += (gs_1+JY_)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (gs_1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (gs_1+1)[__i];
+			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (1.0/6.0);
+			for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 		} else { //hexagonal
 			if (fjc==1) {
 				Real Two=2.0;
 				Real C=1.0/40.0;
-				YplusisCtimesX(gs,gs_1,Two,M);
-				Add(gs+JX,gs_1,   M-JX);
-				Add(gs,   gs_1+JX,M-JX);
-				Add(gs+JY,gs_1,   M-JY);
-				Add(gs,   gs_1+JY,M-JY);
-				Add(gs+1, gs_1,   M-1);
-				Add(gs,   gs_1+1, M-1);
-				Norm(gs,Two,M);
+				for (int __i = 0; __i < (M); ++__i) (gs)[__i] += (Two) * (gs_1)[__i];
+				for (int __i = 0; __i < (M-JX); ++__i) (gs+JX)[__i] += (gs_1)[__i];
+				for (int __i = 0; __i < (M-JX); ++__i) (gs)[__i] += (gs_1+JX)[__i];
+				for (int __i = 0; __i < (M-JY); ++__i) (gs+JY)[__i] += (gs_1)[__i];
+				for (int __i = 0; __i < (M-JY); ++__i) (gs)[__i] += (gs_1+JY)[__i];
+				for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (gs_1)[__i];
+				for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (gs_1+1)[__i];
+				for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (Two);
 
-				Add(gs+JX+JY,   gs_1,      M-JX-JY);
-				Add(gs,         gs_1+JX+JY,M-JX-JY);
-				Add(gs+JX,      gs_1+JY,   M-JX-JY);
-				Add(gs+JY,      gs_1+JX,   M-JX-JY);
-				Add(gs+JX+1,    gs_1,       M-JX-1);
-				Add(gs+1,       gs_1+JX,    M-JX-1);
-				Add(gs+JY+1,    gs_1,       M-JY-1);
-				Add(gs+1,       gs_1+JY,    M-JY-1);
-				Add(gs+JX,      gs_1+1,     M-JX-1);
-				Add(gs,         gs_1+JX+1,  M-JX-1);
-				Add(gs+JY,      gs_1+1,     M-JY-1);
-				Add(gs,         gs_1+JY+1,  M-JY-1);
-				Norm(gs,Two,M);
+				for (int __i = 0; __i < (M-JX-JY); ++__i) (gs+JX+JY)[__i] += (gs_1)[__i];
+				for (int __i = 0; __i < (M-JX-JY); ++__i) (gs)[__i] += (gs_1+JX+JY)[__i];
+				for (int __i = 0; __i < (M-JX-JY); ++__i) (gs+JX)[__i] += (gs_1+JY)[__i];
+				for (int __i = 0; __i < (M-JX-JY); ++__i) (gs+JY)[__i] += (gs_1+JX)[__i];
+				for (int __i = 0; __i < (M-JX-1); ++__i) (gs+JX+1)[__i] += (gs_1)[__i];
+				for (int __i = 0; __i < (M-JX-1); ++__i) (gs+1)[__i] += (gs_1+JX)[__i];
+				for (int __i = 0; __i < (M-JY-1); ++__i) (gs+JY+1)[__i] += (gs_1)[__i];
+				for (int __i = 0; __i < (M-JY-1); ++__i) (gs+1)[__i] += (gs_1+JY)[__i];
+				for (int __i = 0; __i < (M-JX-1); ++__i) (gs+JX)[__i] += (gs_1+1)[__i];
+				for (int __i = 0; __i < (M-JX-1); ++__i) (gs)[__i] += (gs_1+JX+1)[__i];
+				for (int __i = 0; __i < (M-JY-1); ++__i) (gs+JY)[__i] += (gs_1+1)[__i];
+				for (int __i = 0; __i < (M-JY-1); ++__i) (gs)[__i] += (gs_1+JY+1)[__i];
+				for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (Two);
 
-				Add(gs+JX+JY+1,gs_1,        M-JX-JY-1);
-				Add(gs,        gs_1+JX+JY+1,M-JX-JY-1);
-				Add(gs+JX+JY,  gs_1+1,      M-JX-JY-1);
-				Add(gs+1,      gs_1+JX+JY,  M-JX-JY-1);
-				Add(gs+JX+1,   gs_1+JY,     M-JX-JY-1);
-				Add(gs+JY,     gs_1+JX+1,   M-JX-JY-1);
-				Add(gs+JY+1,   gs_1+JX,     M-JX-JY-1);
-				Add(gs+JX,     gs_1+JY+1,   M-JX-JY-1);
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JX+JY+1)[__i] += (gs_1)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs)[__i] += (gs_1+JX+JY+1)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JX+JY)[__i] += (gs_1+1)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+1)[__i] += (gs_1+JX+JY)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JX+1)[__i] += (gs_1+JY)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JY)[__i] += (gs_1+JX+1)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JY+1)[__i] += (gs_1+JX)[__i];
+				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JX)[__i] += (gs_1+JY+1)[__i];
 
-				Norm(gs,C,M);
-				Times(gs,gs,G1,M);
-/* Johan's method
-				Add(gs+JX_,gs_1,    M-JX_);
-				Add(gs,    gs_1+JX_,M-JX_);
-				Add(gs+JY_,gs_1    ,M-JY_);
-				Add(gs,    gs_1+JY_,M-JY_);
-				Add(gs+JZ, gs_1    ,M-JZ);
-				Add(gs,    gs_1+JZ ,M-JZ);
+				for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (C);
+				for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 
-				remove_bounds(gs_1);
-				set_bounds_x(gs_1,-1,0);
-				Add(gs+JX_,gs_1+JY_,M-JX_-JY_);
-				Add(gs+JY_,gs_1+JX_,M-JX_-JY_);
-
-				remove_bounds(gs_1);
-				set_bounds_x(gs_1,0,-1);
-				Add(gs+JX_,gs_1+JZ ,M-JX_-JZ);
-				Add(gs+JZ, gs_1+JX_,M-JX_-JZ);
-
-				remove_bounds(gs_1);
-				set_bounds_y(gs_1,0,-1);
-				Add(gs+JY_,gs_1+JZ ,M-JY_-JZ);
-				Add(gs+JZ, gs_1+JY_,M-JY_-JZ);
-
-				Norm(gs,1.0/12.0,M);
-				Times(gs,gs,G1,M);
-*/
 
 			} else { //hexagonal and fjc=2 ; deze code moet ook werken voor FJC_choices > 5
 
@@ -821,150 +780,15 @@ if (debug) cout <<" propagate in LGrad3 " << endl;
 							if (x<0) a =-x*JX; else b=x*JX;
 							if (y<0) a -=y*JY; else b+=y*JY;
 							if (z<0) a -=z*JZ; else b+=z*JZ;
-							Add(gs+a,gs_1+b,M-a-b);
+							for (int __i = 0; __i < (M-a-b); ++__i) (gs+a)[__i] += (gs_1+b)[__i];
 						}
 					}
-					if (block !=3) Norm(gs,2.0,M); else Norm(gs,1.0/8.0/((FJC-2)*(FJC-2)*(FJC-2)+3*(FJC-2)*(FJC-2)+3*(FJC-2)+1),M);
+					if (block !=3) for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (2.0); else for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (1.0/8.0/((FJC-2)*(FJC-2)*(FJC-2)+3*(FJC-2)*(FJC-2)+3*(FJC-2)+1));
 
 				}
-				Times(gs,gs,G1,M);
+				for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 
-/*
-				Add(gs,            gs_1,             M);
-				Add(gs+JX,         gs_1,             M-JX);
-				Add(gs,            gs_1+JX,          M-JX);
-				Add(gs+JY,         gs_1,             M-JY);
-				Add(gs,            gs_1+JY,          M-JY);
-				Add(gs+1,          gs_1,             M-1);
-				Add(gs,            gs_1+1,           M-1);
-				Add(gs+JX+1,       gs_1,             M-JX-1);
-				Add(gs,            gs_1+JX+1,        M-JX-1);
-				Add(gs+1,          gs_1+JX,          M-JX-1);
-				Add(gs+JX,         gs_1+1,           M-JX-1);
-				Add(gs+JY+1,       gs_1,             M-JY-1);
-				Add(gs,            gs_1+JY+1,        M-JY-1);
-				Add(gs+1,          gs_1+JY,          M-JY-1);
-				Add(gs+JY,         gs_1+1,           M-JY-1);
-				Add(gs+JX+JY,      gs_1,             M-JX-JY);
-				Add(gs,            gs_1+JX+JY,       M-JX-JY);
-				Add(gs+JY,         gs_1+JX,          M-JX-JY);
-				Add(gs+JX,         gs_1+JY,          M-JX-JY);
-				Add(gs+JX+JY+1,    gs_1,             M-JX-JY-1);
-				Add(gs,            gs_1+JX+JY+1,     M-JX-JY-1);
-				Add(gs+JX+JY,      gs_1+1,           M-JX-JY-1);
-				Add(gs+1,          gs_1+JX+JY,       M-JX-JY-1);
-				Add(gs+JX+1,       gs_1+JY,          M-JX-JY-1);
-				Add(gs+JY,         gs_1+JX+1,        M-JX-JY-1);
-				Add(gs+JY+1,       gs_1+JX,          M-JX-JY-1);
-				Add(gs+JX,         gs_1+JY+1,        M-JX-JY-1);
-				Norm(gs,2.0,M);
 
-				Add(gs+2*JX,       gs_1,             M-2*JX);
-				Add(gs,            gs_1+2*JX,        M-2*JX);
-				Add(gs+2*JY,       gs_1,             M-2*JY);
-				Add(gs,            gs_1+2*JY,        M-2*JY);
-				Add(gs+2,          gs_1,             M-2);
-				Add(gs,            gs_1+2,           M-2);
-				Add(gs+2*JX+1,     gs_1,     	     M-2*JX-1);
-				Add(gs+2*JX,       gs_1+1,           M-2*JX-1);
-				Add(gs+1,          gs_1+2*JX,        M-2*JX-1);
-				Add(gs,            gs_1+2*JX+1,      M-2*JX-1);
-				Add(gs+2*JY,       gs_1+1,           M-2*JY-1);
-				Add(gs+2*JY+1,     gs_1,             M-2*JY-1);
-				Add(gs+1,          gs_1+2*JY,        M-2*JY-1);
-				Add(gs,            gs_1+2*JY+1,      M-2*JY-1);
-				Add(gs+JX+2,       gs_1,             M-JX-2);
-				Add(gs+JX,         gs_1+2,           M-JX-2);
-				Add(gs,            gs_1+JX+2,        M-JX-2);
-				Add(gs+2,          gs_1+JX,          M-JX-2);
-				Add(gs+JY+2,       gs_1,             M-JY-2);
-				Add(gs+JY,         gs_1+2,           M-JY-2);
-				Add(gs,            gs_1+JY+2,        M-JY-2);
-				Add(gs+2,          gs_1+JY,          M-JY-2);
-				Add(gs+2*JX,       gs_1+JY,          M-2*JX-JY);
-				Add(gs+2*JX+JY,    gs_1,             M-2*JX-JY);
-				Add(gs+JY,         gs_1+2*JX,        M-2*JX-JY);
-				Add(gs,            gs_1+2*JX+JY,     M-2*JX-JY);
-				Add(gs+2*JY,       gs_1+JX,          M-2*JY-JX);
-				Add(gs+2*JY+JX,    gs_1,             M-2*JY-JX);
-				Add(gs+JX,         gs_1+2*JY,        M-2*JY-JX);
-				Add(gs,            gs_1+2*JY+JX,     M-2*JY-JX);
-				Add(gs+2*JX+JY+1,  gs_1,             M-2*JX-JY-1);
-				Add(gs+2*JX+1,     gs_1+JY,          M-2*JX-JY-1);
-				Add(gs+JY+1,       gs_1+2*JX,        M-2*JX-JY-1);
-				Add(gs+1,          gs_1+2*JX+JY,     M-2*JX-JY-1);
-				Add(gs+2*JX+JY,    gs_1+1,    	     M-2*JX-JY-1);
-				Add(gs+2*JX,       gs_1+JY+1,        M-2*JX-JY-1);
-				Add(gs+JY,         gs_1+2*JX+1,      M-2*JX-JY-1);
-				Add(gs,            gs_1+2*JX+JY+1,   M-2*JX-JY-1);
-				Add(gs+JX+2*JY+1,  gs_1,             M-JX-2*JY-1);
-				Add(gs+JX+1,       gs_1+2*JY,        M-JX-2*JY-1);
-				Add(gs+2*JY+1,     gs_1+JX,          M-JX-2*JY-1);
-				Add(gs+1,          gs_1+JX+2*JY,     M-JX-2*JY-1);
-				Add(gs+JX+2*JY,    gs_1+1,           M-JX-2*JY-1);
-				Add(gs+JX,         gs_1+2*JY+1,      M-JX-2*JY-1);
-				Add(gs+2*JY,       gs_1+JX+1,        M-JX-2*JY-1);
-				Add(gs,            gs_1+JX+2*JY+1,   M-JX-2*JY-1);
-				Add(gs+JX+JY+2,    gs_1,             M-JX-JY-2);
-				Add(gs+JX+2,       gs_1+JY,          M-JX-JY-2);
-				Add(gs+JY+2,       gs_1+JX,          M-JX-JY-2);
-				Add(gs+2,          gs_1+JX+JY,       M-JX-JY-2);
-				Add(gs+JX+JY,      gs_1+2,           M-JX-JY-2);
-				Add(gs+JX,         gs_1+JY+2,        M-JX-JY-2);
-				Add(gs+JY,         gs_1+JX+2,        M-JX-JY-2);
-				Add(gs,            gs_1+JX+JY+2,     M-JX-JY-2);
-				Norm(gs,2.0,M);
-
-				Add(gs+2*JX+2*JY,  gs_1,             M-2*JX-2*JY);
-				Add(gs,            gs_1+2*JX+2*JY,   M-2*JX-2*JY);
-				Add(gs+2*JX,       gs_1+2*JY,        M-2*JX-2*JY);
-				Add(gs+2*JY,       gs_1+2*JX,        M-2*JX-2*JY);
-				Add(gs+2*JX+2*JY+1,gs_1,             M-2*JX-2*JY-1);
-				Add(gs+1,          gs_1+2*JX+2*JY,   M-2*JX-2*JY-1);
-				Add(gs+2*JX+1,     gs_1+2*JY,        M-2*JX-2*JY-1);
-				Add(gs+2*JY+1,     gs_1+2*JX,        M-2*JX-2*JY-1);
-				Add(gs+2*JX+2*JY,  gs_1+1,           M-2*JX-2*JY-1);
-				Add(gs,            gs_1+2*JX+2*JY+1, M-2*JX-2*JY-1);
-				Add(gs+2*JX,       gs_1+2*JY+1,      M-2*JX-2*JY-1);
-				Add(gs+2*JY,       gs_1+2*JX+1,      M-2*JX-2*JY-1);
-				Add(gs+2*JX+2,     gs_1,             M-2*JX-2);
-				Add(gs+2*JX+JY+2,  gs_1,             M-2*JX-JY-2);
-				Add(gs+2*JX+2,     gs_1+JY,          M-2*JX-JY-2);
-				Add(gs+2,          gs_1+2*JX,        M-2*JX-2);
-				Add(gs+JY+2,       gs_1+2*JX,        M-2*JX-JY-2);
-				Add(gs+2,          gs_1+2*JX+JY,     M-2*JX-JY-2);
-				Add(gs+2*JY+2,     gs_1,             M-2*JY-2);
-				Add(gs+2*JY+JX+2,  gs_1,             M-2*JY-JX-2);
-				Add(gs+2*JY+2,     gs_1+JX,          M-2*JY-JX-2);
-				Add(gs+2,          gs_1+2*JY,        M-2*JY-2);
-				Add(gs+JX+2,       gs_1+2*JY,        M-2*JY-JX-2);
-				Add(gs+2,          gs_1+2*JY+JX,     M-2*JY-JX-2);
-				Add(gs+2*JX,       gs_1+2,           M-2*JX-2);
-				Add(gs+2*JX+JY,    gs_1+2,           M-2*JX-JY-2);
-				Add(gs+2*JX,       gs_1+JY+2,        M-2*JX-JY-2);
-				Add(gs,            gs_1+2*JX+2,      M-2*JX-2);
-				Add(gs+JY,         gs_1+2*JX+2,      M-2*JX-JY-2);
-				Add(gs,            gs_1+2*JX+JY+2,   M-2*JX-JY-2);
-				Add(gs+2*JY,       gs_1+2,           M-2*JY-2);
-				Add(gs+2*JY+JX,    gs_1+2,           M-2*JY-JX-2);
-				Add(gs+2*JY,       gs_1+JX+2,        M-2*JY-JX-2);
-				Add(gs,            gs_1+2*JY+2,      M-2*JY-2);
-				Add(gs+JX,         gs_1+2*JY+2,      M-2*JY-JX-2);
-				Add(gs,            gs_1+2*JY+JX+2,   M-2*JY-JX-2);
-				Norm(gs,2.0,M);
-
-				Add(gs+2*JX+2*JY+2,gs_1,             M-2*JX-2*JY-2);
-				Add(gs+2,          gs_1+2*JX+2*JY,   M-2*JX-2*JY-2);
-				Add(gs+2*JX+2,     gs_1+2*JY,        M-2*JX-2*JY-2);
-				Add(gs+2*JY+2,     gs_1+2*JX,        M-2*JX-2*JY-2);
-				Add(gs+2*JX+2*JY,  gs_1+2,           M-2*JX-2*JY-2);
-				Add(gs,            gs_1+2*JX+2*JY+2, M-2*JX-2*JY-2);
-				Add(gs+2*JX,       gs_1+2*JY+2,      M-2*JX-2*JY-2);
-				Add(gs+2*JY,       gs_1+2*JX+2,      M-2*JX-2*JY-2);
-				Norm(gs,1.0/512.0,M);
-
-				Times(gs,gs,G1,M);
-	*/
 			}
 		}
 	}
@@ -972,6 +796,9 @@ if (debug) cout <<" propagate in LGrad3 " << endl;
 
 
 bool LGrad3::ReadRange(int* r, int* H_p, int &n_pos, bool &block, string range, int var_pos, string seg_name, string range_type) {
+	(void)var_pos;
+	(void)n_pos;
+	(void)H_p;
 if (debug) cout <<"ReadRange in LGrad3 " << endl;
 	bool success=true;
 	vector<string>set;
@@ -1127,53 +954,35 @@ if (debug) cout <<"CreateMask for LGrad3 " + name << endl;
 
 Real LGrad3::ComputeTheta(Real* phi) {
 	Real result=0; remove_bounds(phi);
-	Dot(result,phi,L,M);
+	(result) = 0; for (int __i = 0; __i < (M); ++__i) (result) += (phi)[__i] * (L)[__i];
 	return result;
 }
 
 void LGrad3::UpdateEE(Real* EE, Real* psi, Real* E) {
+	(void)E;
 	Real pf=0.5*eps0*bond_length/k_BT*(k_BT/e)*(k_BT/e); //(k_BT/e) is to convert dimensionless psi to real psi; 0.5 is needed in weighting factor.
 	set_M_bounds(psi);
 
-	Zero(EE,M);
-	AddGradSquare(EE+1,psi,psi+1,psi+2,M-2);
-	AddGradSquare(EE+JX,psi,psi+JX,psi+2*JX,M-2*JX);
-	AddGradSquare(EE+JY,psi,psi+JY,psi+2*JY,M-2*JY);
-	Norm(EE,pf,M);
+	std::fill_n(EE, M, 0);
+	for (int __i = 0; __i < (M-2); ++__i) (EE+1)[__i] += pow((psi)[__i]-(psi+1)[__i],2) + pow((psi+1)[__i]-(psi+2)[__i],2);
+	for (int __i = 0; __i < (M-2*JX); ++__i) (EE+JX)[__i] += pow((psi)[__i]-(psi+JX)[__i],2) + pow((psi+JX)[__i]-(psi+2*JX)[__i],2);
+	for (int __i = 0; __i < (M-2*JY); ++__i) (EE+JY)[__i] += pow((psi)[__i]-(psi+JY)[__i],2) + pow((psi+JY)[__i]-(psi+2*JY)[__i],2);
+	for (int __i = 0; __i < (M); ++__i) (EE)[__i] *= (pf);
 
-/* In lattice refinement. this is possibly not working...old version restored.
-			YisAminB(EE+1,psi,psi+2,M-2);
-			Times(EE,EE,EE,M);
-			Norm(EE,pf/4.0,M);
-			YisAminB(E+JX,psi,psi+2*JX,M-2*JX);
-			Times(E,E,E,M);
-			YplusisCtimesX(EE,E,pf/4.0,M);
-			YisAminB(E+JY,psi,psi+2*JY,M-2*JY);
-			Times(E,E,E,M);
-			YplusisCtimesX(EE,E,pf/4.0,M);
-*/
+
 }
 
 
 void LGrad3::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool grad_epsilon, bool fixedPsi0) { //not only update psi but also g (from newton).
-#ifndef CUDA
+	(void)grad_epsilon;
 	int x, y, z;
-#endif
 
-#ifndef CUDA
 	Real epsZplus, epsZmin, epsXplus, epsXmin, epsYplus, epsYmin;
-#endif
 	//set_M_bounds(eps);
 	Real C =e*e/(eps0*k_BT*bond_length);
 
    if (!fixedPsi0) {
 
-#ifdef CUDA
-	C *=6;
-	Cp(X,psi,M);
-	UpPsi(g+JX+JY+1,psi+JX+JY+1,X+JX+JY+1,eps+JX+JY+1,JX,JY,C,Mask+JX+JY+1,M-2*(JX+JY+1));
-	if (fjc==2) cout << "in GPU FJC-choices > 3 not implemented yet " << endl;
-#else
 
 	for (x=1; x<MX+1; x++) {
 		for (y=1; y<MY+1; y++) {
@@ -1217,32 +1026,10 @@ void LGrad3::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 
 
 
-/*
-	for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++) for (z=fjc; z<MZ+fjc; z++) {
-		X[x*JX+y*JY+z]=(psi[(x-1)*JX+y*JY+z]+psi[(x+1)*JX+y*JY+z]
-				 +psi[x*JX+(y-1)*JY+z]+psi[x*JX+(y+1)*JY+z]
-			        +psi[x*JX+y*JY+z-1]  +psi[x*JX+y*JY+z+1])/6.0
-			        +q[x*JX+y*JY+z]*C/eps[x*JX+y*JY+z]/3.0;
-	}
 
-	if (grad_epsilon) for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++)  for (z=fjc; z<MZ+fjc; z++){
-		X[x*JX+y*JY+z]+=0.25*(eps[(x+1)*JX+y*JY+z]-eps[(x-1)*JX+y*JY+z])*(psi[(x+1)*JX+y*JY+z]-psi[(x-1)*JX+y*JY+z]+
-                              eps[x*JX+(y+1)*JY+z]-eps[x*JX+(y-1)*JY+z])*(psi[x*JX+(y+1)*JY+z]-psi[x*JX+(y-1)*JY+z]+
-	                       eps[x*JX+y*JY+z-1]  -eps[x*JX+y*JY+z+1])  *(psi[x*JX+y*JY+z-1]  -psi[x*JX+y*JY+z+1])
-				  /eps[x*JX+y*JY+z];
-	}
-	Cp(psi,X,M);
-	YisAminB(g,g,psi,M);
-*/
 
-#endif
    } else { //fixedPsi0 is true
 
-#ifdef CUDA
-	C *=6;
-	Cp(X,psi,M);
-	UpPsi(g+JX+JY+1,psi+JX+JY+1,X+JX+JY+1,eps+JX+JY+1,JX,JY,C,Mask+JX+JY+1,M-2*(JX+JY+1));
-#else
 	for (x=1; x<MX+1; x++) {
 		for (y=1; y<MY+1; y++) {
 			epsZplus=eps[x*JX+y*JY]+eps[x*JX+y*JY+1];
@@ -1283,47 +1070,18 @@ void LGrad3::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 	}
 
 
-/*  in lattice refinement this part is appartently not working. previous lines is for previous version...
 
-	for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++) for (z=fjc; z<MZ+fjc; z++) {
-		if (Mask[x*JX+y*JY+z] == 0)
-		X[x*JX+y*JY+z]=(psi[(x-1)*JX+y*JY+z]+psi[(x+1)*JX+y*JY+z]
-				 +psi[x*JX+(y-1)*JY+z]+psi[x*JX+(y+1)*JY+z]
-			        +psi[x*JX+y*JY+z-1]  +psi[x*JX+y*JY+z+1])/6.0
-			          +q[x*JX+y*JY+z]*C/eps[x*JX+y*JY+z]/3.0;
-	}
 
-	if (grad_epsilon) for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++)  for (z=fjc; z<MZ+fjc; z++){
-		if (Mask[x*JX+y*JY+z] == 0)
-		X[x*JX+y*JY+z]+=0.25*(eps[(x+1)*JX+y*JY+z]-eps[(x-1)*JX+y*JY+z])*(psi[(x+1)*JX+y*JY+z]-psi[(x-1)*JX+y*JY+z]+
-                              eps[x*JX+(y+1)*JY+z]-eps[x*JX+(y-1)*JY+z])*(psi[x*JX+(y+1)*JY+z]-psi[x*JX+(y-1)*JY+z]+
-			         eps[x*JX+y*JY+z-1]  -eps[x*JX+y*JY+z+1])  *(psi[x*JX+y*JY+z-1]  -psi[x*JX+y*JY+z+1])
-				   /eps[x*JX+y*JY+z];
-	}
-	for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++)  for (z=fjc; z<MZ+fjc; z++)
-	if (Mask[x*JX+y*JY+z] == 0) {
-		psi[x*JX+y*JY+z]=X[x*JX+y*JY+z];
-		g[x*JX+y*JY+z]-=psi[x*JX+y*JY+z];
-	}
-*/
-
-#endif
    }
 }
 
 
 void LGrad3::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool grad_epsilon) {//Not only update q (charge), but also g (from newton).
-	#ifndef CUDA
+	(void)grad_epsilon;
 	int z, x, y;
 	Real epsXplus,epsXmin,epsYplus,epsYmin,epsZplus,epsZmin;
-	#endif
 
 	Real C = -e*e/(eps0*k_BT*bond_length);
-#ifdef CUDA
-	C *=6;
-	Cp(X,psi,M);
-	UpQ(g+JX+JY+1, q+JX+JY+1, psi+JX+JY+1, eps+JX+JY+1, JX, JY, C, Mask+JX+JY+1, M-2*(JX+JY+1));
-#else
 
 	for (x=1; x<MX; x++) {
 		for (y=1; y<MY; y++) {
@@ -1347,29 +1105,8 @@ void LGrad3::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool gra
 	}
 
 
-/* in lattice refinement charge in 3d not working trying to restore....
 
-	for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++) for (z=fjc; z<MZ+fjc; z++) {
-		if (Mask[x*JX+y*JY+z] == 1)
-		q[x*JX+y*JY+z]=-0.5*(psi[(x-1)*JX+y*JY+z]+psi[(x+1)*JX+y*JY+z]
-				 +psi[x*JX+(y-1)*JY+z]+psi[x*JX+(y+1)*JY+z]
-			        +psi[x*JX+y*JY+z-1]  +psi[x*JX+y*JY+z+1]
-			       -6.0*q[x*JX+y*JY+z])*fjc*fjc*eps[x*JX+y*JY+z]/C;
-	}
 
-	if (grad_epsilon) for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++)  for (z=fjc; z<MZ+fjc; z++){
-		if (Mask[x*JX+y*JY+z] == 1)
-		q[x*JX+y*JY+z]-=0.25*(eps[(x+1)*JX+y*JY+z]-eps[(x-1)*JX+y*JY+z])*(psi[(x+1)*JX+y*JY+z]-psi[(x-1)*JX+y*JY+z]+
-                              eps[x*JX+(y+1)*JY+z]-eps[x*JX+(y-1)*JY+z])*(psi[x*JX+(y+1)*JY+z]-psi[x*JX+(y-1)*JY+z]+
-				  eps[x*JX+y*JY+z-1]  -eps[x*JX+y*JY+z+1])  *(psi[x*JX+y*JY+z-1]  -psi[x*JX+y*JY+z+1])*fjc*fjc/C;
-	}
-	for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++)  for (z=fjc; z<MZ+fjc; z++)
-	if (Mask[x*JX+y*JY+z] == 1) {
-		g[x*JX+y*JY+z]=-q[x*JX+y*JY+z];
-	}
-*/
-
-#endif
 
 }
 
@@ -1470,7 +1207,6 @@ void LGrad3::set_bounds_x(Real* X, int shifty, int shiftz){
 if (debug) cout <<"set_bounds_x (shift yz) in LGrad3 " << endl;
 	int y,z;
 	int k=0;
-	//if (BX1>BXM) {shifty=0; shiftz=0;} //periodic
 	if (fjc==1) {
 		 for (y=1; y<MY+1; y++) for (z=1; z<MZ+1; z++)  {
 			X[0        +y*JY+z*JZ] = X[BX1*JX+(y+shifty)*JY+(z+shiftz)*JZ];
@@ -1488,7 +1224,6 @@ void LGrad3::set_bounds_y(Real* X,int shiftx, int shiftz){
 if (debug) cout <<"set_bounds_y (shift x,z) in LGrad3 " << endl;
 	int x,z;
 	int k=0;
-	//if (BY1>BYM) {shiftx=0; shiftz=0;} //periodic
 	if (fjc==1) {
 		for (z=1; z<MZ+1; z++) for (x=1; x<MX+1; x++){
 			X[x*JX+    0    +z*JZ] = X[(x+shiftx)*JX+BY1*JY+(z+shiftz)*JZ];
@@ -1506,7 +1241,6 @@ void LGrad3::set_bounds_z(Real* X,int shiftx, int shifty){
 if (debug) cout <<"set_bounds_z (shift xy) in LGrad3 " << endl;
 	int x,y;
 	int k=0;
-	//if (BZ1>BZM) {shiftx=0; shifty=0;} //periodic.
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++) {
 			X[x*JX+y*JY+   0] = X[(x+shiftx)*JX+(y+shifty)*JY+BZ1];
@@ -1556,9 +1290,6 @@ if (debug) cout <<"set_bounds in LGrad3 " << endl;
 			SetBoundaries(X+i*m[k],jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
 	} else {
 		if (fjc==1) {
-#ifdef CUDA
-			SetBoundaries(X,JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ,stencil_full);
-#else
 			for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++){
 				X[x*JX+y*JY+0]     = X[x*JX+y*JY+BZ1];
 				X[x*JX+y*JY+MZ+1]  = X[x*JX+y*JY+BZM];
@@ -1614,7 +1345,6 @@ if (debug) cout <<"set_bounds in LGrad3 " << endl;
 			X[0        +(MY+1)*JY+(MZ+1)*JZ]=X[BX1*JX+BYM*JY+BZM*JZ];
 			X[(MX+1)*JX+(MY+1)*JY+(MZ+1)*JZ]=X[BXM*JX+BYM*JY+BZM*JZ];
 
-#endif
 		} else {
 			for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++){
 				for (k=0; k<fjc; k++) X[x*JX+y*JY+k] = X[x*JX+y*JY+B_Z1[k]];
@@ -1898,27 +1628,34 @@ void LGrad3::AddPhiS(Real* phi,Real* Gf,Real* Gb,int Markov, int M){
 	Real one=1.0;
 	if (Markov ==2) {
 		if (lattice_type==hexagonal) {
-			for (int k=0; k<12; k++) YplusisCtimesAtimesB(phi,Gf+k*M,Gb+k*M,one/12.0,M);
+			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (one/12.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
 		} else {
-			for (int k=0; k<6; k++) YplusisCtimesAtimesB(phi,Gf+k*M,Gb+k*M,one/6.0,M);
+			for (int k=0; k<6; k++) for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (one/6.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
 		}
-	} else AddTimes(phi,Gf,Gb,M);
+	} else for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (Gf)[__i] * (Gb)[__i];
 
 }
 
 void LGrad3::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real degeneracy,int Markov, int M){
 	if (Markov ==2) {
 		if (lattice_type==hexagonal) {
-			for (int k=0; k<12; k++) YplusisCtimesAtimesB(phi,Gf+k*M,Gb+k*M,degeneracy/12.0,M);
+			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/12.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
 		} else {
-			for (int k=0; k<6; k++) YplusisCtimesAtimesB(phi,Gf+k*M,Gb+k*M,degeneracy/6.0,M);
+			for (int k=0; k<6; k++) for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/6.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
 		}
-	} else YplusisCtimesAtimesB(phi,Gf,Gb,degeneracy,M);
+	} else for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy) * (Gf)[__i] * (Gb)[__i];
 
 }
 
 
 void LGrad3::AddPhiS(Real* phi,Real* Gf,Real* Gb, Real* G1, Real norm, int Markov, int M){
+	(void)M;
+	(void)Markov;
+	(void)norm;
+	(void)G1;
+	(void)Gb;
+	(void)Gf;
+	(void)phi;
 	cout << "Composition phi Alias not implemented in LGrad3 " << endl;
 }
 
@@ -1928,36 +1665,32 @@ void LGrad3::Initiate(Real* G,Real* Gz,int Markov, int M){
 		if (lattice_type==simple_cubic) size =6;
 		if (lattice_type==hexagonal) {
 			size =12;
-			//cout <<"BC in Markov==2 and hexagonal lattice-type is not implemented correctly yet. , do not proceed .." <<endl;
 		}
-		for (int k=0; k<size; k++) Cp(G+k*M,Gz,M);
-	} else Cp(G,Gz,M);
+		for (int k=0; k<size; k++) std::copy_n(Gz, M, G+k*M);
+	} else std::copy_n(Gz, M, G);
 }
 
 void LGrad3::Terminate(Real* Gz,Real* G,int Markov, int M){
 	int size;
 	if (Markov==2){
-		Zero(Gz,M);
+		std::fill_n(Gz, M, 0);
 		if (lattice_type==simple_cubic) size =6;
 		if (lattice_type==hexagonal) {
 			size =12;
-			//cout <<"BC in Markov==2 and hexagonal lattice-type is not implemented correctly yet. , do not proceed .." <<endl;
 		}
-		for (int k=0; k<size; k++) Add(Gz,G+k*M,M);
-		Norm(Gz,1.0/size,M);
-	} else Cp(Gz,G,M);
+		for (int k=0; k<size; k++) for (int __i = 0; __i < (M); ++__i) (Gz)[__i] += (G+k*M)[__i];
+		for (int __i = 0; __i < (M); ++__i) (Gz)[__i] *= (1.0/size);
+	} else std::copy_n(G, M, Gz);
 }
 
 bool LGrad3:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R){
 	bool success=true;
 	int length =px.size();
 	int X,Y,Z;
-	Zero(MASK,M);
+	std::fill_n(MASK, M, 0);
 
 	for (int i =0; i<length; i++) {
 		int xx,yy,zz;
-		//cout << "i " << i << endl;
-		//cout << px[i] << " " << py[i] << " " << pz[i] << " " << R <<endl;
 		xx=px[i]; yy=py[i]; zz=pz[i];
 		for (int x=xx-R; x<xx+R+1; x++)
 		for (int y=yy-R; y<yy+R+1; y++)
@@ -1973,12 +1706,6 @@ bool LGrad3:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R
 				MASK[P(X,Y,Z)]=1;
 			}
 		}
-		//for (int x=1; x<MX+1; x++)
-		//for (int y=1; y<MY+1; y++)
-		//for (int z=1; z<MZ+1; z++)
-		//if (MASK[P(x,y,z)]>1) {
-		//	cout << MASK[P(x,y,z)] << endl;
-		//	return false;
 		//}
 	}
 
@@ -1987,11 +1714,22 @@ bool LGrad3:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R
 
 
 Real LGrad3::DphiDt(Real* g, Real* B_phitot, Real* phiA, Real* phiB, Real* alphaA, Real* alphaB, Real B_A, Real B_B) {
+	(void)B_B;
+	(void)B_A;
+	(void)alphaB;
+	(void)alphaA;
+	(void)phiB;
+	(void)phiA;
+	(void)B_phitot;
+	(void)g;
 	cout <<"Grad3 DphiDt not implemented yet " << endl;
 	return 0;
 }
 
 Real LGrad3::MomentPlanar(Real* X,int n,Real Z0){
+	(void)Z0;
+	(void)n;
+	(void)X;
 	cout <<"MomentPlanar not implemented; kJ0 or kbar may be wrong. " << endl;
 	return 0;
 }

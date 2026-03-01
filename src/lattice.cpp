@@ -1,6 +1,6 @@
 #include "lattice.h"
 Lattice::Lattice(const Input& In_,const string& name_) :
-	BC(6) // resize the boundary condition vector to 6 for Mesodyn
+	BC(6) // boundary condition slots: lower/upper for x, y, z
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
 if (debug) cout <<"Lattice constructor" << endl;
 	In=&In_; name=name_;
@@ -54,11 +54,7 @@ if (debug) cout <<"DeAllocateMemory in lat " << endl;
 		} else {
 			free(B_X1);free(B_Y1);free(B_Z1);free(B_XM);free(B_YM);free(B_ZM);
 			free(L); free(LAMBDA);
-			#ifdef CUDA
-			cudaFree(X);
-			#else
 			free(X);
-			#endif
 		}
 		if (Markov==2) {
 			if (fjc==1) {
@@ -195,41 +191,37 @@ if (debug) cout <<"AllocateMemory in lat " << endl;
 
 	}
 	if (fcc_sites) {
-		fcc_lambda_1=(Real*)malloc(M*sizeof(Real)); Zero(fcc_lambda_1,M);
-		fcc_lambda1=(Real*)malloc(M*sizeof(Real)); Zero(fcc_lambda1,M);
-		fcc_lambda0=(Real*)malloc(M*sizeof(Real)); Zero(fcc_lambda0,M);
+		fcc_lambda_1=(Real*)malloc(M*sizeof(Real)); std::fill_n(fcc_lambda_1, M, 0);
+		fcc_lambda1=(Real*)malloc(M*sizeof(Real)); std::fill_n(fcc_lambda1, M, 0);
+		fcc_lambda0=(Real*)malloc(M*sizeof(Real)); std::fill_n(fcc_lambda0, M, 0);
 	}
 
 	if (fjc==1) {
 		if (gradients<3) {
-		L=(Real*)malloc(M*sizeof(Real)); Zero(L,M);
-		lambda_1=(Real*)malloc(M*sizeof(Real)); Zero(lambda_1,M);
-		lambda1=(Real*)malloc(M*sizeof(Real)); Zero(lambda1,M);
-		lambda0=(Real*)malloc(M*sizeof(Real)); Zero(lambda0,M);
+		L=(Real*)malloc(M*sizeof(Real)); std::fill_n(L, M, 0);
+		lambda_1=(Real*)malloc(M*sizeof(Real)); std::fill_n(lambda_1, M, 0);
+		lambda1=(Real*)malloc(M*sizeof(Real)); std::fill_n(lambda1, M, 0);
+		lambda0=(Real*)malloc(M*sizeof(Real)); std::fill_n(lambda0, M, 0);
 		}
 	} else {
-		L=(Real*)malloc(M*sizeof(Real)); Zero(L,M);
-		LAMBDA =(Real*)malloc(FJC*M*sizeof(Real)); Zero(LAMBDA,FJC*M);
+		L=(Real*)malloc(M*sizeof(Real)); std::fill_n(L, M, 0);
+		LAMBDA =(Real*)malloc(FJC*M*sizeof(Real)); std::fill_n(LAMBDA, FJC*M, 0);
 	}
 	if (Markov==2) {
 		if (fjc==1) {
-			l1=(Real*)malloc(M*sizeof(Real)); Zero(l1,M);
-			l_1=(Real*)malloc(M*sizeof(Real));  Zero(l_1,M);
-			l11=(Real*)malloc(M*sizeof(Real)); Zero(l11,M);
-			l_11=(Real*)malloc(M*sizeof(Real)); Zero(l_11,M);
+			l1=(Real*)malloc(M*sizeof(Real)); std::fill_n(l1, M, 0);
+			l_1=(Real*)malloc(M*sizeof(Real));  std::fill_n(l_1, M, 0);
+			l11=(Real*)malloc(M*sizeof(Real)); std::fill_n(l11, M, 0);
+			l_11=(Real*)malloc(M*sizeof(Real)); std::fill_n(l_11, M, 0);
 		} else {
-			LABDA =(Real*)malloc(FJC*M*sizeof(Real)); Zero(LABDA,FJC*M);
-			LABDA_1 =(Real*)malloc(FJC*M*sizeof(Real)); Zero(LABDA_1,FJC*M);
+			LABDA =(Real*)malloc(FJC*M*sizeof(Real)); std::fill_n(LABDA, FJC*M, 0);
+			LABDA_1 =(Real*)malloc(FJC*M*sizeof(Real)); std::fill_n(LABDA_1, FJC*M, 0);
 		}
 		H=(Real*)malloc(M*sizeof(Real));
 	}
 
 
-#ifdef CUDA
-	X=(Real*)AllOnDev(M);
-#else
 	X=(Real*)malloc(M*sizeof(Real));
-#endif
 	ComputeLambdas();
 }
 
@@ -337,7 +329,6 @@ if (debug) cout <<"CheckInput in lattice " << endl;
 		bond_length/=fjc;
 
 		string lat_type;
-		//lat_type="simple_cubic"; lattice_type=simple_cubic; lambda=1.0/6.0; Z=6;
 		lattice_type=simple_cubic;
 		options.push_back("simple_cubic"); options.push_back("hexagonal");
 		Value=GetValue("lattice_type");
@@ -571,29 +562,11 @@ if (debug) cout <<"CheckInput in lattice " << endl;
 		}
 		//Initialize system size and indexing
 		PutM();
-		//if (lattice_type==simple_cubic) {
-		//	lambda=1.0/6.0; //l0=4.0*l1;
 		//} else {
-		//	lambda=1.0/4.0; //l0=2.0*l1;
 		//}
 	Markov=1;
-	//Markov=In->Get_int(GetValue("Markov"),1);
-	//if (Markov<1 || Markov>2) {
-	//	cout <<" Integer value for 'Markov' is by default 1 and may be set to 2 for some mol_types and fjc-choices only. Markov value out of bounds. Proceed with caution. " << endl; success = false;
 	//}
-	//k_stiff=0; //default value if in mol there is no k_stiff
-	//if (GetValue("k_stiff").size()>0) {
-	//	k_stiff=In->Get_Real(GetValue("k_stiff"),0);
-	//	if (k_stiff<0 || k_stiff>10) {
-	//		success =false;
-	//		cout <<" Real value for 'k_stiff' out of bounds (0 < k_stiff < 10). " << endl;
-	//		cout <<" For Markov == 2: u_bend (theta) = 0.5 k_stiff theta^2, where 'theta' is angle for bond direction deviating from the straight direction. " <<endl;
-	//		cout <<" You may interpret 'k_stiff' as the molecular 'persistence length' " << endl;
-	//		cout <<" k_stiff is a 'default value'. Use molecular specific values to overrule the default when appropriate (future implementation....) " << endl;
 	//	}
-//		if (fjc>1 ) {
-//			success=false;
-//			cout <<" Work in progress.... Currently, Markov == 2 is only expected to work for fjc_choices < 5 " << endl;
 //		}
 //	}
 
@@ -601,6 +574,7 @@ if (debug) cout <<"CheckInput in lattice " << endl;
 }
 
 bool Lattice::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
+	(void)Var_target_value_;
 	bool success=true;
 	Var_target = -1;
 	Var_type=Var_type_;
@@ -822,7 +796,6 @@ if (debug) cout <<"PushOutput in lat " << endl;
 	ints_value.clear();
 	string mirror="mirror";
 	string periodic="periodic";
-	//string surface="surface";
 	push("geometry",geometry);
 	push("gradients",gradients);
 	if (offset_first_layer>0) push("offset_first_layer",offset_first_layer);
@@ -838,25 +811,13 @@ if (debug) cout <<"PushOutput in lat " << endl;
 	switch (gradients) {
 		case 3:
 			push("n_layers_z",MZ/fjc);
-			//if (BZ1==1) push("lowerbound_z",mirror); //should be fixed for fjc>1
-			//if (BZM==MZ-1) push("upperbound_z",mirror);
 
-			//if (BX1==MX) push("lowerbound_x",periodic);
-			//if (BXM==1) push("upperbound_x",periodic);
-			//if (BY1==MY) push("lowerbound_y",periodic);
-			//if (BYM==1) push("upperbound_y",periodic);
-			//if (BZ1==MZ) push("lowerbound_z",periodic);
-			//if (BZM==1) push("upperbound_z",periodic);
 			// Fall through
 		case 2:
 			push("n_layers_y",MY/fjc);
-			//if (BY1==1) push("lowerbound_x",mirror);
-			//if (BYM==MY-1) push("upperbound_x",mirror);
 			// Fall through
 		case 1:
 			push("n_layers",MX/fjc);
-			//if (BX1==1) push("lowerbound",mirror);
-			//if (BXM==MX-1) push("upperbound",mirror);
 			break;
 		default:
 			break;
@@ -910,11 +871,8 @@ void Lattice::CollectPhi(Real* phi, Real* GN, Real* rho, int* Bx, int* By, int* 
 
 void Lattice::ComputeGN(Real* GN, Real* Gg_f, int* H_Bx, int* H_By, int* H_Bz, int* H_Px2, int* H_Py2, int* H_Pz2, int N, int n_box) {
 	int k=sub_box_on;
-	for (int p=0; p<n_box; p++) Cp(GN+p,Gg_f+n_box*m[k]*N +p*m[k]+ jx[k]*(H_Px2[p]-H_Bx[p])+jy[k]*(H_Py2[p]-H_By[p])+(H_Pz2[p]-H_Bz[p]),1);
+	for (int p=0; p<n_box; p++) std::copy_n(Gg_f+n_box*m[k]*N +p*m[k]+ jx[k]*(H_Px2[p]-H_Bx[p])+jy[k]*(H_Py2[p]-H_By[p])+(H_Pz2[p]-H_Bz[p]), 1, GN+p);
 
-#ifdef CUDA //this transfer can go away when all is on GPU.
-	//TransferDataToHost(H_GN,GN,n_box);
-#endif
 }
 
 
@@ -949,7 +907,6 @@ if (debug) cout <<"ReadGuess in output" << endl;
 				if (charged) iv +=m;
 				for (int i=0; i<iv; i++) {
 					in_file >> x[i];
-					//cout <<"R i " << i << " " << x[i] << endl;
 				}
 				readx=-3;
 			}
@@ -1014,6 +971,7 @@ if (debug) cout <<"StoreGuess in output" << endl;
 }
 
 bool Lattice::GenerateGuess(Real* x, string CalculationType, string GuessType, Real A_value, Real B_value) {
+	(void)CalculationType;
 if (debug) cout <<"GenerateGuess in lat " << endl;
 //GuessType: lamellae,Im3m,FCC,BCC,HEX,gyroid,Real_gyroid,Real_diamond,perforated_lamellae
 //CalculationType: micro_emulsion,micro_phasesegregation

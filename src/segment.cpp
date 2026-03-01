@@ -59,20 +59,9 @@ if (!all_segment) return;
 	free(H_alpha);
 	free(H_ALPHA);
 	free(H_phi_state);
-#ifdef CUDA
-	if(n_pos>0) cudaFree(P);
-	cudaFree(u);
-	cudaFree(u_ext);
-	cudaFree(phi);
-	cudaFree(phi_state);
-	cudaFree(G1);
-	cudaFree(MASK);
-	cudaFree(phi_side);
-#else
 	free(G1);
 	free(phi_side);
 	//free(dphidt);
-#endif
 	all_segment=false;
 }
 
@@ -92,34 +81,18 @@ if (debug) cout <<"Allocate Memory in Segment " + name << endl;
 	H_Zero(H_u,M*ns);
 	H_Zero(H_phi,M);
 	H_Zero(H_MASK,M);
-#ifdef CUDA
-
-	//if (n_pos>0) Px=(int*)AllIntOnDev(n_pos);
-	G1=(Real*)AllOnDev(M); Zero(G1,M);
-	u=(Real*)AllOnDev(M*ns); Zero(u,M*ns);
-	phi_state=(Real*)AllOnDev(M*ns); Zero(phi_state,M*ns);
-	MASK=(Real*)AllOnDev(M); Zero(MASK,M);
-	phi=(Real*)AllOnDev(M); Zero(phi,M);
-	u_ext=(Real*)AllOnDev(M); Zero(u_ext,M);
-	phi_side=(Real*)AllOnDev(ns*M); Zero(phi_side,ns*M);
-	alpha=(Real*)AllOnDev(ns*M); Zero(alpha,ns*M);
-	ALPHA=(Real*)AllOnDev(M); Zero(ALPHA,M);
-#else
 	if (n_pos>0) P=H_P;
 	MASK=H_MASK;
 	phi =H_phi;
 	u = H_u;
-	u_ext=H_u_ext; Zero(u_ext,M);
+	u_ext=H_u_ext; std::fill_n(u_ext, M, 0);
 	phi_state = H_phi_state;
 	alpha=H_alpha;
-	ALPHA=H_ALPHA; Zero(ALPHA,M);
+	ALPHA=H_ALPHA; std::fill_n(ALPHA, M, 0);
 	G1 = (Real*)malloc(M*sizeof(Real));
 	phi_side = (Real*)malloc(M*ns*sizeof(Real));
-	//dphidt=(Real*)malloc(M*sizeof(Real));
-	//Zero(dphidt,M);
-	Zero(G1,M);
-	Zero(phi_side,ns*M);
-#endif
+	std::fill_n(G1, M, 0);
+	std::fill_n(phi_side, ns*M, 0);
 	bool success=true;
 	bool HMaskDone=false;
 	success=ParseFreedoms(HMaskDone);
@@ -136,9 +109,9 @@ if (debug) cout <<"Allocate Memory in Segment " + name << endl;
 				if (bx[i]<1) {bx[i] +=MX; px1[i] +=MX; px2[i] +=MX;}
 				if (by[i]<1) {by[i] +=MY; py1[i] +=MY; py2[i] +=MY;}
 				if (bz[i]<1) {bz[i] +=MZ; pz1[i] +=MZ; pz2[i] +=MZ;}
-				if (bx[i]<1 || bx[i]>MX) {success=false; cout <<"For cleng particle nr " << i << "the coordinate 'x' of the subbox origin is out of bounds. " << endl; }
-				if (by[i]<1 || by[i]>MY) {success=false; cout <<"For cleng particle nr " << i << "the coordinate 'y' of the subbox origin is out of bounds. " << endl; }
-				if (bz[i]<1 || bz[i]>MZ) {success=false; cout <<"For cleng particle nr " << i << "the coordinate 'z' of the subbox origin is out of bounds. " << endl; }
+				if (bx[i]<1 || bx[i]>MX) {success=false; cout <<"For clamped particle nr " << i << " the coordinate 'x' of the subbox origin is out of bounds. " << endl; }
+				if (by[i]<1 || by[i]>MY) {success=false; cout <<"For clamped particle nr " << i << " the coordinate 'y' of the subbox origin is out of bounds. " << endl; }
+				if (bz[i]<1 || bz[i]>MZ) {success=false; cout <<"For clamped particle nr " << i << " the coordinate 'z' of the subbox origin is out of bounds. " << endl; }
 				H_MASK[((px1[i]-1)%MX+1)*JX + ((py1[i]-1)%MY+1)*JY + (pz1[i]-1)%MZ+1]=1;
 				H_MASK[((px2[i]-1)%MX+1)*JX + ((py2[i]-1)%MY+1)*JY + (pz2[i]-1)%MZ+1]=1;
 			}
@@ -357,7 +330,6 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				if (k<Lsub-1) p_range.append(";");
 			}
 
-//cout <<"p_range = " << p_range << endl;
 
 			n_pos=0;
 			if (success) success=lat->ReadRange(r, H_P, n_pos, block, p_range,var_pos,name,s_freedom);
@@ -538,7 +510,6 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				if (k<Lsub-1) f_range.append(";");
 			}
 
-//cout <<"f_range = " << f_range << endl;
 
 			n_pos=0;
 			success=lat->ReadRange(r, H_P, n_pos, block, f_range,var_pos,name,s_freedom);
@@ -612,9 +583,6 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				n=In->Get_int(GetValue("n"),-1); if (n<0) {success=false; cout <<" expecting positive integer for 'n'" << endl;}
 				R=In->Get_int(GetValue("size"),-1); if (R<0) {success =false ; cout <<" expecting positive integer for 'size' "<<endl; }
 				R*=fjc;  //here I alrady express R in grit units not segment units.
-				//if (GetValue("pos")=="random") {
-				//	found=true; srand(1);
-				//	for (int i=0; i<n; i++) {
 				//		px.push_back(1+rand()%lat->MX);
 				//		py.push_back(1+rand()%lat->MY);
 				//		pz.push_back(1+rand()%lat->MZ);
@@ -643,12 +611,10 @@ if (debug) cout <<"ParseFreedoms " << endl;
 						if (n_placed < n) {
 							px.push_back(i); py.push_back(j); pz.push_back(k);//px py and pz are already in grit units.
 							n_placed++;
-							//cout <<"x,y,z= " << i << "," << j << "," << k << endl;
 						}
 
 					}
 					if (n_placed < n) { cout <<"Problem: could not place all n particles in volume. Placed only  "<< n_placed << " partictles " << endl; }
-					//cout <<"In frozen_range regular positions for particles not implemented " <<endl;
 				}
 
 				if (GetValue("pos")=="random" && success) {
@@ -697,7 +663,6 @@ if (debug) cout <<"ParseFreedoms " << endl;
 								if (px[i] <0 || px[i]>lat->MX) {success=false; cout << "pos x for particle " << i << " out of bounds or not an integer: " << px[i] << endl; }
 								if (py[i] <0 || py[i]>lat->MY) {success=false; cout << "pos y for particle " << i << " out of bounds or not an integer: " << py[i] << endl; }
 								if (pz[i] <0 || pz[i]>lat->MZ) {success=false; cout << "pos z for particle " << i << " out of bounds or not an integer: " << pz[i] << endl; }
-								//cout <<"px,py,pz =" <<px[i]<<","<<py[i]","<<pz[i] << endl;
 							}
 						}
 					}
@@ -707,7 +672,6 @@ if (debug) cout <<"ParseFreedoms " << endl;
 		if (px.size()>0) {
 			HMaskDone=true;
 			if (success) {
-				//H_MASK = (int*) malloc(lat->M*sizeof(int));
 			if (!lat->PutMask(H_MASK,px,py,pz,R)) cout <<"overlap occurred "<<endl;
 			}
 
@@ -771,7 +735,6 @@ if (debug) cout <<"ParseFreedoms " << endl;
 				if (k<Lsub-1) t_range.append(";");
 			}
 
-//cout <<"t_range = " << t_range << endl;
 
 			n_pos=0;
 			if (success) success=lat->ReadRange(r, H_P, n_pos, block, t_range,var_pos,name,s_freedom);
@@ -801,10 +764,10 @@ Real Segment::PinnedVolume() {
 	Real VOLUME=0;
 	if (freedom !="pinned") return volume;
 	if (lat->geometry=="planar") {
-		Sum(VOLUME,MASK,M); volume=1.0*VOLUME;
+		(VOLUME) = 0; for (int __i = 0; __i < (M); ++__i) (VOLUME) += (MASK)[__i]; volume=1.0*VOLUME;
 	} else {
 		for (int i=0;i<M; i++) volume += MASK[i]*lat->L[i];
-		//Dot(volume,MASK,lat->L,M);
+		//(volume) = 0; for (int __i = 0; __i < (M); ++__i) (volume) += (MASK)[__i] * (lat->L)[__i];
 	}
 	return volume/lat->fjc;
 }
@@ -841,53 +804,40 @@ bool Segment::PrepareForCalculations(Real* KSAM, bool first_time) {
 if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 
 	int M=lat->M;
-#ifdef CUDA
-	if (In->MesodynList.empty() or prepared == false) {
-	TransferDataToDevice(H_MASK, MASK, M);
-		if (In->MesodynList.empty())
-			TransferDataToDevice(H_u, u, M); //Wrong: This clears u for every CUDA application and messes up mesodyn
-		prepared = true;
-}
-
-//}
-	//TransferDataToDevice(H_Px, Px, n_pos);
-	//TransferDataToDevice(H_Py, Py, n_pos);
-	//TransferDataToDevice(H_Pz, Pz, n_pos);
-#endif
 
 	bool success=true;
 	phibulk=0;
 	if (freedom=="frozen") {
-		Cp(phi,MASK,M);
-	} else Zero(phi,M);
+		std::copy_n(MASK, M, phi);
+	} else std::fill_n(phi, M, 0);
 
-	if (freedom=="tagged" || freedom=="clamp" ) Zero(u,M); //no internal states for these segments.
+	if (freedom=="tagged" || freedom=="clamp" ) std::fill_n(u, M, 0); //no internal states for these segments.
 
 	if (ns==1) {
 		lat->set_bounds(u);
-		Boltzmann(G1,u,M);
+		for (int __i = 0; __i < (M); ++__i) (G1)[__i] = exp(-(u)[__i]);
 	} else {
-		Zero(G1,M);
+		std::fill_n(G1, M, 0);
 		for (int i=0; i<ns; i++) {
 			lat->set_bounds(u+M*i);
-			Boltzmann(alpha+M*i,u+M*i,M);
-			Norm(alpha+M*i,state_alphabulk[i],M);
-			Add(G1,alpha+M*i,M);
+			for (int __i = 0; __i < (M); ++__i) (alpha+M*i)[__i] = exp(-(u+M*i)[__i]);
+			for (int __i = 0; __i < (M); ++__i) (alpha+M*i)[__i] *= (state_alphabulk[i]);
+			for (int __i = 0; __i < (M); ++__i) (G1)[__i] += (alpha+M*i)[__i];
 		}
-		for (int i=0; i<ns; i++) Div(alpha+i*M,G1,M);
+		for (int i=0; i<ns; i++) for (int __i = 0; __i < (M); ++__i) (alpha+i*M)[__i] = ((G1)[__i] != 0) ? ((alpha+i*M)[__i] / (G1)[__i]) : 0;
 	}
 
-	if (freedom=="pinned") Times(G1,G1,MASK,M);
+	if (freedom=="pinned") for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * (MASK)[__i];
 	if (freedom=="tagged") {
-		Cp(G1,MASK,M);
+		std::copy_n(MASK, M, G1);
 	}
-	if (!(freedom ==" frozen" || freedom =="tagged")) Times(G1,G1,KSAM,M);
+	if (!(freedom ==" frozen" || freedom =="tagged")) for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * (KSAM)[__i];
 	if (GetValue("seed").size()>0) {
 		seed=In->Get_int(GetValue("seed"),1);
 	}
 	if (GetValue("fluctuation_potentials").size()>0&& first_time)
 	{
-		Zero(u_ext,M); srand(seed);
+		std::fill_n(u_ext, M, 0); srand(seed);
 		int gradients=lat->gradients;
 		vector<string> sub;
 		string s;
@@ -1005,8 +955,6 @@ if (debug) cout <<"PutConstraintBC Segment " + name << endl;
 	int JX=lat->JX;
 	switch (gradients) {
 		case 1:
-			//int fjc=lat->fjc;
-			//int MX=lat->MX;
 
 			if (phi_LB_X>0) phi[0]=phi_LB_X;
 			if (phi_UB_X>0) phi[M-1]=phi_UB_X;
@@ -1037,7 +985,6 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 	seg_nr_of_copy=-1;
 	state_nr_of_copy=-1;
 	ns=1;
-	//string s;
 	vector<string>options;
 	guess_u=0;
 	n_pos=0;
@@ -1081,7 +1028,6 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 
 		valence =0;
 		if (GetValue("valence").size()>0) {
-			//if (copy_of.size()>0) cout <<"For segment " << name << " value for valence will be overwritten by the value of segment " << copy_of << endl;
 			valence=In->Get_Real(GetValue("valence"),0);
 			if (valence<-10 || valence > 10) cout <<"For mon " + name + " valence value out of range -10 .. 10. Default value used instead" << endl;
 		}
@@ -1117,10 +1063,6 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		}
 	}
 
-	//if (GetValue("B").size()>0) {
-	//	B=In->Get_Real(GetValue("B"),B);
-	//	if (B <1e-9) {
-	//		cout <<"For Seg " + name + " mobility B should have be positive value " << endl;
 	//	}
 	//}
 
@@ -1228,7 +1170,6 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		}
 	}
 
-	//valence=In->Get_Real(GetValue("valence"),0);
 	bool HMD=false;
 	H_MASK = (Real*) malloc(lat->M*sizeof(Real));
 	r=(int*) malloc(6*sizeof(int)); std::fill(r,r+6,0);
@@ -1255,8 +1196,12 @@ void Segment::Put_beta(int ii, Real BETA) {
 
 Real Segment::Volume_particles() {
 	Real volume=0;
-	if (freedom=="frozen") Sum(volume,H_MASK,lat->M);
-	//cout <<"volume_particles of type "+name + "= " << volume << endl;
+	if (freedom=="frozen") {
+		volume = 0;
+	}
+	for (int __i = 0; __i < (lat->M); ++__i) {
+		volume += H_MASK[__i];
+	}
 	return 1.0*volume;
 }
 
@@ -1291,7 +1236,7 @@ if (debug) cout <<"PutAdsorptionGuess" + name << endl;
 		default:
 			break;
 	}
-	Boltzmann(G1,u,M);
+	for (int __i = 0; __i < (M); ++__i) (G1)[__i] = exp(-(u)[__i]);
 	return success;
 }
 
@@ -1313,7 +1258,6 @@ if (debug) cout <<"PutTorusPotential " + name << endl;
 	 		distance = sqrt((MX/2.0 -x)*(MX/2.0-x) + y*y);
 			if ((distance-R)*(distance-R)<8) {
 				u[x*JX+y]=-log(1.8)*sign; count++;
-				//cout << "at x " << x << "and y " << y << "potential is set" << endl;
 			}
 		}
 		int ylast=0;
@@ -1326,19 +1270,17 @@ if (debug) cout <<"PutTorusPotential " + name << endl;
 				if (!neg_found && (distance-R<0)) {
 					xlow = x; ylast=y;
 					neg_found=true; L+=lat->L[x*JX+y];
-					//cout <<"x " << x << "y " << y << endl;
 				}
 				if (neg_found && !pos_found && (distance-R)>0) {
 					xhigh=x; ylast=y;
 					pos_found=true; L+=lat->L[x*JX+y];
-					//cout <<"x " << x << "y " << y << endl;
 				}
 			}
 		}
 		for (int x=xlow+1; x<xhigh; x++) L+=lat->L[x*JX+ylast];
 		if (sign>0) cout << "Measured area is " << L << endl;
 		cout << "For segment " << name << ", 'torus potentials' set at " << count << "coordinates" << endl;
-		Boltzmann(G1,u,M);
+		for (int __i = 0; __i < (M); ++__i) (G1)[__i] = exp(-(u)[__i]);
 	} else {
 		success=false; cout <<" Probably the 'offset_first_layer' is too large so that the torus does not fit into the system.... Inital guess for torus is failing...."<<endl;
 	}
@@ -1350,7 +1292,7 @@ if (debug) cout <<"PutMembranePotential " + name << endl;
 	bool success=true;
 	int fjc=lat->fjc;
 	for (int x=1; x<4*fjc; x++) u[x]=-log(1.8)*sign;
-	Boltzmann(G1,u,lat->M);
+	for (int __i = 0; __i < (lat->M); ++__i) (G1)[__i] = exp(-(u)[__i]);
 	return success;
 }
 
@@ -1358,27 +1300,23 @@ void Segment::SetPhiSide(){
 if (debug) cout <<"SetPhiSide in Segment " + name << endl;
 	int M=lat->M;
 	if (ns==1) {
-		//if (freedom !="frozen") lat->set_bounds(phi);
 
 		lat->Side(phi_side,phi,M);
 	} else {
 		for (int i=0; i<ns; i++) {
-			Times(phi_state+i*M,alpha+i*M,phi,M);
+			for (int __i = 0; __i < (M); ++__i) (phi_state+i*M)[__i] = (alpha+i*M)[__i] * (phi)[__i];
 			lat->Side(phi_side+i*M,phi_state+i*M,M);
 			state_phibulk[i]=phibulk*state_alphabulk[i];
 		}
 	}
 	if (ns>1) {
-		//cout <<" seg " << name << endl;
-		//for (int i=0; i<ns; i++) {
-		//	cout <<"alphabulk " << state_alphabulk[i] << "valence " << state_valence[i] << endl;
-		//	for (int z=0; z<M; z++) cout <<  "phi("<< z<< ")= " << phi_state[z+i*M] << endl;
 		//}
 	}
 
 }
 
 bool Segment::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
+	(void)Var_target_value_;
 if (debug) cout << "Segment::PutVarInfo " << endl;
 	bool success=true;
 
@@ -1501,7 +1439,6 @@ if (debug) cout << "Segment::UpdateVarInfo() " << endl;
 				if (chi_var_state>-1) {
 					chi[length+chi_var_state] =Var_start_value+step_nr*Var_step;
 				}
-				//chi_value = Var_start_value+step_nr*Var_step;
 			}
 			break;
 		case 3:
@@ -1695,7 +1632,7 @@ if (debug) cout <<"Get Mask for segment" + name << endl;
 Real* Segment::GetPhi() {
 if (debug) cout <<"GetPhi in segment " + name << endl;
 	int M=lat->M;
-	if (freedom=="frozen") Cp(phi,MASK,M);
+	if (freedom=="frozen") std::copy_n(MASK, M, phi);
 	return phi;
 }
 
@@ -1791,7 +1728,7 @@ if (debug) cout <<"PushOutput for segment " + name << endl;
 
 	if (freedom == "frozen" || freedom == "pinned") {
 		Real num_of_points;
-		Sum(num_of_points,MASK,M);
+		(num_of_points) = 0; for (int __i = 0; __i < (M); ++__i) (num_of_points) += (MASK)[__i];
 		if (num_of_points==1) {
 			int px=0,py=0,pz=0;
 			int gradients=lat->gradients;
@@ -1799,16 +1736,18 @@ if (debug) cout <<"PushOutput for segment " + name << endl;
 			int JX=lat->JX;
 			int JY=lat->JY;
 			for (int i=0; i<M; i++) if (MASK[i]==1) point =i;
-			switch (gradients)  {
-				case 3 :
-						pz=(point%JX)%JY;
-						push("Range_z",pz);
-				case 2 :
-						py=(point%JX)/JY;
-						push("Range_y",py);
-				case 1 :
-						px=point/JX;
-						push("Range_x",px);
+				switch (gradients)  {
+					case 3 :
+							pz=(point%JX)%JY;
+							push("Range_z",pz);
+							[[fallthrough]];
+					case 2 :
+							py=(point%JX)/JY;
+							push("Range_y",py);
+							[[fallthrough]];
+					case 1 :
+							px=point/JX;
+							push("Range_x",px);
 				break;
 				default :
 				break;
@@ -1885,10 +1824,6 @@ if (debug) cout <<"PushOutput for segment " + name << endl;
 	}
 
 
-#ifdef CUDA
-	TransferDataToHost(H_phi, phi, M);
-	//TransferDataToHost(H_u, u, M);
-#endif
 }
 
 Real* Segment::GetPointer(string s, int &SIZE) {
@@ -1901,7 +1836,7 @@ if (debug) cout <<"Get Pointer for segment " + name << endl;
 
 	if (sub[1]=="0") {
 		if (freedom=="frozen") {
-			Cp(phi,MASK,M);
+			std::copy_n(MASK, M, phi);
 		} else lat->set_bounds(phi);
 		return phi;
 	}
@@ -1913,7 +1848,7 @@ if (debug) cout <<"Get Pointer for segment " + name << endl;
 		int JX=lat->JX;
 		int JY=lat->JY;
 		Real Sum;
-		Zero(phi_side,M); //phi_side is reused because this array is no longer needed (hopefully....).
+		std::fill_n(phi_side, M, 0); //phi_side is reused because this array is no longer needed (hopefully....).
 		for (int z=0; z<MZ; z++) {
 			Sum=0;
 			for (int x=1; x<MX+1; x++) for (int y=1; y<MY+1; y++)
@@ -2041,35 +1976,7 @@ if (debug) cout <<"AddState " << id_ <<" to seg " << name << endl;
 	return state_number;
 }
 
-/*
-void Segment::PutAlpha(Real* x,int &xi){
-if (debug) cout <<"PutAlpha " << name << endl;
 
-	int n_s;
-	if (ns==1) n_s=0; else n_s=ns;
-	if (n_s==0) return ;
-	Real sum_alpha=0;
-	Real fixed_value=0;
-	int niv=1;
-	int n_free=n_s-1;
-
-	for (int i=0; i<n_s; i++) {
-		if (!state_change[i]) {fixed_value+=state_alphabulk[i]; n_free--;} else state_alphabulk[i]=0; 	}
-
-	for (int i=0; i<n_s; i++) {
-
-		if (state_change[i] && niv>0 && n_free>0) {
-			state_alphabulk[i]=0.5*(1.0+tanh(2.0*x[xi]))*(1.0-fixed_value);
-//cout <<"iv : "<< xi <<" for "<< name << endl;
-			xi++; niv--;
-		}
-		sum_alpha+=state_alphabulk[i];
-	}
-	for (int i=0; i<n_s; i++) {
-		if (state_alphabulk[i]==0) state_alphabulk[i]=1.0-sum_alpha;
-	}
-}
-*/
 
 bool Segment::PutAlpha(Real alpha) { //expected to replace other method with same name.
 	bool success=true;
@@ -2099,9 +2006,6 @@ bool Segment::PutAlpha(Real alpha) { //expected to replace other method with sam
 		}
 	}
 
-	//cout << endl;
-	//cout <<"Seg " << name << endl;
-	//for (int i=0; i<n_s; i++) cout << "state[" << i << "].alpha_bulk = " << state_alphabulk[i] << endl;
 
 	return success;
 }

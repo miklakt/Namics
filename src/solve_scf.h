@@ -13,11 +13,9 @@
 #include "variate.h"
 #include "sfnewton.h"
 #include <functional>
-#include "Eigen/Core"
+#include <Eigen/Core>
 #include "LBFGS.h"
 
-//using Eigen::VectorXf;
-//using Eigen::MatrixXf;
 typedef Eigen::Matrix<Real,Eigen::Dynamic,1> Vector;
 typedef Eigen::Matrix<Real,Eigen::Dynamic,Eigen::Dynamic> Matrix;
 using namespace LBFGSpp;
@@ -90,25 +88,17 @@ public:
 	int GetValue(string,int&,Real&,string&);
 	enum iteration_method {HESSIAN,PSEUDOHESSIAN,PICARD,diis,conjugate_gradient,LBFGS,BRR};
 	enum inner_iteration_method {super,proceed};
-	enum gradient_method {classical, MESODYN, Picard, custum, WEAK};
+	enum gradient_method {classical, Picard, custum, WEAK};
 	iteration_method solver;
 	gradient_method gradient;
 	inner_iteration_method control;
 
 
-#ifdef CUDA
-	Real *x0;
-	Real *g;
-	Real *xR;
-	Real *x_x0;
-#endif
 	Real *xx;
 	Real *yy;
 	Vector x;
 	int *SIGN;
 	Real* alpha;
-	bool mesodyn;
-	Real* RHO;
 	int value_search;
 	int value_target;
 	int value_ets,old_value_ets;
@@ -125,11 +115,7 @@ public:
 
 	bool Solve(bool);
 
-	bool SolveMesodyn(function< void(Real*, size_t) >, function< Real*() >); //first argument should contain rho
-	function< Real*() > mesodyn_flux;
-
 	bool SuperIterate(int,int,int,int,int);
-	function< void(Real*, size_t) > mesodyn_load_alpha;
 	void DeAllocateMemory();
 	void AllocateMemory();
 	bool PrepareForCalculations(void);

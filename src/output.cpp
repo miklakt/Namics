@@ -18,8 +18,6 @@ if (debug) cout <<"constructor in Output "<< endl;
 	input_error=false;
 	bin_folder = "bin"; // folder in Namics where the binary is located
 	use_output_folder = true; // LINUX ONLY, when you remove this, add it as a default to its CheckInputs part.
-	//if (!CheckOutInput()) {input_error = true; cout << "Error found in ChcekOutInput in output module "<<endl;}
-	//if (!Load()) {input_error=true;  cout <<"Error found in load output items in output module " << endl; }
 	n_starts = In->GetNumStarts();
 	first=0;
 
@@ -185,8 +183,6 @@ int* Output::GetPointerInt(string key, string name, string prop, int &Size) {
 if (debug) cout << "GetPointerInt in output " << endl;
 	int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
-	//int aliaslistlength=In->AliasList.size();
-	//cout << key << " " << name << " " << prop << " " << Size << endl;
 	int listlength;
 	int choice;
 	int i,j;
@@ -258,7 +254,6 @@ Real* Output::GetPointer(string key, string name, string prop, int &Size) {
 if (debug) cout << "GetPointer in output " << endl;
 	int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
-	//int aliaslistlength;
 	int listlength;
 	int choice;
 	int i,j;
@@ -276,7 +271,6 @@ if (debug) cout << "GetPointer in output " << endl;
 				if (prop==Sys->strings[j]) return Sys->GetPointer(Sys->strings_value[j],Size);
 				j++;
 			}
-			//return Sys->GetPointer(prop,Size);
 			break;
 		case 2:
 			i=0;
@@ -389,7 +383,6 @@ if (debug) cout << "GetValue (long) in output " << endl;
 void Output::WriteOutput(int subl) {
 if (debug) cout << "WriteOutput in output " + name << endl;
 	lat->subl=subl;
-	//cout <<"subl : " << subl << endl;
 	if (!write) return;
 	int length;
 	int Size=0;
@@ -500,7 +493,6 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 			default:
 				break;
 		}
-		//fprintf(fp,"x\t y\t z\t");
 		for (int i=0; i<length; i++) {
 			Real*  X = GetPointer(OUT_key[i],OUT_name[i],OUT_prop[i],Size);
 			if (X!=NULL) {
@@ -571,15 +563,11 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 	}
 
 	if (name=="vtk") {
-		if (New->mesodyn == true) {
-			// do nothing, 'cause Mesodyn likes to run its own business.
-		} else {
-			Real*  X = GetPointer(OUT_key[0],OUT_name[0],OUT_prop[0],Size);
-			key = OUT_key[0];
-			string s=key.append(sep).append(OUT_name[0]).append(sep).append(OUT_prop[0]);
-			if (!(X==NULL))
-			lat->vtk(filename,X,s,write_bounds); else {cout << "vtk file was not generated because 'profile' was not found for " << s << endl;}
-		}
+		Real*  X = GetPointer(OUT_key[0],OUT_name[0],OUT_prop[0],Size);
+		key = OUT_key[0];
+		string s=key.append(sep).append(OUT_name[0]).append(sep).append(OUT_prop[0]);
+		if (!(X==NULL))
+		lat->vtk(filename,X,s,write_bounds); else {cout << "vtk file was not generated because 'profile' was not found for " << s << endl;}
 	}
 
 
@@ -590,7 +578,6 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 		strftime (timestamp_str,80,"%FT%T",localtime(&now));
 		FILE *fp;
 		if (append) fp=fopen(filename.c_str(),"a"); else fp=fopen(filename.c_str(),"w");
-		//fprintf(fp,"version: %s %s",version.c_str(),ctime(&now));
 //System parameters
 		s="sys : " + Sys->name + " :";
 		fprintf(fp,"%s version : %s\n",s.c_str(),version.c_str());
@@ -825,6 +812,7 @@ if (debug) cout << "printlist in output " << endl;
 }
 
 int Output::GetValue(string prop, string mod, int& int_result, Real& Real_result, string& string_result) {
+	(void)mod;
   int i = 0;
   int_result=0;
   int length = ints.size();
@@ -875,7 +863,6 @@ void Output::push(string s, Real X) {
   Reals_value.push_back(X);
 }
 void Output::push(string s, int X) {
-//cout <<"push in output is activated with " << s << X << endl;
   ints.push_back(s);
   ints_value.push_back(X);
 }
@@ -890,57 +877,4 @@ void Output::push(string s, string X) {
 }
 
 
-/*
-#ifdef CUDA
-	TransferDataToHost(H_u,u,MM);
-#endif
-	vtk_output(fname+"_pot.vtk",H_u);
-#ifdef CUDA
-	TransferDataToHost(H_phi,phi,4*MM);
-#endif
 
-	Cp(PHI,H_phi+2*MM,MM); Add(PHI,phi+3*MM,MM);
-	vtk_output(fname+"_phi.vtk",PHI);
-
-	ofstream varfile;
-	varfile.open ("surf_profile.dat");
-	for (int z=1; z<MZ; z++){
-		varfile << z <<"\t" << PHI[10*JX+40*JY+ z] << endl;
-		}
-	varfile.close();
-
-	ofstream varfile2;
-	varfile2.open ("surf_profile_part_1.dat");
-	for (int z=1; z<MZ; z++){
-		varfile2 << z <<"\t" << PHI[15*JX+35*JY+ z] << endl;
-		}
-	varfile2.close();
-
-
-
-
-	Cp(PHI,H_phi,MM);
-	vtk_output(fname+"A_phi.vtk",PHI);
-
-	ofstream varfile3;
-	varfile3.open ("mol_profile.dat");
-	for (int z=1; z<MZ; z++){
-		varfile3 << z <<"\t" << PHI[10*JX+40*JY+ z] << endl;
-		}
-	varfile3.close();
-
-	ofstream varfile4;
-	varfile4.open ("mol_profile_part_1.dat");
-	for (int z=1; z<MZ; z++){
-		varfile4 << z <<"\t" << PHI[15*JX+35*JY+ z] << endl;
-		}
-	varfile4.close();
-
-
-	Cp(PHI,H_phi+MM,MM);
-	vtk_output(fname+"B_phi.vtk",PHI);
-	filename=fname+".out";
-	out_file.open(filename.c_str());
-	out_file << "Free_energy : " << Free_energy << endl;
-	out_file.close();
-*/

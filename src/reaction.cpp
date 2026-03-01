@@ -12,17 +12,12 @@ Reaction::~Reaction() {
 void Reaction::DeAllocateMemory(){
 if (debug) cout <<"Destructor for Reaction " + name << endl; 
 
-#ifdef CUDA
-
-#else
-#endif	
 }
 
 void Reaction::AllocateMemory(int Clamp_nr, int n_box) {
+	(void)n_box;
+	(void)Clamp_nr;
 if (debug) cout <<"AllocateMemory in Reaction " + name << endl;
-#ifdef CUDA
-#else 
-#endif
 	
 }
 
@@ -183,16 +178,17 @@ if (debug) cout <<"PushOutput in Reaction " + name << endl;
 	ints_value.clear();  
 	push("equation",equation);
 	push("pK",pK);
-#ifdef CUDA
-
-#endif
 }
 
 Real* Reaction::GetPointer(string s,int &SIZE) {
+	(void)SIZE;
+	(void)s;
 if (debug) cout <<"GetPointer in Reaction " + name << endl;
 	return NULL;
 }
 int* Reaction::GetPointerInt(string s, int &SIZE) {
+	(void)SIZE;
+	(void)s;
 if (debug) cout <<"GetPointerInt in Reaction " + name << endl;
 	return NULL;
 }
@@ -265,7 +261,6 @@ Real Reaction::Residual_value() { //only working when chi are not state dependen
 	Real alphab=0;
 	int length=Sto.size();
 	for (int i=0; i<length; i++) {
-//cout << "Seg_nr[i]" << Seg[Seg_nr[i]]->name << " State_in_seg_nr [i] " << State_in_seg_nr[i] << endl; 
 		alphab=Seg[Seg_nr[i]]->state_alphabulk[State_in_seg_nr[i]];
 		if (alphab>0) res_value-=Sto[i]*log10(alphab); else {
 			
@@ -277,7 +272,6 @@ Real Reaction::Residual_value() { //only working when chi are not state dependen
 }
 
 bool Reaction::PutAlpha(Real alpha) {
-//cout <<"guess for alpha " << alpha << endl; 
 	bool success=true;
 	int water=-1;
 	int other=-1;
@@ -296,7 +290,6 @@ bool Reaction::PutAlpha(Real alpha) {
 bool Reaction::GuessAlpha() {
 	bool success=true;
 	Real alpha_f=-1;
-	//Real alpha=0;
 	int length=Sto.size();
 	Real k=pow(10,-pKeff());
 	int water=-1;
@@ -336,9 +329,6 @@ bool Reaction::GuessAlpha() {
 				}
 			}
 		}
-//cout << endl; 
-//cout <<"Seg " << Seg[water]->name << endl;
-//for (int i=0; i<Seg[water]->ns; i++) cout << "state[" << i << "].alpha_bulk = " << Seg[water]->state_alphabulk[i] << endl;  
 
 
 	} else {
@@ -368,9 +358,6 @@ bool Reaction::GuessAlpha() {
 		Seg[other]->state_alphabulk[state2]=k/(k+1);
 		Seg[other]->state_alphabulk[state1]=1/(k+1); 
 
-//cout << endl; 
-//cout <<"Seg " << Seg[other]->name << endl;
-//for (int i=0; i<Seg[other]->ns; i++) cout << "state[" << i << "].alpha_bulk = " << Seg[other]->state_alphabulk[i] << endl;  
 
 
 	}
@@ -379,6 +366,7 @@ bool Reaction::GuessAlpha() {
 }
 
 bool Reaction::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
+	(void)Var_target_value_;
 if (debug) cout << "Reaction::PutVarInfo " << endl;
 	bool success=true;
 	Var_target=-1;
@@ -392,6 +380,7 @@ if (debug) cout << "Reaction::PutVarInfo " << endl;
 }
 
 int Reaction::PutVarScan(Real step, Real end_value, int steps, string scale_) {
+	(void)steps;
 if (debug) cout << "Reaction::PutVarScan " << endl;
 	num_of_steps=-1;
 	scale=scale_;

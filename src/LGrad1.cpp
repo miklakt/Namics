@@ -190,12 +190,12 @@ if (debug) cout << "PutM in LGrad1 " << endl;
 
 void LGrad1::TimesL(Real* X){
 if (debug) cout << "TimesL in LGrad1 " << endl;
-	if (geometry!="planar") Times(X,X,L,M);
+	if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = (X)[__i] * (L)[__i];
 }
 
 void LGrad1::DivL(Real* X){
 if (debug) cout << "DivL in LGrad1 " << endl;
-	if (geometry!="planar") Div(X,L,M);
+	if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = ((L)[__i] != 0) ? ((X)[__i] / (L)[__i]) : 0;
 }
 
 Real LGrad1:: Moment(Real* X,Real Xb, int n) {
@@ -211,6 +211,9 @@ if (debug) cout << "Moment in LGrad1 " << endl;
 }
 
 Real LGrad1::MomentPlanar(Real* X,int n,Real Z0){
+	(void)Z0;
+	(void)n;
+	(void)X;
 	cout <<"MomentPlanar not implemented; kJ0 or kbar may be wrong. " << endl;
 	return 0;
 }
@@ -220,12 +223,16 @@ if (debug) cout << "weighted sum in LGrad1 " << endl;
 	Real sum{0};
 	remove_bounds(X);
 	if (geometry=="planar") {
-		Sum(sum,X,M); sum/=fjc;
-	} else Dot(sum,X,L,M);
+		(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i]; sum/=fjc;
+	} else (sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i] * (L)[__i];
 	return sum;
 }
 
 void LGrad1::vtk(string filename, Real* X, string id,bool writebounds) {
+	(void)writebounds;
+	(void)id;
+	(void)X;
+	(void)filename;
 if (debug) cout << "vtk in LGrad1 " << endl;
 	cout << "for system with one gradient there is no VTK output available " << endl;
 }
@@ -238,7 +245,6 @@ if (debug) cout <<"PutProfiles in LGrad1 " << endl;
 	if (writebounds) a=0; else a = fjc;
 
 	for (x=a; x<MX+2*fjc-a; x++){
-		//fprintf(pf,"%e\t",offset_first_layer+1.0*x/fjc-1/(2.0*fjc));
 #ifdef LongReal
 		fprintf(pf,"%Le\t",offset_first_layer/fjc+1.0*(x-fjc+1)/fjc-0.5/fjc); //g - e
 		for (i=0; i<length; i++)
@@ -257,29 +263,29 @@ void LGrad1::Side(Real *X_side, Real *X, int M) { //this procedure should use th
 if (debug) cout <<" Side in LGrad1 " << endl;
 
 	if (ignore_sites) {
-		Cp(X_side,X,M); return;
+		std::copy_n(X, M, X_side); return;
 	}
-	Zero(X_side,M);//set_bounds(X);
+	std::fill_n(X_side, M, 0);//set_bounds(X);
 	int j, kk;
 
 	if (fcc_sites) {
-		AddTimes(X_side,X,fcc_lambda0,M);
-		AddTimes(X_side+1,X,fcc_lambda_1+1,M-1);
-		AddTimes(X_side,X+1,fcc_lambda1,M-1);
+		for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (X)[__i] * (fcc_lambda0)[__i];
+		for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (X)[__i] * (fcc_lambda_1+1)[__i];
+		for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (X+1)[__i] * (fcc_lambda1)[__i];
 
 	} else {
 		if (fjc==1) {
-			AddTimes(X_side,X,lambda0,M);
-			AddTimes(X_side+1,X,lambda_1+1,M-1);
-			AddTimes(X_side,X+1,lambda1,M-1);
+			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (X)[__i] * (lambda0)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (X)[__i] * (lambda_1+1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (X+1)[__i] * (lambda1)[__i];
 		} else {
 
 			for (j = 0; j < FJC/2; j++) {
 				kk = (FJC-1)/2-j;
-				AddTimes(X_side+kk, X, LAMBDA+j*M+kk, M-kk);
-				AddTimes(X_side, X+kk, LAMBDA+(FJC-j-1)*M, M-kk);
+				for (int __i = 0; __i < (M-kk); ++__i) (X_side+kk)[__i] += (X)[__i] * (LAMBDA+j*M+kk)[__i];
+				for (int __i = 0; __i < (M-kk); ++__i) (X_side)[__i] += (X+kk)[__i] * (LAMBDA+(FJC-j-1)*M)[__i];
 			}
-			AddTimes(X_side, X, LAMBDA+(FJC-1)/2*M, M);
+			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (X)[__i] * (LAMBDA+(FJC-1)/2*M)[__i];
 
 		}
 	}
@@ -292,7 +298,7 @@ void LGrad1::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 	Real *gs_1=G+FJC*M*(s_from);
 	Real *g =G1;
 
-	Zero (gs,M*FJC);
+	std::fill_n(gs, M*FJC, 0);
 	for (int k=0; k<(FJC-1)/2; k++) set_bounds(gs_1+k*M,gs_1+(FJC-k-1)*M);
 	set_bounds(gs_1+(FJC-1)/2*M);
 
@@ -309,44 +315,44 @@ void LGrad1::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 					c=P[abs(-p+q)];
 					if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
 					if (a>0) {
-						Times   (H+b,   l_1+a,   gs_1+q*M+b,            M-a-b);
-				  		AddTimes(H+b,   l_11+a,  gs_1+(FJC-1-q)*M+a,    M-a-b);
+						for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (l_1+a)[__i] * (gs_1+q*M+b)[__i];
+				  		for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (l_11+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
 					}
 					if (b>0) {
-						Times   (H+b,   l1+a,   gs_1+q*M+b,            M-a-b);
-				  		AddTimes(H+b,   l11+a,  gs_1+(FJC-1-q)*M+a,    M-a-b);
+						for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (l1+a)[__i] * (gs_1+q*M+b)[__i];
+				  		for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (l11+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
 					}
 					if (a+b>0){
-				  		if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
+				  		if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (H+b)[__i];
 					} else {
-						if (c!=0) YplusisCtimesX(gs+p*M,gs_1+q*M,c,M);
+						if (c!=0) for (int __i = 0; __i < (M); ++__i) (gs+p*M)[__i] += (c) * (gs_1+q*M)[__i];
 					}
 				}
 			}
-			for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
+			for (int k=0; k<FJC; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		} else {
-			Times   (H,   l_1 +1,  gz0,    M-1);
-			AddTimes(H,   l_11+1,  gz2+1,  M-1);
-			YplusisCtimesX(gx0+1,H,P[0],M-1);
+			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] = (l_1 +1)[__i] * (gz0)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] += (l_11+1)[__i] * (gz2+1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gx0+1)[__i] += (P[0]) * (H)[__i];
 
 				//LReflect(H,gz1,gz1);
-			Times   (H,   l_1 +1,  gz1,    M-1);
-			AddTimes(H,   l_11+1,  gz1+1,  M-1);
-			YplusisCtimesX(gx0+1,H,4*P[1],M-1);
+			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] = (l_1 +1)[__i] * (gz1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] += (l_11+1)[__i] * (gz1+1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gx0+1)[__i] += (4*P[1]) * (H)[__i];
 
-			YplusisCtimesX(gx1,gz0,P[1],M);
-			YplusisCtimesX(gx1,gz1,2*P[1]+P[0],M);
-			YplusisCtimesX(gx1,gz2,P[1],M);
+			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (P[1]) * (gz0)[__i];
+			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (2*P[1]+P[0]) * (gz1)[__i];
+			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (P[1]) * (gz2)[__i];
 
 				//UReflect(H,gz1,gz1);
-			Times   (H+1, l1,      gz1+1,  M-1);
-			AddTimes(H+1, l11,     gz1,    M-1);
-			YplusisCtimesX(gx2,H+1,4*P[1],M-1);
+			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] = (l1)[__i] * (gz1+1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] += (l11)[__i] * (gz1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gx2)[__i] += (4*P[1]) * (H+1)[__i];
 				//UReflect(H,gz2,gz0);
-			Times   (H+1, l1,      gz2+1,  M-1);
-			AddTimes(H+1, l11,     gz0,    M-1);
-			YplusisCtimesX(gx2,H+1,P[0],M-1);
-			for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
+			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] = (l1)[__i] * (gz2+1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] += (l11)[__i] * (gz0)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gx2)[__i] += (P[0]) * (H+1)[__i];
+			for (int k=0; k<FJC; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		}
 	} else {
 		int a,b; Real c;
@@ -355,12 +361,12 @@ void LGrad1::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int q=0; q<FJC; q++) {
 				c=P[abs(-p+q)];
 				if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-				Times   (H+b,   LABDA+p*M+a,    gs_1+q*M+b,            M-a-b);
-				AddTimes(H+b,   LABDA_1+p*M+a,  gs_1+(FJC-1-q)*M+a,    M-a-b);
-				if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
+				for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (LABDA+p*M+a)[__i] * (gs_1+q*M+b)[__i];
+				for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (LABDA_1+p*M+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
+				if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (H+b)[__i];
 			}
 		}
-		for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
+		for (int k=0; k<FJC; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 	}
 }
 
@@ -369,7 +375,7 @@ void LGrad1::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 	Real *gs_1=G+FJC*M*(s_from);
 	Real *g =G1;
 
-	Zero (gs,M*FJC);
+	std::fill_n(gs, M*FJC, 0);
 	for (int k=0; k<(FJC-1)/2; k++) set_bounds(gs_1+k*M,gs_1+(FJC-k-1)*M);
 	set_bounds(gs_1+(FJC-1)/2*M);
 
@@ -382,54 +388,54 @@ void LGrad1::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int q=FJC-1; q>-1; q--){
 				a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
 				if (a>0) {
-					Times   (H+b,   l_1+a,   gs_1+q*M+b,        M-a-b);
-					AddTimes(H+b,   l_11+a,  gs_1+(FJC-1-q)*M+a,M-a-b);
+					for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (l_1+a)[__i] * (gs_1+q*M+b)[__i];
+					for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (l_11+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
 				}
 				if (b>0) {
-					Times   (H+b,   l1+a,   gs_1+q*M+b,        M-a-b);
-					AddTimes(H+b,   l11+a,  gs_1+(FJC-1-q)*M+a,M-a-b);
+					for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (l1+a)[__i] * (gs_1+q*M+b)[__i];
+					for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (l11+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
 				}
 				for (int p=FJC-1; p>-1; p--) {
 					c=P[abs(-p+q)];
 					if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
 					if (a+b>0) {
-						if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
+						if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (H+b)[__i];
 					} else {
-						if (c!=0) YplusisCtimesX(gs+p*M,gs_1+q*M,c,M);
+						if (c!=0) for (int __i = 0; __i < (M); ++__i) (gs+p*M)[__i] += (c) * (gs_1+q*M)[__i];
 					}
 				}
 			}
-			for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
+			for (int k=0; k<FJC; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		} else {
-			Times   (H,   l_1 +1,  gz2,    M-1);
-			AddTimes(H,   l_11+1,  gz0+1,  M-1);
-			YplusisCtimesX(gx1+1,H,P[1],M-1);
-			YplusisCtimesX(gx2+1,H,P[0],M-1);
+			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] = (l_1 +1)[__i] * (gz2)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] += (l_11+1)[__i] * (gz0+1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gx1+1)[__i] += (P[1]) * (H)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gx2+1)[__i] += (P[0]) * (H)[__i];
 
-			YplusisCtimesX(gx0,gz1,4*P[1],M);
-			YplusisCtimesX(gx1,gz1,2*P[1]+P[0],M);
-			YplusisCtimesX(gx2,gz1,4*P[1],M);
+			for (int __i = 0; __i < (M); ++__i) (gx0)[__i] += (4*P[1]) * (gz1)[__i];
+			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (2*P[1]+P[0]) * (gz1)[__i];
+			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (4*P[1]) * (gz1)[__i];
 
-			Times   (H+1, l1,      gz0+1,  M-1);
-			AddTimes(H+1, l11,     gz2,    M-1);
-			YplusisCtimesX(gx0,H+1,P[0],M-1);
-			YplusisCtimesX(gx1,H+1,P[1],M-1);
-			for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
+			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] = (l1)[__i] * (gz0+1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] += (l11)[__i] * (gz2)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gx0)[__i] += (P[0]) * (H+1)[__i];
+			for (int __i = 0; __i < (M-1); ++__i) (gx1)[__i] += (P[1]) * (H+1)[__i];
+			for (int k=0; k<FJC; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		}
 	} else {
 		int a,b; Real c;
 
 		for (int q=FJC-1; q>-1; q--){
 			a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
-			Times   (H+b,   LABDA+(FJC-1-q)*M+a,    gs_1+q*M+b,        M-a-b);
-			AddTimes(H+b,   LABDA_1+(FJC-1-q)*M+a,  gs_1+(FJC-1-q)*M+a,M-a-b);
+			for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (LABDA+(FJC-1-q)*M+a)[__i] * (gs_1+q*M+b)[__i];
+			for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (LABDA_1+(FJC-1-q)*M+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
 			for (int p=FJC-1; p>-1; p--) {
 				c=P[abs(-p+q)];
 				if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-				if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
+				if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (H+b)[__i];
 			}
 		}
-		for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
+		for (int k=0; k<FJC; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 	}
 }
 
@@ -439,27 +445,30 @@ if (debug) cout <<" propagate in LGrad1 " << endl;
 	Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
 	int kk;
 	int j;
-	Zero(gs,M); set_bounds(gs_1);
+	std::fill_n(gs, M, 0); set_bounds(gs_1);
 
 	if (fjc==1) {
-		AddTimes(gs,gs_1,lambda0,M);
-		AddTimes(gs+1,gs_1,lambda_1+1,M-1);
-		AddTimes(gs,gs_1+1,lambda1,M-1);
-		Times(gs,gs,G1,M);
+		for (int __i = 0; __i < (M); ++__i) (gs)[__i] += (gs_1)[__i] * (lambda0)[__i];
+		for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (gs_1)[__i] * (lambda_1+1)[__i];
+		for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (gs_1+1)[__i] * (lambda1)[__i];
+		for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 
 	} else {
 		for (j = 0; j < FJC/2; j++) {
 			kk = (FJC-1)/2-j;
-			AddTimes(gs+kk, gs_1, LAMBDA+j*M+kk, M-kk);
-			AddTimes(gs, gs_1+kk, LAMBDA+(FJC-j-1)*M, M-kk);
+			for (int __i = 0; __i < (M-kk); ++__i) (gs+kk)[__i] += (gs_1)[__i] * (LAMBDA+j*M+kk)[__i];
+			for (int __i = 0; __i < (M-kk); ++__i) (gs)[__i] += (gs_1+kk)[__i] * (LAMBDA+(FJC-j-1)*M)[__i];
 		}
-		AddTimes(gs, gs_1, LAMBDA+(FJC-1)/2*M, M);
-		Times(gs, gs, G1, M);
+		for (int __i = 0; __i < (M); ++__i) (gs)[__i] += (gs_1)[__i] * (LAMBDA+(FJC-1)/2*M)[__i];
+		for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 	}
 }
 
 
 bool LGrad1::ReadRange(int* r, int* H_p, int &n_pos, bool &block, string range, int var_pos, string seg_name, string range_type) {
+	(void)var_pos;
+	(void)n_pos;
+	(void)H_p;
 if (debug) cout <<"ReadRange in LGrad1 " << endl;
 	bool success=true;
 	vector<string>set;
@@ -542,6 +551,8 @@ if (debug) cout <<"ReadRangeFile in LGrad1 " << endl;
 }
 
 bool LGrad1::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, string filename) {
+	(void)pz;
+	(void)py;
 	bool success=true;
 	bool readfile=false;
 	int length=0;
@@ -593,15 +604,26 @@ if (debug) cout <<"CreateMask for LGrad1 " + name << endl;
 
 Real LGrad1::ComputeTheta(Real* phi) {
 	Real result=0; remove_bounds(phi);
-	if (geometry !="planar") Dot(result,phi,L,M);
-	else {if (fjc==1) Sum(result,phi,M); else  Dot(result,phi,L,M);}
+	if (geometry !="planar") {
+		result = 0;
+		for (int __i = 0; __i < M; ++__i) result += phi[__i] * L[__i];
+	} else {
+		if (fjc==1) {
+			result = 0;
+			for (int __i = 0; __i < M; ++__i) result += phi[__i];
+		} else {
+			result = 0;
+			for (int __i = 0; __i < M; ++__i) result += phi[__i] * L[__i];
+		}
+	}
 	return result/fjc;
 }
 
 void LGrad1::UpdateEE(Real* EE, Real* psi, Real* E) {
+	(void)E;
 	Real pf=0.5*eps0*bond_length/k_BT*(k_BT/e)*(k_BT/e); //(k_BT/e) is to convert dimensionless psi to real psi; 0.5 is needed in weighting factor.
 	set_M_bounds(psi);
-	Zero(EE,M);
+	std::fill_n(EE, M, 0);
 	Real Exmin,Explus;
 	int x;
 	int r;
@@ -619,29 +641,7 @@ void LGrad1::UpdateEE(Real* EE, Real* psi, Real* E) {
 		}
 
 
-/*
-		pf=pf*PIE;
-		r=offset_first_layer*fjc-1.5;
-		if (offset_first_layer <=0) {
-			r++;
-			Explus = psi[fjc+1]-psi[fjc+2];
-			Explus *=(r+0.5)*Explus;
-			EE[fjc+1]=pf*Explus/L[fjc+1];
-			x=fjc+2;
-		} else {
-			Explus=psi[fjc]-psi[fjc+1];
-			Explus *=(r+0.5)*Explus;
-			x=fjc+1;
-		}
 
-		for (; x<MX+fjc; x++) {
-			r +=1.0;
-			Exmin=Explus;
-			Explus=(psi[x]-psi[x+1]);
-			Explus *= (r+0.5)*Explus;
-			EE[x]=pf*(Exmin+Explus)/L[x];
-		}
-*/
 
 	}
 	if (geometry=="spherical" ) {
@@ -680,7 +680,6 @@ void LGrad1::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 			r++;
 			epsXmin=epsXplus;
 			epsXplus=r*(eps[x]+eps[x+1]);
-			//a=b; b=c; c=psi[x+1];
 			//X[x]=(epsXmin*a + C*q[x]*L[x] + epsXplus*c)/(epsXmin+epsXplus);
 			if (x==fjc) a=psi[fjc-1]; else a=X[x-1]; //upwind
 			X[x]=(epsXmin*a  +C*q[x]*L[x] + epsXplus*psi[x+1])/(epsXmin+epsXplus);
@@ -699,8 +698,7 @@ void LGrad1::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 			X[x]=(epsXmin*a + C*q[x]*L[x] + epsXplus*c)/(epsXmin+epsXplus);
 		 }
 	}
-	//Cp(psi,X,M);
-	YisAminB(g,g,X,M);
+	for (int __i = 0; __i < (M); ++__i) (g)[__i] = (g)[__i] - (X)[__i];
    } else { //fixedPsi0 is true
 	a=0; b=psi[fjc-1]; c=psi[fjc];
 	for (x=fjc; x<MX+fjc; x++) {
@@ -890,25 +888,25 @@ void LGrad1::AddPhiS(Real* phi,Real* Gf,Real* Gb,int Markov, int M){
 			if (fjc==1) {
 				Real C1=1.0/4.0;
 				Real C2=2.0/4.0;
-				YplusisCtimesAtimesB(phi,Gf,    Gb,    C1,M);
-				YplusisCtimesAtimesB(phi,Gf+1*M,Gb+1*M,C2,M);
-				YplusisCtimesAtimesB(phi,Gf+2*M,Gb+2*M,C1,M);
+				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf)[__i] * (Gb)[__i];
+				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C2) * (Gf+1*M)[__i] * (Gb+1*M)[__i];
+				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf+2*M)[__i] * (Gb+2*M)[__i];
 			} else {
 				Real C1=0.5/(FJC-1.0);
 				Real C2=1.0/(FJC-1.0);
-				YplusisCtimesAtimesB(phi,Gf,    Gb,   C1,M);
-				for (int k=1; k<FJC-1; k++) YplusisCtimesAtimesB(phi,Gf+k*M,Gb+k*M,C2,M);
-				YplusisCtimesAtimesB(phi,Gf+(FJC-1)*M,Gb+(FJC-1)*M,C1,M);
+				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf)[__i] * (Gb)[__i];
+				for (int k=1; k<FJC-1; k++) for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C2) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
+				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf+(FJC-1)*M)[__i] * (Gb+(FJC-1)*M)[__i];
 			}
 		} else { //markov=2 cubic fjc=1
 			Real C1=1.0/6.0;
 			Real C2=4.0/6.0;
-			YplusisCtimesAtimesB(phi,Gf,    Gb,    C1,M);
-			YplusisCtimesAtimesB(phi,Gf+1*M,Gb+1*M,C2,M);
-			YplusisCtimesAtimesB(phi,Gf+2*M,Gb+2*M,C1,M);
+			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf)[__i] * (Gb)[__i];
+			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C2) * (Gf+1*M)[__i] * (Gb+1*M)[__i];
+			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf+2*M)[__i] * (Gb+2*M)[__i];
 		}
 	} else {
-		AddTimes(phi,Gf,Gb,M);
+		for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (Gf)[__i] * (Gb)[__i];
 	}
 }
 
@@ -916,16 +914,16 @@ void LGrad1::AddPhiS(Real* phi,Real* Gf,Real* Gb, Real degeneracy, int Markov, i
 if (debug) cout <<"AddPhiS_degeneracy markov " << endl;
 	if (Markov==2) {
 		if (lattice_type ==hexagonal) {
-			YplusisCtimesAtimesB(phi,Gf,Gb,degeneracy*0.5/(FJC-1.0),M);
-			for (int k=1; k<FJC-1; k++) YplusisCtimesAtimesB(phi,Gf+k*M,Gb+k*M,degeneracy/(FJC-1.0),M);
-			YplusisCtimesAtimesB(phi,Gf+(FJC-1)*M,Gb+(FJC-1)*M,degeneracy*0.5/(FJC-1.0),M);
+			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy*0.5/(FJC-1.0)) * (Gf)[__i] * (Gb)[__i];
+			for (int k=1; k<FJC-1; k++) for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/(FJC-1.0)) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
+			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy*0.5/(FJC-1.0)) * (Gf+(FJC-1)*M)[__i] * (Gb+(FJC-1)*M)[__i];
 		} else {
-			YplusisCtimesAtimesB(phi,Gf,Gb,degeneracy/6.0,M);
-			YplusisCtimesAtimesB(phi,Gf+1*M,Gb+1*M,degeneracy*4.0/6.0,M);
-			YplusisCtimesAtimesB(phi,Gf+2*M,Gb+2*M,degeneracy/6.0,M);
+			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/6.0) * (Gf)[__i] * (Gb)[__i];
+			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy*4.0/6.0) * (Gf+1*M)[__i] * (Gb+1*M)[__i];
+			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/6.0) * (Gf+2*M)[__i] * (Gb+2*M)[__i];
 		}
 	} else {
-		YplusisCtimesAtimesB(phi,Gf,Gb,degeneracy,M);
+		for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy) * (Gf)[__i] * (Gb)[__i];
 	}
 }
 
@@ -933,26 +931,25 @@ void LGrad1::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real* G1, Real norm, int Markov
 if (debug) cout <<"AddPhiS_norm_markov " << endl;
 	if (Markov==2) {
 		if (lattice_type ==hexagonal) {
-			Composition (phi,Gf,Gb,G1,norm*0.5/(FJC-1.0),M);
-			for (int k=1; k<FJC-1; k++) Composition (phi,Gf+k*M,Gb+k*M,G1,norm/(FJC-1.0),M);
-			Composition (phi,Gf+(FJC-1)*M,Gb+(FJC-1)*M,G1,norm*0.5/(FJC-1.0),M);
+			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm*0.5/(FJC-1.0)) * (Gf)[__i] * (Gb)[__i] / (G1)[__i];
+			for (int k=1; k<FJC-1; k++) for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm/(FJC-1.0)) * (Gf+k*M)[__i] * (Gb+k*M)[__i] / (G1)[__i];
+			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm*0.5/(FJC-1.0)) * (Gf+(FJC-1)*M)[__i] * (Gb+(FJC-1)*M)[__i] / (G1)[__i];
 		} else {
-			//if (fjc>1) cout<<"AddPhiS in cubic lattice, Markov=2 FJC_choice >3 not implemented" << endl;
-			Composition (phi,Gf,Gb,G1,norm/6.0,M);
-			Composition (phi,Gf+1*M,Gb+1*M,G1,norm*4.0/6.0,M);
-			Composition (phi,Gf+2*M,Gb+2*M,G1,norm/6.0,M);
+			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm/6.0) * (Gf)[__i] * (Gb)[__i] / (G1)[__i];
+			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm*4.0/6.0) * (Gf+1*M)[__i] * (Gb+1*M)[__i] / (G1)[__i];
+			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm/6.0) * (Gf+2*M)[__i] * (Gb+2*M)[__i] / (G1)[__i];
 		}
 	} else {
-		Composition (phi,Gf,Gb,G1,norm,M);
+		for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm) * (Gf)[__i] * (Gb)[__i] / (G1)[__i];
 	}
 }
 
 
 void LGrad1::Initiate(Real* G,Real* Gz,int Markov, int M){
 	if (Markov==2) {
-		for (int k=0; k<FJC; k++) Cp(G+k*M,Gz,M);
+		for (int k=0; k<FJC; k++) std::copy_n(Gz, M, G+k*M);
 	} else {
-		Cp(G,Gz,M);
+		std::copy_n(Gz, M, G);
 	}
 }
 
@@ -960,23 +957,32 @@ void LGrad1::Terminate(Real* Gz ,Real* G, int Markov, int M){
 if (debug) cout <<"LGrad1::Terminate " << endl;
 	Real one=1.0;
 	if (Markov==2) {
-		Zero(Gz,M);
+		std::fill_n(Gz, M, 0);
 		if (lattice_type == simple_cubic) {
-			Add(Gz,G+M,M); Norm(Gz,4.0*one,M);
-			Add(Gz,G,M); Add(Gz,G+2*M,M);
-			Norm(Gz,1.0/6.0*one,M);
+			for (int __i = 0; __i < M; ++__i) Gz[__i] += (G + M)[__i];
+			for (int __i = 0; __i < (M); ++__i) (Gz)[__i] *= (4.0*one);
+			for (int __i = 0; __i < M; ++__i) Gz[__i] += G[__i];
+			for (int __i = 0; __i < M; ++__i) Gz[__i] += (G + 2 * M)[__i];
+			for (int __i = 0; __i < (M); ++__i) (Gz)[__i] *= (1.0/6.0*one);
 		} else {
-			Add(Gz,G+M,M); Norm(Gz,2.0*one,M);
-			Add(Gz,G,M); Add(Gz,G+2*M,M);
-			Norm(Gz,1.0/4.0*one,M);
+			for (int __i = 0; __i < M; ++__i) Gz[__i] += (G + M)[__i];
+			for (int __i = 0; __i < (M); ++__i) (Gz)[__i] *= (2.0*one);
+			for (int __i = 0; __i < M; ++__i) Gz[__i] += G[__i];
+			for (int __i = 0; __i < M; ++__i) Gz[__i] += (G + 2 * M)[__i];
+			for (int __i = 0; __i < (M); ++__i) (Gz)[__i] *= (1.0/4.0*one);
 
 		}
 	} else {
-		Cp(Gz,G,M);
+		std::copy_n(G, M, Gz);
 	}
 }
 
 bool LGrad1:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R){
+	(void)R;
+	(void)pz;
+	(void)py;
+	(void)px;
+	(void)MASK;
 	bool success=false;
 	cout <<"PutMask does not make sence in 1 gradient system " << endl;
 	return success;
@@ -985,7 +991,6 @@ bool LGrad1:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R
 Real LGrad1::DphiDt(Real* g, Real* B_phitot, Real* phiA, Real* phiB, Real* alphaA, Real* alphaB,Real B_A, Real B_B) {
 
 	Real AverageJ=0;
-	//Real Jplus,Jmin;
 	Real a,b,c,Ma,Mb,Mc;
 
 
@@ -1007,622 +1012,4 @@ Real LGrad1::DphiDt(Real* g, Real* B_phitot, Real* phiA, Real* phiB, Real* alpha
 
 }
 
-/*
-//void LGrad1::LReflect(Real *H, Real *P, Real *Q) {
-//	Times   (H,   l_1 +1,  P,    M-1);
-//	AddTimes(H,   l_11+1,  Q+1,  M-1);
-//}
 
-//void LGrad1::UReflect(Real *H, Real *P, Real* Q) {
-//	Times   (H+1, l1,      P+1,  M-1);
-//	AddTimes(H+1, l11,     Q,    M-1);
-//} //This was the forward propagator.
-	switch (fjc) {
-		case 1:
-			if (lattice_type==hexagonal) {
-
-				int a,b; Real c;
-				for (int p=0; p<FJC; p++){
-					a=p-fjc; if (a<0) {b=0; a=-a; } else {b=a; a=0;}
-					for (int q=0; q<FJC; q++) {
-						c=P[abs(-p+q)];
-						if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-						if (a>0) {
-							Times   (H+b,   l_1+a,   gs_1+q*M+b,            M-a-b);
-				  			AddTimes(H+b,   l_11+a,  gs_1+(FJC-1-q)*M+a,    M-a-b);
-						}
-						if (b>0) {
-							Times   (H+b,   l1+a,   gs_1+q*M+b,            M-a-b);
-				  			AddTimes(H+b,   l11+a,  gs_1+(FJC-1-q)*M+a,    M-a-b);
-						}
-						if (a+b>0){
-				  			if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
-						} else {
-							if (c!=0) YplusisCtimesX(gs+p*M,gs_1+q*M,c,M);
-						}
-					}
-				}
-				for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-
-				//LReflect(H,gz0,gz2);
-			//	Times   (H,   l_1 +1,  gz0,    M-1);
-			//	AddTimes(H,   l_11+1,  gz2+1,  M-1);
-			//	YplusisCtimesX(gx0+1,H,P[0],M-1);
-				//LReflect(H,gz1,gz1);
-			//	Times   (H,   l_1 +1,  gz1,    M-1);
-			//	AddTimes(H,   l_11+1,  gz1+1,  M-1);
-			//	YplusisCtimesX(gx0+1,H,2*P[1],M-1);
-
-			//	YplusisCtimesX(gx1,gz0,P[1],M);
-			//	YplusisCtimesX(gx1,gz1,P[0],M);
-			//	YplusisCtimesX(gx1,gz2,P[1],M);
-
-				//UReflect(H,gz1,gz1);
-			//	Times   (H+1, l1,      gz1+1,  M-1);
-			//	AddTimes(H+1, l11,     gz1,    M-1);
-			//	YplusisCtimesX(gx2,H+1,2*P[1],M-1);
-				//UReflect(H,gz2,gz0);
-			//	Times   (H+1, l1,      gz2+1,  M-1);
-			//	AddTimes(H+1, l11,     gz0,    M-1);
-			//	YplusisCtimesX(gx2,H+1,P[0],M-1);
-
-			//	for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-
-			} else {
-				//LReflect(H,gz0,gz2);
-				  Times   (H,   l_1 +1,  gz0,    M-1);
-				  AddTimes(H,   l_11+1,  gz2+1,  M-1);
-				YplusisCtimesX(gx0+1,H,P[0],M-1);
-
-				//LReflect(H,gz1,gz1);
-				  Times   (H,   l_1 +1,  gz1,    M-1);
-				  AddTimes(H,   l_11+1,  gz1+1,  M-1);
-				YplusisCtimesX(gx0+1,H,4*P[1],M-1);
-
-				YplusisCtimesX(gx1,gz0,P[1],M);
-				YplusisCtimesX(gx1,gz1,2*P[1]+P[0],M);
-				YplusisCtimesX(gx1,gz2,P[1],M);
-
-				//UReflect(H,gz1,gz1);
-				  Times   (H+1, l1,      gz1+1,  M-1);
-				  AddTimes(H+1, l11,     gz1,    M-1);
-				YplusisCtimesX(gx2,H+1,4*P[1],M-1);
-				//UReflect(H,gz2,gz0);
-				  Times   (H+1, l1,      gz2+1,  M-1);
-				  AddTimes(H+1, l11,     gz0,    M-1);
-				YplusisCtimesX(gx2,H+1,P[0],M-1);
-
-			//	LReflect(H,gz0,gz2); YplusisCtimesX(gx0+1,H,P[0],M-1);
-			//	LReflect(H,gz1,gz1); YplusisCtimesX(gx0+1,H,4*P[1],M-1);
-
-			//	YplusisCtimesX(gx1,gz0,P[1],M);
-			//	YplusisCtimesX(gx1,gz1,2*P[1]+P[0],M);
-			//	YplusisCtimesX(gx1,gz2,P[1],M);
-
-			//	UReflect(H,gz1,gz1); YplusisCtimesX(gx2,H+1,4*P[1],M-1);
-			//	UReflect(H,gz2,gz0); YplusisCtimesX(gx2,H+1,P[0],M-1);
-
-
-			//	for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-			}
-			break;
-
-		case 2:
-			if (lattice_type==hexagonal) {
-				int a,b; Real c;
-				for (int p=0; p<FJC; p++){
-					a=p-fjc; if (a<0) {b=0; a=-a; } else {b=a; a=0;}
-					for (int q=0; q<FJC; q++) {
-						c=P[abs(-p+q)];
-						if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-						Times   (H+b,   LABDA+p*M+a,    gs_1+q*M+b,            M-a-b);
-				  		AddTimes(H+b,   LABDA_1+p*M+a,  gs_1+(FJC-1-q)*M+a,    M-a-b);
-						if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
-					}
-				}
-
-				Real *gx3=gs+3*M,   *gx4=gs+4*M;
-				Real *gz3=gs_1+3*M, *gz4=gs_1+4*M;
-				  Times   (H,   LABDA+0*M+2,    gz0,    M-2);
-				  AddTimes(H,   LABDA_1+0*M+2,  gz4+2,  M-2);
-				YplusisCtimesX(gx0+2,H,P[0],     M-2);
-				  Times   (H,   LABDA+0*M+2,    gz1,    M-2);
-				  AddTimes(H,   LABDA_1+0*M+2,  gz3+2,  M-2);
-				YplusisCtimesX(gx0+2,H,2*P[1],   M-2);
-				  Times   (H,   LABDA+0*M+2,    gz2,    M-2);
-				  AddTimes(H,   LABDA_1+0*M+2,  gz2+2,  M-2);
-				YplusisCtimesX(gx0+2,H,2*P[2],   M-2);
-				  Times   (H,   LABDA+0*M+2,    gz3,    M-2);
-				  AddTimes(H,   LABDA_1+0*M+2,  gz1+2,  M-2);
-				YplusisCtimesX(gx0+2,H,2*P[3],   M-2);
-
-				  Times   (H,   LABDA+1*M+1,    gz0,    M-1);
-				  AddTimes(H,   LABDA_1+1*M+1,  gz4+1,  M-1);
-				YplusisCtimesX(gx1+1,H,P[1],     M-1);
-				  Times   (H,   LABDA+1*M+1,    gz1,    M-1);
-				  AddTimes(H,   LABDA_1+1*M+1,  gz3+1,  M-1);
-				YplusisCtimesX(gx1+1,H,P[0]+P[2],M-1);
-				  Times   (H,   LABDA+1*M+1,    gz2,    M-1);
-				  AddTimes(H,   LABDA_1+1*M+1,  gz2+1,  M-1);
-				YplusisCtimesX(gx1+1,H,P[1]+P[3],M-1);
-				  Times   (H,   LABDA+1*M+1,    gz3,    M-1);
-				  AddTimes(H,   LABDA_1+1*M+1,  gz1+1,  M-1);
-				YplusisCtimesX(gx1+1,H,P[2],     M-1);
-				  Times   (H,   LABDA+1*M+1,    gz4,    M-1);
-				  AddTimes(H,   LABDA_1+1*M+1,  gz0+1,  M-1);
-				YplusisCtimesX(gx1+1,H,P[3],     M-1);
-
-				YplusisCtimesX(gx2,  gz0,P[2],     M);
-				YplusisCtimesX(gx2,  gz1,P[1]+P[3],M);
-				YplusisCtimesX(gx2,  gz2,P[0],     M);
-				YplusisCtimesX(gx2,  gz3,P[1]+P[3],M);
-				YplusisCtimesX(gx2,  gz4,P[2],     M);
-
-				  Times   (H+1, LABDA+3*M,      gz0+1,  M-1);
-				  AddTimes(H+1, LABDA_1+3*M,    gz4,   M-1);
-				YplusisCtimesX(gx3,H+1,P[3],     M-1);
-				  Times   (H+1, LABDA+3*M,      gz1+1,  M-1);
-				  AddTimes(H+1, LABDA_1+3*M,    gz3,    M-1);
-				YplusisCtimesX(gx3,H+1,P[2],     M-1);
-				  Times   (H+1, LABDA+3*M,      gz2+1,  M-1);
-				  AddTimes(H+1, LABDA_1+3*M,    gz2,    M-1);
-				YplusisCtimesX(gx3,H+1,P[1]+P[3],M-1);
-				  Times   (H+1, LABDA+3*M,      gz3+1,  M-1);
-				  AddTimes(H+1, LABDA_1+3*M,    gz1,    M-1);
-				YplusisCtimesX(gx3,H+1,P[0]+P[2],M-1);
-				  Times   (H+1, LABDA+3*M,      gz4+1,  M-1);
-				  AddTimes(H+1, LABDA_1+3*M,    gz0,    M-1);
-				YplusisCtimesX(gx3,H+1,P[1],     M-1);
-
-				  Times   (H+2, LABDA+4*M,      gz1+2,  M-2);
-				  AddTimes(H+2, LABDA_1+4*M,    gz3,    M-2);
-				YplusisCtimesX(gx4,H+2,2*P[3],   M-2);
-				  Times   (H+2, LABDA+4*M,      gz2+2,  M-2);
-				  AddTimes(H+2, LABDA_1+4*M,    gz2,    M-2);
-				YplusisCtimesX(gx4,H+2,2*P[2],   M-2);
-				  Times   (H+2, LABDA+4*M,      gz3+2,  M-2);
-				  AddTimes(H+2, LABDA_1+4*M,    gz1,    M-2);
-				YplusisCtimesX(gx4,H+2,2*P[1],   M-2);
-				  Times   (H+2, LABDA+4*M,      gz4+2,  M-2);
-				  AddTimes(H+2, LABDA_1+4*M,    gz0,    M-2);
-				YplusisCtimesX(gx4,H+2,P[0],     M-2);
-
-				for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-
-			} else {
-				cout <<"cubic lattice and fjc=2 Markov 2 not implemented " << endl;
-			}
-			break;
-		case 3:
-			if (lattice_type==hexagonal) {
-				//Real *gx3 = gs+3*M,   *gx4 = gs+4*M,   *gx5 = gs+5*M,   *gx6 = gs+6*M;
-				//Real *gz3 = gs_1+3*M, *gz4 = gs_1+4*M, *gz5 = gs_1+5*M, *gz6 = gs_1+6*M;
-				int a,b; Real c;
-				for (int p=0; p<FJC; p++){
-					a=p-fjc; if (a<0) {b=0; a=-a; } else {b=a; a=0;}
-					for (int q=0; q<FJC; q++) {
-						c=P[abs(-p+q)];
-						if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-						Times   (H+b,   LABDA+p*M+a,    gs_1+q*M+b,            M-a-b);
-				  		AddTimes(H+b,   LABDA_1+p*M+a,  gs_1+(FJC-1-q)*M+a,    M-a-b);
-						if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
-					}
-				}
-				  Times   (H,   LABDA+0*M+3,    gz0,    M-3);
-				  AddTimes(H,   LABDA_1+0*M+3,  gz6+3,  M-3);
-				YplusisCtimesX(gx0+3,H,P[0],     M-3);
-				  Times   (H,   LABDA+0*M+3,    gz1,    M-3);
-				  AddTimes(H,   LABDA_1+0*M+3,  gz5+3,  M-3);
-				YplusisCtimesX(gx0+3,H,2*P[1],   M-3);
-				  Times   (H,   LABDA+0*M+3,    gz2,    M-3);
-				  AddTimes(H,   LABDA_1+0*M+3,  gz4+3,  M-3);
-				YplusisCtimesX(gx0+3,H,2*P[2],   M-3);
-				  Times   (H,   LABDA+0*M+3,    gz3,    M-3);
-				  AddTimes(H,   LABDA_1+0*M+3,  gz3+3,  M-3);
-				YplusisCtimesX(gx0+3,H,2*P[3],   M-3);
-				  Times   (H,   LABDA+0*M+3,    gz4,    M-3);
-				  AddTimes(H,   LABDA_1+0*M+3,  gz2+3,  M-3);
-				YplusisCtimesX(gx0+3,H,2*P[4],   M-3);
-				  Times   (H,   LABDA+0*M+3,    gz5,    M-3);
-				  AddTimes(H,   LABDA_1+0*M+3,  gz1+3,  M-3);
-				YplusisCtimesX(gx0+3,H,2*P[5],   M-3);
-
- 				  Times   (H,   LABDA+1*M+2,    gz0,    M-2);
-				  AddTimes(H,   LABDA_1+1*M+2,  gz6+2,  M-2);
-				YplusisCtimesX(gx1+2,H,P[1],     M-2);
-				  Times   (H,   LABDA+1*M+2,    gz1,    M-2);
-				  AddTimes(H,   LABDA_1+1*M+2,  gz5+2,  M-2);
-				YplusisCtimesX(gx1+2,H,P[0]+P[2],M-2);
-				  Times   (H,   LABDA+1*M+2,    gz2,    M-2);
-				  AddTimes(H,   LABDA_1+1*M+2,  gz4+2,  M-2);
-				YplusisCtimesX(gx1+2,H,P[1]+P[3],M-2);
-				  Times   (H,   LABDA+1*M+2,    gz3,    M-2);
-				  AddTimes(H,   LABDA_1+1*M+2,  gz3+2,  M-2);
-				YplusisCtimesX(gx1+2,H,P[2]+P[4],M-2);
-				  Times   (H,   LABDA+1*M+2,    gz4,    M-2);
-				  AddTimes(H,   LABDA_1+1*M+2,  gz2+2,  M-2);
-				YplusisCtimesX(gx1+2,H,P[3]+P[5],M-2);
-				  Times   (H,   LABDA+1*M+2,    gz5,    M-2);
-				  AddTimes(H,   LABDA_1+1*M+2,  gz1+2,  M-2);
-				YplusisCtimesX(gx1+2,H,P[4],     M-2);
-				  Times   (H,   LABDA+1*M+2,    gz6,    M-2);
-				  AddTimes(H,   LABDA_1+1*M+2,  gz0+2,  M-2);
-				YplusisCtimesX(gx1+2,H,P[5],     M-2);
-
-				  Times   (H,   LABDA+2*M+1,    gz0,    M-1);
-				  AddTimes(H,   LABDA_1+2*M+1,  gz6+1,  M-1);
-				YplusisCtimesX(gx2+1,H,P[2],     M-1);
-				  Times   (H,   LABDA+2*M+1,    gz1,    M-1);
-				  AddTimes(H,   LABDA_1+2*M+1,  gz5+1,  M-1);
-				YplusisCtimesX(gx2+1,H,P[1]+P[3],M-1);
-				  Times   (H,   LABDA+2*M+1,    gz2,    M-1);
-				  AddTimes(H,   LABDA_1+2*M+1,  gz4+1,  M-1);
-				YplusisCtimesX(gx2+1,H,P[0]+P[4],M-1);
-				  Times   (H,   LABDA+2*M+1,    gz3,    M-1);
-				  AddTimes(H,   LABDA_1+2*M+1,  gz3+1,  M-1);
-				YplusisCtimesX(gx2+1,H,P[1]+P[5],M-1);
-				  Times   (H,   LABDA+2*M+1,    gz4,    M-1);
-				  AddTimes(H,   LABDA_1+2*M+1,  gz2+1,  M-1);
-				YplusisCtimesX(gx2+1,H,P[2],     M-1);
-				  Times   (H,   LABDA+2*M+1,    gz5,    M-1);
-				  AddTimes(H,   LABDA_1+2*M+1,  gz1+1,  M-1);
-				YplusisCtimesX(gx2+1,H,P[3]+P[5],M-1);
-				  Times   (H,   LABDA+2*M+1,    gz6,    M-1);
-				  AddTimes(H,   LABDA_1+2*M+1,  gz0+1,  M-1);
-				YplusisCtimesX(gx2+1,H,P[4],     M-1);
-
-				YplusisCtimesX(gx3,  gz0,P[3],     M);
-				YplusisCtimesX(gx3,  gz1,P[2]+P[4],M);
-				YplusisCtimesX(gx3,  gz2,P[1]+P[5],M);
-				YplusisCtimesX(gx3,  gz3,P[0]     ,M);
-				YplusisCtimesX(gx3,  gz4,P[1]+P[5],M);
-				YplusisCtimesX(gx3,  gz5,P[2]+P[4],M);
-				YplusisCtimesX(gx3,  gz6,P[3],     M);
-
-				  Times   (H+1,   LABDA+4*M,    gz0+1,M-1);
-				  AddTimes(H+1,   LABDA_1+4*M,  gz6,  M-1);
-				YplusisCtimesX(gx4,H+1,P[4],     M-1);
-				  Times   (H+1,   LABDA+4*M,    gz1+1,M-1);
-				  AddTimes(H+1,   LABDA_1+4*M,  gz5,  M-1);
-				YplusisCtimesX(gx4,H+1,P[3]+P[5],M-1);
-				  Times   (H+1,   LABDA+4*M,    gz2+1,M-1);
-				  AddTimes(H+1,   LABDA_1+4*M,  gz4,  M-1);
-				YplusisCtimesX(gx4,H+1,P[2],     M-1);
-				  Times   (H+1,   LABDA+4*M,    gz3+1,M-1);
-				  AddTimes(H+1,   LABDA_1+4*M,  gz3,  M-1);
-				YplusisCtimesX(gx4,H+1,P[1]+P[5],M-1);
-				  Times   (H+1,   LABDA+4*M,    gz4+1,M-1);
-				  AddTimes(H+1,   LABDA_1+4*M,  gz2,  M-1);
-				YplusisCtimesX(gx4,H+1,P[0]+P[4],M-1);
-				  Times   (H+1,   LABDA+4*M,    gz5+1,M-1);
-				  AddTimes(H+1,   LABDA_1+4*M,  gz1,  M-1);
-				YplusisCtimesX(gx4,H+1,P[1]+P[3],M-1);
-				  Times   (H+1,   LABDA+4*M,    gz6+1,M-1);
-				  AddTimes(H+1,   LABDA_1+4*M,  gz0,  M-1);
-				YplusisCtimesX(gx4,H+1,P[2],     M-1);
-
-				  Times   (H+2,   LABDA+5*M,    gz0+2,M-2);
-				  AddTimes(H+2,   LABDA_1+5*M,  gz6,  M-2);
-				YplusisCtimesX(gx5,H+2,P[5],     M-2);
-				  Times   (H+2,   LABDA+5*M,    gz1+2,M-2);
-				  AddTimes(H+2,   LABDA_1+5*M,  gz5,  M-2);
-				YplusisCtimesX(gx5,H+2,P[4],     M-2);
-				  Times   (H+2,   LABDA+5*M,    gz2+2,M-2);
-				  AddTimes(H+2,   LABDA_1+5*M,  gz4,  M-2);
-				YplusisCtimesX(gx5,H+2,P[3]+P[5],M-2);
-				  Times   (H+2,   LABDA+5*M,    gz3+2,M-2);
-				  AddTimes(H+2,   LABDA_1+5*M,  gz3,  M-2);
-				YplusisCtimesX(gx5,H+2,P[2]+P[4],M-2);
-				  Times   (H+2,   LABDA+5*M,    gz4+2,M-2);
-				  AddTimes(H+2,   LABDA_1+5*M,  gz2,  M-2);
-				YplusisCtimesX(gx5,H+2,P[1]+P[3],M-2);
-				  Times   (H+2,   LABDA+5*M,    gz5+2,M-2);
-				  AddTimes(H+2,   LABDA_1+5*M,  gz1,  M-2);
-				YplusisCtimesX(gx5,H+2,P[0]+P[2],M-2);
-				  Times   (H+2,   LABDA+5*M,    gz6+2,M-2);
-				  AddTimes(H+2,   LABDA_1+5*M,  gz0,  M-2);
-				YplusisCtimesX(gx5,H+2,P[1],     M-2);
-
-				  Times   (H+3,   LABDA+6*M,    gz1+3,M-3);
-				  AddTimes(H+3,   LABDA_1+6*M,  gz5,  M-3);
-				YplusisCtimesX(gx6,H+3,2*P[5],   M-3);
-				  Times   (H+3,   LABDA+6*M,    gz2+3,M-3);
-				  AddTimes(H+3,   LABDA_1+6*M,  gz4,  M-3);
-				YplusisCtimesX(gx6,H+3,2*P[4],   M-3);
-				  Times   (H+3,   LABDA+6*M,    gz3+3,M-3);
-				  AddTimes(H+3,   LABDA_1+6*M,  gz3,  M-3);
-				YplusisCtimesX(gx6,H+3,2*P[3],   M-3);
-				  Times   (H+3,   LABDA+6*M,    gz4+3,M-3);
-				  AddTimes(H+3,   LABDA_1+6*M,  gz2,  M-3);
-				YplusisCtimesX(gx6,H+3,2*P[2],   M-3);
-				  Times   (H+3,   LABDA+6*M,    gz5+3,M-3);
-				  AddTimes(H+3,   LABDA_1+6*M,  gz1,  M-3);
-				YplusisCtimesX(gx6,H+3,2*P[1],   M-3);
-				  Times   (H+3,   LABDA+6*M,    gz6+3,M-3);
-				  AddTimes(H+3,   LABDA_1+6*M,  gz0,  M-3);
-				YplusisCtimesX(gx6,H+3,P[0],     M-3);
-
-				for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-			} else {
-				cout <<"cubic lattice and FJC_choices=3 Markov 2 not implemented " << endl;
-			}
-			break;
-
-		default:
-			if (lattice_type==hexagonal) {
-				int a,b; Real c;
-				for (int p=0; p<FJC; p++){
-					a=p-fjc; if (a<0) {b=0; a=-a; } else {b=a; a=0;}
-					for (int q=0; q<FJC; q++) {
-						c=P[abs(-p+q)];
-						if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-						Times   (H+b,   LABDA+p*M+a,    gs_1+q*M+b,            M-a-b);
-				  		AddTimes(H+b,   LABDA_1+p*M+a,  gs_1+(FJC-1-q)*M+a,    M-a-b);
-						if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
-					}
-				}
-				for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-			} else {
-				cout <<"cubic lattice and FJC_choices=3 Markov 2 not implemented " << endl;
-			}
-			break;
-	}
-
-	//backward propagator
-		switch (fjc) {
-			case 1:
-				if (lattice_type==hexagonal) {
-
-					int a,b; Real c;
-
-					for (int q=FJC-1; q>-1; q--){
-						a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
-						if (a>0) {
-							Times   (H+b,   l_1+a,   gs_1+q*M+b,        M-a-b);
-							AddTimes(H+b,   l_11+a,  gs_1+(FJC-1-q)*M+a,M-a-b);
-						}
-						if (b>0) {
-							Times   (H+b,   l1+a,   gs_1+q*M+b,        M-a-b);
-							AddTimes(H+b,   l11+a,  gs_1+(FJC-1-q)*M+a,M-a-b);
-						}
-						for (int p=FJC-1; p>-1; p--) {
-							c=P[abs(-p+q)];
-							if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-							if (a+b>0) {
-								if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
-							} else {
-								if (c!=0) YplusisCtimesX(gs+p*M,gs_1+q*M,c,M);
-							}
-						}
-					}
-					for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-
-
-					//LReflect(H,gz2,gz0);
-				//	  Times   (H,   l_1 +1,  gz2,    M-1);
-				//	  AddTimes(H,   l_11+1,  gz0+1,  M-1);
-				//	YplusisCtimesX(gx1+1,H,P[1],M-1);
-				//	YplusisCtimesX(gx2+1,H,P[0],M-1);
-
-				//	YplusisCtimesX(gx0,gz1,2*P[1],M);
-				//	YplusisCtimesX(gx1,gz1,P[0],M);
-				//	YplusisCtimesX(gx2,gz1,2*P[1],M);
-
-					//UReflect(H,gz0,gz2);
-				//	  Times   (H+1, l1,      gz0+1,  M-1);
-				//	  AddTimes(H+1, l11,     gz2,    M-1);
-				//	YplusisCtimesX(gx0,H+1,P[0],M-1);
-				//	YplusisCtimesX(gx1,H+1,P[1],M-1);
-
-				//	for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-				} else {
-					//LReflect(H,gz2,gz0);
-					  Times   (H,   l_1 +1,  gz2,    M-1);
-					  AddTimes(H,   l_11+1,  gz0+1,  M-1);
-					YplusisCtimesX(gx1+1,H,P[1],M-1);
-					YplusisCtimesX(gx2+1,H,P[0],M-1);
-
-					YplusisCtimesX(gx0,gz1,4*P[1],M);
-					YplusisCtimesX(gx1,gz1,2*P[1]+P[0],M);
-					YplusisCtimesX(gx2,gz1,4*P[1],M);
-
-					//UReflect(H,gz0,gz2);
-					  Times   (H+1, l1,      gz0+1,  M-1);
-					  AddTimes(H+1, l11,     gz2,    M-1);
-					YplusisCtimesX(gx0,H+1,P[0],M-1);
-					YplusisCtimesX(gx1,H+1,P[1],M-1);
-
-
-				LReflect(H,gz2,gz0);
-				YplusisCtimesX(gx1+1,H,P[1],M);
-				YplusisCtimesX(gx2+1,H,P[0],M-1);
-
-				YplusisCtimesX(gx0,gz1,4*P[1],M);
-				YplusisCtimesX(gx1,gz1,2*P[1]+P[0],M);
-				YplusisCtimesX(gx2,gz1,4*P[1],M);
-
-				UReflect(H,gz0,gz2);
-				YplusisCtimesX(gx0,H+1,P[0],M-1);
-				YplusisCtimesX(gx1,H+1,P[1],M-1);
-				for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-
-
-					for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-				}
-				break;
-
-			case 2:
-	           if (lattice_type ==hexagonal) {
-				   	//Real *gz3=gs_1+3*M, *gz4=gs_1+4*M;
-				   	//Real *gx3=gs+3*M,   *gx4=gs+4*M;
-
-					int a,b; Real c;
-
-					for (int q=FJC-1; q>-1; q--){
-						a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
-						Times   (H+b,   LABDA+(FJC-1-q)*M+a,    gs_1+q*M+b,        M-a-b);
-						AddTimes(H+b,   LABDA_1+(FJC-1-q)*M+a,  gs_1+(FJC-1-q)*M+a,M-a-b);
-						for (int p=FJC-1; p>-1; p--) {
-							c=P[abs(-p+q)];
-							if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-							if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
-						}
-					}
-
-					  Times   (H,   LABDA+0*M+2,    gz4,    M-2);
-					  AddTimes(H,   LABDA_1+0*M+2,  gz0+2,  M-2);
-					YplusisCtimesX(gx1+2,H,   P[3],     M-2);
-					YplusisCtimesX(gx2+2,H,   P[2],     M-2);
-					YplusisCtimesX(gx3+2,H,   P[1],     M-2);
-					YplusisCtimesX(gx4+2,H,   P[0],     M-2);
-
-					  Times   (H,   LABDA+1*M+1,    gz3,    M-1);
-					  AddTimes(H,   LABDA_1+1*M+1,  gz1+1,  M-1);
-					YplusisCtimesX(gx0+1,H,   2*P[3],   M-1);
-					YplusisCtimesX(gx1+1,H,   P[2],     M-1);
-					YplusisCtimesX(gx2+1,H,   P[1]+P[3],M-1);
-					YplusisCtimesX(gx3+1,H,   P[0]+P[2],M-1);
-					YplusisCtimesX(gx4+1,H,   2*P[1],   M-1);
-
-					YplusisCtimesX(gx0,  gz2,   2*P[2],   M);
-					YplusisCtimesX(gx1,  gz2,   P[1]+P[3],M);
-					YplusisCtimesX(gx2,  gz2,   P[0],     M);
-					YplusisCtimesX(gx3,  gz2,   P[1]+P[3],M);
-					YplusisCtimesX(gx4,  gz2,   2*P[2],   M);
-
-					  Times   (H+1, LABDA+3*M,      gz1+1,  M-1);
-					  AddTimes(H+1, LABDA_1+3*M,    gz3,    M-1);
-					YplusisCtimesX(gx0,  H+1, 2*P[1],   M-1);
-					YplusisCtimesX(gx1,  H+1, P[0]+P[2],M-1);
-					YplusisCtimesX(gx2,  H+1, P[1]+P[3],M-1);
-					YplusisCtimesX(gx3,  H+1, P[2],     M-1);
-					YplusisCtimesX(gx4,  H+1, 2*P[3],   M-1);
-
-					  Times   (H+2, LABDA+4*M,      gz0+2,  M-2);
-					  AddTimes(H+2, LABDA_1+4*M,    gz4,    M-2);;
-					YplusisCtimesX(gx0,  H+2, P[0],     M-2);
-					YplusisCtimesX(gx1,  H+2, P[1],     M-2);
-					YplusisCtimesX(gx2,  H+2, P[2],     M-2);
-					YplusisCtimesX(gx3,  H+2, P[3],     M-2);
-
-					for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-
-				} else {
-					cout <<" cubic lattice, fjc=2, Markov=2 not implemented " << endl;
-				}
-				break;
-			case 3:
-				if (lattice_type ==hexagonal) {
-					//Real *gx3 = gs+3*M,   *gx4 = gs+4*M,  *gx5 = gs+5*M,  *gx6 = gs+6*M;
-					//Real *gz3 = gs_1+3*M, *gz4 = gs_1+4*M,*gz5 = gs_1+5*M,*gz6 = gs_1+6*M;
-
-					int a,b; Real c;
-
-					for (int q=FJC-1; q>-1; q--){
-						a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
-						Times   (H+b,   LABDA+(FJC-1-q)*M+a,    gs_1+q*M+b,        M-a-b);
-						AddTimes(H+b,   LABDA_1+(FJC-1-q)*M+a,  gs_1+(FJC-1-q)*M+a,M-a-b);
-						for (int p=FJC-1; p>-1; p--) {
-							c=P[abs(-p+q)];
-							if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-							if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
-						}
-					}
-
-					  Times   (H,   LABDA+0*M+3,    gz6,    M-3);
-					  AddTimes(H,   LABDA_1+0*M+3,  gz0+3,  M-3);
-					YplusisCtimesX(gx6+3,H,   P[0],     M-3);
-					YplusisCtimesX(gx5+3,H,   P[1],     M-3);
-					YplusisCtimesX(gx4+3,H,   P[2],     M-3);
-					YplusisCtimesX(gx3+3,H,   P[3],     M-3);
-					YplusisCtimesX(gx2+3,H,   P[4],     M-3);
-					YplusisCtimesX(gx1+3,H,   P[5],     M-3);
-
-					  Times   (H,   LABDA+1*M+2,    gz5,    M-2);
-					  AddTimes(H,   LABDA_1+1*M+2,  gz1+2,  M-2);
-					YplusisCtimesX(gx6+2,H,   2*P[1],   M-2);
-					YplusisCtimesX(gx5+2,H,   P[0]+P[2],M-2);
-					YplusisCtimesX(gx4+2,H,   P[1]+P[3],M-2);
-					YplusisCtimesX(gx3+2,H,   P[2]+P[4],M-2);
-					YplusisCtimesX(gx2+2,H,   P[3]+P[5],M-2);
-					YplusisCtimesX(gx1+2,H,   P[4],     M-2);
-					YplusisCtimesX(gx0+2,H,   2*P[5],   M-2);
-
-					  Times   (H,   LABDA+2*M+1,    gz4,    M-1);
-					  AddTimes(H,   LABDA_1+2*M+1,  gz2+1,  M-1);
-					YplusisCtimesX(gx6+1,H,   2*P[2],   M-1);
-					YplusisCtimesX(gx5+1,H,   P[1]+P[3],M-1);
-					YplusisCtimesX(gx4+1,H,   P[0]+P[4],M-1);
-					YplusisCtimesX(gx3+1,H,   P[1]+P[5],M-1);
-					YplusisCtimesX(gx2+1,H,   P[2],     M-1);
-					YplusisCtimesX(gx1+1,H,   P[3]+P[5],M-1);
-					YplusisCtimesX(gx0+1,H,   2*P[4],   M-1);
-
-					YplusisCtimesX(gx6,  gz3,   2*P[3],   M);
-					YplusisCtimesX(gx5,  gz3,   P[2]+P[4],M);
-					YplusisCtimesX(gx4,  gz3,   P[1]+P[5],M);
-					YplusisCtimesX(gx3,  gz3,   P[0],     M);
-					YplusisCtimesX(gx2,  gz3,   P[1]+P[5],M);
-					YplusisCtimesX(gx1,  gz3,   P[2]+P[4],M);
-					YplusisCtimesX(gx0,  gz3,   2*P[3],   M);
-
-					  Times   (H+1,   LABDA+4*M,    gz2+1,  M-1);
-					  AddTimes(H+1,   LABDA_1+4*M,  gz4,    M-1);
-					YplusisCtimesX(gx6,  H+1, 2*P[4],   M-1);
-					YplusisCtimesX(gx5,  H+1, P[3]+P[5],M-1);
-					YplusisCtimesX(gx4,  H+1, P[2],     M-1);
-					YplusisCtimesX(gx3,  H+1, P[1]+P[5],M-1);
-					YplusisCtimesX(gx2,  H+1, P[0]+P[4],M-1);
-					YplusisCtimesX(gx1,  H+1, P[1]+P[3],M-1);
-					YplusisCtimesX(gx0,  H+1, 2*P[2],   M-1);
-
-					  Times   (H+2,   LABDA+5*M,    gz1+2,  M-2);
-					  AddTimes(H+2,   LABDA_1+5*M,  gz5,    M-2);
-					YplusisCtimesX(gx6,  H+2, 2*P[5],   M-2);
-					YplusisCtimesX(gx5,  H+2, P[4],     M-2);
-					YplusisCtimesX(gx4,  H+2, P[3]+P[5],M-2);
-					YplusisCtimesX(gx3,  H+2, P[2]+P[4],M-2);
-					YplusisCtimesX(gx2,  H+2, P[1]+P[3],M-2);
-					YplusisCtimesX(gx1,  H+2, P[0]+P[2],M-2);
-					YplusisCtimesX(gx0,  H+2, 2*P[1],   M-2);
-
-					  Times   (H+3,   LABDA+6*M,    gz0+3,  M-3);
-					  AddTimes(H+3,   LABDA_1+6*M,  gz6,    M-3);
-					YplusisCtimesX(gx5,  H+3, P[5],     M-3);
-					YplusisCtimesX(gx4,  H+3, P[4],     M-3);
-					YplusisCtimesX(gx3,  H+3, P[3],     M-3);
-					YplusisCtimesX(gx2,  H+3, P[2],     M-3);
-					YplusisCtimesX(gx1,  H+3, P[1],     M-3);
-					YplusisCtimesX(gx0,  H+3, P[0],     M-3);
-
-					for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-				} else {
-					cout <<"cubic lattice type in FJC_choices>3 not inplemented " << endl;
-				}
-				break;
-
-			default:
-				if (lattice_type ==hexagonal) {
-					int a,b; Real c;
-
-					for (int q=FJC-1; q>-1; q--){
-						a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
-						Times   (H+b,   LABDA+(FJC-1-q)*M+a,    gs_1+q*M+b,        M-a-b);
-						AddTimes(H+b,   LABDA_1+(FJC-1-q)*M+a,  gs_1+(FJC-1-q)*M+a,M-a-b);
-						for (int p=FJC-1; p>-1; p--) {
-							c=P[abs(-p+q)];
-							if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
-							if (c!=0) YplusisCtimesX(gs+p*M+a,H+b,c,M-a-b);
-						}
-					}
-					for (int k=0; k<FJC; k++) Times(gs+k*M,gs+k*M,g,M);
-				} else {
-					cout <<"cubic lattice type in FJC_choices>3 not inplemented " << endl;
-				}
-
-				break;
-
-	}
-
-
-*/

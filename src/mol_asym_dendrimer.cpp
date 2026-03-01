@@ -26,11 +26,7 @@ if (debug) cout <<"Forward2ndO for mol_asym_dend " + name << endl;
 
 	int N;
 	int M=lat->M;
-#ifdef CUDA
-	Real* GS = (Real*)AllOnDev(3*M);
-#else
 	Real* GS = new Real[3*M];
-#endif
 
 	int n_g=first_a.size();
 	int slast=0;
@@ -38,7 +34,7 @@ if (debug) cout <<"Forward2ndO for mol_asym_dend " + name << endl;
 
 	for (int g=n_g-1; g>=0; g--) {
 		s=last_s[last_a[g]];
-		Cp(GS+2*M,UNITY,M);
+		std::copy_n(UNITY, M, GS+2*M);
 		for (int a=last_a[g]; a>=first_a[g]; a--) {
 			int b0=first_b[a], bN=last_b[a];
 			for (int b=bN; b>=b0; b--) {
@@ -61,32 +57,24 @@ if (debug) cout <<"Forward2ndO for mol_asym_dend " + name << endl;
 
 			lat->Terminate(GS,Gg_f+(s+1)*M*size,Markov,M);
 			lat->propagate(GS,UNITY,0,1,M);
-			for (int k=0; k<n_arm[a]; k++) Times(GS+2*M,GS+2*M,GS+M,M);
+			for (int k=0; k<n_arm[a]; k++) for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
 		}
-		Times(GS+2*M,GS+2*M,Seg[mon_nr[first_b[first_a[g]]-1]]->G1,M);
+		for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (Seg[mon_nr[first_b[first_a[g]]-1]]->G1)[__i];
 		lat->Initiate(Gg_f+s*M*size,GS+2*M,Markov,M);
 		slast = s;
 	}
-#ifdef CUDA
-	cudaFree(GS);
-#else
 	delete [] GS;
-#endif
 	return Gg_f;
 }
 
 bool mol_asym_dend::Backward2ndO(int g,int n_repeats, int ss) {
+	(void)ss;
 if (debug) cout <<"Backward2ndO for mol_asym_dend " + name << endl;
 
 	int M=lat->M;
 	int N;
-#ifdef CUDA
-	Real* GX = (Real*)AllOnDev(M*size);
-	Real* GS = (Real*)AllOnDev(2*M);
-#else
 	Real* GX = new Real[M*size];
 	Real* GS = new Real[2*M];
-#endif
 	int n_g=first_a.size();
 	bool success=true;
 	int s=0;
@@ -100,17 +88,17 @@ if (debug) cout <<"Backward2ndO for mol_asym_dend " + name << endl;
 		lat->Initiate(Gg_b+(s%2)*M*size,GS+M,Markov,M);
 	}
 
-	Times(GX,Gg_b+(s%2)*M*size, Gg_f+s*M*size,M*size);
+	for (int __i = 0; __i < (M*size); ++__i) (GX)[__i] = (Gg_b+(s%2)*M*size)[__i] * (Gg_f+s*M*size)[__i];
 	lat->AddPhiS(rho+molmon_nr[first_b[first_a[g]]-1]*M,Gg_f+s*M*size,Gg_b+(s%2)*M*size,n_repeats,Markov,M);
 
-	for (int k=0; k<size; k++) Div(GX+k*M,Seg[mon_nr[first_b[first_a[g]]-1]]->G1,M);
+	for (int k=0; k<size; k++) for (int __i = 0; __i < (M); ++__i) (GX+k*M)[__i] = ((Seg[mon_nr[first_b[first_a[g]]-1]]->G1)[__i] != 0) ? ((GX+k*M)[__i] / (Seg[mon_nr[first_b[first_a[g]]-1]]->G1)[__i]) : 0;
 
 	for (int a=first_a[g]; a<=last_a[g]; a++) {
 		s=first_s[a];
 		lat->Terminate(GS,Gg_f+s*M*size,Markov,M);
 		lat->propagate(GS,UNITY,0,1,M);
 		lat->Terminate(GS,GX,Markov,M);
-		Div(GS,GS+M,M);
+		for (int __i = 0; __i < (M); ++__i) (GS)[__i] = ((GS+M)[__i] != 0) ? ((GS)[__i] / (GS+M)[__i]) : 0;
 
 		int b0=first_b[a], bN=last_b[a];
 		for (int b=b0; b<=bN; b++) {
@@ -128,15 +116,11 @@ if (debug) cout <<"Backward2ndO for mol_asym_dend " + name << endl;
 				s++;
 			}
 		}
-		Cp(Gg_b+(s%2)*M*size,Gg_b+((s-1)%2)*M*size,M*size);
+		std::copy_n(Gg_b+((s-1)%2)*M*size, M*size, Gg_b+(s%2)*M*size);
 		if (g<n_g-1) Backward2ndO(g+1,n_arm[a]*n_repeats,s-1);
 	}
 
-#ifdef CUDA
-	cudaFree(GS); cudaFree(GX);
-#else
 	delete [] GS; delete [] GX;
-#endif
 	return success;
 }
 
@@ -147,11 +131,7 @@ if (debug) cout <<"Forward for mol_asym_dend " + name << endl;
 
 	int N;
 	int M=lat->M;
-#ifdef CUDA
-	Real* GS = (Real*)AllOnDev(3*M);
-#else
 	Real* GS = new Real[3*M];
-#endif
 
 	int n_g=first_a.size();
 	int slast=0;
@@ -159,7 +139,7 @@ if (debug) cout <<"Forward for mol_asym_dend " + name << endl;
 
 	for (int g=n_g-1; g>=0; g--) {
 		s=last_s[last_a[g]];
-		Cp(GS+2*M,UNITY,M);
+		std::copy_n(UNITY, M, GS+2*M);
 		for (int a=last_a[g]; a>=first_a[g]; a--) {
 			int b0=first_b[a], bN=last_b[a];
 			for (int b=bN; b>=b0; b--) {
@@ -180,33 +160,25 @@ if (debug) cout <<"Forward for mol_asym_dend " + name << endl;
 
 			lat->Terminate(GS,Gg_f+(s+1)*M,Markov,M);
 			lat->propagate(GS,UNITY,0,1,M);
-			for (int k=0; k<n_arm[a]; k++) Times(GS+2*M,GS+2*M,GS+M,M);
+			for (int k=0; k<n_arm[a]; k++) for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
 		}
-		Times(GS+2*M,GS+2*M,Seg[mon_nr[first_b[first_a[g]]-1]]->G1,M);
+		for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (Seg[mon_nr[first_b[first_a[g]]-1]]->G1)[__i];
 		lat->Initiate(Gg_f+s*M,GS+2*M,Markov,M);
 		slast = s;
 	}
 
-#ifdef CUDA
-	cudaFree(GS);
-#else
 	delete [] GS;
-#endif
 	return Gg_f;
 }
 
 bool mol_asym_dend::Backward(int g,int n_repeats, int ss) {
+	(void)ss;
 if (debug) cout <<"Backward for mol_asym_dend " + name << endl;
 
 	int M=lat->M;
 	int N;
-#ifdef CUDA
-	Real* GX = (Real*)AllOnDev(M);
-	Real* GS = (Real*)AllOnDev(2*M);
-#else
 	Real* GX = new Real[M];
 	Real* GS = new Real[2*M];
-#endif
 	int n_g=first_a.size();
 	bool success=true;
 	int s=0;
@@ -217,17 +189,17 @@ if (debug) cout <<"Backward for mol_asym_dend " + name << endl;
 		s= first_s[first_a[g]]-1 ;
 		lat->propagate(Gg_b,Seg[mon_nr[first_b[first_a[g]]-1]]->G1,(s-1)%2,s%2,M);
 	}
-	Times(GX,Gg_b+(s%2)*M, Gg_f+s*M,M);
+	for (int __i = 0; __i < (M); ++__i) (GX)[__i] = (Gg_b+(s%2)*M)[__i] * (Gg_f+s*M)[__i];
 	lat->AddPhiS(rho+molmon_nr[first_b[first_a[g]]-1]*M,Gg_f+s*M,Gg_b+(s%2)*M,n_repeats,Markov,M);
 
-	Div(GX,Seg[mon_nr[first_b[first_a[g]]-1]]->G1,M);
+	for (int __i = 0; __i < (M); ++__i) (GX)[__i] = ((Seg[mon_nr[first_b[first_a[g]]-1]]->G1)[__i] != 0) ? ((GX)[__i] / (Seg[mon_nr[first_b[first_a[g]]-1]]->G1)[__i]) : 0;
 
 	for (int a=first_a[g]; a<=last_a[g]; a++) {
 		s=first_s[a];
-		Cp(GS,Gg_f+s*M,M);
+		std::copy_n(Gg_f+s*M, M, GS);
 		lat->propagate(GS,UNITY,0,1,M);
-		Cp(Gg_b+((s-1)%2)*M,GX,M);
-		Div(Gg_b+((s-1)%2)*M,GS+M,M);
+		std::copy_n(GX, M, Gg_b+((s-1)%2)*M);
+		for (int __i = 0; __i < (M); ++__i) (Gg_b+((s-1)%2)*M)[__i] = ((GS+M)[__i] != 0) ? ((Gg_b+((s-1)%2)*M)[__i] / (GS+M)[__i]) : 0;
 
 		int b0=first_b[a], bN=last_b[a];
 		for (int b=b0; b<=bN; b++) {
@@ -239,16 +211,12 @@ if (debug) cout <<"Backward for mol_asym_dend " + name << endl;
 				s++;
 			}
 		}
-		Cp(Gg_b+(s%2)*M,Gg_b+((s-1)%2)*M,M);
+		std::copy_n(Gg_b+((s-1)%2)*M, M, Gg_b+(s%2)*M);
 		if (g<n_g-1) Backward(g+1,n_arm[a]*n_repeats,s-1);
 	}
 
 
-#ifdef CUDA
-	cudaFree(GS); cudaFree(GX);
-#else
 	delete [] GS; delete [] GX;
-#endif
 	return success;
 }
 

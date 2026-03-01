@@ -72,12 +72,10 @@ public:
 	bool Message(bool,bool,int, int,Real, Real,string);
 
 	Real newdirection(Real*, Real*,Real*, Real*,Real*, Real*, int, Real,bool); //there is only one of this.
-	//void inneriteration(Real*,Real*,Real*,Real,int);
 	void direction(Real*, Real*, Real*, Real*, Real*, int, Real,Real,bool);
 	void newhessian(Real*,Real*,Real*,Real*,Real*,int,Real,Real,bool);
 	void resethessian(Real*, Real*, Real*, int);
 	void startderivatives(Real*,Real*,Real*,int);
-	//void newtrustregion(Real*,Real*,Real*,Real*,int); //there is only one.
 	void newtrustregion(Real*,Real,Real&,Real&,Real,Real,int); //there is only one.
 	Real linesearch(Real*,Real*,Real*,Real*,Real*,int, Real,bool);  //there is only one.
 	Real zero(Real*,Real*,Real*,Real*,Real*,int,Real,bool);

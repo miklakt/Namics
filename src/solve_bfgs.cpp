@@ -21,10 +21,5 @@ Real Solve_BFGS::operator()(Vector& x_, Vector& g_){
 
 
 //template <typename Foo>
-//void Solve_BFGS::solve(Foo*& residue,bool report_errors) {
-//	cout <<endl <<"LBFGS has been notified"<< endl; 
-//	iterations =mysolver.minimize(residue,x,res);
-//	cout <<" Residue : "<< res << endl; 
-//	cout <<endl <<"Problem solved: " << res << endl;
 //	Sys->CheckResults(report_errors);
 //}

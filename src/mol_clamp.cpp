@@ -16,12 +16,12 @@ bool mol_clamp::ComputePhi(){
 	int m=0;
 	if (freedom=="clamped") m=lat->m[Seg[mon_nr[0]]->clamp_nr];
 	int blocks=mon_nr.size();
-	Zero(rho,m*n_box*MolMonList.size());
+	std::fill_n(rho, m*n_box*MolMonList.size(), 0);
 	int s=1;
 	if (save_memory) {
-		Cp(Gs,mask1,m*n_box);
+		std::copy_n(mask1, m*n_box, Gs);
 	} else {
-		Cp(Gg_f,mask1,m*n_box);
+		std::copy_n(mask1, m*n_box, Gg_f);
 	}
 	for (int i=1; i<blocks-1; i++) {
 		lat->DistributeG1(Seg[mon_nr[i]]->G1,g1,Bx,By,Bz,n_box);
@@ -38,8 +38,8 @@ bool mol_clamp::ComputePhi(){
 		lat->ComputeGN(gn,Gg_f,H_Bx,H_By,H_Bz,H_Px2,H_Py2,H_Pz2,chainlength-1,n_box);
 	}
 	s=chainlength-1;
-	Cp(Gg_b+(s%2)*m*n_box,mask2,m*n_box);
-	if (save_memory) Cp(Gg_b+((s-1)%2)*m*n_box,Gg_b+(s%2)*m*n_box,m*n_box);
+	std::copy_n(mask2, m*n_box, Gg_b+(s%2)*m*n_box);
+	if (save_memory) std::copy_n(Gg_b+(s%2)*m*n_box, m*n_box, Gg_b+((s-1)%2)*m*n_box);
 	s--;
 	for (int i=blocks-2; i>0; i--) {
 		lat->DistributeG1(Seg[mon_nr[i]]->G1,g1,Bx,By,Bz,n_box);
@@ -53,7 +53,6 @@ bool mol_clamp::ComputePhi(){
 
 	return success;
 }
-
 
 
 

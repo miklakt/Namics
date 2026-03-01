@@ -19,8 +19,6 @@
 #include "mol_branched.h"
 #include "mol_linear.h"
 #include "namics.h"
-#include "cleng/cleng.h"
-#include "teng.h"
 #include "output.h"
 #include "segment.h"
 #include "state.h"
@@ -29,7 +27,6 @@
 #include "variate.h"
 #include "sfnewton.h"
 #include "solve_scf.h"
-#include "mesodyn.h"
 #include "microemulsion.h"
 #include <memory>
 
@@ -59,7 +56,6 @@ void improperInput()
 	cerr << "Improper usage: namics [-options] [filename]." << endl
 			 << "Options available:" << endl;
 	cerr << "-d Enables debugging mode." << endl;
-	cerr << "-GPU [index] Sets the GPU to be used in multi-GPU systems." << endl;
 }
 
 int main(int argc, char *argv[])
@@ -92,28 +88,10 @@ int main(int argc, char *argv[])
 		debug = true;
 	}
 
-	int cudaDeviceIndex = 0;
-
-	//If the switch -GPU is given, select GPU.
-	if (find(args.begin(), args.end(), "-GPU") != args.end())
-	{
-		try
-		{
-			cudaDeviceIndex = load_argument_value(args, "-GPU", cudaDeviceIndex);
-		}
-		catch (int)
-		{
-			improperInput();
-			exit(0);
-		}
-	}
-
-	bool cuda;
 	int start = 0;
 	int n_starts = 0;
 	bool kal_append=false;
 
-	//string initial_guess;
 	string final_guess;
 	string METHOD = "";
 	Real *X = NULL;
@@ -123,14 +101,7 @@ int main(int argc, char *argv[])
 	vector<string> MONLIST;
 	vector<string> STATELIST;
 
-#ifdef CUDA
-	GPU_present(cudaDeviceIndex);
-	cuda = true;
-	SUM_RESULT = (Real*)AllOnDev(1);
-#else
-	cuda = false;
 	SUM_RESULT = new Real;
-#endif
 
 	// Single ownership
 	unique_ptr<Input> In;              // Inputs read from file
@@ -140,9 +111,6 @@ int main(int argc, char *argv[])
 	unique_ptr<Molecule> mol_p;
 	unique_ptr<Solve_scf> New;         // Solver and iteration scheme
 	unique_ptr<System> Sys;
-	unique_ptr<Mesodyn> Mes;
-	unique_ptr<Cleng> Cle;             // engine for clamped molecules
-	unique_ptr<Teng> Ten;              // engine for pinned molecules
 	unique_ptr<Microemulsion> Micro;
 
 	// Multi-instance collections
@@ -176,7 +144,6 @@ int main(int argc, char *argv[])
 		/******** Class creation starts here ********/
 
 		// Create lattice class instance and check inputs (reference above)
-		//lat_p = new Lat_preview(In.get(), In->LatList[0]);
 		lat_p = make_unique<LGrad1>(*In, In->LatList[0]);
 
 		//Lat->outputtest();
@@ -266,7 +233,6 @@ int main(int argc, char *argv[])
 		int n_mol = In->MolList.size();
 		for (int i = 0; i < n_mol; i++)
 		{
-			//mol_p = new mol_preview(In.get(), Lat.get(), Seg, In->MolList[i]);
 			mol_p = make_unique<Molecule>(In.get(), Lat.get(), Seg, In->MolList[i]);
 			if (!mol_p->CheckInput(start,true)) //'true' here means that checkinput can stop wehn Moltype and freedom are known.
 			{
@@ -311,28 +277,15 @@ int main(int argc, char *argv[])
 
 		// Create system class instance and check inputs (reference above)
 		Sys = make_unique<System>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, In->SysList[0]);
-		Sys->cuda = cuda;
 		if (!Sys->CheckInput(start)) return 0;
 		if (!Sys->CheckChi_values(n_seg))return 0;
 
 
-		EngineType TheEngine;
-		TheEngine = SCF;
-		if (In->MesodynList.size() > 0)
-		{
-			TheEngine = MESODYN;
-		}
-		if (In->ClengList.size() > 0)
-		{
-			TheEngine = CLENG;
-		}
-		if (In->TengList.size() > 0)
-		{
-			TheEngine = TENG;
-		}
-		if (In->MicroList.size() > 0)
-		{
-			TheEngine = MICRO;
+			EngineType TheEngine;
+			TheEngine = SCF;
+			if (In->MicroList.size() > 0)
+			{
+				TheEngine = MICRO;
 		}
 
 		// Prepare variables used in variate class creation
@@ -426,13 +379,8 @@ int main(int argc, char *argv[])
 			if (CHARGED)
 				IV += m;
 			if (start > 0) {
-#ifdef CUDA
-				cudaFree(X);
-				X = (Real *)AllOnDev(IV);
-#else
 				free(X);
 				X = (Real *)malloc(IV * sizeof(Real));
-#endif
 			}
 			MONLIST.clear();
 			STATELIST.clear();
@@ -482,9 +430,6 @@ int main(int argc, char *argv[])
 				Sys->MakeItsLists();
 
 				New->AllocateMemory();
-				//if (Sys->initial_guess == "previous_result") {
-				//	Real iv_=New->iv;
-				//	if (iv_<IV_new) Cp(New->xx,X,iv_); else Cp(New->xx,X,IV_new);
 				//} else
 
 				if (Sys->initial_guess != "none")
@@ -492,17 +437,16 @@ int main(int argc, char *argv[])
 
 				if (search_nr < 0 && ets_nr < 0 && etm_nr < 0)
 				{
-					//bool print=true;
 					New->Solve(true);
 
 					if (Sys->initial_guess == "previous_result" || Sys->initial_guess == "file") {
 						if (New->iv == IV_new) {
-							Cp(X,New->xx,IV_new);
+							std::copy_n(New->xx, IV_new, X);
 						} else {
 							if (X!=NULL) free(X);
 							IV_new=New->iv;
 							X = (Real *)malloc(IV_new * sizeof(Real));
-							Cp (X,New->xx,IV_new);
+							std::copy_n(New->xx, IV_new, X);
 							MX=Lat->MX;
 							MY=Lat->MY;
 							MZ=Lat->MZ;
@@ -556,51 +500,7 @@ int main(int argc, char *argv[])
 			}
 
 			break;
-		case MESODYN:
-			New->mesodyn = true;
-			New->AllocateMemory();
-			New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
-			if (!In->CheckParameters("mesodyn", In->MesodynList[0], start, Mesodyn::KEYS, Mesodyn::PARAMETERS))
-			{
-				cout << "Error loading mesodyn parameters" << endl;
-				exit(0);
-			}
-			if (debug)
-				cout << "Creating mesodyn" << endl;
-			Mes = make_unique<Mesodyn>(start, In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), In->MesodynList[0]);
-			try
-			{
-				Mes->mesodyn();
-			}
-			catch (error RC)
-			{
-				cout << "Exiting Mesodyn with error: " << RC << ". Please check the documentation for details." << endl;
-				exit(RC);
-			}
-			Mes.reset();
-			break;
-		case CLENG:
-			New->AllocateMemory();
-			New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
-			if (!debug)
-				cout << "Creating Cleng module" << endl;
-			Cle = make_unique<Cleng>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), In->ClengList[0]);
-			if (!Cle->CheckInput(start))
-			{
-				return 0;
-			}
-			break;
-		case TENG:
-			New->AllocateMemory();
-			New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
-			cout << "Solving Teng problem" << endl;
-			Ten = make_unique<Teng>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), In->TengList[0]);
-			if (!Ten->CheckInput(start))
-			{
-				return 0;
-			}
-			break;
-		case MICRO:
+			case MICRO:
 
 				Lat_spherical = make_unique<LGrad1>(*In,In->LatList[0]); // dummy added, used in microemulsion.
 				Lat_spherical->CheckInput(start,false);
@@ -635,17 +535,9 @@ int main(int argc, char *argv[])
 			CHARGED = Sys->charged;
 			IV_new = New->iv; //check this
 			if (start > 1 || (start == 1 && Sys->initial_guess == "file"))
-#ifdef CUDA
-				cudaFree(X);
-#else
 				free(X);
-#endif
-#ifdef CUDA
-			X = (Real *)AllOnDev(IV_new);
-#else
 			X = (Real *)malloc(IV_new * sizeof(Real));
-#endif
-			Cp(X, New->xx, IV_new);
+			std::copy_n(New->xx, IV_new, X);
 			fjc_old = Lat->fjc;
 			mon_length = Sys->ItMonList.size();
 			state_length = Sys->ItStateList.size();
@@ -679,10 +571,7 @@ int main(int argc, char *argv[])
 
 		/******** Clear all class instances ********/
 
-		Mes.reset();
-		Cle.reset();
-		Ten.reset();
-		Micro.reset();
+			Micro.reset();
 		Lat_spherical.reset();
 		lat_p.reset();
 		mol_p.reset();
@@ -709,11 +598,7 @@ int main(int argc, char *argv[])
 		Rea.clear();
 		Lat.reset();
 	} //loop over starts.
-#ifdef CUDA
-	cudaFree(X);
-#else
 	free(X);
-#endif
 	In.reset();
 	return 0;
 }

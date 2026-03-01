@@ -273,15 +273,18 @@ if(debug) cout <<"gausb in Newton " << endl;
 }
 
 Real SFNewton::residue(Real *g, Real *p, Real *x, int nvar, Real alpha) {
+	(void)alpha;
 if(debug) cout <<"residue in Newton " << endl;
 	return sqrt(norm2(p,nvar)*norm2(g,nvar)/(1+norm2(x,nvar)));
 }
 
 Real SFNewton::linecriterion(Real *g, Real *g0, Real *p, Real *p0, int nvar) {
+	(void)p0;
+	(void)p;
 if(debug) cout <<"linecriterion in Newton " << endl;
 	Real normg,gg0;
 	normg = norm2(g0,nvar);
-  	Dot(gg0,g,g0,nvar);
+  	(gg0) = 0; for (int __i = 0; __i < (nvar); ++__i) (gg0) += (g)[__i] * (g0)[__i];
 
 	gg0=gg0/normg/normg;
 	normg = pow(norm2(g,nvar)/normg,2);
@@ -298,6 +301,7 @@ if(debug) cout <<"linecriterion in Newton " << endl;
 }
 
 Real SFNewton::newfunction(Real *g, Real *x, int nvar) {
+	(void)x;
 if(debug) cout <<"newfunction in Newton " << endl;
 	return pow(norm2(g,nvar),2);
 }
@@ -323,6 +327,7 @@ if(debug) cout <<"direction in Newton " << endl;
 }
 
 void SFNewton::startderivatives(Real *h, Real *g, Real *x, int nvar){ //done
+	(void)x;
 if(debug) cout <<"startderivatives in Newton" << endl;
 	Real diagonal = 1+norm2(g,nvar);
 	H_Zero(h,nvar*nvar);
@@ -364,7 +369,7 @@ if(debug) cout <<"newhessian in Newton" << endl;
 				for (int i=0; i<nvar; i++) hp[i] = -g0[i];
 			}
 
-			Dot(php,p,hp,nvar);
+			(php) = 0; for (int __i = 0; __i < (nvar); ++__i) (php) += (p)[__i] * (hp)[__i];
 			theta = py/(10*dmin+ALPHA*php);
 
 			if ( nvar>=1 && theta>0 && iterations==resetiteration+1 && accuracy > max_accuracy_for_hessian_scaling) {
@@ -422,8 +427,6 @@ if(debug) cout <<"numhessian in Newton" << endl;
 		xt = x[i];
 		di = (1/(dmax3*dmax3*fabs(h[i+nvar*i])+dmax3+fabs(g[i]))
 			+1/dmax2)*(1+fabs(x[i]));
-		//if ( di<delta_min ) { //if num hessian goes wrong then we need to include this again.
-		//	di = delta_min;
 		//}
 		x[i] += di;
 		COMPUTEG(x,g1,nvar,filter);
@@ -534,7 +537,6 @@ if(debug) cout <<"zero in Newton " << endl;
 		memcpy(x, x0, sizeof(*x)*nvar);
 		COMPUTEG(x,g,nvar,filter);
 		valid = true;
-		//timedep = false;
 		timedep = true; //to turn off the time-dependence warning which usually is a false one....
 		for (int i=0; i<nvar && valid && !timedep; i++) {
 			if ( g[i]!=g0[i] && !timedep) {
@@ -643,23 +645,13 @@ if(debug) cout <<"iterate in SFNewton" << endl;
 	Real delta_max=delta_max_;
 	Real delta_min=delta_min_;
 	bool filter=filter_;
-  #ifdef CUDA
-  Real* x0 = (Real*) AllOnDev(nvar); Zero(x0,nvar);
-  Real* g = (Real*) AllOnDev(nvar); Zero(g,nvar);
-  Real* p = (Real*) AllOnDev(nvar);Zero(p,nvar);
-  Real* p0 = (Real*) AllOnDev(nvar);Zero(p0,nvar);
-  Real* g0  = (Real*) AllOnDev(nvar);Zero(g0,nvar);
-  mask = (int*) AllIntOnDev(nvar);
-  Real* h = (Real*) AllOnDev(nvar*nvar); Zero(h,nvar*nvar);
-  #else
-  Real* x0 = (Real*) malloc(nvar*sizeof(Real)); Zero(x0,nvar);
-  Real* g = (Real*) malloc(nvar*sizeof(Real)); Zero(g,nvar);
-  Real* p = (Real*) malloc(nvar*sizeof(Real)); Zero(p,nvar);
-  Real* p0 = (Real*) malloc(nvar*sizeof(Real)); Zero(p0,nvar);
-  Real* g0  = (Real*) malloc(nvar*sizeof(Real)); Zero(g0,nvar);
+  Real* x0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(x0, nvar, 0);
+  Real* g = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g, nvar, 0);
+  Real* p = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(p, nvar, 0);
+  Real* p0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(p0, nvar, 0);
+  Real* g0  = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g0, nvar, 0);
   mask = (int*) malloc(nvar*sizeof(int));
-  Real* h = (Real*) malloc(nvar*nvar*sizeof(Real)); Zero(h,nvar*nvar);
-  #endif
+  Real* h = (Real*) malloc(nvar*nvar*sizeof(Real)); std::fill_n(h, nvar*nvar, 0);
 
 	if (nvar<1) {cout << "newton has nothing to do; returning the problem" << endl; return false;}
 	int it=0;
@@ -668,7 +660,6 @@ if(debug) cout <<"iterate in SFNewton" << endl;
 	Real trustregion=delta_max;
 	Real ALPHA=1;
 	Real trustfactor =1;
-	//reverseDirectionRange=50;
 
     trouble = resetiteration = 0;
 	minAccuracySoFar = 1e30;
@@ -680,11 +671,11 @@ if(debug) cout <<"iterate in SFNewton" << endl;
 		cout << "Your guess:";
 	}
 
-	Cp(x0,x,nvar);
+	std::copy_n(x, nvar, x0);
 	if (filter) {
 		for (int i=0; i<nvar; i++) x[i]+=1e-10*(Real)rand() / (Real)((unsigned)RAND_MAX + 1);
 		residuals(x,g);
-		Cp(x,x0,IV);
+		std::copy_n(x0, IV, x);
 		int xxx=0;
 		for (int i=0; i<nvar; i++) {if (g[i]==0) mask[i]=0; else {xxx++;  mask[i]=1;}}
 		nvar=xxx;
@@ -714,12 +705,11 @@ if(debug) cout <<"iterate in SFNewton" << endl;
 		it++; iterations=it;  lineiterations=0;
 		newtrustregion(p0,ALPHA,trustregion,trustfactor,delta_max,delta_min,nvar);  //trustregion and trustfactor are adjusted.
 		alphabound = trustregion/(norm2(p,nvar)+1/pow(2.0,nbits));
-		Cp(x0,x,nvar);
-		Cp(g0,g,nvar);
+		std::copy_n(x, nvar, x0);
+		std::copy_n(g, nvar, g0);
 		ALPHA = linesearch(g,g0,p,x,x0,nvar,alphabound,filter);
 		trustfactor *= stepchange(g,g0,p,p0,x,x0,nvar,ALPHA,filter);
 		trustfactor *= ALPHA/alphabound;
-		//if (it==1) {newhessian(h,g,g0,x,p,nvar,accuracy,ALPHA,filter);}
 		inneriteration(x,g,h,accuracy,delta_max,ALPHA,nvar);
 		accuracy=newdirection(h,p,p0,g,g0,x,nvar,ALPHA,filter);
 		normg=sqrt(minimum);
@@ -731,9 +721,6 @@ if(debug) cout <<"iterate in SFNewton" << endl;
 #endif
 	success=Message(e_info,s_info,it,iterationlimit,accuracy,tolerance,"");
 	ResetX(x,nvar,filter);
-  #ifdef CUDA
-  cudaFree(x0);cudaFree(g);cudaFree(p);cudaFree(p0);cudaFree(g0);cudaFree(h);cudaFree(mask);
-  #else
  	free(x0);
 	free(g);
 	free(p);
@@ -741,7 +728,6 @@ if(debug) cout <<"iterate in SFNewton" << endl;
 	free(g0);
 	free(h);
 	free(mask);
-  #endif
 
   mask = NULL;
 	return success;
@@ -751,13 +737,8 @@ if(debug) cout <<"iterate in SFNewton" << endl;
 bool SFNewton::iterate_Picard(Real* x,int nvar, int iterationlimit, Real tolerance, Real delta_max) {
 if(debug) cout <<"Iterate_Picard in  SFNewton " << endl;
 
-#ifdef CUDA
-Real* h  = (Real*) malloc(sizeof(Real));
-Real* g = (Real*) AllOnDev(nvar);
-#else
 Real* h  = (Real*) malloc(sizeof(Real));
 Real* g = (Real*) malloc(nvar*sizeof(Real));
-#endif
 
 	bool success=true;
 	int it;
@@ -777,17 +758,13 @@ Real* g = (Real*) malloc(nvar*sizeof(Real));
 			printf("it = %i g = %e \n",it,residual);
 #endif
 		}
-		YplusisCtimesX(x,g,delta_max,nvar);
+		for (int __i = 0; __i < (nvar); ++__i) (x)[__i] += (delta_max) * (g)[__i];
 		residual=computeresidual(g,nvar);
 		//inneriteration(x,g,h,residual,nvar);
 		it++;
 	}
 	success=Message(e_info,s_info,it,iterationlimit,residual,tolerance,"");
-  #ifdef CUDA
-  cudaFree(h); cudaFree(g);
-  #else
 free(h); free(g);
-#endif
 	return success;
 }
 
@@ -852,7 +829,7 @@ if(debug) cout <<"DIIS in  SFNewton " << endl;
       		posi +=m;
 		}
 	  	Real Dvalue;
-    		Dot(Dvalue,x_x0+posi*nvar, x_x0+k*nvar,nvar);
+    		(Dvalue) = 0; for (int __i = 0; __i < (nvar); ++__i) (Dvalue) += (x_x0+posi*nvar)[__i] * (x_x0+k*nvar)[__i];
 		Aij[i+m*(k_diis-1)] = Aij[k_diis-1+m*i] = Dvalue + 1e-9;
 		// write to (compressed) matrix Apij
 		for (int j=0; j<k_diis; j++)
@@ -868,10 +845,7 @@ if(debug) cout <<"DIIS in  SFNewton " << endl;
     	normC +=Ci[i];
 	for (int i=0; i<k_diis; i++)
     	Ci[i] =Ci[i]/normC;
-	#ifdef CUDA
-	TransferDataToDevice(Ci, d_Ci, m);
-	#endif
-	Zero(x,nvar);
+	std::fill_n(x, nvar, 0);
 	posi = k-k_diis+1;
 
   	if (posi<0)
@@ -884,20 +858,10 @@ Real SFNewton::computeresidual(Real* array, int size) {
   Real residual = 0;
   // Compute residual based on maximum error value
   if (max_g == true) {
-	#ifdef PAR_MESODYN_THRUST
-
-	//in tools:
-	residual = ComputeResidual(array, size);
-	#else //CUDA OR CPU
 
 	Real* H_array;
 
-	#ifdef CUDA
-	H_array = (Real*)malloc(size*sizeof(Real));
-	TransferDataToHost(H_array,array,size);
-		#else //CPU
 		H_array = array;
-	#endif //CUDA
 
     auto temp_residual = minmax_element(H_array, H_array+size);
     if(abs(*temp_residual.first) > abs(*temp_residual.second) ) {
@@ -906,21 +870,12 @@ Real SFNewton::computeresidual(Real* array, int size) {
       residual = abs(*temp_residual.second);
     }
 
-	#ifdef CUDA
-	free(H_array);
-	#endif //CUDA
 
-	#endif //PAR_MESODYN_THRUST
 
   } else {
     // Compute residual based on sum of errors
-	#ifdef CUDA
-    Dot(residual,array,array,size);
-    residual = sqrt(residual);
-		#else //CPU
 		residual = H_Dot(array,array,size);
 		residual = sqrt(residual);
-	#endif //CUDA
   }
 
   return residual;
@@ -943,11 +898,10 @@ if(debug) cout <<"Iterate_BBR in SFNewton " << endl; // trying the inverse Broyd
 	MatrixXd thinQ(MatrixXd::Identity(nvar,m+1));
 	VectorXd y(nvar); //moet g-g0 gaan bevatten
     VectorXd S(m+1);
-    Real* g = (Real*) malloc(nvar*sizeof(Real)); Zero(g,nvar);
-    Real* g0 = (Real*) malloc(nvar*sizeof(Real)); Zero(g0,nvar);
-    Real* p = (Real*) malloc(nvar*sizeof(Real)); Zero(p,nvar);
-    //Real* p0 = (Real*) malloc(nvar*sizeof(Real)); Zero(p,nvar);
-    Real* x0 = (Real*) malloc(nvar*sizeof(Real)); Zero(x0,nvar);
+    Real* g = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g, nvar, 0);
+    Real* g0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g0, nvar, 0);
+    Real* p = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(p, nvar, 0);
+    Real* x0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(x0, nvar, 0);
     Map<VectorXd> gg(g,nvar);
     Map<VectorXd> gg0(g0,nvar);
     //Map<VectorXd> pp0(p0,nvar);
@@ -960,8 +914,6 @@ if(debug) cout <<"Iterate_BBR in SFNewton " << endl; // trying the inverse Broyd
 
     Real error;
     Real alpha;
-	//Real pg0;
-	//Real pg;
     residuals(x,g);
     error=norm2(g,nvar);
 
@@ -970,10 +922,9 @@ if(debug) cout <<"Iterate_BBR in SFNewton " << endl; // trying the inverse Broyd
 		cout <<"Your guess: " << error << endl;
 	}
     while (it <iterationlimit && error>tolerance) {
-		Cp(x0,x,nvar);
+		std::copy_n(x, nvar, x0);
 		s=-gg+CC.block(0,1,nvar,k)*DD.block(0,1,nvar,k).transpose()*gg; //sign of s changed wrt Rotten thesis; equivalent to sign change of g.
-		Cp(g0,g,nvar);
-       //pg0=s.dot(gg);
+		std::copy_n(g, nvar, g0);
 		if (error>1) alpha=delta_max;
 		else alpha=delta_max - it*(1.0-delta_max)/1e4*log(error);
 		if (alpha>1) alpha=1;
@@ -982,17 +933,9 @@ if(debug) cout <<"Iterate_BBR in SFNewton " << endl; // trying the inverse Broyd
 		xx=xx0+alpha*s;
 		residuals(x,g);
 		error=norm2(g,nvar);
-		//pg = s.dot(gg);
 
 
-		//if (abs(pg)>-10*pg0){
-			//cout <<"pg = "<<pg;// << "\tpg0 = " << pg0 << endl;
-			//alpha=alpha/2;
-			//xx=xx0+alpha*s;
 			//residuals(x,g);
-			//error=norm2(g,nvar);
-			//pg = s.dot(gg);
-			//cout <<" "<<pg << "\tpg0 = " << pg0 << endl;
 		//}
 		if (e_info && it%i_info==0) {
 			cout << "i = " << it <<"\tg = " << error << "\talpha = "<< alpha << endl;
@@ -1042,32 +985,24 @@ if(debug) cout <<"Iterate_DIIS in SFNewton " << endl;
   Real* Aij = (Real*) malloc(m*m*sizeof(Real)); H_Zero(Aij,m*m);
   Real* Apij = (Real*) malloc(m*m*sizeof(Real)); H_Zero(Apij,m*m);
   Real* Ci = (Real*) malloc(m*sizeof(Real)); H_Zero(Ci,m);
-  #ifdef CUDA
-  d_Ci = (Real*)AllOnDev(m);
-  Real* xR = (Real*) AllOnDev(m*nvar); Zero(xR,m*nvar);
-  Real* x_x0 = (Real*) AllOnDev(m*nvar); Zero(x_x0,m*nvar);
-  Real* x0 = (Real*) AllOnDev(nvar); Zero(x0,nvar);
-  Real* g = (Real*) AllOnDev(nvar); Zero(g,nvar);
-  #else
   d_Ci = Ci;
-  Real* xR = (Real*) malloc(m*nvar*sizeof(Real)); Zero(xR,m*nvar);
-  Real* x_x0 = (Real*) malloc(m*nvar*sizeof(Real)); Zero(x_x0,m*nvar);
-  Real* x0 = (Real*) malloc(nvar*sizeof(Real)); Zero(x0,nvar);
-  Real* g = (Real*) malloc(nvar*sizeof(Real)); Zero(g,nvar);
-  #endif
+  Real* xR = (Real*) malloc(m*nvar*sizeof(Real)); std::fill_n(xR, m*nvar, 0);
+  Real* x_x0 = (Real*) malloc(m*nvar*sizeof(Real)); std::fill_n(x_x0, m*nvar, 0);
+  Real* x0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(x0, nvar, 0);
+  Real* g = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g, nvar, 0);
 	iterations=0;
 	int k_diis=0;
 	int k=0;
-	Cp(x0,x,nvar);
+	std::copy_n(x, nvar, x0);
   // mol computephi takes long: moltype = monomer
 
 	try {
 
 		residuals(x,g);
 
-		YplusisCtimesX(x,g,-delta_max,nvar);
-		YisAminB(x_x0,x,x0,nvar);
-		Cp(xR,x,nvar);
+		for (int __i = 0; __i < (nvar); ++__i) (x)[__i] += (-delta_max) * (g)[__i];
+		for (int __i = 0; __i < (nvar); ++__i) (x_x0)[__i] = (x)[__i] - (x0)[__i];
+		std::copy_n(x, nvar, xR);
   		residual = computeresidual(g, nvar);
 
 		if (e_info) printf("DIIS has been notified\n");
@@ -1082,12 +1017,12 @@ if(debug) cout <<"Iterate_DIIS in SFNewton " << endl;
 				k_diis=0; cout<<"!";
 			}
 
-			Cp(x0,x,nvar);
+			std::copy_n(x, nvar, x0);
 			residuals(x,g);
 			k=iterations % m; k_diis++; //plek voor laatste opslag
-			YplusisCtimesX(x,g,-delta_max,nvar);
-			Cp(xR+k*nvar,x,nvar);
-			YisAminB(x_x0+k*nvar,x,x0,nvar);
+			for (int __i = 0; __i < (nvar); ++__i) (x)[__i] += (-delta_max) * (g)[__i];
+			std::copy_n(x, nvar, xR+k*nvar);
+			for (int __i = 0; __i < (nvar); ++__i) (x_x0+k*nvar)[__i] = (x)[__i] - (x0)[__i];
 			DIIS(x,x_x0,xR,Aij,Apij,Ci,k,k_diis,m,nvar);
     			residual = computeresidual(g, nvar);
 			if(e_info && iterations%i_info == 0){
@@ -1112,39 +1047,27 @@ if(debug) cout <<"Iterate_DIIS in SFNewton " << endl;
 		if (error == -4)
 			cerr << "Detected negative phibulk." << endl;
 		free(Aij);free(Ci);free(Apij);
-		#ifdef CUDA
-  		cudaFree(xR);cudaFree(x_x0);cudaFree(x0);cudaFree(g);
-  		#else
   		free(xR);free(x_x0);free(x0);free(g);
-  		#endif
 
 		throw error;
 	}
   	free(Aij);
 	free(Apij);
 	free(Ci);
-  #ifdef CUDA
-  cudaFree(xR);cudaFree(x_x0);cudaFree(x0);cudaFree(g); cudaFree(d_Ci);
-  #else
   	free(xR);
 	free(x_x0);
 	free(x0);
 	free(g);
-  #endif
 	return success;
 }
 
 bool SFNewton::iterate_RF(Real*x, int nvar_,int iterationlimit,Real tolerance, Real delta_max, string s) {
+	(void)s;
 if(debug) cout <<"Iterate_RF in SFNewton " << endl;
 	int nvar=nvar_;
 	bool success;
-  #ifdef CUDA
-  Real* x0 = (Real*) AllOnDev(nvar*sizeof(Real)); Zero(x0,nvar);
-	Real* g = (Real*) AllOnDev(nvar*sizeof(Real)); Zero(g,nvar);
-  #else
-	Real* x0 = (Real*) malloc(nvar*sizeof(Real)); Zero(x0,nvar);
-	Real* g = (Real*) malloc(nvar*sizeof(Real)); Zero(g,nvar);
-  #endif
+	Real* x0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(x0, nvar, 0);
+	Real* g = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g, nvar, 0);
 	Real a=0, b=0, c=0, fa=0, fb=0, fc=0;
 	Real res=100.0;
 	int k=0,it=0;
@@ -1188,75 +1111,11 @@ if(debug) cout <<"Iterate_RF in SFNewton " << endl;
 	}
 
 	success=Message(e_info,s_info,it,iterationlimit,residual,tolerance,"");
-  #ifdef CUDA
-  cudaFree(x0);cudaFree(g);
-  #else
 	free(x0);free(g);
-  #endif
 	return success;
 }
 
-/*
-bool SFNewton::iterate_conjugate_gradient(Real *x, int nvar,int iterationlimit , Real tolerance, Real deltamax) {
-	Real* x0 = (Real*) malloc(nvar*sizeof(Real)); Zero(x0,nvar);
-	Real* g = (Real*) malloc(nvar*sizeof(Real)); Zero(g,nvar);
-	Real* g0 = (Real*) malloc(nvar*sizeof(Real)); Zero(g0,nvar);
-	Real* d = (Real*) malloc(nvar*sizeof(Real)); Zero(d,nvar);
-	Real* d0 = (Real*) malloc(nvar*sizeof(Real)); Zero(d0,nvar);
-	Real* d00 = (Real*) malloc(nvar*sizeof(Real)); Zero(d00,nvar);
-	Real* y0 = (Real*) malloc(nvar*sizeof(Real)); Zero(y0,nvar);
-	Real* y00 = (Real*) malloc(nvar*sizeof(Real)); Zero(y00,nvar);
-	Real alpha; Real y0d0; Real accuracy; Real Teller1,Teller2,Noemer1,Noemer2;
-	int iterations=0;
 
-	residuals(x,g);
-	Cp(x0,x,nvar); Cp(g0,g,nvar);
-	for (int i=0; i<nvar; i++) d0[i]=-g[i];
-
-	y0d0=-1; alpha=2;
-	while (y0d0<0 && alpha>0.001) {
-		alpha =alpha/2;
-		for (int i=0; i<nvar; i++) x[i]=x0[i]+alpha*d0[i];
-		residuals(x,g);
-		y0d0=0; accuracy=0;
-		for (int i=0; i<nvar; i++) {y0[i]=g[i]-g0[i]; y0d0 +=y0[i]*d0[i]; accuracy+=g[i]*g[i];}
-	}
-	accuracy= pow(accuracy,0.5);
-	cout <<"Your guess: E = " << accuracy << " alpha = " << alpha << endl;
-	Teller1=Noemer1=0;
-	for (int i=0; i<nvar; i++) {
-		Teller1+=y0[i]*y0[i];
-		Noemer1+=d0[i]*y0[i];
-	}
-	for (int i=0; i<nvar; i++) {
-		d[i]=-y0[i]+Teller1/Noemer1*d0[i];
-	}
-	while (accuracy > tolerance && iterations < iterationlimit) {
-		iterations++;
-		Cp(d00,d0,nvar); Cp(d0,d,nvar);  Cp(x0,x,nvar); Cp(g0,g,nvar);
-		y0d0=-1; alpha=1; Cp(y00,y0,nvar);
-		while (y0d0<0 && alpha > 0.001) {
-			alpha =alpha/2;
-			for (int i=0; i<nvar; i++) x[i]=x0[i]+alpha*d0[i];
-			residuals(x,g);	y0d0=0; accuracy=0;
-			for (int i=0; i<nvar; i++) {y0[i]=g[i]-g0[i]; y0d0 +=y0[i]*d0[i]; accuracy+=g[i]*g[i];}
-		}
-		accuracy= pow(accuracy,0.5);
-		cout <<"it = " << iterations << " E = " << accuracy << " alpha = " << alpha << endl;
-		Teller1=Teller2=Noemer1=Noemer2=0;
-		for (int i=0; i<nvar; i++) {
-			Teller1+=y0[i]*y0[i];
-			Teller2+=y00[i]*y0[i];
-			Noemer1+=d0[i]*y0[i];
-			Noemer2+=d00[i]*y00[i];
-		}
-		for (int i=0; i<nvar; i++) d[i]=-y0[i]+Teller1/Noemer1*d0[i] + Teller2/Noemer2*d00[i];
-	}
-
-	free(x0); free(g); free(g0); free(d); free(d0); free(d00); free(y0); free(y00);
-	return true;
-}
-*/
 
 bool SFNewton::iterate_conjugate_gradient(Real *x, int nvar,int iterationlimit , Real tolerance, Real deltamax) {
 // Based on An Introduction to the Conjugate Gradient Method Without the Agonizing Pain Edition 1 1/4 - Jonathan Richard Shewchuk
@@ -1271,24 +1130,13 @@ bool SFNewton::iterate_conjugate_gradient(Real *x, int nvar,int iterationlimit ,
 	Real rd=0;
 	bool proceed;
   int iterations=0;
-  #ifdef CUDA
-  Real* g = (Real*) AllOnDev(nvar); Zero(g,nvar);
-  Real* dg = (Real*) AllOnDev(nvar); Zero(dg,nvar);
-  Real* r = (Real*) AllOnDev(nvar); Zero(r,nvar);
-  Real* r_old = (Real*) AllOnDev(nvar); Zero(r_old,nvar);
-  Real* d = (Real*) AllOnDev(nvar); Zero(d,nvar);
-  Real* x0 = (Real*) AllOnDev(nvar); Zero(x0,nvar);
-  Real* H_d = (Real*) AllOnDev(nvar); Zero(H_d,nvar);
-  #else
-  Real* g = (Real*) malloc(nvar*sizeof(Real)); Zero(g,nvar);
-  Real* dg = (Real*) malloc(nvar*sizeof(Real)); Zero(dg,nvar);
-  Real* r = (Real*) malloc(nvar*sizeof(Real)); Zero(r,nvar);
-  Real* r_old = (Real*) malloc(nvar*sizeof(Real)); Zero(r_old,nvar);
-  Real* d = (Real*) malloc(nvar*sizeof(Real)); Zero(d,nvar);
-  Real* x0 = (Real*) malloc(nvar*sizeof(Real)); Zero(x0,nvar);
-  Real* H_d = (Real*) malloc(nvar*sizeof(Real)); Zero(H_d,nvar);
-	//tolerance=1e-7;
-  #endif
+  Real* g = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g, nvar, 0);
+  Real* dg = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(dg, nvar, 0);
+  Real* r = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(r, nvar, 0);
+  Real* r_old = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(r_old, nvar, 0);
+  Real* d = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(d, nvar, 0);
+  Real* x0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(x0, nvar, 0);
+  Real* H_d = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(H_d, nvar, 0);
 
 	if ( e_info ) {
 		cout<<"Nonlinear conjugate gradients with Newton-Raphson and Fletcher-Reeves has been notified."<<endl;
@@ -1360,11 +1208,7 @@ bool SFNewton::iterate_conjugate_gradient(Real *x, int nvar,int iterationlimit ,
 	if (iterations==iterationlimit) success=false;
 	Message(e_info,true,iterations,iterationlimit,accuracy,tolerance,"");
 
-  #ifdef CUDA
-  cudaFree(H_d); cudaFree(g);cudaFree(dg);cudaFree(r);cudaFree(r_old);cudaFree(d);cudaFree(x0);
-  #else
   free(H_d); free(g);free(dg);free(r);free(r_old);free(d);free(x0);
-  #endif
   return success;
 }
 
@@ -1384,15 +1228,6 @@ void SFNewton::Hd(Real *H_q, Real *q, Real *x, Real *x0, Real *g, Real* dg, Real
     x[i] = x0[i] + delta*q[i];
 
 	residuals(x,dg);
-  /*
-	valid = true;
-	for (int i=0; i<nvar && valid; i++) {
-		if (!isfinite(dg[i])) {
-			valid = false;
-			warning("invalid numbers in gradient");
-			dg[i] = 1;
-		}
-	}
-  */
+  
 	for (int i=0; i<nvar; i++) H_q[i] = (dg[i]-g[i])/delta;
 }

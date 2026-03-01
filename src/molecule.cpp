@@ -52,7 +52,6 @@ Molecule::~Molecule() {
 void Molecule :: DeAllocateMemory(){
 if (debug) cout <<"DeallocateMemory for Mol " + name << endl;
 	if (!all_molecule) return;
-	//if (H_phi!=NULL)
 	free(H_phi);
 	free(H_phitot);
 	if (Markov==2) { free(P);}
@@ -70,33 +69,6 @@ if (debug) cout <<"DeallocateMemory for Mol " + name << endl;
 		free(H_mask2);
 		free(H_gn);
 	}
-#ifdef CUDA
-	if (freedom=="clamped") {
-		cudaFree(Bx);
-		cudaFree(By);
-		cudaFree(Bz);
-		cudaFree(Px1);
-		cudaFree(Py1);
-		cudaFree(Pz1);
-		cudaFree(Px2);
-		cudaFree(Py2);
-		cudaFree(Pz2);
-		cudaFree(mask1);
-		cudaFree(mask2);
-		cudaFree(gn);
-		cudaFree(Gg_f);
-		cudaFree(Gg_b);
-		cudaFree(g1);
-		cudaFree(rho);
-		cudaFree(phi);
-	} else {
-		cudaFree(Gg_f);
-		cudaFree(Gg_b);
-		cudaFree(phi);
-	}
-	cudaFree(phitot);
-	if (save_memory) cudaFree(Gs);
-#else
 	if (freedom=="clamped"){
 		free(rho);
 		free(g1);
@@ -106,7 +78,6 @@ if (debug) cout <<"DeallocateMemory for Mol " + name << endl;
 	if (save_memory) free(Gs);
 	free(UNITY);
 
-#endif
 	all_molecule=false;
 }
 
@@ -149,27 +120,13 @@ if (debug) cout <<"AllocateMemory in Mol " + name << endl;
 			} else Q=P[k];
 		}
 		P[FJC-1]=0; //Q+=P[FJC-1];
-		//if (lat->lattice_type==hexagonal) Q=2*Q-P[0]; else Q=4*Q-3*P[0];
 		if (lat->lattice_type==hexagonal&& !lat->stencil_full) Q*=2.0;
 		for (int k=0; k<FJC; k++) { P[k]/=Q;
 			cout << "P["<<k<<"] = " << P[k] << endl;
 		}
 	}
 
-/*
-	if (Markov==2 && lat->lattice_type == hexagonal) {
-		int FJC = lat->FJC;
-		P = (Real*) malloc(2*sizeof(Real)); //assuming only default k_stiff value for P's so that P array is small.
-		Real Q=0;
-		KStiff=k_stiff;
-		P[0]=exp(-0.5*KStiff*(PIE/3.0)*(PIE/3.0) ); Q+= 3*P[0]; //alternative is to use P[0]=exp(-KStiff*(1-cos(theta))
-		P[1]=exp(-0.5*KStiff*(2.0*PIE/3.0)*(2.0*PIE/3.0) ); Q+= 6*P[1];
-		P[FJC-1]=0;
-		for (int k=0; k<lat->FJC-1; k++) { P[k]/=Q;
-			cout << "P["<<k<<"] = " << P[k] << endl;
-		}
-	}
-*/
+
 
 	if (freedom=="clamped") {
 		m=lat->m[Seg[mon_nr[0]]->clamp_nr];
@@ -181,11 +138,8 @@ if (debug) cout <<"AllocateMemory in Mol " + name << endl;
 		for (int i=0; i<length_; i++) last_stored.push_back(0);
 		for (int i=0; i<length_; i++) {
 			int n=int(pow(n_mon[i]*2,1.0/2.0)+0.5); //in sfbox apparently the pow 1/3 is reached. Here it fails for unknown reasons.
-			//if (n_mon[i]<120) n++;
-			//if (n_mon[i]<60) n++;
 			if (n>n_mon[i]) n=n_mon[i]; //This seems to me to be enough...needs a check though..
 			if (i==0) memory.push_back(n); else memory.push_back(n+memory[i-1]);
-			//cout <<"n " << n << endl;
 		}
 	}
 	N=0;
@@ -212,61 +166,30 @@ if (debug) cout <<"AllocateMemory in Mol " + name << endl;
 		H_mask2=(Real*) malloc(n_box*m*sizeof(Real)); H_Zero(H_mask2,m*n_box);
 		H_gn = (Real*) malloc(n_box*sizeof(Real));
 	}
-#ifdef CUDA
-	if (freedom=="clamped") {
-		Bx=(int*)AllIntOnDev(n_box);
-		By=(int*)AllIntOnDev(n_box);
-		Bz=(int*)AllIntOnDev(n_box);
-		Px1=(int*)AllIntOnDev(n_box);
-		Py1=(int*)AllIntOnDev(n_box);
-		Pz1=(int*)AllIntOnDev(n_box);
-		Px2=(int*)AllIntOnDev(n_box);
-		Py2=(int*)AllIntOnDev(n_box);
-		Pz2=(int*)AllIntOnDev(n_box);
-		mask1=(Real*)AllOnDev(n_box*m);
-		mask2=(Real*)AllOnDev(n_box*m);
-		gn =(Real*)AllOnDev(n_box);
-		Gg_f=(Real*)AllOnDev(m*n_box*N); Zero(Gg_f,m*n_box*N);
-		Gg_b=(Real*)AllOnDev(m*n_box*2); Zero(Gg_b,m*n_box*2);
-		g1=(Real*)AllOnDev(m*n_box); Zero(g1,m*n_box);
-		rho=(Real*)AllOnDev(m*n_box*MolMonList.size()); Zero(rho,m*n_box*MolMonList.size());
-		phi=(Real*)AllOnDev(M*MolMonList.size()); Zero(phi,M*MolMonList.size());
-		if (save_memory) {Gs=(Real*)AllOnDev(m*n_box*2); Zero(Gs,m*n_box*2);}
-	} else {
-		Gg_f=(Real*)AllOnDev(M*N); //not yet for Markov =2
-		Gg_b=(Real*)AllOnDev(M*2);
-		phi=(Real*)AllOnDev(M*MolMonList.size());
-		rho=phi;
-		if (save_memory) Gs =(Real*)AllOnDev(M*2);
-	}
-	phitot=(Real*)AllOnDev(M);
-	UNITY = (Real*)AllOnDev(M);
-#else
 	if (freedom=="clamped") {
 		gn=H_gn;
 		mask1=H_mask1; mask2=H_mask2;
 		Bx=H_Bx; By=H_By; Bz=H_Bz;
 		Px1=H_Px1; Py1=H_Py1; Pz1=H_Pz1;
 		Px2=H_Px2; Py2=H_Py2; Pz2=H_Pz2;
-		Gg_f = (Real*) malloc(m*N*n_box*sizeof(Real)); Zero(Gg_f,m*N*n_box);
-		Gg_b = (Real*) malloc(m*2*n_box*sizeof(Real)); Zero(Gg_b,m*2*n_box);
+		Gg_f = (Real*) malloc(m*N*n_box*sizeof(Real)); std::fill_n(Gg_f, m*N*n_box, 0);
+		Gg_b = (Real*) malloc(m*2*n_box*sizeof(Real)); std::fill_n(Gg_b, m*2*n_box, 0);
 
-		g1=(Real*) malloc(m*n_box*sizeof(Real)); Zero(g1,m*n_box);
-		rho=(Real*)malloc(m*n_box*MolMonList.size()*sizeof(Real)); Zero(rho,m*n_box*MolMonList.size());
-		if (save_memory) {Gs=(Real*) malloc(m*n_box*2*sizeof(Real));Zero(Gs,m*n_box*2);}
+		g1=(Real*) malloc(m*n_box*sizeof(Real)); std::fill_n(g1, m*n_box, 0);
+			rho=(Real*)malloc(m*n_box*MolMonList.size()*sizeof(Real)); std::fill_n(rho, m*n_box*MolMonList.size(), 0);
+		if (save_memory) {Gs=(Real*) malloc(m*n_box*2*sizeof(Real));std::fill_n(Gs, m*n_box*2, 0);}
 		phi=H_phi;
 	} else {
 		Gg_f = (Real*) malloc(M*N*sizeof(Real)*size);
 		Gg_b = (Real*) malloc(M*2*sizeof(Real)*size);
-		Zero(Gg_f,M*N*size);
-		Zero(Gg_b,2*M*size);
+		std::fill_n(Gg_f, M*N*size, 0);
+		std::fill_n(Gg_b, 2*M*size, 0);
 		phi=H_phi;
 		rho=phi;
-		if (save_memory) {Gs=(Real*) malloc(2*M*sizeof(Real)*size); Zero(Gs,2*M*size);}
+		if (save_memory) {Gs=(Real*) malloc(2*M*sizeof(Real)*size); std::fill_n(Gs, 2*M*size, 0);}
 	}
 	phitot = H_phitot;
-	UNITY = (Real*) malloc(M*sizeof(Real)*size); Zero(UNITY,M*size);
-#endif
+	UNITY = (Real*) malloc(M*sizeof(Real)*size); std::fill_n(UNITY, M*size, 0);
 
 	int length =MolAlList.size();
 	if (freedom!="clamped") Seg[mon_nr[0]]->clamp_nr=0;
@@ -298,48 +221,22 @@ int M=lat->M;
 			H_mask1[i*m + jx*(H_Px1[i]-H_Bx[i])+jy*(H_Py1[i]-H_By[i])+(H_Pz1[i]-H_Bz[i])]=1;
 			H_mask2[i*m + jx*(H_Px2[i]-H_Bx[i])+jy*(H_Py2[i]-H_By[i])+(H_Pz2[i]-H_Bz[i])]=1;
 		}
-#ifdef CUDA
-		TransferDataToDevice(H_mask1,mask1,m*n_box);
-		TransferDataToDevice(H_mask2,mask2,m*n_box);
-		TransferDataToDevice(H_Bx,Bx,n_box);
-		TransferDataToDevice(H_By,By,n_box);
-		TransferDataToDevice(H_Bz,Bz,n_box);
-		TransferDataToDevice(H_Px1,Px1,n_box);
-		TransferDataToDevice(H_Py1,Py1,n_box);
-		TransferDataToDevice(H_Px2,Px2,n_box);
-		TransferDataToDevice(H_Pz1,Pz1,n_box);
-		TransferDataToDevice(H_Py2,Py2,n_box);
-		TransferDataToDevice(H_Pz2,Pz2,n_box);
-	//	TransferDataToDevice(H_u,u, (int)MolMonList.size()*M);
-#endif
 	}
-	Cp(UNITY,KSAM,M);
+	std::copy_n(KSAM, M, UNITY);
 	int length_al=MolAlList.size();
 	for (int i=0; i<length_al; i++) Al[i]->PrepareForCalculations();
 	bool success=true;
-	Zero(phitot,M);
+	std::fill_n(phitot, M, 0);
 
-	//int length = MolMonList.size();
-	//int i=0;
-	//while (i<length) {
 
-		//if (Seg[MolMonList[i]]->freedom=="tagged" || Seg[MolMonList[i]]->freedom=="clamp" ) Zero(u+i*M,M);
 		//lat->set_bounds(u+i*M);
-		//Boltzmann(G1+i*M , u+i*M, M); */
 
-		//if (Seg[MolMonList[i]]->freedom=="tagged" || Seg[MolMonList[i]]->freedom=="clamp" ) Zero(u+i*M,M);
 		//lat->set_bounds(u+i*M);
-		//Cp(G1+i*M,Seg[MolMonList[i]]->G1,M);
-		//Boltzmann(G1+i*M , u+i*M, M);
 
 
-		//if (Seg[MolMonList[i]]->freedom=="pinned") Times(G1+i*M,G1+i*M,Seg[MolMonList[i]]->MASK,M);
-		//if (Seg[MolMonList[i]]->freedom=="tagged") Cp(G1+i*M,Seg[MolMonList[i]]->MASK,M);
 		//lat->set_bounds(G1+i*M);
-		//if (!(Seg[MolMonList[i]]->freedom ==" frozen" || Seg[MolMonList[i]]->freedom =="tagged")) Times(G1+i*M,G1+i*M,KSAM,M);
-		//i++;
 	//}
-	Zero(phi,M*MolMonList.size());
+		std::fill_n(phi, M*MolMonList.size(), 0);
 	compute_phi_alias=false;
 	if (freedom=="clamped") {
 		int chainlength_even=chainlength%2;
@@ -441,7 +338,6 @@ if (debug) cout <<"CheckInput for Mol " + name << endl;
 				success=false;
 			} else {
 				n_box=Seg[mon_nr[0]]->n_box;
-				//int m=lat->m[Seg[mon_nr[0]]->clamp_nr];
 				if (GetValue("theta").size() >0) {
 					theta=In->Get_Real(GetValue("theta"),n_box*chainlength);
 					if (theta!=n_box*chainlength)
@@ -510,7 +406,6 @@ if (debug) cout <<"CheckInput for Mol " + name << endl;
 					}
 				}
 
-				//if (freedom == "gradient") { //for the time being only in one-gradient systems; this is tested in system.
 				B=1;
 				if (GetValue("B").size()>0){
 					B=In->Get_Real(GetValue("B"),B);
@@ -560,8 +455,6 @@ if (debug) cout <<"CheckInput for Mol " + name << endl;
 				}
 
 				if (freedom == "restricted" || freedom=="range_restricted") {
-					//if (GetValue("phibulk").size()>0) {
-					//	cout << "In mol " + name + ", the setting of 'freedom = restricted' or 'freedom = range_restricted', can not not be combined with 'phibulk'  use 'theta' or 'n'  instead." << endl; success=false;
 					//} else {
 						if (GetValue("theta").size() ==0 && GetValue("n").size()==0) {
 							cout <<"In mol " + name + ", the setting 'freedom = restricted' or 'freedom = range_restricted',should be combined with a value for 'theta' or 'n'; do not use both settings! "<<endl; success=false;
@@ -599,8 +492,6 @@ if (debug) cout <<"CheckInput for Mol " + name << endl;
 						free(r);
 					}
 
-					//cout <<"restricted_range not yet implemented " << endl;
-					//success=false;
 				}
 
 			} else {
@@ -697,7 +588,6 @@ if (debug) cout <<"CheckInput for Mol " + name << endl;
 				cout <<"Warning: Markov = 2 & gradients=3 lattice_type = hexagonal...not certified!!!. Caution recommended, even without obvious error messages...." << endl;
 			}
 		}
-	    //cout <<"size = " << size << endl;
 	} else size = 1;
 	if (size==0) {success=false; cout <<"Attention: size in molecule is not set; combination gradients (1,2,3),  Markov=2, stencil_full (true,false), lattice_type (hexagonal, simple_cubic) not implemented" << endl;}
 
@@ -708,9 +598,6 @@ bool Molecule::PutVarInfo(string Var_type_,string Var_target_,Real Var_target_va
 if (debug) cout <<"Molecule:: PutVarInfo in mol "+ name << endl;
 
 	bool success=true;
-	//Var_scan_value=-1;
-	//Var_search_value=-1;
-	//Var_target=-1;
 	vector<string>sub;
 	Var_type="";
 	if (Var_type_=="scan") {
@@ -898,10 +785,11 @@ if (debug) cout <<"Molecule:: ResetInitValue" << endl;
 			phibulk=Var_start_search_value;
 			cout <<"mol : " + name + " : phibulk " << phibulk << endl;
 			break;
-		case 3: theta=Var_start_search_value;
-			cout <<"mol : " + name + " : theta " << theta << endl;
-		case 4: theta=Var_start_search_value;
-			cout <<"mol : " + name + " : theta " << theta << endl;
+			case 3: theta=Var_start_search_value;
+				cout <<"mol : " + name + " : theta " << theta << endl;
+				[[fallthrough]];
+			case 4: theta=Var_start_search_value;
+				cout <<"mol : " + name + " : theta " << theta << endl;
 		default:
 			break;
 	}
@@ -1114,7 +1002,6 @@ if (debug) cout <<"Molecule:: ExpandAlias" << endl;
 		ss=ss.append(sub[i]);
 	}
 	s=ss;
-	//cout <<"expanded to " << s << endl;
 	return success;
 }
 
@@ -1177,7 +1064,6 @@ if (debug) cout <<"Molecule:: ExpandBrackets" << endl;
 
 	}
 	if (s[s.size()-1]==']') {cout <<"illegal composition. Composition can not end with a ']' in: " << s << endl; return false;}
-//cout <<"expand brackets to " << s << endl;
 	return success;
 }
 
@@ -1302,9 +1188,6 @@ if (debug) cout <<"Molecule:: GenerateTree" << endl;
 	return success;
 }
 
-//bool Molecule::GenerateDend(string s, int generation) {
-//if (debug) cout <<"Molecule:: GenerateDend" << endl;
-//return true;
 //}
 
 bool Molecule::Decomposition(string s){
@@ -1342,7 +1225,6 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 			MolType=dendrimer; keyfound=true;
 			s=s.substr(6,s.length()-7);
 			if (save_memory) {success=false; cout <<"In dendrimer no save_memory implemented yet. contact frans.leermakers@wur.nl....." << endl; return success;}
-			//if (aliases) {success=false; cout <<"In dendrimer no aliases are not implemented yet. Can be done relatively easily....." << endl; return success;}
 		}
 		if (SUB[0]=="comb") {
 			if (save_memory) {success=false; cout <<"In comb no save_memory implemented yet. contact frans.leermakers@wur.nl ....." << endl; return success;}
@@ -1400,7 +1282,6 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 			s=ss;
 		break;
 		case comb:
-			//success=false;
 		break;
 		default:
 			if (!ExpandBrackets(s)) {success=false; return success;}
@@ -1481,7 +1362,6 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 			}
 
 
-			//cout <<"n_generations " << n_generations << endl;
 			chainlength=0; N=-1;
 			for (int i=0; i<n_generations; i++) {
 				sub.clear();	arms=0;
@@ -1583,16 +1463,6 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 				degeneracy*=arms;
 			}
    //anticipated that asymmetric dendrimers will be of interest in the future
-//for (int i=0; i<n_generations; i++) cout<<"generation " << i << " first_a " << first_a[i] << " last_a " << last_a[i] << endl;
-//length=n_arm.size();
-//for (int i=0; i<length; i++) cout <<"arm " << i << " first_b " << first_b[i] << " last_b " << last_b[i] << endl;
-//for (int i=0; i<length; i++) cout <<"arm " << i << " first_s " << first_s[i] << " last_s " << last_s[i] << endl;
-//for (int i=0; i<length; i++) cout <<"arm " << i << " n_arm " << n_arm[i] << endl;
-//length=n_mon.size();
-//for (int i=0; i<length; i++) cout <<"block " << i << " n_mon " << n_mon[i] << " mon_nr " << mon_nr[i] << " d_mon " << d_mon[i] << endl;
-//cout <<"Chain length =" << chainlength << endl;
-//cout <<" N = " << N << endl;
-//cout <<"Composition = " <<  s << endl;
 
 			break;
 		case comb:
@@ -1636,8 +1506,6 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 				return success;
 			}
 			chainlength=0; N=-1;
-			//i=0;
-			//success=Interpret(sub_gen[0],i);
 
 			first_s.push_back(N+1);
 			last_s.push_back(-1);
@@ -1662,10 +1530,8 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 			}
 
 			chainlength_backbone=chainlength;
-			//i=1;
 			sub.clear();
 			In->split(sub_gen[1],',',sub);
-			//cout <<"sub_gen[1] " << sub_gen[1] << "size of sub : " << sub.size() << endl;
 			if (sub.size() != 4) {
 				cout << "Central part in comb definition should contain four arguments and three ',' to separare them. Use comb(? ) for details."  << endl;
 				success=false; return success;
@@ -1710,7 +1576,6 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 				mon_nr.push_back(mnr); N++;
 				chainlength +=chainlength_arm+1;
 				n_generations++;
-				//success=Interpret(sub[2],n_generations-1);
 
 				first_s.push_back(N+1);
 				last_s.push_back(-1);
@@ -1737,7 +1602,6 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 			}
 			n_generations++;
 
-			//success=Interpret(sub_gen[2],n_generations-1);
 			first_s.push_back(N+1);
 			last_s.push_back(-1);
 			first_b.push_back(-1);
@@ -1760,9 +1624,6 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 				j++;
 			}
 
-			//length=first_b.size();
-			//for (int i=0; i<length; i++) cout <<"first_b " <<  first_b[i] << " last_b " << last_b[i] << endl;
-			//for (int i=0; i<length; i++) cout <<"first_s " <<  first_s[i] << " last_s " << last_s[i] << endl;
 			break;
 					default:
 			break;
@@ -1781,20 +1642,13 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 			last_b[i]=length-last_b[i]-1;
 			xxx=first_b[i]; first_b[i]=last_b[i]; last_b[i]=xxx;
 		}
-		//AlListLength=MolAlList.size();
 
 		for (int i=0; i<length/2; i++) {
 			xxx=Gnr[i]; Gnr[i]=Gnr[length-1-i]; Gnr[length-1-i]=xxx;
 			xxx=n_mon[i]; n_mon[i]=n_mon[length-1-i]; n_mon[length-1-i]=xxx;
 			xxx=mon_nr[i]; mon_nr[i]=mon_nr[length-1-i]; mon_nr[length-1-i]=xxx;
-			//for (int j=0; j<AlListLength; j++) {
-			//	xxx=Al[j]->frag[i]; Al[j]->frag[i]=Al[j]->frag[length-1-i]; Al[j]->frag[length-1-i]=xxx;
 			//} //dit geeft problemen in valgrind. Als alias verbetert is dan moet dit ook weer aangepakt.
 		}
-		//for (int i=1; i<length-1; i++) { //needs a fix
-		//		if ((Gnr[i-1]!=Gnr[i]) && (Gnr[i]!=Gnr[i+1])&& Gnr[i-1]!=Gnr[i+1]) {
-		//			cout <<"Violation of the architecture in branched molecule '" + name + "': spacers between branches must be more than one segment in length.  " << endl;
-	        //			return false;
 		//		}
 		//}
 
@@ -1831,7 +1685,6 @@ if (debug) cout <<"Molecule:: MakeMonList" << endl;
 	int pos;
 	while (i<length) {
 		if (In->InSet(MolMonList,pos,mon_nr[i])) {molmon_nr.push_back(pos);
-		//cout << "in frag i " << i << " there is segment nr " <<  mon_nr[i] << " and it is on molmon  pos " << pos << endl;
 		} else {cout <<"program error in mol PrepareForCalcualations" << endl; }
 		i++;
 	}
@@ -1902,7 +1755,6 @@ if (debug) cout <<"Molecule:: Charge" << endl;
 			for (int j=0; j<length_states; j++) charge +=Seg[mon_nr[i]]->state_alphabulk[j]*Seg[mon_nr[i]]->state_valence[j]*n_mon[i];
 		} else	charge +=Seg[mon_nr[i]]->valence*n_mon[i];
 	}
-//cout <<"mol " << name << "charge " << charge << endl;
 	return charge/chainlength;
 }
 
@@ -1977,9 +1829,6 @@ if (debug) cout <<"PushOutput for Mol " + name << endl;
 	if (freedom=="free") theta = lat->WeightedSum(phitot);
 	push("Markov",Markov);
 	push("k_stiff",k_stiff);
-#ifdef CUDA
-	TransferDataToHost(H_phitot,phitot,lat->M);
-#endif
 	if (lat->gradients==3) {
 		int MZ=lat->MZ;
 		int MY=lat->MY;
@@ -2023,10 +1872,8 @@ if (debug) cout <<"PushOutput for Mol " + name << endl;
 			if (k==4) push("P[4]",P[4]);
 		}
 	}
-	//if (theta==0) {
-        //  if (lat->gradients==3) {
 	//	    lat->remove_bounds(phitot);
-	//	    Sum(theta,phitot,lat->M);
+	//	    (theta) = 0; for (int __i = 0; __i < (lat->M); ++__i) (theta) += (phitot)[__i];
 	//  }
 	//}
 
@@ -2034,7 +1881,6 @@ if (debug) cout <<"PushOutput for Mol " + name << endl;
 	lat->remove_bounds(phitot);
 	theta=lat->WeightedSum(phitot);
 	push("theta",theta);
-        //cout <<"theta " << name << " = " << theta << endl;
 	Real thetaexc=theta-lat->volume*phibulk;
 	push("theta_exc",thetaexc);
 	push("n_exc",thetaexc/chainlength);
@@ -2123,10 +1969,6 @@ if (debug) cout <<"PushOutput for Mol " + name << endl;
 		s="profile;"+str; push(Al[i]->name+"phi",s);
 	}
 	s="vector;0"; push("gn",s);
-#ifdef CUDA
-	TransferDataToHost(H_phitot,phitot,M);
-	TransferDataToHost(H_phi,phi,M*MolMonList.size());
-#endif
 }
 
 Real* Molecule::GetPointer(string s, int &SIZE) {
@@ -2173,6 +2015,7 @@ void Molecule::PutTheta(Real T){
 }
 
 int* Molecule::GetPointerInt(string s, int &SIZE) {
+	(void)SIZE;
 if (debug) cout <<"GetPointerInt for Mol " + name << endl;
 	vector<string> sub;
 	In->split(s,';',sub);
@@ -2232,20 +2075,13 @@ if (debug) cout <<"ComputeGibbs for Mol " + name << endl;
 	Real phi_high=phitot[M-2*fjc-1];
 	theta=lat->WeightedSum(phitot);
 	Real theta_exc=theta-lat->volume*phibulk;
-	//cout <<"for mol : " << name << " theta " << theta << " theta_exc " << theta_exc << endl;
-	//cout <<"volume " <<lat->volume << endl;
-	//cout <<"phibulk " << phibulk << endl;
 	if (freedom=="solvent") {
 		theta_Gibbs=0;
 		R_Gibbs=theta_exc/(phi_low-phi_high);
-		//cout <<"R_gibbs " << R_Gibbs << endl;
 		return  R_Gibbs;
 	} else {
 		R_Gibbs=R_gibbs;
 		theta_Gibbs=theta_exc-(phi_low-phi_high)*R_gibbs;
-		//cout <<" philow = " << phi_low << endl;
-		//cout <<" phihigh = " << phi_high << endl;
-		//cout <<" theta_Gibbs " << theta_Gibbs << endl;
 		return theta_Gibbs;
 	}
 }
@@ -2301,9 +2137,6 @@ void Molecule::NormPerBlock(int split) {
 			     phi[kk*M+(i*MX+x)*JX+(j*MY+y)*JY+(k*MZ+z)]*=block[blocknr]/theta_block;
 		}
 	}
-	//cout <<"theta : " << theta << " theta_tot : " << theta_tot << endl;
-	//int length=block.size();
-	//for (int p=0; p<length; p++) cout << "block("<<p<<")= " << block[p] << endl;
 }
 
 void Molecule::SetThetaBlocks(int split) {
@@ -2327,9 +2160,6 @@ void Molecule::SetThetaBlocks(int split) {
 		theta_tot+=theta_block;
 		block.push_back(theta_block);
 	}
-	//cout <<"theta : " << theta << " theta_tot : " << theta_tot << endl;
-	//int length=block.size();
-	//for (int p=0; p<length; p++) cout << "block("<<p<<")= " << block[p] << endl;
 }
 
 Real* Molecule::propagate_forward(Real* G1, int &s, int block, int generation, int M) {
@@ -2347,13 +2177,12 @@ if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
 
 		if (s==first_s[generation]) {
 
-			//Cp(Gs+M,G1,M); Cp(Gs,G1,M);
 			lat->Initiate(Gs+M,G1,Markov,M);
 			lat->Initiate(Gs,G1,Markov,M); //not sure why this is done....
 		} else {
 			lat->propagate(Gs,G1,0,1,M); //assuming Gs contains previous end-point distribution on pos zero;
 		}
-		Cp(Gg_f+n0*M,Gs+M,M); last_stored[block]=n0;
+		std::copy_n(Gs+M, M, Gg_f+n0*M); last_stored[block]=n0;
 		s++;
 		t=1;
 		v0=t0=k0=0;
@@ -2370,12 +2199,12 @@ if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
 			if ((t == t0+1 && t0 == v0)
 		  	 || (t == t0+1 && ((n-t0)*(n-t0+1) >= N-1-2*(k0+t0)))
 		  	 || (2*(n-t+k) >= N-1)) {
-				Cp(Gg_f+(n0+t-1)*M,Gs+(k%2)*M,M);
+				std::copy_n(Gs+(k%2)*M, M, Gg_f+(n0+t-1)*M);
 				last_stored[block]=n0+t-1;
 			}
 		}
 		if ((N)%2!=0) {
-			Cp(Gs,Gs+M,M);
+			std::copy_n(Gs+M, M, Gs);
 		}
 	} else {
 		for (int k=0; k<N; k++) {
@@ -2397,6 +2226,7 @@ if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
 }
 
 void Molecule::propagate_backward(Real* G1, int &s, int block, int unity, int M) {
+	(void)unity;
 if (debug) cout <<"propagate_backward for Mol " + name << endl;
 
 	int N= n_mon[block];
@@ -2411,7 +2241,7 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 		for (k=N; k>=1; k--) {
 			if (k==N) {
 				if (s==chainlength-1) {
-					Cp(Gg_b+(k%2)*M,G1,M);
+					std::copy_n(G1, M, Gg_b+(k%2)*M);
 				} else {
 					lat->propagate(Gg_b,G1,(k+1)%2,k%2,M);
 				}
@@ -2429,12 +2259,12 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 				if (t0 < v0) {
 					v0 = t0;
 				}
-				Cp(Gs+(t%2)*M,Gg_f+(n0+t-1)*M,M);
+				std::copy_n(Gg_f+(n0+t-1)*M, M, Gs+(t%2)*M);
 				for (rk1=k0+t0+2; rk1<=k; rk1++) {
 					t++;
 					lat->propagate(Gs,G1,(t-1)%2,t%2,M);
 					if (t == t0+1 || k0+n == k) {
-						Cp(Gg_f+(n0+t-1)*M,Gs+(t%2)*M,M);
+						std::copy_n(Gs+(t%2)*M, M, Gg_f+(n0+t-1)*M);
 					}
 					if (t == n && k0+n < k) {
 						t  = ++t0;
@@ -2455,7 +2285,7 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 			}
 			s--;
 		}
-		Cp(Gg_b,Gg_b+M,M);
+		std::copy_n(Gg_b+M, M, Gg_b);
 	} else {
 		for (int k=0; k<N; k++) {
 			if (s<chainlength-1) {
@@ -2470,7 +2300,6 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 				int length = MolAlList.size();
 				for (int i=0; i<length; i++) {
 					if (Al[i]->frag[k]==1) {
-						//  Composition(Al[i]->rho,Gg_f+s*M,Gg_b+(s%2)*M,G1,norm,M);
 						lat->AddPhiS(Al[i]->rho,Gg_f+s*M,Gg_b+(s%2)*M,G1,norm,Markov,M);
 					}
 				}
@@ -2499,7 +2328,7 @@ if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
 
 		}
 		s++;
-		Cp(Gg_f+n0*M*size,Gs+M*size,M*size);
+		std::copy_n(Gs+M*size, M*size, Gg_f+n0*M*size);
 		last_stored[block]=n0;
 
 		t=1;
@@ -2516,19 +2345,18 @@ if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
 			if ((t == t0+1 && t0 == v0)
 		  	 || (t == t0+1 && ((n-t0)*(n-t0+1) >= N-1-2*(k0+t0)))
 		  	 || (2*(n-t+k) >= N-1)) {
-				Cp(Gg_f+(n0+t-1)*M*size,Gs+(k%2)*M*size,M*size);
+				std::copy_n(Gs+(k%2)*M*size, M*size, Gg_f+(n0+t-1)*M*size);
 				last_stored[block]=n0+t-1;
 			}
 		}
 		if ((N)%2!=0) {
-			Cp(Gs,Gs+M*size,M*size); //FL
+			std::copy_n(Gs+M*size, M*size, Gs); //FL
 		}
 	} else {
 		for (int k=0; k<N; k++) {
 			if (s>first_s[generation]) {
 				lat->propagateF(Gg_f,G1,P,s-1,s,M);
 			} else {
-				//Cp(Gg_f+first_s[generation]*M,G1,M);
 				lat->Initiate(Gg_f+first_s[generation]*M*size,G1,Markov,M);
 			}
 			 s++;
@@ -2557,12 +2385,10 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 			if (k==N) {
 				if (s==chainlength-1) {
 					lat->Initiate(Gg_b+(k%2)*M*size,G1,Markov,M);
-					//Cp(Gg_b+(k%2)*M,G1,M);
 				} else {
 					if (unity==-1) {
 						unity=0;
-						//cout <<"SM unity " << s << endl;
-						Real* GB= (Real*) malloc(2*M*sizeof(Real)); //must be adjusted for cuda
+						Real* GB= (Real*) malloc(2*M*sizeof(Real));
 						lat->Terminate(GB,Gg_b+((k+1)%2)*M*size,Markov,M);
 						lat->propagate(GB,G1,0,1,M); //first step is freely joined
 						lat->Initiate(Gg_b+(k%2)*M*size,GB+M,Markov,M);
@@ -2584,12 +2410,12 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 				if (t0 < v0) {
 					v0 = t0;
 				}
-				Cp(Gs+(t%2)*M*size,Gg_f+(n0+t-1)*M*size,M*size); //FL
+				std::copy_n(Gg_f+(n0+t-1)*M*size, M*size, Gs+(t%2)*M*size); //FL
 				for (rk1=k0+t0+2; rk1<=k; rk1++) {
 					t++;
 					lat->propagateF(Gs,G1,P,(t-1)%2,t%2,M);
 					if (t == t0+1 || k0+n == k) {
-						Cp(Gg_f+(n0+t-1)*M*size,Gs+(t%2)*M*size,M*size); //FL
+						std::copy_n(Gs+(t%2)*M*size, M*size, Gg_f+(n0+t-1)*M*size); //FL
 					}
 					if (t == n && k0+n < k) {
 						t  = ++t0;
@@ -2599,28 +2425,25 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 				t = n;
 			}
 
-			//AddTimes(rho+molmon_nr[block]*M,Gg_f+(n0+t-1)*M,Gg_b+(k%2)*M,M);
 			lat->AddPhiS(rho+molmon_nr[block]*M,Gg_f+(n0+t-1)*M*size,Gg_b+(k%2)*M*size,Markov,M);
 
 			if (compute_phi_alias) {
 				int length = MolAlList.size();
 				for (int i=0; i<length; i++) {
 					if (Al[i]->frag[k]==1) {
-						//Composition(Al[i]->rho,Gg_f+(n0+t-1)*M,Gg_b+(k%2)*M,G1,norm,M);
 						lat->AddPhiS(Al[i]->rho,Gg_f+(n0+t-1)*M*size,Gg_b+(k%2)*M*size,G1,norm,Markov,M);
 					}
 				}
 			}
 			s--;
 		}
-		Cp(Gg_b,Gg_b+M*size,size*M);//FL
+		std::copy_n(Gg_b+M*size, size*M, Gg_b);//FL
 	} else {
 		for (int k=0; k<N; k++) {
 			if (s<chainlength-1) {
 				if (unity==-1) {
 					unity=0;
-					//cout <<"unity " << s << endl;
-					Real* GB= (Real*) malloc(2*M*sizeof(Real)); //must be adjusted for cuda
+					Real* GB= (Real*) malloc(2*M*sizeof(Real));
 					lat->Terminate(GB,Gg_b+((s+1)%2)*M*size,Markov,M);
 					lat->propagate(GB,G1,0,1,M); //first step is freely joined
 					lat->Initiate(Gg_b+(s%2)*M*size,GB+M,Markov,M);
@@ -2639,7 +2462,6 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 				int length = MolAlList.size();
 				for (int i=0; i<length; i++) {
 					if (Al[i]->frag[k]==1) {
-						//Composition(Al[i]->rho,Gg_f+s*M,Gg_b+(s%2)*M,G1,norm,M);
 						lat->AddPhiS(Al[i]->rho,Gg_f+s*M*size,Gg_b+(s%2)*M*size,G1,norm,Markov, M);
 					}
 				}
@@ -2658,15 +2480,14 @@ if (debug) cout <<"ComputePhi for Mol " + name << endl;
 		int molmonlistlength= MolMonList.size();
 		for (int i=0; i<molmonlistlength; i++)
 		if (id==1) {
-			Times(Seg[MolMonList[i]]->G1,Seg[MolMonList[i]]->G1,BETA,M);
+			for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = (Seg[MolMonList[i]]->G1)[__i] * (BETA)[__i];
 		} else {
-			Div(Seg[MolMonList[i]]->G1,BETA,M);
+			for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = ((BETA)[__i] != 0) ? ((Seg[MolMonList[i]]->G1)[__i] / (BETA)[__i]) : 0;
 		}
 	}
 	if (MolType==water) phib1=0;
 	if (freedom == "clamped") {
 		lat->sub_box_on=Seg[mon_nr[0]]->clamp_nr; //slecting sub_box boundary conditions.
-				//success=ComputePhiLin();
 		success=ComputePhi();
 		lat->sub_box_on=0;//selecting 'standard' boundary condition
 	} else {
@@ -2679,11 +2500,11 @@ if (debug) cout <<"ComputePhi for Mol " + name << endl;
 
 		for (int i=0; i<molmonlistlength; i++) {
 			if (id==1) {
-				Div(phi+i*M,BETA,M);
-				Div(Seg[MolMonList[i]]->G1,BETA,M);
+				for (int __i = 0; __i < (M); ++__i) (phi+i*M)[__i] = ((BETA)[__i] != 0) ? ((phi+i*M)[__i] / (BETA)[__i]) : 0;
+				for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = ((BETA)[__i] != 0) ? ((Seg[MolMonList[i]]->G1)[__i] / (BETA)[__i]) : 0;
 			}  else {
-				Times(phi+i*M,phi+i*M,BETA,M);
-				Times(Seg[MolMonList[i]]->G1,Seg[MolMonList[i]]->G1,BETA,M);
+				for (int __i = 0; __i < (M); ++__i) (phi+i*M)[__i] = (phi+i*M)[__i] * (BETA)[__i];
+				for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = (Seg[MolMonList[i]]->G1)[__i] * (BETA)[__i];
 			}
 		}
 	}
@@ -2705,15 +2526,15 @@ bool Molecule::ComputePhi(){
 if (debug) cout <<"ComputePhi for Molecule " + name << endl; //default computation for monomer only....
 	int M=lat->M;
 	bool success=true;
-	Cp(phi,Seg[mon_nr[0]]->G1,M);
+	std::copy_n(Seg[mon_nr[0]]->G1, M, phi);
 	GN=lat->WeightedSum(phi);
 	if (compute_phi_alias)
 		for (auto& alias : Al) //For every alias in the Al vector (same as Al[i])
 			if (alias->frag[0]==1) {
-				Cp(alias->phi,phi,M);
-				Norm(alias->phi,norm,M);
+				std::copy_n(phi, M, alias->phi);
+				for (int __i = 0; __i < (M); ++__i) (alias->phi)[__i] *= (norm);
 			}
-	Times(phi,phi,Seg[mon_nr[0]]->G1,M);
+	for (int __i = 0; __i < (M); ++__i) (phi)[__i] = (phi)[__i] * (Seg[mon_nr[0]]->G1)[__i];
 	return success;
 }
 
@@ -2730,4 +2551,3 @@ if (debug) cout <<"fraction for mol_test " + name << endl; //default for monomer
 	}
 	return 1.0*Nseg/chainlength;
 }
-

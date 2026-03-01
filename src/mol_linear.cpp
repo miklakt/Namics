@@ -19,11 +19,7 @@ if (debug) cout <<"ComputePhi in mol_linear " << endl;
 	int unity=0;
 	int s=0;
 	int N;
-#ifdef CUDA
-	Real* Mask = (Real*)AllManagedOnDev(M); Zero(Mask,M);
-#else
-	Real* Mask = new Real[M]; Zero(Mask,M);
-#endif
+	Real* Mask = new Real[M]; std::fill_n(Mask, M, 0);
 	int gradients=lat->gradients;
 	int MX=lat->MX;
 	int MY=lat->MY;
@@ -38,11 +34,7 @@ if (debug) cout <<"ComputePhi in mol_linear " << endl;
 	bool doit;
 
 	if (ring) {
-#ifdef CUDA
-		Real* G0 = (Real*)AllManagedOnDev(M); Zero(G0,M);
-#else
-		Real* G0 = new Real[M]; Zero(G0,M);
-#endif
+		Real* G0 = new Real[M]; std::fill_n(G0, M, 0);
 
 		if (IsPinned()) {
 
@@ -66,7 +58,6 @@ if (debug) cout <<"ComputePhi in mol_linear " << endl;
 					}
 				}
 				if (Ds1<Ds2) Ds.push_back(Ds1); else Ds.push_back(Ds2); //shortest distance along contour to 'ends' of the chain
-				//cout <<"Ds for "<<SegPinned[j] << " : " << Ds[j] << endl;
 			}
 		}
 		GN=0;
@@ -86,9 +77,8 @@ if (debug) cout <<"ComputePhi in mol_linear " << endl;
 					if (doit) doit=Seg[SegPinned[j]]->CanBeReached(x,y,z,Ds[j]*lat->fjc); //make sure that the pinned positions can be reached.
 				}
 				if (Seg[mon_nr[0]]->G1[i]>0 && doit) {
-					//cout <<" x = " << x << endl;
 
-					Times(G0,Mask,Seg[mon_nr[0]]->G1,M);
+					for (int __i = 0; __i < (M); ++__i) (G0)[__i] = (Mask)[__i] * (Seg[mon_nr[0]]->G1)[__i];
 					lat->Initiate(Gg_f,G0,Markov,M); //initialisatie
 					s++;
 					if (Markov==2)
@@ -96,7 +86,7 @@ if (debug) cout <<"ComputePhi in mol_linear " << endl;
 					else
 						for (int b = b0+1; b<=bN ; ++b) Glast=propagate_forward(Seg[mon_nr[b]]->G1,s,b,0,M);
 
-					for (int k=0; k<size; k++) Times(Glast+k*M,Glast+k*M,Mask,M);
+					for (int k=0; k<size; k++) for (int __i = 0; __i < (M); ++__i) (Glast+k*M)[__i] = (Glast+k*M)[__i] * (Mask)[__i];
 					GN+=lat->ComputeGN(Glast,Markov,M);
   					s=chainlength;
 					lat->Initiate(Gg_b+(s%2)*M*size,G0,Markov,M);
@@ -118,11 +108,7 @@ if (debug) cout <<"ComputePhi in mol_linear " << endl;
 				}
 			}
 		}
-#ifdef CUDA
-		cudaFree(G0);
-#else
 		delete [] G0;
-#endif
 	} else {
 
 		if (Markov ==2)
@@ -143,11 +129,7 @@ if (debug) cout <<"ComputePhi in mol_linear " << endl;
 			for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1,s,b,0,M);
 	}
 
-#ifdef CUDA
-	cudaFree(Mask);
-#else
 	delete [] Mask;
-#endif
 	return success;
 }
 
