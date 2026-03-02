@@ -10,31 +10,26 @@ Reaction::~Reaction() {
 	DeAllocateMemory();
 }
 void Reaction::DeAllocateMemory(){
-if (debug) cout <<"Destructor for Reaction " + name << endl; 
-
+NAMICS_DBG_THIS("Destructor for Reaction " + name << endl);
 }
 
 void Reaction::AllocateMemory(int Clamp_nr, int n_box) {
 	(void)n_box;
 	(void)Clamp_nr;
-if (debug) cout <<"AllocateMemory in Reaction " + name << endl;
-	
+NAMICS_DBG_THIS("AllocateMemory in Reaction " + name << endl);	
 }
 
 void Reaction::PrepareForCalculations() {
-if (debug) cout <<"PrepareForCalculations in Reaction " + name << endl; 
-
+NAMICS_DBG_THIS("PrepareForCalculations in Reaction " + name << endl);
 }
 
 
 void Reaction::PutParameter(string new_param) {
-if (debug) cout <<"PutParameter in Reaction " + name << endl;
-	KEYS.push_back(new_param); 
+NAMICS_DBG_THIS("PutParameter in Reaction " + name << endl); KEYS.push_back(new_param); 
 }
 
 bool Reaction::CheckInput(int start) {
-if (debug) cout <<"CheckInput in Reaction " + name << endl;
-	bool success=true;
+NAMICS_DBG_THIS("CheckInput in Reaction " + name << endl);	bool success=true;
 	K=-1;
 	pK=-100;
 	Sto.clear();
@@ -140,35 +135,29 @@ if (debug) cout <<"CheckInput in Reaction " + name << endl;
 }
  
 string Reaction::GetValue(string parameter){
-if (debug) cout <<"GetValue in Reaction " + name << endl;
-	auto it = PARAMETERS.find(parameter);
+NAMICS_DBG_THIS("GetValue in Reaction " + name << endl); auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return ""; 
 }
  
 void Reaction::push(string s, Real X) {
-if (debug) cout <<"push (Real) in Reaction " + name << endl;
-	Reals.push_back(s);
+NAMICS_DBG_THIS("push (Real) in Reaction " + name << endl); Reals.push_back(s);
 	Reals_value.push_back(X); 
 }
 void Reaction::push(string s, int X) {
-if (debug) cout <<"push (int) in Reaction " + name << endl;
-	ints.push_back(s);
+NAMICS_DBG_THIS("push (int) in Reaction " + name << endl); ints.push_back(s);
 	ints_value.push_back(X); 
 }
 void Reaction::push(string s, bool X) {
-if (debug) cout <<"push (boool) in Reaction " + name << endl;
-	bools.push_back(s);
+NAMICS_DBG_THIS("push (boool) in Reaction " + name << endl); bools.push_back(s);
 	bools_value.push_back(X); 
 }
 void Reaction::push(string s, string X) {
-if (debug) cout <<"push (string) in Reaction " + name << endl;
-	strings.push_back(s);
+NAMICS_DBG_THIS("push (string) in Reaction " + name << endl); strings.push_back(s);
 	strings_value.push_back(X); 	
 }
 void Reaction::PushOutput() {
-if (debug) cout <<"PushOutput in Reaction " + name << endl;
-	strings.clear();
+NAMICS_DBG_THIS("PushOutput in Reaction " + name << endl); strings.clear();
 	strings_value.clear();
 	bools.clear();
 	bools_value.clear();
@@ -183,20 +172,17 @@ if (debug) cout <<"PushOutput in Reaction " + name << endl;
 Real* Reaction::GetPointer(string s,int &SIZE) {
 	(void)SIZE;
 	(void)s;
-if (debug) cout <<"GetPointer in Reaction " + name << endl;
-	return NULL;
+NAMICS_DBG_THIS("GetPointer in Reaction " + name << endl);	return NULL;
 }
 int* Reaction::GetPointerInt(string s, int &SIZE) {
 	(void)SIZE;
 	(void)s;
-if (debug) cout <<"GetPointerInt in Reaction " + name << endl;
-	return NULL;
+NAMICS_DBG_THIS("GetPointerInt in Reaction " + name << endl);	return NULL;
 }
 
 
 int Reaction::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-if (debug) cout <<"GetValue (long)  in Reaction " + name << endl;
-	int i=0;
+NAMICS_DBG_THIS("GetValue (long)  in Reaction " + name << endl);	int i=0;
 	int length = ints.size();
 	while (i<length) {
 		if (prop==ints[i]) { 
@@ -367,8 +353,7 @@ bool Reaction::GuessAlpha() {
 
 bool Reaction::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
 	(void)Var_target_value_;
-if (debug) cout << "Reaction::PutVarInfo " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("Reaction::PutVarInfo " << endl);	bool success=true;
 	Var_target=-1;
 	Var_type="";
 	if (Var_type_=="scan"){
@@ -381,8 +366,7 @@ if (debug) cout << "Reaction::PutVarInfo " << endl;
 
 int Reaction::PutVarScan(Real step, Real end_value, int steps, string scale_) {
 	(void)steps;
-if (debug) cout << "Reaction::PutVarScan " << endl;
-	num_of_steps=-1;
+NAMICS_DBG_THIS("Reaction::PutVarScan " << endl);	num_of_steps=-1;
 	scale=scale_;
 	Var_end_value=end_value;
 	if (scale=="exponential") {
@@ -406,8 +390,7 @@ if (debug) cout << "Reaction::PutVarScan " << endl;
 }
 
 bool Reaction::UpdateVarInfo(int step_nr) {
-if (debug) cout << "Reaction::UpdateVarInfo " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("Reaction::UpdateVarInfo " << endl);	bool success=true;
 	switch(Var_target) {
 		case 0:
 			if (scale=="exponential") {
@@ -423,8 +406,7 @@ if (debug) cout << "Reaction::UpdateVarInfo " << endl;
 }
 
 bool Reaction::ResetInitValue() {
-if (debug) cout << "Reaction::ResetInitValue() " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("Reaction::ResetInitValue() " << endl);	bool success=true;
 	switch(Var_target) {
 		case 0:
 			pK=Var_start_value;
@@ -437,8 +419,7 @@ if (debug) cout << "Reaction::ResetInitValue() " << endl;
 }
 
 void Reaction::PutValue(Real X) {
-if (debug) cout << "Reaction::PutValue() " << endl;
-	switch(Var_target) {
+NAMICS_DBG_THIS("Reaction::PutValue() " << endl);	switch(Var_target) {
 		case 0:
 			pK=X;
 			break;
@@ -449,8 +430,7 @@ if (debug) cout << "Reaction::PutValue() " << endl;
 }
 
 Real Reaction::GetValue() {
-if (debug) cout << "Reaction::GetValue() " << endl;
-	Real X=0;
+NAMICS_DBG_THIS("Reaction::GetValue() " << endl);	Real X=0;
 	switch(Var_target) {
 		case 0:
 			X=pK; 
@@ -463,8 +443,7 @@ if (debug) cout << "Reaction::GetValue() " << endl;
 }
 
 Real Reaction::GetError() {
-if (debug) cout << "Reaction::GetError " << endl;
-	Real Error=0;
+NAMICS_DBG_THIS("Reaction::GetError " << endl);	Real Error=0;
 	switch (Var_target) {
 		case 0:
 			cout <<"Program error in Reaction::GetVarError" <<endl;

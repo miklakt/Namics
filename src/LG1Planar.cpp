@@ -5,8 +5,7 @@
 LG1Planar::LG1Planar(const Input& In_,const string& name_): LGrad1(In_,name_) {}
 
 LG1Planar::~LG1Planar() {
-if (debug) cout <<"LG1Planar destructor " << endl;
-}
+NAMICS_DBG_THIS("LG1Planar destructor " << endl);}
 
 void LG1Planar:: ComputeLambdas() {
 	for (int i=1; i<MX+1; i++) L[i]=1;
@@ -26,8 +25,7 @@ void LG1Planar:: ComputeLambdas() {
 }
 
 void LG1Planar::Side(Real *X_side, Real *X, int M) {
-if (debug) cout <<" Side in LG1Planar " << endl;
-	if (ignore_sites) {
+NAMICS_DBG_THIS(" Side in LG1Planar " << endl);	if (ignore_sites) {
 		std::copy_n(X, M, X_side); return;
 	}
 	std::fill_n(X_side, M, 0); //set_bounds(X);
@@ -55,8 +53,7 @@ if (debug) cout <<" Side in LG1Planar " << endl;
 }
 
 void LG1Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) {
-if (debug) cout <<" propagateF in LG1Planar " << endl;
-
+NAMICS_DBG_THIS(" propagateF in LG1Planar " << endl);
 	Real *gs = G+M*FJC*(s_to), *gs_1 = G+M*FJC*(s_from);
 	Real *g = G1;
 
@@ -95,8 +92,7 @@ if (debug) cout <<" propagateF in LG1Planar " << endl;
 }
 
 void LG1Planar::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) {
-if (debug) cout <<" propagateB in LG1Planar " << endl;
-
+NAMICS_DBG_THIS(" propagateB in LG1Planar " << endl);
 	Real *gs = G+M*FJC*(s_to), *gs_1 = G+M*FJC*(s_from);
 	Real *g = G1;
 
@@ -136,8 +132,7 @@ if (debug) cout <<" propagateB in LG1Planar " << endl;
 }
 
 void LG1Planar::propagate(Real *G, Real *G1, int s_from, int s_to,int M) {
-if (debug) cout <<" propagate in LG1Planar " << endl;
-	Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
+NAMICS_DBG_THIS(" propagate in LG1Planar " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
 	int kk;
 	int j;
 	std::fill_n(gs, M, 0); set_bounds(gs_1);

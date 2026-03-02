@@ -21,8 +21,7 @@ Variate::~Variate() {
 	DeAllocateMemory();
 }
 void Variate::DeAllocateMemory(){
-if (debug) cout <<"Destructor for variate " + name << endl;
-
+NAMICS_DBG_THIS("Destructor for variate " + name << endl);
 
 }
 
@@ -32,20 +31,17 @@ void Variate::AllocateMemory() {
 }
 
 void Variate::PrepareForCalculations() {
-if (debug) cout <<"PrepareForCalculations in Variate " + name << endl;
-
+NAMICS_DBG_THIS("PrepareForCalculations in Variate " + name << endl);
 
 }
 
 
 void Variate::PutParameter(string new_param) {
-if (debug) cout <<"PutParameter in Variate " + name << endl;
-	KEYS.push_back(new_param);
+NAMICS_DBG_THIS("PutParameter in Variate " + name << endl); KEYS.push_back(new_param);
 }
 
 bool Variate::CheckInput(int start) {
-if (debug) cout <<"CheckInput in Variate " + name << endl;
-	bool success=true;
+NAMICS_DBG_THIS("CheckInput in Variate " + name << endl);	bool success=true;
 	scanning =-1;
 	targeting =-1;
 	searching=-1;
@@ -480,8 +476,7 @@ Real Variate::GetError(void) {
 }
 
 bool Variate::ResetScanValue(void) {
-	if (debug) cout <<"ResetScanValue in Variate" << endl;
-	int n_seg;
+	NAMICS_DBG_THIS("ResetScanValue in Variate" << endl);	int n_seg;
 	bool success=true;
 	switch(scanning) {
 		case 0:
@@ -532,35 +527,29 @@ bool Variate::ResetScanValue(void) {
 }
 
 string Variate::GetValue(string parameter){
-if (debug) cout <<"GetValue in Variate " + name << " " <<parameter << endl;
-	auto it = PARAMETERS.find(parameter);
+NAMICS_DBG_THIS("GetValue in Variate " + name << " " <<parameter << endl); auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 void Variate::push(string s, Real X) {
-if (debug) cout <<"push (Real) in Variate " + name << endl;
-	Reals.push_back(s);
+NAMICS_DBG_THIS("push (Real) in Variate " + name << endl); Reals.push_back(s);
 	Reals_value.push_back(X);
 }
 void Variate::push(string s, int X) {
-if (debug) cout <<"push (int) in Variate " + name << endl;
-	ints.push_back(s);
+NAMICS_DBG_THIS("push (int) in Variate " + name << endl); ints.push_back(s);
 	ints_value.push_back(X);
 }
 void Variate::push(string s, bool X) {
-if (debug) cout <<"push (boool) in Variate " + name << endl;
-	bools.push_back(s);
+NAMICS_DBG_THIS("push (boool) in Variate " + name << endl); bools.push_back(s);
 	bools_value.push_back(X);
 }
 void Variate::push(string s, string X) {
-if (debug) cout <<"push (string) in Variate " + name << endl;
-	strings.push_back(s);
+NAMICS_DBG_THIS("push (string) in Variate " + name << endl); strings.push_back(s);
 	strings_value.push_back(X);
 }
 void Variate::PushOutput() {
-if (debug) cout <<"PushOutput in Variate " + name << endl;
-	strings.clear();
+NAMICS_DBG_THIS("PushOutput in Variate " + name << endl); strings.clear();
 	strings_value.clear();
 	bools.clear();
 	bools_value.clear();
@@ -572,14 +561,12 @@ if (debug) cout <<"PushOutput in Variate " + name << endl;
 
 Real* Variate::GetPointer(string s) {
 	(void)s;
-if (debug) cout <<"GetPointer in Variate " + name << endl;
-	return NULL;
+NAMICS_DBG_THIS("GetPointer in Variate " + name << endl);	return NULL;
 }
 
 
 int Variate::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-if (debug) cout <<"GetValue (long)  in Variate " + name << endl;
-	int i=0;
+NAMICS_DBG_THIS("GetValue (long)  in Variate " + name << endl);	int i=0;
 	int length = ints.size();
 	while (i<length) {
 		if (prop==ints[i]) {
