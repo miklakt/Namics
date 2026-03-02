@@ -1,108 +1,12 @@
 #ifndef HOST_ONLY_TOOLSxH
 #define HOST_ONLY_TOOLSxH
-
-#include <numeric>
+#include "namics.h"
+#include <cassert>
+#include <span>
 #include <algorithm>
-#include <functional>
-#if __SSE__
-	#include <smmintrin.h>
-#endif
-#include <cmath>
-
-
-//typedef double Real;
-struct saxpy_functor
-{
-	const Real a;
-
-	saxpy_functor(Real _a) : a(_a) {}
-
-	Real operator()(const Real &x, const Real &y) const
-	{
-		return a * x + y;
-	}
-};
-
-struct reverse_minus_functor
-{
-	reverse_minus_functor() {}
-
-	Real operator()(const Real &x, const Real &y) const
-	{
-		return y - x;
-	}
-};
-
-struct norm_functor
-{
-	const Real a;
-
-	norm_functor(Real _a) : a(_a) {}
-
-	Real operator()(const Real &x) const
-	{
-		return a * x;
-	}
-};
-
-struct binary_norm_functor
-{
-	const Real a;
-
-	binary_norm_functor(Real _a) : a(_a) {}
-
-	Real operator()(const Real &x, const Real &y) const
-	{
-		return a * x * y;
-	}
-};
-
-struct order_param_functor
-{
-
-	order_param_functor() {}
-
-	Real operator()(const Real &x, const Real &y) const
-	{
-		return pow(x - y, 2);
-	}
-};
-
-struct is_negative_functor
-{
-
-	const Real tolerance{0};
-
-	is_negative_functor(Real _tolerance = 0) : tolerance(_tolerance) {}
-
-	bool operator()(const Real &x) const
-	{
-		return x < 0 - tolerance || x > 1 + tolerance;
-	}
-};
-
-struct is_not_unity_functor
-{
-	const Real tolerance{0};
-
-	is_not_unity_functor(Real _tolerance = 1e-4) : tolerance(_tolerance) {}
-
-	bool operator()(const Real &x) const
-	{
-		bool result{0};
-
-		if (x > (1 + tolerance) || x < (1 - tolerance))
-			result = 1;
-
-		return result;
-	}
-};
-
-//typedef long double Real;
-
 
 template <typename T>
-void bx(T* P, int mmx, int My, int Mz, int bx1, int bxm, int jx, int jy, int by1=0, int bz1=0, bool corner=false)   {
+void bx(std::span<T> P, int mmx, int My, int Mz, int bx1, int bxm, int jx, int jy, int by1=0, int bz1=0, bool corner=false)   {
 	int i;
 	int jx_mmx=jx*mmx;
 	int jx_bxm=jx*bxm;
@@ -151,7 +55,7 @@ void bx(T* P, int mmx, int My, int Mz, int bx1, int bxm, int jx, int jy, int by1
 }
 
 template<typename T>
-void b_x(T *P, int mmx, int My, int Mz, int bx1, int bxm, int jx, int jy)   {
+void b_x(std::span<T> P, int mmx, int My, int Mz, int bx1, int bxm, int jx, int jy)   {
 	(void)bxm;
 	(void)bx1;
 	int i, jx_mmx=jx*mmx;// jx_bxm=jx*bxm, bx1_jx=bx1*jx;
@@ -164,7 +68,7 @@ void b_x(T *P, int mmx, int My, int Mz, int bx1, int bxm, int jx, int jy)   {
 }
 
 template<typename T>
-void by(T *P, int Mx, int mmy, int Mz, int by1, int bym, int jx, int jy, int bz1=0, bool corner=false)   {
+void by(std::span<T> P, int Mx, int mmy, int Mz, int by1, int bym, int jx, int jy, int bz1=0, bool corner=false)   {
 	int i, jy_mmy=jy*mmy, jy_bym=jy*bym, jy_by1=jy*by1;
 	for (int x=0; x<Mx; x++)
 	for (int z=0; z<Mz; z++) {
@@ -185,7 +89,7 @@ void by(T *P, int Mx, int mmy, int Mz, int by1, int bym, int jx, int jy, int bz1
 }
 
 template<typename T>
-void b_y(T *P, int Mx, int mmy, int Mz, int by1, int bym, int jx, int jy)   {
+void b_y(std::span<T> P, int Mx, int mmy, int Mz, int by1, int bym, int jx, int jy)   {
 	(void)bym;
 	(void)by1;
 	int i, jy_mmy=jy*mmy;// jy_bym=jy*bym, jy_by1=jy*by1;
@@ -198,7 +102,7 @@ void b_y(T *P, int Mx, int mmy, int Mz, int by1, int bym, int jx, int jy)   {
 }
 
 template<typename T>
-void bz(T *P, int Mx, int My, int mmz, int bz1, int bzm, int jx, int jy, int bx1=0, bool corner=false)   {
+void bz(std::span<T> P, int Mx, int My, int mmz, int bz1, int bzm, int jx, int jy, int bx1=0, bool corner=false)   {
 	int i;
 	int bx1_jx=bx1*jx;
 	for (int x=0; x<Mx; x++)
@@ -220,7 +124,7 @@ void bz(T *P, int Mx, int My, int mmz, int bz1, int bzm, int jx, int jy, int bx1
 }
 
 template<typename T>
-void b_z(T *P, int Mx, int My, int mmz, int bz1, int bzm, int jx, int jy)   {
+void b_z(std::span<T> P, int Mx, int My, int mmz, int bz1, int bzm, int jx, int jy)   {
 	(void)bzm;
 	(void)bz1;
 	int i;
@@ -233,53 +137,57 @@ void b_z(T *P, int Mx, int My, int mmz, int bz1, int bzm, int jx, int jy)   {
 }
 
 template <typename T>
-inline void SetBoundaries(T* P, int jx, int jy, int bx1, int bxm, int by1, int bym, int bz1, int bzm, int Mx, int My, int Mz, bool corners=false) {
+inline void SetBoundaries(std::span<T> P, int jx, int jy, int bx1, int bxm, int by1, int bym, int bz1, int bzm, int Mx, int My, int Mz, bool corners=false) {
   bx(P, Mx + 1, My + 2, Mz + 2, bx1, bxm, jx, jy, by1, bz1, corners);
   by(P, Mx + 2, My + 1, Mz + 2, by1, bym, jx, jy, bz1, corners);
   bz(P, Mx + 2, My + 2, Mz + 1, bz1, bzm, jx, jy, bx1, corners);
 }
 
 template <typename T>
-inline void RemoveBoundaries(T* P, int jx, int jy, int bx1, int bxm, int by1, int bym, int bz1, int bzm, int Mx, int My, int Mz) {
+inline void RemoveBoundaries(std::span<T> P, int jx, int jy, int bx1, int bxm, int by1, int bym, int bz1, int bzm, int Mx, int My, int Mz) {
   b_x(P, Mx + 1, My + 2, Mz + 2, bx1, bxm, jx, jy);
   b_y(P, Mx + 2, My + 1, Mz + 2, by1, bym, jx, jy);
   b_z(P, Mx + 2, My + 2, Mz + 1, bz1, bzm, jx, jy);
 }
 
-//template<typename T>
-//	T z = 0.0;
-//	T ftmp[2] = { zero, zero };
-//	__m128d mres;
-//
-//			_mm_loadu_pd(&y[2*i])));
-//
-//		_mm_store_pd(ftmp, mres);
-//
-//}
-//
-//			result += x[i] * y[i];
-//	}
-//}
-
-
 template<typename T>
-void Xr_times_ci(int posi, int k_diis, int k, int m, int nvar, T* x, T* xR, T* Ci) {
-	for (int __i = 0; __i < nvar; ++__i) x[__i] += Ci[0] * xR[posi*nvar + __i];
+void Xr_times_ci(int posi, int k_diis, int k, int m, std::span<T> x, std::span<const T> xR, std::span<const T> Ci) {
+	const int nvar = static_cast<int>(x.size());
+	assert(xR.size() >= static_cast<size_t>(m * nvar));
+	assert(Ci.size() >= static_cast<size_t>(k_diis));
+	for (int __i = 0; __i < nvar; ++__i) {
+		x[__i] += Ci[0] * xR[posi*nvar + __i];
+	}
 
 	for (int i=1; i<k_diis; i++) {
 		posi = k-k_diis+1+i;
 	    	if (posi<0) {
 	      		posi +=m;
 		}
-		for (int __j = 0; __j < nvar; ++__j) x[__j] += Ci[i] * xR[posi*nvar + __j];
+		for (int __j = 0; __j < nvar; ++__j) {
+			x[__j] += Ci[i] * xR[posi*nvar + __j];
+		}
 	}
+}
+
+template<typename T>
+inline void Xr_times_ci(int posi, int k_diis, int k, int m, int nvar, T* x, const T* xR, const T* Ci) {
+	assert(nvar >= 0);
+	Xr_times_ci(posi, k_diis, k, m,
+	            std::span<T>(x, static_cast<size_t>(nvar)),
+	            std::span<const T>(xR, static_cast<size_t>(m * nvar)),
+	            std::span<const T>(Ci, static_cast<size_t>(k_diis)));
 }
 
 namespace tools {
 
 template<typename T>
-void DistributeG1(T* G1, Real* g1, int* Bx, int* By, int* Bz, int MM, int M, int n_box, int Mx, int My, int Mz, int MX, int MY, int MZ, int jx, int jy, int JX, int JY) {
+void DistributeG1(std::span<const T> G1, std::span<Real> g1, std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int MM, int M, int n_box, int Mx, int My, int Mz, int MX, int MY, int MZ, int jx, int jy, int JX, int JY) {
 	(void)MM;
+	assert(Bx.size() >= static_cast<size_t>(n_box));
+	assert(By.size() >= static_cast<size_t>(n_box));
+	assert(Bz.size() >= static_cast<size_t>(n_box));
+	assert(g1.size() >= static_cast<size_t>(n_box * M));
 	int pos_l=-M;
 	int pos_x,pos_y,pos_z;
 	int Bxp,Byp,Bzp;
@@ -297,8 +205,13 @@ void DistributeG1(T* G1, Real* g1, int* Bx, int* By, int* Bz, int MM, int M, int
 }
 
 template<typename T>
-void CollectPhi(T* phi, Real* GN, Real* rho, int* Bx, int* By, int* Bz, int MM, int M, int n_box, int Mx, int My, int Mz, int MX, int MY, int MZ, int jx, int jy, int JX, int JY) {
+void CollectPhi(std::span<T> phi, std::span<const Real> GN, std::span<const Real> rho, std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int MM, int M, int n_box, int Mx, int My, int Mz, int MX, int MY, int MZ, int jx, int jy, int JX, int JY) {
 	(void)MM;
+	assert(Bx.size() >= static_cast<size_t>(n_box));
+	assert(By.size() >= static_cast<size_t>(n_box));
+	assert(Bz.size() >= static_cast<size_t>(n_box));
+	assert(GN.size() >= static_cast<size_t>(n_box));
+	assert(rho.size() >= static_cast<size_t>(n_box * M));
 	int pos_l=-M;
 	int pos_x,pos_y,pos_z;
 	int Bxp,Byp,Bzp;
@@ -318,16 +231,33 @@ void CollectPhi(T* phi, Real* GN, Real* rho, int* Bx, int* By, int* Bz, int MM, 
 }
 
 template<typename T, typename D>
-void OverwriteC(T *P, D *Mask, T C, int M) {
-	for (int i=0; i<M; i++) if (Mask[i]==1) P[i]=C; //else P[i]=0;
+void OverwriteC(std::span<T> P, std::span<const D> Mask, T C) {
+	assert(P.size() == Mask.size());
+	std::transform(P.begin(), P.end(), Mask.begin(), P.begin(),
+	               [C](T p, D mask_value) { return (mask_value == 1) ? C : p; });
 }
 
 template<typename T, typename D>
-void OverwriteA(T *P, D *Mask,T* A,int M) {
-	for (int i=0; i<M; i++) if (Mask[i]==1) P[i]=A[i]; else P[i]=0;
+inline void OverwriteC(T* P, const D* Mask, T C, int M) {
+	assert(M >= 0);
+	OverwriteC(std::span<T>(P, static_cast<size_t>(M)),
+	           std::span<const D>(Mask, static_cast<size_t>(M)), C);
 }
 
-Real pythag(Real, Real);
-int svdcmp(Real**, int, int, Real*, Real**);
+template<typename T, typename D>
+void OverwriteA(std::span<T> P, std::span<const D> Mask, std::span<const T> A) {
+	assert(P.size() == Mask.size());
+	assert(P.size() == A.size());
+	std::transform(A.begin(), A.end(), Mask.begin(), P.begin(),
+	               [](T a, D mask_value) { return (mask_value == 1) ? a : T{0}; });
+}
+
+template<typename T, typename D>
+inline void OverwriteA(T* P, const D* Mask, const T* A, int M) {
+	assert(M >= 0);
+	OverwriteA(std::span<T>(P, static_cast<size_t>(M)),
+	           std::span<const D>(Mask, static_cast<size_t>(M)),
+	           std::span<const T>(A, static_cast<size_t>(M)));
+}
 
 #endif

@@ -14,9 +14,10 @@
 #include <iterator>
 #include <algorithm>
 #include <unordered_map>
+#include <span>
 
 #include <iomanip>
-
+#include "debug_log.h"
 
 using namespace std;
 using ParameterStore = std::unordered_map<std::string, std::string>;

@@ -1,10 +1,9 @@
 
 #include "output.h"
-#include "time.h"
 
 Output::Output(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_,int outnr,int N_out) {
-if (debug) cout <<"constructor in Output "<< endl;
-	In=In_; Lat = Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; n_output=N_out; output_nr=outnr;  New=New_;
+NAMICS_DBG_THIS("constructor in Output "<< endl);	In=In_; Lat = Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; n_output=N_out; output_nr=outnr;  New=New_;
+	writer = io::SharedWriter();
 	//KEYS.push_back("write_output");
 	lat=Lat;
 	KEYS.push_back("write_bounds");
@@ -23,16 +22,13 @@ if (debug) cout <<"constructor in Output "<< endl;
 
 }
 Output::~Output() {
-if (debug) cout <<"destructor in output " << endl;
-}
+NAMICS_DBG_THIS("destructor in output " << endl);}
 void Output::PutParameter(string new_param) {
-if (debug) cout << "PutParameter in Output " << endl;
-	KEYS.push_back(new_param);
+NAMICS_DBG_THIS("PutParameter in Output " << endl); KEYS.push_back(new_param);
 }
 
 bool Output::Load() {
-if (debug) cout <<"Load in output " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("Load in output " << endl);	bool success=true;
 	int molnr=0;
 	success= In->LoadItems(name, OUT_key, OUT_name, OUT_prop);
 	if (success) {
@@ -85,20 +81,17 @@ if (debug) cout <<"Load in output " << endl;
 			}
 		}
 
-		if (name=="vtk" && OUT_key.size()>1) {
-			cout << "vtk output can have only one member. Multiple entries were found namely: " << endl;
-			success=false;
-			int length=OUT_key.size();
-			for (int i=0; i<length; i++) cout << name << ":" << OUT_key[i] << ":" << OUT_name[i] << ":" << OUT_prop[i] << endl;
-		}
-
 	}
 	return success;
 }
 
 bool Output::CheckInput(int start_) {
-if (debug) cout << "CheckInput in output " << endl;
-	start=start_;
+NAMICS_DBG_THIS("CheckInput in output " << endl);	start=start_;
+	if (name != "kal" && name != "pro") {
+		write = false;
+		cout << "Output type '" << name << "' is disabled. Only 'kal' and 'pro' are supported." << endl;
+		return true;
+	}
 
 	bool success=true;
 	success=In->CheckParameters("output",name,start, KEYS, PARAMETERS);
@@ -109,25 +102,15 @@ if (debug) cout << "CheckInput in output " << endl;
 		}
 
 		if (GetValue("append").size()>0) {
-			if (name=="ana") append=true;
 			append=In->Get_bool(GetValue("append"),append);
 
 			if (name=="pro") {
 					if (append) cout << "Warning: for output of type 'pro', the append is set to 'false'." << endl;
 			}
-			if (name=="vtk") {
-					if (append) cout << "Warning: for output of type 'vtk', the append is set to 'false'." << endl;
-			}
-			if (name=="vec") {
-					if (!append) cout << "Warning: for output of type 'vec', the append is set to 'true'." << endl;
-			}
 			if (first==0) first=start;
 		} else {
-			if (name=="ana") append=true;
 			if (name=="kal") append=false;
 			if (name=="pro") append=false;
-			if (name=="vtk") append=false;
-			if (name=="vec") append=false;
 		}
 
 		write_bounds = In->Get_bool(GetValue("write_bounds"),false);
@@ -173,15 +156,13 @@ if (debug) cout << "CheckInput in output " << endl;
 }
 
 string Output::GetValue(string parameter) {
-if (debug) cout << "GetValue in output " << endl;
-	auto it = PARAMETERS.find(parameter);
+NAMICS_DBG_THIS("GetValue in output " << endl); auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 int* Output::GetPointerInt(string key, string name, string prop, int &Size) {
-if (debug) cout << "GetPointerInt in output " << endl;
-	int monlistlength=In->MonList.size();
+NAMICS_DBG_THIS("GetPointerInt in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int listlength;
 	int choice;
@@ -251,8 +232,7 @@ if (debug) cout << "GetPointerInt in output " << endl;
 	return NULL;
 }
 Real* Output::GetPointer(string key, string name, string prop, int &Size) {
-if (debug) cout << "GetPointer in output " << endl;
-	int monlistlength=In->MonList.size();
+NAMICS_DBG_THIS("GetPointer in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int listlength;
 	int choice;
@@ -322,8 +302,7 @@ if (debug) cout << "GetPointer in output " << endl;
 	return NULL;
 }
 int Output::GetValue(string key, string name, string prop, int &int_result, Real &Real_result, string &string_result) {
-if (debug) cout << "GetValue (long) in output " << endl;
-	int monlistlength=In->MonList.size();
+NAMICS_DBG_THIS("GetValue (long) in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int allistlength;
 	int choice=0;
@@ -381,12 +360,12 @@ if (debug) cout << "GetValue (long) in output " << endl;
 }
 
 void Output::WriteOutput(int subl) {
-if (debug) cout << "WriteOutput in output " + name << endl;
-	lat->subl=subl;
+NAMICS_DBG_THIS("WriteOutput in output " + name << endl);	lat->subl=subl;
 	if (!write) return;
-	int length;
+	if (name != "kal" && name != "pro") {
+		return;
+	}
 	int Size=0;
-	string s;
 	string filename;
 	vector<string> sub;
 
@@ -417,7 +396,7 @@ if (debug) cout << "WriteOutput in output " + name << endl;
     string numc = to_string(subl);
     string numcc = to_string(start);
 
-    if (name=="kal" || name == "vec" || name == "pos" || name=="ana") filename=sub[0].append(".").append(name); else {
+    if (name=="kal") filename=sub[0].append(".").append(name); else {
 		if (n_starts==1 && subl < 1) filename=sub[0].append(".").append(name);
 		if (n_starts==1 && subl >0) filename = sub[0].append("_").append(numc).append(".").append(name);
 		if (n_starts>1  && subl < 1) filename = sub[0].append("_").append(numcc).append(".").append(name);
@@ -425,103 +404,54 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 	}
 
 	filename = In->output_info.getOutputPath() + filename;
-	if (name=="pos") {
-		length=OUT_key.size();
-		FILE *fp;
-		fp=fopen(filename.c_str(),"a");
-		for (int i=0; i<length; i++) {
-			key.clear();
-			string s=key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-			int* X=GetPointerInt(OUT_key[i],OUT_name[i],OUT_prop[i],Size);
-			if (X==NULL) { cout <<"error; pointer for " + s + " not found: output of array is rejected " << endl;
-			} else {
-				key=OUT_key[i];
-				s=key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]).append(sep);
-				fprintf(fp,"%s",s.c_str());
-				if (i<length-1) fprintf(fp,"%d\t",subl);
-				int length_vec=Size;
-				for (int j=0; j<length_vec; j++) {
-					if (j<length_vec-1) fprintf(fp,"%i\t",X[j]); else fprintf(fp,"%i",X[j]);
-				}
-				if (DOS) fprintf(fp,"\r\n"); else fprintf(fp,"\n");
-			}
-		}
-		fclose(fp);
-	}
-	if (name=="vec") {
-		length=OUT_key.size();
-		FILE *fp;
-		fp=fopen(filename.c_str(),"a");
-		for (int i=0; i<length; i++) {
-			key.clear();
-			string s=key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-
-
-			Real* X=GetPointer(OUT_key[i],OUT_name[i],OUT_prop[i],Size);
-			if (X==NULL) { cout <<"error; pointer for " + s + " not found: output of vector is rejected " << endl;
-			}  else {
-				key=OUT_key[i];
-
-				s=key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-				fprintf(fp,"%s\t",s.c_str());
-				int length_vec=Size;
-#ifdef LongReal
-				for (int j=0; j<length_vec; j++) fprintf(fp,"%Le\t",X[j]);
-#else
-				for (int j=0; j<length_vec; j++) fprintf(fp,"%e\t",X[j]);
-#endif
-				if (DOS) fprintf(fp,"\r\n"); else fprintf(fp,"\n");
-			}
-		}
-		fclose(fp);
-	}
 	if (name=="pro") {
 		vector<Real*> pointer;
 		FILE *fp;
-		fp=fopen(filename.c_str(),"w");
+		fp=writer->OpenRaw(filename.c_str(),"w");
 		int length=OUT_key.size();
 		switch(lat->gradients) {
 			case 1:
-				fprintf(fp,"x\t");
+				writer->Writef(fp,"x\t");
 				break;
 			case 2:
-				fprintf(fp,"x\ty\t");
+				writer->Writef(fp,"x\ty\t");
 				break;
 			case 3:
-				fprintf(fp,"x\ty\tz\t");
+				writer->Writef(fp,"x\ty\tz\t");
 				break;
 			default:
 				break;
 		}
 		for (int i=0; i<length; i++) {
+			string s=OUT_key[i];
+			s.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
 			Real*  X = GetPointer(OUT_key[i],OUT_name[i],OUT_prop[i],Size);
 			if (X!=NULL) {
 				pointer.push_back(X);
 				key = OUT_key[i];
-				string s=key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-				if (i<length-1) fprintf(fp,"%s\t",s.c_str()); else fprintf(fp,"%s",s.c_str());
+				s = key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
+				if (i<length-1) writer->Writef(fp,"%s\t",s.c_str()); else writer->Writef(fp,"%s",s.c_str());
 			} else {cout << " Error for 'pro' output. It is only possible to output quantities known to be a 'profile'. That is why output quantity " + s + " is rejected. " << endl;}
 		}
-		if (DOS) fprintf(fp,"\r\n"); else fprintf(fp,"\n");
+		if (DOS) writer->Writef(fp,"\r\n"); else writer->Writef(fp,"\n");
 		Lat-> PutProfiles(fp,pointer,write_bounds,DOS);
 
-		fclose(fp);
+		writer->Close(fp);
 	}
 
 	if (name=="kal") {
 		if (start>first || subl>0) append=true;
-		ifstream my_file(filename.c_str());
 		FILE *fp;
-		if (!(my_file && append)) {
-			fp=fopen(filename.c_str(),"w");
+		if (!(writer->Exists(filename) && append)) {
+			fp=writer->OpenRaw(filename.c_str(),"w");
 			int length = OUT_key.size();
 			for (int i=0; i<length; i++) {
 				key=OUT_key[i];
 				string s=key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-				if (i<length-1) fprintf(fp,"%s\t",s.c_str()); else fprintf(fp,"%s",s.c_str());
+				if (i<length-1) writer->Writef(fp,"%s\t",s.c_str()); else writer->Writef(fp,"%s",s.c_str());
 			}
-			if (DOS) fprintf(fp,"\r\n"); else fprintf(fp,"\n");
-		} else fp=fopen(filename.c_str(),"a");
+			if (DOS) writer->Writef(fp,"\r\n"); else writer->Writef(fp,"\n");
+		} else fp=writer->OpenRaw(filename.c_str(),"a");
 
 		if (fp == NULL) {
 			cerr << "Error trying to open " << filename.c_str() << endl;
@@ -538,277 +468,29 @@ if (debug) cout << "WriteOutput in output " + name << endl;
 			vector<string> sub;
 			In-> split(OUT_prop[i],'(',sub);
 			result_nr= GetValue(OUT_key[i],OUT_name[i],sub[0],int_result,Real_result,string_result);
-			if (result_nr==0) {if (i<length-1) fprintf(fp,"NiN\t"); else fprintf(fp,"NiN");}
-			if (result_nr==1) {if (i<length-1) fprintf(fp,"%i\t",int_result); else fprintf(fp,"%i",int_result);}
+			if (result_nr==0) {if (i<length-1) writer->Writef(fp,"NiN\t"); else writer->Writef(fp,"NiN");}
+			if (result_nr==1) {if (i<length-1) writer->Writef(fp,"%i\t",int_result); else writer->Writef(fp,"%i",int_result);}
 #ifdef LongReal
-			if (result_nr==2) {if (i<length-1) fprintf(fp,"%.16Le\t",Real_result); else  fprintf(fp,"%.16Le",Real_result);}
+			if (result_nr==2) {if (i<length-1) writer->Writef(fp,"%.16Le\t",Real_result); else  writer->Writef(fp,"%.16Le",Real_result);}
 #else
-			if (result_nr==2) {if (i<length-1) fprintf(fp,"%.16e\t",Real_result); else  fprintf(fp,"%.16e",Real_result);}
+			if (result_nr==2) {if (i<length-1) writer->Writef(fp,"%.16e\t",Real_result); else  writer->Writef(fp,"%.16e",Real_result);}
 #endif
 			if (result_nr==3) {
 				if (sub[0]==OUT_prop[i]) {
-					if (i<length-1) fprintf(fp,"%s\t",string_result.c_str()); else fprintf(fp,"%s",string_result.c_str());
+					if (i<length-1) writer->Writef(fp,"%s\t",string_result.c_str()); else writer->Writef(fp,"%s",string_result.c_str());
 				} else {
 					Real* X=GetPointer(OUT_key[i],OUT_name[i],sub[0],Size);
 #ifdef LongReal
-					if (i<length-1) fprintf(fp,"%.16Le\t",lat->GetValue(X,sub[1])); else fprintf(fp,"%.16Le",lat->GetValue(X,sub[1]));
+					if (i<length-1) writer->Writef(fp,"%.16Le\t",lat->GetValue(X,sub[1])); else writer->Writef(fp,"%.16Le",lat->GetValue(X,sub[1]));
 #else
-					if (i<length-1) fprintf(fp,"%.16e\t",lat->GetValue(X,sub[1])); else fprintf(fp,"%.16e",lat->GetValue(X,sub[1]));
+					if (i<length-1) writer->Writef(fp,"%.16e\t",lat->GetValue(X,sub[1])); else writer->Writef(fp,"%.16e",lat->GetValue(X,sub[1]));
 #endif
 				}
 			}
 		}
-		if (DOS) fprintf(fp,"\r\n"); else fprintf(fp,"\n");
-		fclose(fp);
+		if (DOS) writer->Writef(fp,"\r\n"); else writer->Writef(fp,"\n");
+		writer->Close(fp);
 	}
-
-	if (name=="vtk") {
-		Real*  X = GetPointer(OUT_key[0],OUT_name[0],OUT_prop[0],Size);
-		key = OUT_key[0];
-		string s=key.append(sep).append(OUT_name[0]).append(sep).append(OUT_prop[0]);
-		if (!(X==NULL))
-		lat->vtk(filename,X,s,write_bounds); else {cout << "vtk file was not generated because 'profile' was not found for " << s << endl;}
-	}
-
-
-	if (name=="ana") {
-		time_t now;
-		time(&now);
-		char timestamp_str [80];
-		strftime (timestamp_str,80,"%FT%T",localtime(&now));
-		FILE *fp;
-		if (append) fp=fopen(filename.c_str(),"a"); else fp=fopen(filename.c_str(),"w");
-//System parameters
-		s="sys : " + Sys->name + " :";
-		fprintf(fp,"%s version : %s\n",s.c_str(),version.c_str());
-		fprintf(fp,"%s datetime : %s\n",s.c_str(),timestamp_str);
-		length = Sys->ints.size();
-		for (int i=0; i<length; i++)
-			fprintf(fp,"%s %s : %i \n",s.c_str(),Sys->ints[i].c_str(),Sys->ints_value[i]);
-		length = Sys->Reals.size();
-#ifdef LongReal
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),Sys->Reals[i].c_str(),Sys->Reals_value[i]);
-#else
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),Sys->Reals[i].c_str(),Sys->Reals_value[i]);
-#endif
-		length = lat->bools.size();
-		for (int i=0; i<length; i++) {
-			if (Sys->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),Sys->bools[i].c_str(),"true");
-			else fprintf(fp,"%s %s : %s \n",s.c_str(),Sys->bools[i].c_str(),"false");
-		}
-		length = Sys->strings.size();
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),Sys->strings[i].c_str(),Sys->strings_value[i].c_str());
-
-//Lattice parameters
-		s="lat : " + lat->name + " :";
-		length = lat->ints.size();
-		for (int i=0; i<length; i++)
-			fprintf(fp,"%s %s : %i \n",s.c_str(),lat->ints[i].c_str(),lat->ints_value[i]);
-		length = lat->Reals.size();
-#ifdef LongReal
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),lat->Reals[i].c_str(),lat->Reals_value[i]);
-#else
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),lat->Reals[i].c_str(),lat->Reals_value[i]);
-#endif
-		length = lat->bools.size();
-		for (int i=0; i<length; i++) {
-			if (lat->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),lat->bools[i].c_str(),"true");
-			else fprintf(fp,"%s %s : %s \n",s.c_str(),lat->bools[i].c_str(),"false");
-		}
-		length = lat->strings.size();
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),lat->strings[i].c_str(),lat->strings_value[i].c_str());
-
-//Newton parameters
-		s="newton : " + New->name + " :";
-		length = New->ints.size();
-		for (int i=0; i<length; i++)
-			fprintf(fp,"%s %s : %i \n",s.c_str(),New->ints[i].c_str(),New->ints_value[i]);
-		length = New->Reals.size();
-#ifdef LongReal
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),New->Reals[i].c_str(),New->Reals_value[i]);
-#else
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),New->Reals[i].c_str(),New->Reals_value[i]);
-#endif
-		length = New->bools.size();
-		for (int i=0; i<length; i++) {
-			if (New->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),New->bools[i].c_str(),"true");
-			else fprintf(fp,"%s %s : %s \n",s.c_str(),New->bools[i].c_str(),"false");
-		}
-		length = New->strings.size();
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),New->strings[i].c_str(),New->strings_value[i].c_str());
-
-//segment parameters
-		int length_A=In->MonList.size();
-		for (int j=0; j<length_A; j++) {
-			s="mon : " + Seg[j]->name + " :";
-			length = Seg[j]->ints.size();
-			for (int i=0; i<length; i++)
-				fprintf(fp,"%s %s : %i \n",s.c_str(),Seg[j]->ints[i].c_str(),Seg[j]->ints_value[i]);
-			length = Seg[j]->Reals.size();
-#ifdef LongReal
-			for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),Seg[j]->Reals[i].c_str(),Seg[j]->Reals_value[i]);
-#else
-			for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),Seg[j]->Reals[i].c_str(),Seg[j]->Reals_value[i]);
-#endif
-			length = Seg[j]->bools.size();
-			for (int i=0; i<length; i++) {
-				if (Seg[j]->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),Seg[j]->bools[i].c_str(),"true");
-				else fprintf(fp,"%s %s : %s \n",s.c_str(),Seg[j]->bools[i].c_str(),"false");
-			}
-			length = Seg[j]->strings.size();
-			for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),Seg[j]->strings[i].c_str(),Seg[j]->strings_value[i].c_str());
-		}
-//molecule parameters
-		length_A=In->MolList.size();
-		for (int j=0; j<length_A; j++) {
-			s="mol : " + Mol[j]->name + " :";
-			length = Mol[j]->ints.size();
-			for (int i=0; i<length; i++)
-				fprintf(fp,"%s %s : %i \n",s.c_str(),Mol[j]->ints[i].c_str(),Mol[j]->ints_value[i]);
-			length = Mol[j]->Reals.size();
-#ifdef LongReal
-			for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),Mol[j]->Reals[i].c_str(),Mol[j]->Reals_value[i]);
-#else
-			for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),Mol[j]->Reals[i].c_str(),Mol[j]->Reals_value[i]);
-#endif
-			length = Mol[j]->bools.size();
-			for (int i=0; i<length; i++) {
-				if (Mol[j]->bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),Mol[j]->bools[i].c_str(),"true");
-				else fprintf(fp,"%s %s : %s \n",s.c_str(),Mol[j]->bools[i].c_str(),"false");
-			}
-			length = Mol[j]->strings.size();
-			for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),Mol[j]->strings[i].c_str(),Mol[j]->strings_value[i].c_str());
-		}
-//output
-		s="output : noname :";
-		length = ints.size();
-		for (int i=0; i<length; i++)
-			fprintf(fp,"%s %s : %i \n",s.c_str(),ints[i].c_str(),ints_value[i]);
-		length = Reals.size();
-#ifdef LongReal
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %Le \n",s.c_str(),Reals[i].c_str(),Reals_value[i]);
-#else
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %e \n",s.c_str(),Reals[i].c_str(),Reals_value[i]);
-#endif
-		length = bools.size();
-		for (int i=0; i<length; i++) {
-			if (bools_value[i]) fprintf(fp,"%s %s : %s \n",s.c_str(),bools[i].c_str(),"true");
-			else fprintf(fp,"%s %s : %s \n",s.c_str(),bools[i].c_str(),"false");
-		}
-		length = strings.size();
-		for (int i=0; i<length; i++) fprintf(fp,"%s %s : %s \n",s.c_str(),strings[i].c_str(),strings_value[i].c_str());
-
-		fprintf(fp,"%s \n","system delimiter");
-		fclose(fp);
-	}
-}
-
-void Output::vtk(string filename, Real *X){
-if (debug) cout << "vtk in output " << endl;
-	int MX=lat->MX;
-	int MY=lat->MY;
-	int MZ=lat->MZ;
-	int JX=lat->JX;
-	int JY=lat->JY;
-	FILE *fp;
-	fp = fopen(filename.c_str(),"w+");
-	fprintf(fp, "# vtk DataFile Version 7.0 \nvtk output \nASCII \nDATASET STRUCTURED_POINTS \nDIMENSIONS %i %i %i\n",MX,MY,MZ);
-	fprintf(fp, "SPACING 1 1 1 \nORIGIN 0 0 0 \nPOINT_DATA %i\n", MX*MY*MZ);
-	fprintf(fp, "SCALARS Box_profile float\nLOOKUP_TABLE default \n");
-
-	for(int x=1; x<MX+1; x++) for(int y=1; y<MY+1; y++) for(int z=1; z<MZ+1; z++)
-#ifdef LongReal
-		fprintf(fp,"%Lf \n",X[x*JX+y*JY+z]);
-#else
-		fprintf(fp,"%f \n",X[x*JX+y*JY+z]);
-#endif
-	fflush(fp); fclose(fp);
-}
-
-void Output::density(){
-if (debug) cout << "density in output " << endl;
-	int length=In->MolList.size();
-	string fname;
-	for (int i=0; i<length; i++) {
-		fname = "output/Molecule_" +In->MolList[i]+ "_Density.vtk";
-		vtk(fname,Mol[i]->phitot);
-	}
-}
-
-
-void Output::printlist(){
-if (debug) cout << "printlist in output " << endl;
-
-	ofstream writefile;
-	writefile.open ("output/listdetails.cpp");
-	writefile << "---------------------------------------------------------------" << endl;
-
-
-	writefile << "-------------------- Input list details -----------------------" << endl;
-	int length = In->MonList.size();
-	writefile << " " << endl;
-	writefile << "MonList" << endl;
-	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << In->MonList[i] << endl;
-
-	length = In->MolList.size();
-	writefile << " " << endl;
-	writefile << "MolList" << endl;
-	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << In->MolList[i] << endl;
-	writefile << "---------------------------------------------------------------" << endl;
-	writefile << " " << endl;
-
-	writefile << "-------------------- Molecule list details -----------------------" << endl;
-	int n_mol = In->MolList.size();
-	for (int j=0; j<n_mol; j++){
-		writefile << " " << endl;
-		writefile << "Molecule: " << In->MolList[j]<< endl;
-		writefile << " " << endl;
-
-		length = Mol[j]->MolMonList.size();
-		writefile << "MolMonList" << endl;
-		for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Mol[j]->MolMonList[i] << endl;
-
-		length = Mol[j]->mon_nr.size();
-		writefile << "mon_nr" << endl;
-		for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Mol[j]->mon_nr[i] << endl;
-
-		length = Mol[j]->n_mon.size();
-		writefile << "n_mon" << endl;
-		for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Mol[j]->n_mon[i] << endl;
-
-		length = Mol[j]->molmon_nr.size();
-		writefile << "molmon_nr" << endl;
-		for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Mol[j]->molmon_nr[i] << endl;
-	}
-	writefile << "---------------------------------------------------------------" << endl;
-	writefile << " " << endl;
-
-	writefile << "-------------------- System list details -----------------------" << endl;
-	length = Sys->SysMonList.size();
-	writefile << " " << endl;
-	writefile << "SysMonList" << endl;
-	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys->SysMonList[i] << endl;
-
-	length = Sys->SysTagList.size();
-	writefile << " " << endl;
-	writefile << "SysTagList" << endl;
-	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys->SysTagList[i] << endl;
-	writefile << "---------------------------------------------------------------" << endl;
-	writefile << " " << endl;
-
-	length = Sys->FrozenList.size();
-	writefile << " " << endl;
-	writefile << "FrozenList" << endl;
-	writefile << " " << endl;
-	for (int i=0; i<length; i++) writefile << "i: " <<  i << "\t " << Sys->FrozenList[i] << endl;
-	writefile << "---------------------------------------------------------------" << endl;
-	writefile << " " << endl;
-	writefile.close();
-
 }
 
 int Output::GetValue(string prop, string mod, int& int_result, Real& Real_result, string& string_result) {
@@ -875,6 +557,3 @@ void Output::push(string s, string X) {
   strings.push_back(s);
   strings_value.push_back(X);
 }
-
-
-

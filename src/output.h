@@ -10,6 +10,7 @@
 #include "system.h"
 #include "solve_scf.h"
 #include "alias.h"
+#include "io_utils.h"
 #include <climits>
 #include <unistd.h>
 
@@ -29,6 +30,7 @@ public:
 	vector<Molecule*> Mol;
 	System* Sys;
 	Solve_scf* New;
+	std::shared_ptr<io::Writer> writer;
 	int n_output;
 	int subl;
 	int n_starts;
@@ -71,11 +73,6 @@ public:
 	void PutParameter(string);
 	string GetValue(string);
 	bool Load();
-	void vtk(string, Real *);
-	void prepare_vtk_structured_grid(string);
-	void write_vtk_data(string, Real*, int, ios_base::openmode = ios_base::app);
-	void density();
-	void printlist();
 	void WriteOutput(int);
 	int GetValue(string, string, string, int&, Real&, string&);
 	Real* GetPointer(string, string, string, int&);
@@ -88,4 +85,3 @@ public:
 
 };
 #endif
-

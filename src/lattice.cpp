@@ -2,8 +2,10 @@
 Lattice::Lattice(const Input& In_,const string& name_) :
 	BC(6) // boundary condition slots: lower/upper for x, y, z
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
-if (debug) cout <<"Lattice constructor" << endl;
-	In=&In_; name=name_;
+NAMICS_DBG_THIS("Lattice constructor" << endl);	In=&In_; name=name_;
+	writer = io::SharedWriter();
+	range_reader = io::SharedRangeReader();
+	guess_reader = io::SharedInitialGuessReader();
 	KEYS.push_back("gradients"); KEYS.push_back("n_layers"); KEYS.push_back("offset_first_layer");
 	KEYS.push_back("geometry");
 	KEYS.push_back("n_layers_x");   KEYS.push_back("n_layers_y"); KEYS.push_back("n_layers_z");
@@ -36,55 +38,68 @@ if (debug) cout <<"Lattice constructor" << endl;
 }
 
 void Lattice::DeAllocateMemory(void) {
-if (debug) cout <<"DeAllocateMemory in lat " << endl;
-	if (all_lattice) {
-		all_lattice=false;
-		if (fcc_sites) {
-			free(fcc_lambda_1);
-			free(fcc_lambda1);
-			free(fcc_lambda0);
-		}
-		if (fjc==1) {
-			if (gradients<3) {
-				free(lambda_1);
-				free(lambda1);
-				free(lambda0);
-				free(L);
-			}
-		} else {
-			free(B_X1);free(B_Y1);free(B_Z1);free(B_XM);free(B_YM);free(B_ZM);
-			free(L); free(LAMBDA);
-			free(X);
-		}
-		if (Markov==2) {
-			if (fjc==1) {
-				free(l1);
-				free(l11);
-				free(l_1);
-				free(l_11);
-			} else {
-				free(LABDA);
-				free(LABDA_1);
-			}
-			free(H);
-		}
-	}
+NAMICS_DBG_THIS("DeAllocateMemory in lat " << endl);	if (!all_lattice) return;
+	all_lattice=false;
+	l1_storage.clear();
+	l11_storage.clear();
+	l_1_storage.clear();
+	l_11_storage.clear();
+	H_storage.clear();
+	B_X1_storage.clear();
+	B_Y1_storage.clear();
+	B_Z1_storage.clear();
+	B_XM_storage.clear();
+	B_YM_storage.clear();
+	B_ZM_storage.clear();
+	L_storage.clear();
+	lambda0_storage.clear();
+	fcc_lambda0_storage.clear();
+	lambda_1_storage.clear();
+	fcc_lambda_1_storage.clear();
+	lambda1_storage.clear();
+	fcc_lambda1_storage.clear();
+	LAMBDA_storage.clear();
+	LABDA_storage.clear();
+	LABDA_1_storage.clear();
+	X_storage.clear();
+
+	l1 = nullptr;
+	l11 = nullptr;
+	l_1 = nullptr;
+	l_11 = nullptr;
+	H = nullptr;
+	B_X1 = nullptr;
+	B_Y1 = nullptr;
+	B_Z1 = nullptr;
+	B_XM = nullptr;
+	B_YM = nullptr;
+	B_ZM = nullptr;
+	L = nullptr;
+	lambda0 = nullptr;
+	fcc_lambda0 = nullptr;
+	lambda_1 = nullptr;
+	fcc_lambda_1 = nullptr;
+	lambda1 = nullptr;
+	fcc_lambda1 = nullptr;
+	LAMBDA = nullptr;
+	LABDA = nullptr;
+	LABDA_1 = nullptr;
+	X = nullptr;
 }
 
 
 void Lattice::AllocateMemory(void) {
-if (debug) cout <<"AllocateMemory in lat " << endl;
-
+NAMICS_DBG_THIS("AllocateMemory in lat " << endl);
 	DeAllocateMemory();
 	all_lattice=true;
 	PutM();
 	if (fjc>1) {
-		B_X1=(int*)malloc(fjc*sizeof(int));
-		B_Y1=(int*)malloc(fjc*sizeof(int));
-		B_Z1=(int*)malloc(fjc*sizeof(int));
-		B_XM=(int*)malloc(fjc*sizeof(int));
-		B_YM=(int*)malloc(fjc*sizeof(int));
-		B_ZM=(int*)malloc(fjc*sizeof(int));
+		B_X1_storage.assign(fjc, 0); B_X1=B_X1_storage.data();
+		B_Y1_storage.assign(fjc, 0); B_Y1=B_Y1_storage.data();
+		B_Z1_storage.assign(fjc, 0); B_Z1=B_Z1_storage.data();
+		B_XM_storage.assign(fjc, 0); B_XM=B_XM_storage.data();
+		B_YM_storage.assign(fjc, 0); B_YM=B_YM_storage.data();
+		B_ZM_storage.assign(fjc, 0); B_ZM=B_ZM_storage.data();
 	}
 
 	switch (gradients) {
@@ -191,45 +206,44 @@ if (debug) cout <<"AllocateMemory in lat " << endl;
 
 	}
 	if (fcc_sites) {
-		fcc_lambda_1=(Real*)malloc(M*sizeof(Real)); std::fill_n(fcc_lambda_1, M, 0);
-		fcc_lambda1=(Real*)malloc(M*sizeof(Real)); std::fill_n(fcc_lambda1, M, 0);
-		fcc_lambda0=(Real*)malloc(M*sizeof(Real)); std::fill_n(fcc_lambda0, M, 0);
+		fcc_lambda_1_storage.assign(M, 0.0); fcc_lambda_1=fcc_lambda_1_storage.data();
+		fcc_lambda1_storage.assign(M, 0.0); fcc_lambda1=fcc_lambda1_storage.data();
+		fcc_lambda0_storage.assign(M, 0.0); fcc_lambda0=fcc_lambda0_storage.data();
 	}
 
 	if (fjc==1) {
 		if (gradients<3) {
-		L=(Real*)malloc(M*sizeof(Real)); std::fill_n(L, M, 0);
-		lambda_1=(Real*)malloc(M*sizeof(Real)); std::fill_n(lambda_1, M, 0);
-		lambda1=(Real*)malloc(M*sizeof(Real)); std::fill_n(lambda1, M, 0);
-		lambda0=(Real*)malloc(M*sizeof(Real)); std::fill_n(lambda0, M, 0);
+		L_storage.assign(M, 0.0); L=L_storage.data();
+		lambda_1_storage.assign(M, 0.0); lambda_1=lambda_1_storage.data();
+		lambda1_storage.assign(M, 0.0); lambda1=lambda1_storage.data();
+		lambda0_storage.assign(M, 0.0); lambda0=lambda0_storage.data();
 		}
 	} else {
-		L=(Real*)malloc(M*sizeof(Real)); std::fill_n(L, M, 0);
-		LAMBDA =(Real*)malloc(FJC*M*sizeof(Real)); std::fill_n(LAMBDA, FJC*M, 0);
+		L_storage.assign(M, 0.0); L=L_storage.data();
+		LAMBDA_storage.assign(FJC*M, 0.0); LAMBDA=LAMBDA_storage.data();
 	}
 	if (Markov==2) {
 		if (fjc==1) {
-			l1=(Real*)malloc(M*sizeof(Real)); std::fill_n(l1, M, 0);
-			l_1=(Real*)malloc(M*sizeof(Real));  std::fill_n(l_1, M, 0);
-			l11=(Real*)malloc(M*sizeof(Real)); std::fill_n(l11, M, 0);
-			l_11=(Real*)malloc(M*sizeof(Real)); std::fill_n(l_11, M, 0);
+			l1_storage.assign(M, 0.0); l1=l1_storage.data();
+			l_1_storage.assign(M, 0.0); l_1=l_1_storage.data();
+			l11_storage.assign(M, 0.0); l11=l11_storage.data();
+			l_11_storage.assign(M, 0.0); l_11=l_11_storage.data();
 		} else {
-			LABDA =(Real*)malloc(FJC*M*sizeof(Real)); std::fill_n(LABDA, FJC*M, 0);
-			LABDA_1 =(Real*)malloc(FJC*M*sizeof(Real)); std::fill_n(LABDA_1, FJC*M, 0);
+			LABDA_storage.assign(FJC*M, 0.0); LABDA=LABDA_storage.data();
+			LABDA_1_storage.assign(FJC*M, 0.0); LABDA_1=LABDA_1_storage.data();
 		}
-		H=(Real*)malloc(M*sizeof(Real));
+		H_storage.assign(M, 0.0); H=H_storage.data();
 	}
 
 
-	X=(Real*)malloc(M*sizeof(Real));
+	X_storage.assign(M, 0.0); X=X_storage.data();
 	ComputeLambdas();
 }
 
 
 
 Lattice::~Lattice() {
-if (debug) cout <<"lattice destructor " << endl;
-	DeAllocateMemory();
+NAMICS_DBG_THIS("lattice destructor " << endl); DeAllocateMemory();
 
 }
 
@@ -257,8 +271,7 @@ bool Lattice::PutSub_box(int mx_, int my_, int mz_,int n_box_) {
 }
 
 bool Lattice::CheckInput(int start, bool checking) {
-if (debug) cout <<"CheckInput in lattice " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("CheckInput in lattice " << endl);	bool success=true;
 	mx.push_back(0); my.push_back(0); mz.push_back(0); jx.push_back(0); jy.push_back(0); m.push_back(0); n_box.push_back(0);
 	string Value;
 
@@ -678,20 +691,17 @@ bool Lattice::ResetInitValue() {
 }
 
 void Lattice::PutParameter(string new_param) {
-if (debug) cout <<"PutParameters in lattice " << endl;
-	KEYS.push_back(new_param);
+NAMICS_DBG_THIS("PutParameters in lattice " << endl); KEYS.push_back(new_param);
 }
 
 string Lattice::GetValue(string parameter){
-if (debug) cout << "GetValue in lattice " << endl;
-	auto it = PARAMETERS.find(parameter);
+NAMICS_DBG_THIS("GetValue in lattice " << endl); auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 Real Lattice::GetValue(Real* X,string s){
-if (debug) cout << "GetValue in lattice " << endl;
-if (X==NULL) cout << "pointer X is zero" << endl;
+NAMICS_DBG_THIS("GetValue in lattice " << endl);if (X==NULL) cout << "pointer X is zero" << endl;
 	int x=0,y=0,z=0;
 	vector<string> sub;
 	In->split(s,',',sub);
@@ -737,35 +747,29 @@ if (X==NULL) cout << "pointer X is zero" << endl;
 
 
 bool Lattice::PrepareForCalculations(void) {
-if (debug) cout <<"PrepareForCalculations in lattice" << endl;
-	bool success=true;
+NAMICS_DBG_THIS("PrepareForCalculations in lattice" << endl);	bool success=true;
 	return success;
 }
 
 void Lattice::push(string s, Real X) {
-if (debug) cout <<"push (Real) in lattice " << endl;
-	Reals.push_back(s);
+NAMICS_DBG_THIS("push (Real) in lattice " << endl); Reals.push_back(s);
 	Reals_value.push_back(X);
 }
 void Lattice::push(string s, int X) {
-if (debug) cout <<"push (int) in lattice " << endl;
-	ints.push_back(s);
+NAMICS_DBG_THIS("push (int) in lattice " << endl); ints.push_back(s);
 	ints_value.push_back(X);
 }
 void Lattice::push(string s, bool X) {
-if (debug) cout <<"push (bool) in lattice " << endl;
-	bools.push_back(s);
+NAMICS_DBG_THIS("push (bool) in lattice " << endl); bools.push_back(s);
 	bools_value.push_back(X);
 }
 void Lattice::push(string s, string X) {
-if (debug) cout <<"push (string) in lattice " << endl;
-	strings.push_back(s);
+NAMICS_DBG_THIS("push (string) in lattice " << endl); strings.push_back(s);
 	strings_value.push_back(X);
 }
 
 Real* Lattice::GetPointer(string s,int &SIZE) {
-if (debug) cout <<"GetPointer for lattice " + name << endl;
-	vector<string> sub;
+NAMICS_DBG_THIS("GetPointer for lattice " + name << endl);	vector<string> sub;
 	SIZE=M;
 	In->split(s,';',sub);
 	if (sub[0]=="profile" && sub[1]=="0") return L;
@@ -774,8 +778,7 @@ if (debug) cout <<"GetPointer for lattice " + name << endl;
 }
 
 int* Lattice::GetPointerInt(string s,int &SIZE) {
-if (debug) cout <<"GetPointerInt for lattice " + name << endl;
-	vector<string> sub;
+NAMICS_DBG_THIS("GetPointerInt for lattice " + name << endl);	vector<string> sub;
 	SIZE=M;
 	In->split(s,';',sub);
 	if (sub[0]=="array"){//get with sub[1] the number and put the pointer to integer array in return.
@@ -785,8 +788,7 @@ if (debug) cout <<"GetPointerInt for lattice " + name << endl;
 }
 
 void Lattice::PushOutput() {
-if (debug) cout <<"PushOutput in lat " << endl;
-	strings.clear();
+NAMICS_DBG_THIS("PushOutput in lat " << endl); strings.clear();
 	strings_value.clear();
 	bools.clear();
 	bools_value.clear();
@@ -826,8 +828,7 @@ if (debug) cout <<"PushOutput in lat " << endl;
 
 
 int Lattice::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-if (debug) cout <<"GetValue (long)  in lattice " << endl;
-
+NAMICS_DBG_THIS("GetValue (long)  in lattice " << endl);
 	for ( size_t i = 0 ; i<ints.size() ; ++i)
 		if (prop==ints[i]) {
 			int_result=ints_value[i];
@@ -859,70 +860,29 @@ if (debug) cout <<"GetValue (long)  in lattice " << endl;
 
 
 
-void Lattice::DistributeG1(Real *G1, Real *g1, int* Bx, int* By, int* Bz, int n_box) {
+void Lattice::DistributeG1(std::span<const Real> G1, std::span<Real> g1, std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int n_box) {
 	int k=sub_box_on;
 	tools::DistributeG1(G1, g1, Bx, By, Bz, M, m[k], n_box, mx[k], my[k], mz[k], MX, MY, MZ, jx[k], jy[k], JX, JY);
 }
 
-void Lattice::CollectPhi(Real* phi, Real* GN, Real* rho, int* Bx, int* By, int* Bz, int n_box) {
+void Lattice::CollectPhi(std::span<Real> phi, std::span<const Real> GN, std::span<const Real> rho, std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int n_box) {
 	int k=sub_box_on;
 	tools::CollectPhi(phi, GN, rho, Bx, By, Bz, M, m[k], n_box, mx[k], my[k], mz[k], MX, MY, MZ, jx[k], jy[k], JX, JY);
 }
 
-void Lattice::ComputeGN(Real* GN, Real* Gg_f, int* H_Bx, int* H_By, int* H_Bz, int* H_Px2, int* H_Py2, int* H_Pz2, int N, int n_box) {
+void Lattice::ComputeGN(std::span<Real> GN, std::span<const Real> Gg_f, std::span<const int> H_Bx, std::span<const int> H_By, std::span<const int> H_Bz, std::span<const int> H_Px2, std::span<const int> H_Py2, std::span<const int> H_Pz2, int N, int n_box) {
 	int k=sub_box_on;
-	for (int p=0; p<n_box; p++) std::copy_n(Gg_f+n_box*m[k]*N +p*m[k]+ jx[k]*(H_Px2[p]-H_Bx[p])+jy[k]*(H_Py2[p]-H_By[p])+(H_Pz2[p]-H_Bz[p]), 1, GN+p);
+	for (int p=0; p<n_box; p++) std::copy_n(Gg_f.data()+n_box*m[k]*N +p*m[k]+ jx[k]*(H_Px2[p]-H_Bx[p])+jy[k]*(H_Py2[p]-H_By[p])+(H_Pz2[p]-H_Bz[p]), 1, GN.data()+p);
 
 }
 
 
 bool Lattice::ReadGuess(string filename, Real *x ,string &method, vector<string> &monlist, vector<string> &statelist, bool &charged, int &mx, int &my, int &mz, int &fjc, int readx) {
-if (debug) cout <<"ReadGuess in output" << endl;
-	bool success=true;
-	ifstream in_file;
-	string s_charge;
-	int num_1,num_2;
-	string name;
-	in_file.open(filename.c_str());
-	if (in_file.is_open()) {
-		while (in_file && readx>-1) {
-			in_file>>method;
-			in_file>>mx>>my>>mz>>fjc;
-			in_file>>s_charge;
-			if (s_charge=="true") charged=true; else charged=false;
-			in_file>>num_1;
-			for (int i=0; i<num_1; i++) {
-				in_file >> name;
-				monlist.push_back(name);
-			}
-			in_file>>num_2;
-			for (int i=0; i<num_2; i++) {
-				in_file>> name;
-				statelist.push_back(name);
-			}
-			if (readx==0) readx=-2; else {
-				int m;
-				if (my==0) {m=(mx+2*fjc);} else {if (mz==0) m=(mx+2*fjc)*(my+2*fjc); else {m=(mx+2*fjc)*(my+2*fjc)*(mz+2*fjc);}}
-				int iv=(num_1+num_2)*m;
-				if (charged) iv +=m;
-				for (int i=0; i<iv; i++) {
-					in_file >> x[i];
-				}
-				readx=-3;
-			}
-		}
-		in_file.close();
-	} else {
-		cout <<"inputfile " << filename << " is not found. Read guess for initial guess failed" << endl;
-		success=false;
-	}
-	return success;
+NAMICS_DBG_THIS("ReadGuess in output" << endl); return guess_reader->ReadInitialGuess(filename, x, method, monlist, statelist, charged, mx, my, mz, fjc, readx);
 }
 
 bool Lattice::StoreGuess(string Filename,Real *x,string method, vector<string> monlist,vector<string>statelist, bool charged, int start) {
-if (debug) cout <<"StoreGuess in output" << endl;
-	bool success=true;
-	string s;
+NAMICS_DBG_THIS("StoreGuess in output" << endl);	bool success=true;
 	int mon_length = monlist.size();
 	int state_length = statelist.size();
 	string filename;
@@ -949,31 +909,19 @@ if (debug) cout <<"StoreGuess in output" << endl;
 			filename=sub[0].append("_").append(numc).append("_").append(numcc).append(".").append(sub[1]);
 		else 	filename=sub[0].append("_").append(numc).append(".").append(sub[1]);
 	}
-	FILE *fp;
 	filename=In->output_info.getOutputPath()+filename;
-	fp=fopen(filename.c_str(),"w");//:a"
-	fprintf(fp,"%s\n",method.c_str());
-	fprintf(fp," %i\t%i\t%i\t%i\n" ,MX,MY,MZ, fjc);
-	if (charged) fprintf(fp,"%s\n" ,"true"); else  fprintf(fp,"%s\n" ,"false");
-	fprintf(fp,"%i\n",mon_length);
-	for (int i=0; i<mon_length; i++) fprintf(fp,"%s\n",monlist[i].c_str());
-	fprintf(fp,"%i\n",state_length);
-	for (int i=0; i<state_length; i++) fprintf(fp,"%s\n",statelist[i].c_str());
 	int iv=(mon_length+state_length)*M;
 	if (charged) iv +=M;
-#ifdef LongReal
-	for (int i=0; i<iv; i++) fprintf(fp,"%Le\n",x[i]);
-#else
-	for (int i=0; i<iv; i++) fprintf(fp,"%e\n",x[i]);
-#endif
-	fclose(fp);
+	success = writer->WriteInitialGuess(filename, method, MX, MY, MZ, fjc, charged, monlist, statelist, x, iv);
+	if (!success) {
+		cout << "Failed to write initial guess file " << filename << endl;
+	}
 	return success;
 }
 
 bool Lattice::GenerateGuess(Real* x, string CalculationType, string GuessType, Real A_value, Real B_value) {
 	(void)CalculationType;
-if (debug) cout <<"GenerateGuess in lat " << endl;
-//GuessType: lamellae,Im3m,FCC,BCC,HEX,gyroid,Real_gyroid,Real_diamond,perforated_lamellae
+NAMICS_DBG_THIS("GenerateGuess in lat " << endl);//GuessType: lamellae,Im3m,FCC,BCC,HEX,gyroid,Real_gyroid,Real_diamond,perforated_lamellae
 //CalculationType: micro_emulsion,micro_phasesegregation
 	bool success = true;
 	int i,j,k;
@@ -1027,8 +975,7 @@ if (debug) cout <<"GenerateGuess in lat " << endl;
 
 
 bool Lattice::GuessVar(Real* x, Real theta,string GuessType, Real A_value, Real B_value){
-if (debug) cout << "GuessVar in Lattice " << endl;
-	bool success = true;
+NAMICS_DBG_THIS("GuessVar in Lattice " << endl);	bool success = true;
 	int i;
 	if (fjc>1) cout <<"GuessVar is not yet prepared to work for FJC-choices > 3 " << endl;
 	int height = theta/1;

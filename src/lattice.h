@@ -3,7 +3,8 @@
 
 #include "namics.h"
 #include "input.h"
-#include "tools.h"
+#include "io_utils.h"
+#include "tools_host.h"
 
 class Lattice {
 public:
@@ -13,6 +14,9 @@ virtual ~Lattice();
 
 	string name;
 	const Input* In;
+	std::shared_ptr<io::Writer> writer;
+	std::shared_ptr<io::RangeReader> range_reader;
+	std::shared_ptr<io::InitialGuessReader> guess_reader;
 	int MX,MY,MZ;
 	vector<int> mx;
 	vector<int> my;
@@ -26,6 +30,11 @@ virtual ~Lattice();
 	Real *l_1;
 	Real *l_11;
 	Real *H;
+	std::vector<Real> l1_storage;
+	std::vector<Real> l11_storage;
+	std::vector<Real> l_1_storage;
+	std::vector<Real> l_11_storage;
+	std::vector<Real> H_storage;
 	vector<string> BC;
 	int BX1,BY1,BZ1,BXM,BYM,BZM;
 	int *B_X1;
@@ -34,6 +43,12 @@ virtual ~Lattice();
 	int *B_XM;
 	int *B_YM;
 	int *B_ZM;
+	std::vector<int> B_X1_storage;
+	std::vector<int> B_Y1_storage;
+	std::vector<int> B_Z1_storage;
+	std::vector<int> B_XM_storage;
+	std::vector<int> B_YM_storage;
+	std::vector<int> B_ZM_storage;
 	int JX,JY,M;
 	int JZ=1;
 	bool all_lattice;
@@ -64,8 +79,19 @@ virtual ~Lattice();
 	Real *LAMBDA;
 	Real *LABDA;
 	Real *LABDA_1;
+	std::vector<Real> L_storage;
+	std::vector<Real> lambda0_storage;
+	std::vector<Real> fcc_lambda0_storage;
+	std::vector<Real> lambda_1_storage;
+	std::vector<Real> fcc_lambda_1_storage;
+	std::vector<Real> lambda1_storage;
+	std::vector<Real> fcc_lambda1_storage;
+	std::vector<Real> LAMBDA_storage;
+	std::vector<Real> LABDA_storage;
+	std::vector<Real> LABDA_1_storage;
 	int fjc, FJC;
 	Real *X;
+	std::vector<Real> X_storage;
 	int VarInitValue;
 	string Var_type;
 	int Var_target;
@@ -113,9 +139,9 @@ virtual ~Lattice();
 	string GetValue(string);
 	int PutVarScan(int, int);
 	bool PrepareForCalculations(void);
-	void DistributeG1(Real*, Real*, int*, int*, int*, int);
-	void CollectPhi(Real*, Real*, Real*, int*, int*, int*, int);
-	void ComputeGN(Real*, Real*, int*, int*, int*, int*, int*, int*, int, int);
+	void DistributeG1(std::span<const Real>, std::span<Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
+	void CollectPhi(std::span<Real>, std::span<const Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
+	void ComputeGN(std::span<Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, int, int);
 	bool GuessVar(Real*, Real, string, Real, Real);
 	bool GenerateGuess(Real*, string, string, Real, Real);
 

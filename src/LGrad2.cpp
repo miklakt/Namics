@@ -6,8 +6,7 @@
 LGrad2::LGrad2(const Input& In_,const string& name_): Lattice(In_,name_) {}
 
 LGrad2::~LGrad2() {
-if (debug) cout <<"LGrad2 destructor " << endl;
-}
+NAMICS_DBG_THIS("LGrad2 destructor " << endl);}
 
 
 void LGrad2:: ComputeLambdas() {
@@ -95,8 +94,7 @@ void LGrad2:: ComputeLambdas() {
 }
 
 bool LGrad2::PutM() {
-if (debug) cout << "PutM in LGrad2 " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("PutM in LGrad2 " << endl);	bool success=true;
 
 	if (geometry=="cylindrical")
 		volume = MY*PIE*(pow(MX+offset_first_layer,2)-pow(offset_first_layer,2));
@@ -108,18 +106,15 @@ if (debug) cout << "PutM in LGrad2 " << endl;
 }
 
 void LGrad2::TimesL(Real* X){
-if (debug) cout << "TimesL in LGrad2 " << endl;
-	if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = (X)[__i] * (L)[__i];
+NAMICS_DBG_THIS("TimesL in LGrad2 " << endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = (X)[__i] * (L)[__i];
 }
 
 void LGrad2::DivL(Real* X){
-if (debug) cout << "DivL in LGrad2 " << endl;
-	if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = ((L)[__i] != 0) ? ((X)[__i] / (L)[__i]) : 0;
+NAMICS_DBG_THIS("DivL in LGrad2 " << endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = ((L)[__i] != 0) ? ((X)[__i] / (L)[__i]) : 0;
 }
 
 Real LGrad2:: Moment(Real* X,Real Xb, int n) {
-if (debug) cout << "Moment in LGrad2 " << endl;
-	Real Result=0;
+NAMICS_DBG_THIS("Moment in LGrad2 " << endl);	Real Result=0;
 	int x,y;
 	int zz;
 	Real Nz;
@@ -139,8 +134,7 @@ if (debug) cout << "Moment in LGrad2 " << endl;
 }
 
 Real LGrad2::WeightedSum(Real* X){
-if (debug) cout << "weighted sum in LGrad2 " << endl;
-	Real sum{0};
+NAMICS_DBG_THIS("weighted sum in LGrad2 " << endl);	Real sum{0};
 	remove_bounds(X);
 	if (geometry=="planar") {
 		(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i]; sum = sum/(fjc*fjc);
@@ -151,34 +145,15 @@ if (debug) cout << "weighted sum in LGrad2 " << endl;
 }
 
 void LGrad2::vtk(string filename, Real* X, string id,bool writebounds) {
-if (debug) cout << "vtk in LGrad2 " << endl;
-	FILE *fp;
-	int i;
-	fp = fopen(filename.c_str(),"w+");
-	fprintf(fp,"# vtk DataFile Version 3.0\nvtk output\nASCII\nDATASET STRUCTURED_POINTS\nDIMENSIONS %i %i %i\n",MY,MX,1);
-	if (writebounds) {
-		fprintf(fp,"SPACING 1 1 1\nORIGIN 0 0 0\nPOINT_DATA %i\n",(MX+2*fjc)*(MY+2*fjc));
-	} else {
-		fprintf(fp,"SPACING 1 1 1\nORIGIN 0 0 0\nPOINT_DATA %i\n",MX*MY);
-	}
-	fprintf(fp,"SCALARS %s double\nLOOKUP_TABLE default\n",id.c_str());
-#ifdef LongReal
-	if (writebounds) for (i=0; i<M; i++) fprintf(fp,"%Lf\n",X[i]);
-	for (int x=fjc; x<MX+fjc; x++)
-	for (int y=fjc; y<MY+fjc; y++)
-	fprintf(fp,"%Lf\n",X[P(x,y)]);
-#else
-	if (writebounds) for (i=0; i<M; i++) fprintf(fp,"%f\n",X[i]);
-	for (int x=fjc; x<MX+fjc; x++)
-	for (int y=fjc; y<MY+fjc; y++)
-	fprintf(fp,"%f\n",X[P(x,y)]);
-#endif
-	fclose(fp);
+	(void)filename;
+	(void)X;
+	(void)id;
+	(void)writebounds;
+NAMICS_DBG_THIS("vtk in LGrad2 " << endl);	cout << "VTK output is disabled; use kal/pro output instead." << endl;
 }
 
 void LGrad2::PutProfiles(FILE* pf,vector<Real*> X,bool writebounds,bool DOS){
-if (debug) cout <<"PutProfiles in LGrad2 " << endl;
-	Real one=1.0;
+NAMICS_DBG_THIS("PutProfiles in LGrad2 " << endl);	Real one=1.0;
 	int x,y,i;
 	int length=X.size();
 	int a;
@@ -186,21 +161,20 @@ if (debug) cout <<"PutProfiles in LGrad2 " << endl;
 	for (x=a; x<MX+2*fjc-a; x++)
 	for (y=a; y<MY+2*fjc-a; y++){
 #ifdef LongReal
-		fprintf(pf,"%Le\t%Le\t",offset_first_layer/fjc+one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc);
-		for (i=0; i<length; i++) fprintf(pf,"%.20Le\t",X[i][P(x,y)]);
-		if (DOS) fprintf(pf,"\r\n"); else fprintf(pf,"\n");
+		writer->Writef(pf,"%Le\t%Le\t",offset_first_layer/fjc+one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc);
+		for (i=0; i<length; i++) writer->Writef(pf,"%.20Le\t",X[i][P(x,y)]);
+		if (DOS) writer->Writef(pf,"\r\n"); else writer->Writef(pf,"\n");
 #else
-		fprintf(pf,"%e\t%e\t",offset_first_layer/fjc+one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc);
-		for (i=0; i<length; i++) fprintf(pf,"%.20e\t",X[i][P(x,y)]);
-		if (DOS) fprintf(pf,"\r\n"); else fprintf(pf,"\n");
+		writer->Writef(pf,"%e\t%e\t",offset_first_layer/fjc+one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc);
+		for (i=0; i<length; i++) writer->Writef(pf,"%.20e\t",X[i][P(x,y)]);
+		if (DOS) writer->Writef(pf,"\r\n"); else writer->Writef(pf,"\n");
 #endif
 	}
 }
 
 
 void LGrad2::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
-if (debug) cout <<" Side in LGrad2 " << endl;
-	if (ignore_sites) {
+NAMICS_DBG_THIS(" Side in LGrad2 " << endl);	if (ignore_sites) {
 		std::copy_n(X, M, X_side); return;
 	}
 	std::fill_n(X_side, M, 0);//set_bounds(X);
@@ -735,8 +709,7 @@ void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 }
 
 void LGrad2::propagate(Real *G, Real *G1, int s_from, int s_to,int M) {
-if (debug) cout <<" propagate in LGrad2 " << endl;
-	Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
+NAMICS_DBG_THIS(" propagate in LGrad2 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
 	std::fill_n(gs, M, 0); set_bounds(gs_1);
 	if (fjc==1) {
 		if (lattice_type==simple_cubic) {
@@ -799,8 +772,7 @@ bool LGrad2::ReadRange(int* r, int* H_p, int &n_pos, bool &block, string range, 
 	(void)var_pos;
 	(void)n_pos;
 	(void)H_p;
-if (debug) cout <<"ReadRange in LGrad2 " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("ReadRange in LGrad2 " << endl);	bool success=true;
 	vector<string>set;
 	vector<string>coor;
 	vector<string>xyz;
@@ -826,8 +798,7 @@ if (debug) cout <<"ReadRange in LGrad2 " << endl;
 }
 
 bool LGrad2::ReadRangeFile(string filename,int* H_p, int &n_pos, string seg_name, string range_type) {
-if (debug) cout <<"ReadRangeFile in LGrad2 " << endl;
-	if (fjc>1) {
+NAMICS_DBG_THIS("ReadRangeFile in LGrad2 " << endl);	if (fjc>1) {
 		cout << "Rangefile is not implemented for FJC-choices >3; contact FL. " << endl;
 		return false;
 	}
@@ -844,7 +815,7 @@ if (debug) cout <<"ReadRangeFile in LGrad2 " << endl;
 	int length_xyz;
 	int px,py,p_i,x,y;
 	int i=0;
-	if (!In->ReadFile(sub[0].append(".").append(filename),content)) {
+	if (!range_reader->ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
 		success=false;
 		return success;
 	}
@@ -905,7 +876,7 @@ bool LGrad2::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=In->ReadFile(filename,content);
+		success=range_reader->ReadSanitizedFile(filename,content);
 		if (success) {
 			In->split(content,'#',lines);
 			length = lines.size();
@@ -929,9 +900,8 @@ bool LGrad2::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 }
 
 bool LGrad2::CreateMASK(Real* H_MASK, int* r, int* H_P, int n_pos, bool block) {
-if (debug) cout <<"CreateMask for LGrad2 " + name << endl;
-	bool success=true;
-	H_Zero(H_MASK,M);
+NAMICS_DBG_THIS("CreateMask for LGrad2 " + name << endl);	bool success=true;
+	std::fill_n(H_MASK, M, static_cast<Real>(0));
 	// Build mask from either a block in r=[x1,y1,z1,x2,y2,z2] or list of indices in H_P.
 	if (block) {
 		// mark all (x,y) in [x1, x2] x [y1, y2].
@@ -1094,8 +1064,7 @@ void LGrad2::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool gra
 }
 
 void LGrad2::remove_bounds(Real *X){
-if (debug) cout <<"remove_bounds in LGrad2 " << endl;
-	int x,y;
+NAMICS_DBG_THIS("remove_bounds in LGrad2 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) {
@@ -1132,8 +1101,7 @@ if (debug) cout <<"remove_bounds in LGrad2 " << endl;
 }
 
 void LGrad2::set_bounds_x(Real* X, Real*Y, int shifty){
-if (debug) cout <<"set_bounds_x XY in LGrad2 " << endl;
-
+NAMICS_DBG_THIS("set_bounds_x XY in LGrad2 " << endl);
 	if (BX1>BXM)  {
 		//set_bounds_x(X,0); set_bounds_x(Y,0);
 		set_bounds_x(X,shifty); set_bounds_x(Y,shifty);
@@ -1160,8 +1128,7 @@ if (debug) cout <<"set_bounds_x XY in LGrad2 " << endl;
 }
 
 void LGrad2::set_bounds_y(Real* X, Real*Y, int shiftx){
-if (debug) cout <<"set_bounds_y XY in LGrad2 " << endl;
-
+NAMICS_DBG_THIS("set_bounds_y XY in LGrad2 " << endl);
 	if (BY1>BYM) {
 		//set_bounds_y(X,0); set_bounds_y(Y,0);
 		set_bounds_y(X,shiftx); set_bounds_y(Y,shiftx);
@@ -1187,8 +1154,7 @@ if (debug) cout <<"set_bounds_y XY in LGrad2 " << endl;
 }
 
 void LGrad2::set_bounds_x(Real* X,int shifty){
-if (debug) cout <<"set_bounds_x X in LGrad2 " << endl;
-	int y;
+NAMICS_DBG_THIS("set_bounds_x X in LGrad2 " << endl);	int y;
 	int k=0;
 
 	if (fjc==1) {
@@ -1207,8 +1173,7 @@ if (debug) cout <<"set_bounds_x X in LGrad2 " << endl;
 }
 
 void LGrad2::set_bounds_y(Real* X,int shiftx){
-if (debug) cout <<"set_bounds_y X in LGrad2 " << endl;
-	int x;
+NAMICS_DBG_THIS("set_bounds_y X in LGrad2 " << endl);	int x;
 	int k=0;
 
 	if (fjc==1) {
@@ -1227,8 +1192,7 @@ if (debug) cout <<"set_bounds_y X in LGrad2 " << endl;
 }
 
 void LGrad2::set_bounds(Real* X){
-if (debug) cout <<"set_bounds in LGrad2 " << endl;
-	int x,y;
+NAMICS_DBG_THIS("set_bounds in LGrad2 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) {
@@ -1273,8 +1237,7 @@ if (debug) cout <<"set_bounds in LGrad2 " << endl;
 }
 
 void LGrad2::set_M_bounds(Real* X){
-if (debug) cout <<"set_bounds in LGrad2 " << endl;
-	int x,y;
+NAMICS_DBG_THIS("set_bounds in LGrad2 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) {
@@ -1312,8 +1275,7 @@ if (debug) cout <<"set_bounds in LGrad2 " << endl;
 
 
 void LGrad2::remove_bounds(int *X){
-if (debug) cout <<"remove_bounds in LGrad2 " << endl;
-	int x,y;
+NAMICS_DBG_THIS("remove_bounds in LGrad2 " << endl);	int x,y;
 	int k;
 	if (fjc==1) {
 		for (x=0; x<MX+2; x++) {
@@ -1341,8 +1303,7 @@ if (debug) cout <<"remove_bounds in LGrad2 " << endl;
 }
 
 void LGrad2::set_bounds(int* X){
-if (debug) cout <<"set_bounds in LGrad2 " << endl;
-	int x,y;
+NAMICS_DBG_THIS("set_bounds in LGrad2 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) {
@@ -1497,8 +1458,7 @@ void LGrad2::Initiate(Real* G,Real* Gz,int Markov, int M){
 }
 
 void LGrad2::Terminate(Real* Gz,Real* G,int Markov, int M){
-if (debug) cout << "LGrad2:: terminate " << endl;
-	if (Markov==2) {
+NAMICS_DBG_THIS("LGrad2:: terminate " << endl);	if (Markov==2) {
 		cout <<"terminate in markov==2 is not tested" << endl;
 		std::fill_n(Gz, M, 0);
 		if (lattice_type == hexagonal&& !stencil_full) {
@@ -1519,8 +1479,7 @@ if (debug) cout << "LGrad2:: terminate " << endl;
 
 bool LGrad2:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R){
 	(void)pz;
-if (debug) cout <<"PutMask in LGrad2 " << endl;
-	//R*=fjc; //is already done in segment
+NAMICS_DBG_THIS("PutMask in LGrad2 " << endl);	//R*=fjc; //is already done in segment
 	bool success=true;
 	int length =px.size();
 	int X,Y;
@@ -1562,8 +1521,7 @@ if (debug) cout <<"PutMask in LGrad2 " << endl;
 
 
 Real LGrad2::DphiDt(Real* g, Real* B_phitot, Real* phiA, Real* phiB, Real* alphaA, Real* alphaB,Real B_A, Real B_B) {
-	if (debug) cout <<"LGrad2: DphiDt not implemented yet " << endl;
-	Real AverageJ=0;
+	NAMICS_DBG_THIS("LGrad2: DphiDt not implemented yet " << endl);	Real AverageJ=0;
 	int x, y;
 
 	//apply BC to the edges

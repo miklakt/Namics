@@ -6,15 +6,13 @@
 LGrad3::LGrad3(const Input& In_,const string& name_): Lattice(In_,name_) {}
 
 LGrad3::~LGrad3() {
-if (debug) cout <<"LGrad3 destructor " << endl;
-}
+NAMICS_DBG_THIS("LGrad3 destructor " << endl);}
 
 void LGrad3:: ComputeLambdas() {
 }
 
 bool LGrad3::PutM() {
-if (debug) cout << "PutM in LGrad3 " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("PutM in LGrad3 " << endl);	bool success=true;
 	volume = MX*MY*MZ;
 	JX=(MZ+2*fjc)*(MY+2*fjc); JY=MZ+2*fjc; JZ=1; M = (MX+2*fjc)*(MY+2*fjc)*(MZ+2*fjc);
 
@@ -24,67 +22,37 @@ if (debug) cout << "PutM in LGrad3 " << endl;
 
 void LGrad3::TimesL(Real* X){
 	(void)X;
-if (debug) cout << "TimesL in LGrad3 " << endl;
-}
+NAMICS_DBG_THIS("TimesL in LGrad3 " << endl);}
 
 void LGrad3::DivL(Real* X){
 	(void)X;
-if (debug) cout << "DivL in LGrad3 " << endl;
-}
+NAMICS_DBG_THIS("DivL in LGrad3 " << endl);}
 
 Real LGrad3:: Moment(Real* X,Real Xb, int n) {
 	(void)n;
 	(void)Xb;
 	(void)X;
-if (debug) cout << "Moment in LGrad3 " << endl;
-	Real Result=0;
+NAMICS_DBG_THIS("Moment in LGrad3 " << endl);	Real Result=0;
 	return Result/fjc;
 }
 
 Real LGrad3::WeightedSum(Real* X){
-if (debug) cout << "weighted sum in LGrad3 " << endl;
-	Real sum{0};
+NAMICS_DBG_THIS("weighted sum in LGrad3 " << endl);	Real sum{0};
 	remove_bounds(X);
 	(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i];
 	return sum;
 }
 
 void LGrad3::vtk(string filename, Real* X, string id,bool writebounds) {
-if (debug) cout << "vtk in LGrad3 " << endl;
-	FILE *fp;
-	int i;
-	fp = fopen(filename.c_str(),"w+");
-	fprintf(fp,"# vtk DataFile Version 3.0\nvtk output\nASCII\nDATASET STRUCTURED_POINTS\nDIMENSIONS %i %i %i\n",MZ,MY,MX);
-
-	if (writebounds) {
-		fprintf(fp,"SPACING 1 1 1\nORIGIN 0 0 0\nPOINT_DATA %i\n",(MX+2*fjc)*(MY+2*fjc)*(MZ+2*fjc));
-	} else {
-		fprintf(fp,"SPACING 1 1 1\nORIGIN 0 0 0\nPOINT_DATA %i\n",MX*MY*MZ);
-	}
-	fprintf(fp,"SCALARS %s double\nLOOKUP_TABLE default\n",id.c_str());
-#ifdef LongReal
-	if (writebounds) for(i=0; i<M; i++) fprintf(fp,"%Lf\n",X[i]);
-	else {
-		for (int x=fjc; x<MX+fjc; x++)
-		for (int y=fjc; y<MY+fjc; y++)
-		for (int z=fjc; z<MZ+fjc; z++)
-		fprintf(fp,"%Le\n",X[P(x,y,z)]);
-	}
-#else
-	if (writebounds) for(i=0; i<M; i++) fprintf(fp,"%f\n",X[i]);
-	else {
-		for (int x=fjc; x<MX+fjc; x++)
-		for (int y=fjc; y<MY+fjc; y++)
-		for (int z=fjc; z<MZ+fjc; z++)
-		fprintf(fp,"%e\n",X[P(x,y,z)]);
-	}
-#endif
-	fclose(fp);
+	(void)filename;
+	(void)X;
+	(void)id;
+	(void)writebounds;
+NAMICS_DBG_THIS("vtk in LGrad3 " << endl);	cout << "VTK output is disabled; use kal/pro output instead." << endl;
 }
 
 void LGrad3::PutProfiles(FILE* pf,vector<Real*> X,bool writebounds,bool DOS){
-if (debug) cout <<"PutProfiles in LGrad3 " << endl;
-	Real one=1.0;
+NAMICS_DBG_THIS("PutProfiles in LGrad3 " << endl);	Real one=1.0;
 	int x,y,z,i;
 	int length=X.size();
 	int a;
@@ -93,20 +61,19 @@ if (debug) cout <<"PutProfiles in LGrad3 " << endl;
 	for (y=a; y<MY+2*fjc-a; y++)
 	for (z=a; z<MZ+2*fjc-a; z++) {
 #ifdef LongReal
-		fprintf(pf,"%Le\t%Le\t%Le\t",one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc,one*(z-fjc+1)/fjc-0.5/fjc);
-		for (i=0; i<length; i++) fprintf(pf,"%.20Le\t",X[i][P(x,y,z)]);
+		writer->Writef(pf,"%Le\t%Le\t%Le\t",one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc,one*(z-fjc+1)/fjc-0.5/fjc);
+		for (i=0; i<length; i++) writer->Writef(pf,"%.20Le\t",X[i][P(x,y,z)]);
 #else
-		fprintf(pf,"%e\t%e\t%e\t",one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc,one*(z-fjc+1)/fjc-0.5/fjc);
-		for (i=0; i<length; i++) fprintf(pf,"%.20e\t",X[i][P(x,y,z)]);
+		writer->Writef(pf,"%e\t%e\t%e\t",one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc,one*(z-fjc+1)/fjc-0.5/fjc);
+		for (i=0; i<length; i++) writer->Writef(pf,"%.20e\t",X[i][P(x,y,z)]);
 
 #endif
-		if (DOS) fprintf(pf,"\r\n"); else fprintf(pf,"\n");
+		if (DOS) writer->Writef(pf,"\r\n"); else writer->Writef(pf,"\n");
 	}
 }
 
 void LGrad3::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
-if (debug) cout <<" Side in LGrad3 " << endl;
-	if (ignore_sites) {
+NAMICS_DBG_THIS(" Side in LGrad3 " << endl);	if (ignore_sites) {
 		std::copy_n(X, M, X_side); return;
 	}
 	std::fill_n(X_side, M, 0);//set_bounds(X);
@@ -661,8 +628,7 @@ void LGrad3::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 }
 
 void LGrad3::propagate(Real *G, Real *G1, int s_from, int s_to,int M) { //this procedure should function on simple cubic lattice.
-if (debug) cout <<" propagate in LGrad3 " << endl;
-	Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
+NAMICS_DBG_THIS(" propagate in LGrad3 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
 	int JX_=JX, JY_=JY;
 	int k=sub_box_on;
 
@@ -799,8 +765,7 @@ bool LGrad3::ReadRange(int* r, int* H_p, int &n_pos, bool &block, string range, 
 	(void)var_pos;
 	(void)n_pos;
 	(void)H_p;
-if (debug) cout <<"ReadRange in LGrad3 " << endl;
-	bool success=true;
+NAMICS_DBG_THIS("ReadRange in LGrad3 " << endl);	bool success=true;
 	vector<string>set;
 	vector<string>coor;
 	vector<string>xyz;
@@ -829,8 +794,7 @@ if (debug) cout <<"ReadRange in LGrad3 " << endl;
 }
 
 bool LGrad3::ReadRangeFile(string filename,int* H_p, int &n_pos, string seg_name, string range_type) {
-if (debug) cout <<"ReadRangeFile in LGrad3 " << endl;
-	if (fjc>1) {
+NAMICS_DBG_THIS("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
 		cout << "Rangefile is not implemented for FJC-choices >3; contact FL. " << endl;
 		return false;
 	}
@@ -847,7 +811,7 @@ if (debug) cout <<"ReadRangeFile in LGrad3 " << endl;
 	int length_xyz;
 	int px,py,pz,p_i,x,y,z;
 	int i=0;
-	if (!In->ReadFile(sub[0].append(".").append(filename),content)) {
+	if (!range_reader->ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
 		success=false;
 		return success;
 	}
@@ -906,7 +870,7 @@ bool LGrad3::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=In->ReadFile(filename,content);
+		success=range_reader->ReadSanitizedFile(filename,content);
 		if (success) {
 			In->split(content,'#',lines);
 			length = lines.size();
@@ -934,9 +898,8 @@ bool LGrad3::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 }
 
 bool LGrad3::CreateMASK(Real* H_MASK, int* r, int* H_P, int n_pos, bool block) {
-if (debug) cout <<"CreateMask for LGrad3 " + name << endl;
-	bool success=true;
-	H_Zero(H_MASK,M);
+NAMICS_DBG_THIS("CreateMask for LGrad3 " + name << endl);	bool success=true;
+	std::fill_n(H_MASK, M, static_cast<Real>(0));
 	// Build mask from either a block in r=[x1,y1,z1,x2,y2,z2] or list of indices in H_P.
 	if (block) {
 		// mark all (x,y,z) in [x1, x2] x [y1, y2] x [z1, z2].
@@ -1111,8 +1074,7 @@ void LGrad3::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool gra
 }
 
 void LGrad3::set_bounds_x(Real* X,Real* Y,int shifty,int shiftz){
-if (debug) cout <<"set_bounds_x (shift in y,z ) in LGrad3 " << endl;
-	int y,z;
+NAMICS_DBG_THIS("set_bounds_x (shift in y,z ) in LGrad3 " << endl);	int y,z;
 	int k=0;
 	if (BX1>BXM) {
 		set_bounds_x(X,shifty,shiftz);
@@ -1142,8 +1104,7 @@ if (debug) cout <<"set_bounds_x (shift in y,z ) in LGrad3 " << endl;
 	}
 }
 void LGrad3::set_bounds_y(Real* X,Real* Y,int shiftx, int shiftz){
-if (debug) cout <<"set_bounds_y (shift in x,z) in LGrad3 " << endl;
-	int x,z;
+NAMICS_DBG_THIS("set_bounds_y (shift in x,z) in LGrad3 " << endl);	int x,z;
 	int k=0;
 	if (BY1>BYM) {
 		set_bounds_y(X,shiftx,shiftz);
@@ -1174,8 +1135,7 @@ if (debug) cout <<"set_bounds_y (shift in x,z) in LGrad3 " << endl;
 }
 
 void LGrad3::set_bounds_z(Real* X,Real* Y,int shiftx,int shifty){
-if (debug) cout <<"set_bounds_z shift (x,y) in LGrad3 " << endl;
-	int x,y;
+NAMICS_DBG_THIS("set_bounds_z shift (x,y) in LGrad3 " << endl);	int x,y;
 	int k=0;
 	if (BZ1>BZM) { //periodic
 		set_bounds_z(X,shiftx,shifty);
@@ -1204,8 +1164,7 @@ if (debug) cout <<"set_bounds_z shift (x,y) in LGrad3 " << endl;
 }
 
 void LGrad3::set_bounds_x(Real* X, int shifty, int shiftz){
-if (debug) cout <<"set_bounds_x (shift yz) in LGrad3 " << endl;
-	int y,z;
+NAMICS_DBG_THIS("set_bounds_x (shift yz) in LGrad3 " << endl);	int y,z;
 	int k=0;
 	if (fjc==1) {
 		 for (y=1; y<MY+1; y++) for (z=1; z<MZ+1; z++)  {
@@ -1221,8 +1180,7 @@ if (debug) cout <<"set_bounds_x (shift yz) in LGrad3 " << endl;
 }
 
 void LGrad3::set_bounds_y(Real* X,int shiftx, int shiftz){
-if (debug) cout <<"set_bounds_y (shift x,z) in LGrad3 " << endl;
-	int x,z;
+NAMICS_DBG_THIS("set_bounds_y (shift x,z) in LGrad3 " << endl);	int x,z;
 	int k=0;
 	if (fjc==1) {
 		for (z=1; z<MZ+1; z++) for (x=1; x<MX+1; x++){
@@ -1238,8 +1196,7 @@ if (debug) cout <<"set_bounds_y (shift x,z) in LGrad3 " << endl;
 }
 
 void LGrad3::set_bounds_z(Real* X,int shiftx, int shifty){
-if (debug) cout <<"set_bounds_z (shift xy) in LGrad3 " << endl;
-	int x,y;
+NAMICS_DBG_THIS("set_bounds_z (shift xy) in LGrad3 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++) {
@@ -1255,15 +1212,14 @@ if (debug) cout <<"set_bounds_z (shift xy) in LGrad3 " << endl;
 }
 
 void LGrad3::remove_bounds(Real *X){
-if (debug) cout <<"remove_bounds in LGrad3 " << endl;
-	int x,y,z;
+NAMICS_DBG_THIS("remove_bounds in LGrad3 " << endl);	int x,y,z;
 	int k;
 	if (sub_box_on!=0) {
 		int k=sub_box_on;
 		for (int i=0; i<n_box[k]; i++)
-			RemoveBoundaries(X+i*m[k],jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
+			RemoveBoundaries(std::span<Real>(X+i*m[k], static_cast<size_t>(m[k])),jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
 	} else {
-		if (fjc==1) RemoveBoundaries(X,JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ); else {
+		if (fjc==1) RemoveBoundaries(std::span<Real>(X, static_cast<size_t>(M)),JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ); else {
 			for (x=0; x<MX+2*fjc; x++) for (y=0; y<MY+2*fjc; y++){
 				for (k=0; k<fjc; k++) X[x*JX+y*JY+k] = 0;
 				for (k=0; k<fjc; k++) X[x*JX+y*JY+MZ+fjc+k]  = 0;
@@ -1281,13 +1237,12 @@ if (debug) cout <<"remove_bounds in LGrad3 " << endl;
 }
 
 void LGrad3::set_bounds(Real* X){
-if (debug) cout <<"set_bounds in LGrad3 " << endl;
-	int x,y,z;
+NAMICS_DBG_THIS("set_bounds in LGrad3 " << endl);	int x,y,z;
 	int k=0;
 	if (sub_box_on!=0) {
 		int k=sub_box_on;
 		for (int i=0; i<n_box[k]; i++)
-			SetBoundaries(X+i*m[k],jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
+			SetBoundaries(std::span<Real>(X+i*m[k], static_cast<size_t>(m[k])),jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
 	} else {
 		if (fjc==1) {
 			for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++){
@@ -1413,7 +1368,7 @@ if (!debug) cout <<"set_bounds (M) in LGrad3 " << endl;
 	if (sub_box_on!=0) {
 		int k=sub_box_on;
 		for (int i=0; i<n_box[k]; i++)
-			SetBoundaries(X+i*m[k],jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
+			SetBoundaries(std::span<Real>(X+i*m[k], static_cast<size_t>(m[k])),jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
 	} else {
 		if (fjc==1) {
 			//SetBoundaries(X,JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ);
@@ -1454,9 +1409,9 @@ if (!debug) cout <<"remove_bounds (int) in LGrad3 " << endl;
 	if (sub_box_on!=0) {
 		int k=sub_box_on;
 		for (int i=0; i<n_box[k]; i++)
-			RemoveBoundaries(X+i*m[k],jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
+			RemoveBoundaries(std::span<int>(X+i*m[k], static_cast<size_t>(m[k])),jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
 	} else {
-		if (fjc==1) RemoveBoundaries(X,JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ); else {
+		if (fjc==1) RemoveBoundaries(std::span<int>(X, static_cast<size_t>(M)),JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ); else {
 			for (x=0; x<MX+2*fjc; x++) for (y=0; y<MY+2*fjc; y++){
 				for (k=0; k<fjc; k++) X[x*JX+y*JY+k] = 0;
 				for (k=0; k<fjc; k++) X[x*JX+y*JY+MZ+fjc+k]  = 0;
@@ -1480,7 +1435,7 @@ if (!debug) cout <<"set_bounds (int) in LGrad3 " << endl;
 	if (sub_box_on!=0) {
 		int k=sub_box_on;
 		for (int i=0; i<n_box[k]; i++)
-			SetBoundaries(X+i*m[k],jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
+			SetBoundaries(std::span<int>(X+i*m[k], static_cast<size_t>(m[k])),jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
 	} else {
 		if (fjc==1) {
 			//SetBoundaries(X,JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ);
