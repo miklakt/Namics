@@ -20,4 +20,5 @@ make
 ```bash
 make test-homopolymer-adsorption
 make test-frozen-range-input-file
+make test-micelle-self-assembly
 ```

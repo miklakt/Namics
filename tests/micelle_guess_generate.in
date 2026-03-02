@@ -1,0 +1,33 @@
+lat : sphere : n_layers : 50
+lat : sphere : lattice_type : hexagonal
+lat : sphere : geometry : spherical
+lat : sphere : gradients : 1
+lat : sphere : FJC_choices : 5
+
+mon : A : freedom : pinned
+mon : A : pinned_range : 1;15
+mon : B : freedom : free
+mon : W : freedom : free
+mon : A : chi_W : 2.0
+mon : A : chi_A : 0.0
+mon : B : chi_W : 0
+
+mol : water : composition : (W)1
+mol : water : freedom : solvent
+
+mol : surf : composition : (B)100(A)100
+mol : surf : freedom : restricted
+mol : surf : n : 75
+
+newton : isaac : e_info : false
+newton : isaac : i_info : 100
+newton : isaac : iterationlimit : 5000
+newton : isaac : tolerance : 1e-08
+
+start
+
+newton : isaac : e_info : true
+mon : A : freedom : free
+
+sys : noname : final_guess : file
+sys : noname : guess_outputfile : micelle.outi

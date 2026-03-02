@@ -153,4 +153,7 @@ test-homopolymer-adsorption:
 test-frozen-range-input-file:
 	@./tests/test_frozen_range_input_file.sh
 
-.PHONY: all remake clean cleaner resources test-homopolymer-adsorption test-frozen-range-input-file
+test-micelle-self-assembly:
+	@./tests/test_micelle_self_assembly.sh
+
+.PHONY: all remake clean cleaner resources test-homopolymer-adsorption test-frozen-range-input-file test-micelle-self-assembly
