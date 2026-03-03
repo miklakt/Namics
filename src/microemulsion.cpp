@@ -1,5 +1,5 @@
 #include "microemulsion.h"
-#include "tools.h"
+#include "tools_host.h"
 
 Microemulsion::Microemulsion(const Input* In_, vector<Output*> Out_, vector<Lattice*> Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, System* Sys_,Solve_scf* New_,vector<Variate*> Var_,string name_):
 	name{name_}, In{In_}, Out{Out_}, Lat{Lat_}, Mol{Mol_}, Seg{Seg_}, Sta{Sta_}, Rea{Rea_}, Sys{Sys_}, New{New_}, Var{Var_}

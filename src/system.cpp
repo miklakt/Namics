@@ -1,5 +1,5 @@
 #include "system.h"
-#include "tools.h"
+#include "tools_host.h"
 #include <algorithm>
 
 System::System(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, string name_)

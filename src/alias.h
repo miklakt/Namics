@@ -3,7 +3,7 @@
 #include "namics.h"
 #include "input.h"
 #include "lattice.h"
-#include "tools.h"
+#include "tools_host.h"
 class Alias {
 public:
 	Alias(const Input*,Lattice*,string);

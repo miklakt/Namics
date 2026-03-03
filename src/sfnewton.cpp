@@ -1,7 +1,7 @@
 #include <Eigen/Dense>
 #include <iostream>
 #include "sfnewton.h"
-#include "tools.h"
+#include "tools_host.h"
 
 using namespace Eigen;
 using namespace std;
@@ -770,46 +770,30 @@ free(h); free(g);
 
 void SFNewton::Ax(Real* A, Real* X, int N){//From Ax_B; below B is not used: it is assumed to contain a row of unities.
 if(debug) cout <<"Ax in  SFNewton (own svdcmp) " << endl;
-
-Real **U = new Real*[N];
-Real **V = new Real*[N];
-Real *S = new Real[N];
-
-	for (int i=0; i < N; i++) {
-		U[i] = new Real[N];
-		V[i] = new Real[N];
+	if (N <= 1) {
+		X[0] = 1;
+		return;
 	}
 
-
-	for (int i=0; i<N; i++) {
-		for (int j=0; j<N; j++) {
-			if (A[i*N + j] !=  A[i*N + j]) //If it contains NaNs
-        		throw -2;
-			U[i][j] = A[i*N + j];
+	MatrixXd M(N, N);
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			const Real value = A[i * N + j];
+			if (value != value) throw -2;
+			M(i, j) = static_cast<double>(value);
 		}
-  }
-
-  if (N > 1) {
-		//old function svdcmp still exists, simply remove modern_ prefix to switch back. The new function uses vectors for safety.
-  		svdcmp(U, N, N, S, V);
-		if (debug) cout << "SVDCMP done, continuing.." << endl;
-		int j;
-		for (int i=0; i<N; i++) {
-			X[i]=0;
-			for (j=0; j<N; j++)
-				X[i] += U[i][j];// *B[j];
-			S[i] = X[i]/S[i];
-			X[i]=0;
-		}
-		for (int i=0; i<N; i++)
-			for (int j=0; j<N; j++)
-				X[i] += V[i][j]*S[j];
-	} else {
-		X[0]=1;
 	}
 
-for (int i=0; i<N; i++) {delete [] U[i]; delete [] V[i];}
-delete [] U; delete [] S; delete [] V;
+	JacobiSVD<MatrixXd> svd(M, ComputeFullU | ComputeFullV);
+	VectorXd s = svd.singularValues();
+	VectorXd u_sum = svd.matrixU().rowwise().sum();
+	VectorXd coeff = VectorXd::Zero(N);
+	for (int i = 0; i < N; ++i) {
+		const double sigma = s(i);
+		if (std::abs(sigma) > 1e-14) coeff(i) = u_sum(i) / sigma;
+	}
+	VectorXd result = svd.matrixV() * coeff;
+	for (int i = 0; i < N; ++i) X[i] = static_cast<Real>(result(i));
 }
 
 void SFNewton::DIIS(Real* x, Real* x_x0, Real* xR, Real* Aij, Real* Apij,Real* Ci, int k, int k_diis, int m, int nvar) {

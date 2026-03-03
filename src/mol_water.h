@@ -5,7 +5,7 @@
 #include "segment.h"
 #include "alias.h"
 #include "lattice.h"
-#include "tools.h"
+#include "tools_host.h"
 class mol_water : public Molecule
 {
 	public: mol_water(const Input*,Lattice*,vector<Segment*>,string);

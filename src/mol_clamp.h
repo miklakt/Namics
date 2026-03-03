@@ -5,7 +5,7 @@
 #include "segment.h"
 #include "alias.h"
 #include "lattice.h"
-#include "tools.h"
+#include "tools_host.h"
 class mol_clamp : public Molecule
 {
 	public: mol_clamp(const Input*,Lattice*,vector<Segment*>,string);

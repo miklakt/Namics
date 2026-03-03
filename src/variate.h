@@ -1,6 +1,6 @@
 #ifndef VARIATExH
 #define VARIATExH
-#include "tools.h"
+#include "tools_host.h"
 #include "input.h"
 #include "lattice.h"
 #include "segment.h"

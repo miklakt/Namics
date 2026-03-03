@@ -5,7 +5,7 @@
 #include "segment.h"
 #include "alias.h"
 #include "lattice.h"
-#include "tools.h"
+#include "tools_host.h"
 class mol_branched : public Molecule
 {
 	public: mol_branched(const Input*,Lattice*,vector<Segment*>,string);

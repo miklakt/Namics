@@ -3,7 +3,7 @@
 #include "namics.h"
 #include "input.h"
 #include "lattice.h"
-#include "tools.h"
+#include "tools_host.h"
 class Segment {
 public:
 	Segment(const Input*,Lattice*,string,int,int);

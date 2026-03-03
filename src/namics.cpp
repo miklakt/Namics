@@ -1,5 +1,5 @@
 #define MAINxH
-#include "tools.h"
+#include "tools_host.h"
 #include "alias.h"
 #include "input.h"
 #include "lattice.h"
@@ -100,8 +100,6 @@ int main(int argc, char *argv[])
 	bool CHARGED = false;
 	vector<string> MONLIST;
 	vector<string> STATELIST;
-
-	SUM_RESULT = new Real;
 
 	// Single ownership
 	unique_ptr<Input> In;              // Inputs read from file

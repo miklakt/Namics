@@ -5,7 +5,7 @@
 #include "segment.h"
 #include "alias.h"
 #include "lattice.h"
-#include "tools.h"
+#include "tools_host.h"
 class mol_asym_dend : public Molecule
 {
 	public: mol_asym_dend(const Input*,Lattice*,vector<Segment*>,string);

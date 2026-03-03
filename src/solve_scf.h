@@ -9,7 +9,7 @@
 #include "reaction.h"
 #include "lattice.h"
 #include "molecule.h"
-#include "tools.h"
+#include "tools_host.h"
 #include "variate.h"
 #include "sfnewton.h"
 #include <functional>
