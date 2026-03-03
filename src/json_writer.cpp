@@ -76,15 +76,6 @@ bool HasNonWhitespace(const std::string& text, size_t from, size_t to_exclusive)
 	return false;
 }
 
-bool ContainsLegacyProblemPayload(const std::string& text, size_t from, size_t to_exclusive) {
-	if (from >= to_exclusive || to_exclusive > text.size()) return false;
-	const std::string payload = text.substr(from, to_exclusive - from);
-	const bool has_profiles_rows = payload.find("\"profiles\"") != std::string::npos &&
-	                              payload.find("\"rows\"") != std::string::npos;
-	const bool has_scalars = payload.find("\"scalars\"") != std::string::npos;
-	return has_profiles_rows || has_scalars;
-}
-
 bool AppendProblemToDocumentObject(const std::string& document_object,
                                    const std::string& problem_object,
                                    std::string& updated) {
@@ -95,7 +86,6 @@ bool AppendProblemToDocumentObject(const std::string& document_object,
 	if (open == std::string::npos) return false;
 	const size_t close = FindMatchingBracket(document_object, open);
 	if (close == std::string::npos) return false;
-	if (ContainsLegacyProblemPayload(document_object, open + 1, close)) return false;
 	const bool has_entries = HasNonWhitespace(document_object, open + 1, close);
 	updated = document_object.substr(0, close);
 	if (has_entries) updated.append(",\n");
@@ -130,7 +120,6 @@ bool AppendProblemToLastDocumentInRootArray(const std::string& root_array,
 	if (open == std::string::npos) return false;
 	const size_t close = FindMatchingBracket(root_array, open);
 	if (close == std::string::npos) return false;
-	if (ContainsLegacyProblemPayload(root_array, open + 1, close)) return false;
 	const bool has_entries = HasNonWhitespace(root_array, open + 1, close);
 	updated = root_array.substr(0, close);
 	if (has_entries) updated.append(",\n");
@@ -192,15 +181,6 @@ bool JsonWriter::WriteProblem(const std::string& filename,
 
 	if (trimmed.front() == '{' && trimmed.back() == '}') {
 		const size_t problems_key = trimmed.find("\"problems\"");
-		if (problems_key != std::string::npos) {
-			const size_t open = trimmed.find('[', problems_key);
-			if (open != std::string::npos) {
-				const size_t close = FindMatchingBracket(trimmed, open);
-				if (close != std::string::npos && ContainsLegacyProblemPayload(trimmed, open + 1, close)) {
-					return WriteText(filename, document + "\n");
-				}
-			}
-		}
 		if (problems_key == std::string::npos) {
 			return WriteText(filename, document + "\n");
 		}

@@ -19,9 +19,8 @@ mol : pol : phibulk : 1e-4
 //When storage needs to be reduced you can always try save_memory. It will reduce storage of end point distibutions, but only for linear and branched chain architectures.
 
 output : json : append : true
-kal : sys : polad : grand_potential
-pro : mol : pol : phi
-pro : mol : water : phi
+json : mol : pol : phi
+json : mol : water : phi
 
 newton : isaac : deltamax : 0.1
 newton : isaac : method : pseudohessian

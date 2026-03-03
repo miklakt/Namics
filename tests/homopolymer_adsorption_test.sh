@@ -19,40 +19,18 @@ run_log="${benchmark_dir}/homopolymer_adsorption_test_${run_id}.log"
 chi_values=(0 -2 -4 -6)
 x_tolerance="1e-12"
 phi_tolerance="1e-6"
-output_file_kal="${output_dir}/homopolymer_adsorption.kal"
-output_file_pro="${output_dir}/homopolymer_adsorption.pro"
 output_file_json="${output_dir}/homopolymer_adsorption.json"
-output_file_save_memory_kal="${output_dir}/homopolymer_adsorption_save_memory.kal"
-output_file_save_memory_pro="${output_dir}/homopolymer_adsorption_save_memory.pro"
 output_file_save_memory_json="${output_dir}/homopolymer_adsorption_save_memory.json"
 
 cleanup() {
   rm -f \
-    "${output_file_kal}" \
-    "${output_file_pro}" \
     "${output_file_json}" \
-    "${output_file_save_memory_kal}" \
-    "${output_file_save_memory_pro}" \
     "${output_file_save_memory_json}"
 }
 trap cleanup EXIT
 
 now_ms() {
   echo $(( $(date +%s%N) / 1000000 ))
-}
-
-pick_output_file() {
-  local json_file="$1"
-  local pro_file="$2"
-  if [[ -s "${json_file}" ]]; then
-    echo "${json_file}"
-    return 0
-  fi
-  if [[ -s "${pro_file}" ]]; then
-    echo "${pro_file}"
-    return 0
-  fi
-  return 1
 }
 
 if [[ ! -x "${binary}" ]]; then
@@ -95,7 +73,7 @@ for chi in "${chi_values[@]}"; do
 
   # 2) Render input and run built namics.
   sed "s/{chi_Si}/${chi}/g" "${template_file}" > "${runtime_input}"
-  rm -f "${output_file_pro}" "${output_file_json}"
+  rm -f "${output_file_json}"
   run_start_ms="$(now_ms)"
   "${binary}" "${runtime_input}" > /dev/null
   run_elapsed_ms=$(( $(now_ms) - run_start_ms ))
@@ -103,14 +81,13 @@ for chi in "${chi_values[@]}"; do
   echo "chi_Si=${chi},mode=baseline,elapsed_ms=${run_elapsed_ms}" >> "${run_log}"
 
   # 3) Verify a tabulated output exists.
-  output_file="$(pick_output_file "${output_file_json}" "${output_file_pro}" || true)"
-  if [[ -z "${output_file}" ]]; then
-    echo "ERROR: expected output file was not created for chi_Si=${chi}: ${output_file_json} or ${output_file_pro}" >&2
+  if [[ ! -s "${output_file_json}" ]]; then
+    echo "ERROR: expected JSON output file was not created for chi_Si=${chi}: ${output_file_json}" >&2
     exit 1
   fi
 
   # 4) Compare run output with the stored reference snapshot.
-  if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
+  if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file_json}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
     echo "ERROR: output differs from reference for chi_Si=${chi}: ${reference_file}" >&2
     exit 1
   fi
@@ -120,25 +97,24 @@ for chi in "${chi_values[@]}"; do
     -e "s/{chi_Si}/${chi}/g" \
     -e 's#^//mol : pol : save_memory : true#mol : pol : save_memory : true#' \
     "${template_file}" > "${runtime_input_save_memory}"
-  rm -f "${output_file_save_memory_pro}" "${output_file_save_memory_json}"
+  rm -f "${output_file_save_memory_json}"
   run_start_ms="$(now_ms)"
   "${binary}" "${runtime_input_save_memory}" > /dev/null
   run_elapsed_ms=$(( $(now_ms) - run_start_ms ))
   solver_runtime_ms=$(( solver_runtime_ms + run_elapsed_ms ))
   echo "chi_Si=${chi},mode=save_memory,elapsed_ms=${run_elapsed_ms}" >> "${run_log}"
 
-  output_file_save_memory="$(pick_output_file "${output_file_save_memory_json}" "${output_file_save_memory_pro}" || true)"
-  if [[ -z "${output_file_save_memory}" ]]; then
-    echo "ERROR: expected save_memory output was not created for chi_Si=${chi}: ${output_file_save_memory_json} or ${output_file_save_memory_pro}" >&2
+  if [[ ! -s "${output_file_save_memory_json}" ]]; then
+    echo "ERROR: expected save_memory JSON output was not created for chi_Si=${chi}: ${output_file_save_memory_json}" >&2
     exit 1
   fi
 
-  if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file_save_memory}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
+  if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file_save_memory_json}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
     echo "ERROR: save_memory output differs from reference for chi_Si=${chi}: ${reference_file}" >&2
     exit 1
   fi
 
-  if ! python3 "${compare_script}" --left "${output_file}" --right "${output_file_save_memory}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
+  if ! python3 "${compare_script}" --left "${output_file_json}" --right "${output_file_save_memory_json}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
     echo "ERROR: save_memory output differs from baseline output for chi_Si=${chi}" >&2
     exit 1
   fi

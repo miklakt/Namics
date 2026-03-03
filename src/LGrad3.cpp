@@ -48,28 +48,7 @@ void LGrad3::vtk(string filename, Real* X, string id,bool writebounds) {
 	(void)X;
 	(void)id;
 	(void)writebounds;
-NAMICS_DBG("vtk in LGrad3 " << endl);	cout << "VTK output is disabled; use kal/pro output instead." << endl;
-}
-
-void LGrad3::PutProfiles(FILE* pf,vector<Real*> X,bool writebounds,bool DOS){
-NAMICS_DBG("PutProfiles in LGrad3 " << endl);	Real one=1.0;
-	int x,y,z,i;
-	int length=X.size();
-	int a;
-	if (writebounds) a=0; else a = fjc;
-	for (x=a; x<MX+2*fjc-a; x++)
-	for (y=a; y<MY+2*fjc-a; y++)
-	for (z=a; z<MZ+2*fjc-a; z++) {
-#ifdef LongReal
-		writer->Writef(pf,"%Le\t%Le\t%Le\t",one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc,one*(z-fjc+1)/fjc-0.5/fjc);
-		for (i=0; i<length; i++) writer->Writef(pf,"%.20Le\t",X[i][P(x,y,z)]);
-#else
-		writer->Writef(pf,"%e\t%e\t%e\t",one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc,one*(z-fjc+1)/fjc-0.5/fjc);
-		for (i=0; i<length; i++) writer->Writef(pf,"%.20e\t",X[i][P(x,y,z)]);
-
-#endif
-		if (DOS) writer->Writef(pf,"\r\n"); else writer->Writef(pf,"\n");
-	}
+NAMICS_DBG("vtk in LGrad3 " << endl);	cout << "VTK output is disabled; use json output instead." << endl;
 }
 
 void LGrad3::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
@@ -811,7 +790,7 @@ NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
 	int length_xyz;
 	int px,py,pz,p_i,x,y,z;
 	int i=0;
-	if (!range_reader->ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
+	if (!io::ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
 		success=false;
 		return success;
 	}
@@ -870,7 +849,7 @@ bool LGrad3::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=range_reader->ReadSanitizedFile(filename,content);
+		success=io::ReadSanitizedFile(filename,content);
 		if (success) {
 			In->split(content,'#',lines);
 			length = lines.size();

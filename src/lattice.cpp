@@ -3,9 +3,6 @@ Lattice::Lattice(const Input& In_,const string& name_) :
 	BC(6) // boundary condition slots: lower/upper for x, y, z
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
 NAMICS_DBG("Lattice constructor" << endl);	In=&In_; name=name_;
-	writer = io::legacy::SharedWriter();
-	range_reader = io::legacy::SharedRangeReader();
-	guess_reader = io::legacy::SharedInitialGuessReader();
 	KEYS.push_back("gradients"); KEYS.push_back("n_layers"); KEYS.push_back("offset_first_layer");
 	KEYS.push_back("geometry");
 	KEYS.push_back("n_layers_x");   KEYS.push_back("n_layers_y"); KEYS.push_back("n_layers_z");
@@ -710,32 +707,32 @@ NAMICS_DBG("GetValue in lattice " << endl);if (X==NULL) cout << "pointer X is ze
 			if (sub.size()==1) {
 				x=ParseInt(sub[0],x);
 				if (x==-1) x=MX; //trick to get the value of lastlayer; currently only in 1gradient case....
-				if (x<0||x>MX+1) {
-					cout <<"Requested postition in 'kal' output out of bounds." << endl;
-					return 0;
-				} else return X[x];
-			} else cout <<"Request for profile output does not contain the expected coordinate in 'kal' output" << endl;
-			break;
+					if (x<0||x>MX+1) {
+						cout <<"Requested output position is out of bounds." << endl;
+						return 0;
+					} else return X[x];
+				} else cout <<"Request for profile output does not contain the expected coordinate." << endl;
+				break;
 		case 2:
 			if (sub.size()==2) {
 				x=ParseInt(sub[0],x);
 				y=ParseInt(sub[1],y);
-				if (x<0||x>MX+1||y<0||y>MY+1) {
-					cout <<"Requested postition in 'kal' output out of bounds." << endl;
-					return 0;
-				} else return X[JX*x+y];
-			} else cout <<"Request for profile output does not contain the expected coordinate in 'kal' output" << endl;
-			break;
+					if (x<0||x>MX+1||y<0||y>MY+1) {
+						cout <<"Requested output position is out of bounds." << endl;
+						return 0;
+					} else return X[JX*x+y];
+				} else cout <<"Request for profile output does not contain the expected coordinate." << endl;
+				break;
 		case 3:
 			if (sub.size()>2) {
 				x=ParseInt(sub[0],x);
 				y=ParseInt(sub[1],y);
 				z=ParseInt(sub[2],y);
-				if (x<0||x>MX+1||y<0||y>MY+1||z<0||z>MZ+1) {
-					cout <<"Requested postition in 'kal' output out of bounds." << endl;
-					return 0;
-				} else return X[JX*x+JY*y+z];
-			} else  cout <<"Request for profile output does not contain the coordinate in 'kal' output" << endl;
+					if (x<0||x>MX+1||y<0||y>MY+1||z<0||z>MZ+1) {
+						cout <<"Requested output position is out of bounds." << endl;
+						return 0;
+					} else return X[JX*x+JY*y+z];
+				} else  cout <<"Request for profile output does not contain the expected coordinate." << endl;
 			return 0;
 			break;
 		default:
@@ -878,7 +875,7 @@ void Lattice::ComputeGN(std::span<Real> GN, std::span<const Real> Gg_f, std::spa
 
 
 bool Lattice::ReadGuess(string filename, Real *x ,string &method, vector<string> &monlist, vector<string> &statelist, bool &charged, int &mx, int &my, int &mz, int &fjc, int readx) {
-NAMICS_DBG("ReadGuess in output" << endl); return guess_reader->ReadInitialGuess(filename, x, method, monlist, statelist, charged, mx, my, mz, fjc, readx);
+NAMICS_DBG("ReadGuess in output" << endl); return io::ReadInitialGuess(filename, x, method, monlist, statelist, charged, mx, my, mz, fjc, readx);
 }
 
 bool Lattice::StoreGuess(string Filename,Real *x,string method, vector<string> monlist,vector<string>statelist, bool charged, int start) {
@@ -912,7 +909,7 @@ NAMICS_DBG("StoreGuess in output" << endl);	bool success=true;
 	filename=In->output_info.getOutputPath()+filename;
 	int iv=(mon_length+state_length)*M;
 	if (charged) iv +=M;
-	success = writer->WriteInitialGuess(filename, method, MX, MY, MZ, fjc, charged, monlist, statelist, x, iv);
+	success = io::WriteInitialGuess(filename, method, MX, MY, MZ, fjc, charged, monlist, statelist, x, iv);
 	if (!success) {
 		cout << "Failed to write initial guess file " << filename << endl;
 	}

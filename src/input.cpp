@@ -413,29 +413,25 @@ bool Input:: CheckInput(void) {
 		elems.push_back("0:start");
 	}
 
-	static const std::vector<string> output_options = {"ana", "vtk", "kal", "pro", "json", "vec", "pos"};
+	static const std::vector<string> output_options = {"ana", "vtk", "json", "vec", "pos"};
 	for (size_t i = 0; success && i < elems.size(); ++i) {
 		vector<std::string> set;
 		split(elems[i],':',set);
 
-		if (set[1]=="output") {
-			string option;
-			if (!ParseString(set[2],option,output_options,"Value for output extension '" + set[2] + "' not allowed. ")) {success=false;}
-			else {
-				const string& word=set[2];
-				if (word == "json") {
-					for (const string& migration_keyword : {string("json"), string("kal"), string("pro")}) {
-						if (!InSet(KEYS, migration_keyword)) {
-							KEYS.push_back(migration_keyword);
+			if (set[1]=="output") {
+				string option;
+				if (!ParseString(set[2],option,output_options,"Value for output extension '" + set[2] + "' not allowed. ")) {success=false;}
+				else {
+					const string& word=set[2];
+					if (word != "json") {
+						const bool keyword_found = (word=="ana") || InSet(KEYS, word);
+						if (!keyword_found) {
+							KEYS.push_back(word);
 						}
-					}
-				} else {
-					const bool keyword_found = (word=="ana") || InSet(KEYS, word);
-					if (!keyword_found) {
-						KEYS.push_back(word);
+					} else if (!InSet(KEYS, "json")) {
+						KEYS.push_back("json");
 					}
 				}
-			}
 
 		}
 	}

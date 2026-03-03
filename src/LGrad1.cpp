@@ -228,27 +228,6 @@ void LGrad1::vtk(string filename, Real* X, string id,bool writebounds) {
 NAMICS_DBG("vtk in LGrad1 " << endl);	cout << "for system with one gradient there is no VTK output available " << endl;
 }
 
-void LGrad1::PutProfiles(FILE* pf,vector<Real*> X,bool writebounds,bool DOS){
-NAMICS_DBG("PutProfiles in LGrad1 " << endl);	int x,i;
-	int length=X.size();
-	int a;
-	if (writebounds) a=0; else a = fjc;
-
-	for (x=a; x<MX+2*fjc-a; x++){
-#ifdef LongReal
-		writer->Writef(pf,"%Le\t",offset_first_layer/fjc+1.0*(x-fjc+1)/fjc-0.5/fjc); //g - e
-		for (i=0; i<length; i++)
-		if (i<length-1) writer->Writef(pf,"%.20Lg\t",X[i][x]); else writer->Writef(pf,"%.20Lg",X[i][x]);
-		if (DOS) writer->Writef(pf,"\r\n"); else writer->Writef(pf,"\n");
-#else
-		writer->Writef(pf,"%e\t",offset_first_layer/fjc+1.0*(x-fjc+1)/fjc-0.5/fjc); //g - e
-		for (i=0; i<length; i++)
-		if (i<length-1) writer->Writef(pf,"%.20g\t",X[i][x]); else writer->Writef(pf,"%.20g",X[i][x]);
-		if (DOS) writer->Writef(pf,"\r\n"); else writer->Writef(pf,"\n");
-#endif
-	}
-}
-
 void LGrad1::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
 NAMICS_DBG(" Side in LGrad1 " << endl);
 	if (ignore_sites) {
@@ -495,7 +474,7 @@ NAMICS_DBG("ReadRangeFile in LGrad1 " << endl);	if (fjc>1) {
 	int length_xyz;
 	int px,p_i,x;
 	int i=0;
-	if (!range_reader->ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
+	if (!io::ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
 		success=false;
 		return success;
 	}
@@ -549,7 +528,7 @@ bool LGrad1::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=range_reader->ReadSanitizedFile(filename,content);
+		success=io::ReadSanitizedFile(filename,content);
 		if (success) {
 			In->split(content,'#',lines);
 			length = lines.size();

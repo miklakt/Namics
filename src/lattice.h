@@ -10,13 +10,10 @@ class Lattice {
 public:
 	Lattice(const Input&,const string&);
 
-virtual ~Lattice();
+	virtual ~Lattice();
 
 	string name;
 	const Input* In;
-	std::shared_ptr<io::legacy::Writer> writer;
-	std::shared_ptr<io::legacy::RangeReader> range_reader;
-	std::shared_ptr<io::legacy::InitialGuessReader> guess_reader;
 	int MX,MY,MZ;
 	vector<int> mx;
 	vector<int> my;
@@ -153,7 +150,6 @@ virtual ~Lattice();
 	virtual void DivL(Real*) =0;
 	virtual bool PutMask(Real* H_MASK,vector<int>px,vector<int>py,vector<int>pz,int R)=0;
 	virtual void vtk(string, Real*,string,bool) =0;
-	virtual void PutProfiles(FILE*,vector<Real*>,bool,bool)=0;
 	virtual bool PutM(void)=0;
 	virtual void propagate(Real*,Real*, int, int,int)=0;
 	virtual void propagateF(Real*,Real*,Real*,int,int,int)=0;

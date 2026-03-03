@@ -13,7 +13,6 @@ class LGrad3 : public Lattice
 	Real MomentPlanar(Real*,int,Real);
 	Real WeightedSum(Real*);
 	void vtk(string, Real*,string,bool);
-	void PutProfiles(FILE*,vector<Real*>,bool,bool);
 	void Side(Real *, Real *, int);
 	void propagate(Real*,Real*, int, int,int);
 	void propagateF(Real*,Real*,Real*, int, int,int);

@@ -13,7 +13,6 @@ mon:W:freedom:frozen
 mon:W:frozen_filename:frozen
 output:json:append:false
 output:json:filename:frozen_range_input_file
-kal:sys:NN:grand_potential
-pro:mon:*:phi
-pro:mol:*:phi
+json:mon:*:phi
+json:mol:*:phi
 start

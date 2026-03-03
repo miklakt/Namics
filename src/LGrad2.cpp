@@ -149,29 +149,8 @@ void LGrad2::vtk(string filename, Real* X, string id,bool writebounds) {
 	(void)X;
 	(void)id;
 	(void)writebounds;
-NAMICS_DBG("vtk in LGrad2 " << endl);	cout << "VTK output is disabled; use kal/pro output instead." << endl;
+NAMICS_DBG("vtk in LGrad2 " << endl);	cout << "VTK output is disabled; use json output instead." << endl;
 }
-
-void LGrad2::PutProfiles(FILE* pf,vector<Real*> X,bool writebounds,bool DOS){
-NAMICS_DBG("PutProfiles in LGrad2 " << endl);	Real one=1.0;
-	int x,y,i;
-	int length=X.size();
-	int a;
-	if (writebounds) a=0; else a = fjc;
-	for (x=a; x<MX+2*fjc-a; x++)
-	for (y=a; y<MY+2*fjc-a; y++){
-#ifdef LongReal
-		writer->Writef(pf,"%Le\t%Le\t",offset_first_layer/fjc+one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc);
-		for (i=0; i<length; i++) writer->Writef(pf,"%.20Le\t",X[i][P(x,y)]);
-		if (DOS) writer->Writef(pf,"\r\n"); else writer->Writef(pf,"\n");
-#else
-		writer->Writef(pf,"%e\t%e\t",offset_first_layer/fjc+one*(x-fjc+1)/fjc-0.5/fjc,one*(y-fjc+1)/fjc-0.5/fjc);
-		for (i=0; i<length; i++) writer->Writef(pf,"%.20e\t",X[i][P(x,y)]);
-		if (DOS) writer->Writef(pf,"\r\n"); else writer->Writef(pf,"\n");
-#endif
-	}
-}
-
 
 void LGrad2::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
 NAMICS_DBG(" Side in LGrad2 " << endl);	if (ignore_sites) {
@@ -815,7 +794,7 @@ NAMICS_DBG("ReadRangeFile in LGrad2 " << endl);	if (fjc>1) {
 	int length_xyz;
 	int px,py,p_i,x,y;
 	int i=0;
-	if (!range_reader->ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
+	if (!io::ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
 		success=false;
 		return success;
 	}
@@ -876,7 +855,7 @@ bool LGrad2::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=range_reader->ReadSanitizedFile(filename,content);
+		success=io::ReadSanitizedFile(filename,content);
 		if (success) {
 			In->split(content,'#',lines);
 			length = lines.size();

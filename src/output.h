@@ -9,7 +9,6 @@
 #include "molecule.h"
 #include "system.h"
 #include "solve_scf.h"
-#include "io_utils.h"
 #include "json_writer.h"
 #include <climits>
 #include <unistd.h>
@@ -30,7 +29,6 @@ public:
 	vector<Molecule*> Mol;
 	System* Sys;
 	Solve_scf* New;
-	std::shared_ptr<io::legacy::Writer> writer;
 	std::shared_ptr<io::json::JsonWriter> json_writer;
 	int n_output;
 	int subl;

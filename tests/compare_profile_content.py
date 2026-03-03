@@ -73,9 +73,9 @@ def load_table(path: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compare profile content between reference and output (pro/json).")
-    parser.add_argument("--left", required=True, help="Left file path (usually reference .pro)")
-    parser.add_argument("--right", required=True, help="Right file path (.pro or .json)")
+    parser = argparse.ArgumentParser(description="Compare profile content between tabulated reference and JSON output.")
+    parser.add_argument("--left", required=True, help="Left file path (tabulated reference)")
+    parser.add_argument("--right", required=True, help="Right file path (.json or tabulated)")
     parser.add_argument("--coord-tol", type=float, default=1e-12, help="Tolerance for x/y/z coordinates")
     parser.add_argument("--value-tol", type=float, default=1e-6, help="Tolerance for profile values")
     args = parser.parse_args()

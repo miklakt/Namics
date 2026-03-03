@@ -10,29 +10,15 @@ use_input="${repo_root}/tests/micelle_guess_use.in"
 reference_file="${repo_root}/tests/reference/micelle_guess_use.pro.ref"
 output_dir="${repo_root}/output"
 guess_file="${output_dir}/micelle_2.outi"
-output_file_kal="${output_dir}/micelle_guess_use.kal"
-output_file_pro="${output_dir}/micelle_guess_use.pro"
 output_file_json="${output_dir}/micelle_guess_use.json"
 compare_script="${repo_root}/tests/compare_profile_content.py"
 x_tolerance="1e-12"
 phi_tolerance="1e-9"
 
 cleanup() {
-  rm -f "${guess_file}" "${output_file_kal}" "${output_file_pro}" "${output_file_json}"
+  rm -f "${guess_file}" "${output_file_json}"
 }
 trap cleanup EXIT
-
-pick_output_file() {
-  if [[ -s "${output_file_json}" ]]; then
-    echo "${output_file_json}"
-    return 0
-  fi
-  if [[ -s "${output_file_pro}" ]]; then
-    echo "${output_file_pro}"
-    return 0
-  fi
-  return 1
-}
 
 if [[ ! -x "${binary}" ]]; then
   echo "ERROR: built binary not found or not executable: ${binary}" >&2
@@ -48,7 +34,7 @@ for required_file in "${generate_input}" "${use_input}" "${reference_file}" "${c
 done
 
 mkdir -p "${output_dir}"
-rm -f "${guess_file}" "${output_file_kal}" "${output_file_pro}" "${output_file_json}"
+rm -f "${guess_file}" "${output_file_json}"
 
 "${binary}" "${generate_input}" > /dev/null
 
@@ -59,13 +45,12 @@ fi
 
 "${binary}" "${use_input}" > /dev/null
 
-output_file="$(pick_output_file || true)"
-if [[ -z "${output_file}" ]]; then
-  echo "ERROR: expected output file was not created: ${output_file_json} or ${output_file_pro}" >&2
+if [[ ! -s "${output_file_json}" ]]; then
+  echo "ERROR: expected JSON output file was not created: ${output_file_json}" >&2
   exit 1
 fi
 
-if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
+if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file_json}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
   echo "ERROR: output differs from reference: ${reference_file}" >&2
   exit 1
 fi

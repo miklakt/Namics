@@ -82,7 +82,6 @@ int main(int argc, char *argv[])
 
 	int start = 0;
 	int n_starts = 0;
-	bool kal_append=false;
 
 	string final_guess;
 	string METHOD = "";
@@ -326,11 +325,6 @@ int main(int argc, char *argv[])
 				{
 					cout << "input_error in output " << endl;
 					return 0;
-				} else {
-					if (Out[ii]->name=="kal") { // this ensures append=true for later starts after the kal file is created.
-						if (kal_append) Out[ii]->append=true;
-						else kal_append=true;
-					}
 				}
 			}
 

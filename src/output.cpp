@@ -3,7 +3,6 @@
 
 #include <cctype>
 #include <limits>
-#include <unordered_set>
 
 namespace {
 
@@ -38,7 +37,6 @@ bool IsJsonBoolString(const std::string& value) {
 
 Output::Output(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_,int outnr,int N_out) {
 NAMICS_DBG("constructor in Output "<< endl);	In=In_; Lat = Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; n_output=N_out; output_nr=outnr;  New=New_;
-	writer = io::legacy::SharedWriter();
 	json_writer = io::json::SharedJsonWriter();
 	//KEYS.push_back("write_output");
 	lat=Lat;
@@ -70,34 +68,7 @@ NAMICS_DBG("Load in output " << endl);	bool success=true;
 	OUT_name.clear();
 	OUT_prop.clear();
 
-	if (name == "json") {
-		std::unordered_set<std::string> seen_entries;
-		auto append_items = [&](const std::vector<std::string>& keys,
-		                        const std::vector<std::string>& names,
-		                        const std::vector<std::string>& props) {
-			for (size_t i = 0; i < keys.size(); ++i) {
-				const std::string signature = keys[i] + "\n" + names[i] + "\n" + props[i];
-				if (seen_entries.insert(signature).second) {
-					OUT_key.push_back(keys[i]);
-					OUT_name.push_back(names[i]);
-					OUT_prop.push_back(props[i]);
-				}
-			}
-		};
-
-		for (const std::string& template_name : {std::string("json"), std::string("kal"), std::string("pro")}) {
-			std::vector<std::string> key;
-			std::vector<std::string> out_name;
-			std::vector<std::string> prop;
-			if (!In->LoadItems(template_name, key, out_name, prop)) {
-				success = false;
-				break;
-			}
-			append_items(key, out_name, prop);
-		}
-	} else {
-		success= In->LoadItems(name, OUT_key, OUT_name, OUT_prop);
-	}
+	success = In->LoadItems(name, OUT_key, OUT_name, OUT_prop);
 
 	if (success) {
 		int length=OUT_key.size();
@@ -146,9 +117,9 @@ NAMICS_DBG("Load in output " << endl);	bool success=true;
 
 bool Output::CheckInput(int start_) {
 NAMICS_DBG("CheckInput in output " << endl);	start=start_;
-	if (name != "kal" && name != "pro" && name != "json") {
+	if (name != "json") {
 		write = false;
-		cout << "Output type '" << name << "' is disabled. Only 'kal', 'pro' and 'json' are supported." << endl;
+		cout << "Output type '" << name << "' is disabled. Only 'json' is supported." << endl;
 		return true;
 	}
 
@@ -162,15 +133,9 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 
 			if (GetValue("append").size()>0) {
 				append=ParseBool(GetValue("append"),append);
-
-				if (name=="pro") {
-						if (append) cout << "Warning: for output of type 'pro', the append is set to 'false'." << endl;
-				}
 				if (first==0) first=start;
 			} else {
-				if (name=="kal") append=false;
-				if (name=="pro") append=false;
-				if (name=="json") append=false;
+				append=false;
 			}
 
 		write_bounds = ParseBool(GetValue("write_bounds"),false);
@@ -408,7 +373,7 @@ NAMICS_DBG("GetValue (long) in output " << endl); int monlistlength=In->MonList.
 void Output::WriteOutput(int subl) {
 NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 	if (!write) return;
-	if (name != "kal" && name != "pro" && name != "json") {
+	if (name != "json") {
 		return;
 	}
 	int Size=0;
@@ -419,7 +384,6 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 	if (GetValue("filename").size()>0) infilename=GetValue("filename");
 	In->split(infilename,'.',sub);
 	if (sub.size() == 0) sub.push_back(infilename);
-	string key;
 
 	if (use_output_folder == true) {
 
@@ -439,61 +403,56 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 			sub[0] = sub[0].substr(found+1);
 		}
 	}
+	filename = sub[0].append(".json");
+	filename = In->output_info.getOutputPath() + filename;
 
-    string numc = to_string(subl);
-    string numcc = to_string(start);
+	vector<Real*> profile_pointer;
+	vector<string> profile_header;
+	vector<pair<string, string>> scalar_values;
+	int length = OUT_key.size();
+	for (int i=0; i<length; i++) {
+		string label = OUT_key[i];
+		label.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
 
-	if (name=="json") {
-		filename = sub[0].append(".json");
-		filename = In->output_info.getOutputPath() + filename;
+		vector<string> prop_sub;
+		In->split(OUT_prop[i],'(',prop_sub);
+		const bool indexed_scalar = (prop_sub.size() > 1 && prop_sub[0] != OUT_prop[i]);
 
-		vector<Real*> profile_pointer;
-		vector<string> profile_header;
-		vector<pair<string, string>> scalar_values;
-		int length = OUT_key.size();
-		for (int i=0; i<length; i++) {
-			string label = OUT_key[i];
-			label.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-
-			vector<string> prop_sub;
-			In->split(OUT_prop[i],'(',prop_sub);
-			const bool indexed_scalar = (prop_sub.size() > 1 && prop_sub[0] != OUT_prop[i]);
-
-			if (!indexed_scalar) {
-				Real* profile = GetPointer(OUT_key[i], OUT_name[i], OUT_prop[i], Size);
-				if (profile != NULL) {
-					profile_pointer.push_back(profile);
-					profile_header.push_back(label);
-					continue;
-				}
+		if (!indexed_scalar) {
+			Real* profile = GetPointer(OUT_key[i], OUT_name[i], OUT_prop[i], Size);
+			if (profile != NULL) {
+				profile_pointer.push_back(profile);
+				profile_header.push_back(label);
+				continue;
 			}
-
-			int int_result = 0;
-			Real Real_result = 0;
-			string string_result;
-			const string value_key = prop_sub.size() > 0 ? prop_sub[0] : OUT_prop[i];
-			const int result_nr = GetValue(OUT_key[i], OUT_name[i], value_key, int_result, Real_result, string_result);
-			string literal = "null";
-			if (result_nr == 1) {
-				literal = JsonNumber(int_result);
-			} else if (result_nr == 2) {
-				literal = JsonNumber(Real_result);
-			} else if (result_nr == 3) {
-				if (indexed_scalar) {
-					Real* profile = GetPointer(OUT_key[i], OUT_name[i], value_key, Size);
-					if (profile != NULL) {
-						literal = JsonNumber(lat->GetValue(profile, prop_sub[1]));
-					}
-				} else if (IsJsonBoolString(string_result)) {
-					literal = string_result;
-				} else {
-					literal = "\"" + JsonEscape(string_result) + "\"";
-				}
-			} else {
-				cout << "Warning: unable to resolve json output quantity '" << label << "'" << endl;
-			}
-			scalar_values.push_back({label, literal});
 		}
+
+		int int_result = 0;
+		Real Real_result = 0;
+		string string_result;
+		const string value_key = prop_sub.size() > 0 ? prop_sub[0] : OUT_prop[i];
+		const int result_nr = GetValue(OUT_key[i], OUT_name[i], value_key, int_result, Real_result, string_result);
+		string literal = "null";
+		if (result_nr == 1) {
+			literal = JsonNumber(int_result);
+		} else if (result_nr == 2) {
+			literal = JsonNumber(Real_result);
+		} else if (result_nr == 3) {
+			if (indexed_scalar) {
+				Real* profile = GetPointer(OUT_key[i], OUT_name[i], value_key, Size);
+				if (profile != NULL) {
+					literal = JsonNumber(lat->GetValue(profile, prop_sub[1]));
+				}
+			} else if (IsJsonBoolString(string_result)) {
+				literal = string_result;
+			} else {
+				literal = "\"" + JsonEscape(string_result) + "\"";
+			}
+		} else {
+			cout << "Warning: unable to resolve json output quantity '" << label << "'" << endl;
+		}
+		scalar_values.push_back({label, literal});
+	}
 
 		const int a = write_bounds ? 0 : lat->fjc;
 		const Real inv_fjc = static_cast<Real>(1.0) / static_cast<Real>(lat->fjc);
@@ -594,107 +553,9 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 		metadata << "    \"name\": \"" << JsonEscape(In->name) << "\"\n";
 		metadata << "  }";
 
-		const bool first_problem_of_run = (start == 1 && subl == 0);
-		if (!json_writer->WriteProblem(filename, problem.str(), metadata.str(), append, first_problem_of_run)) {
-			cout << "Failed to write json output file " << filename << endl;
-		}
-		return;
-	}
-
-    if (name=="kal") filename=sub[0].append(".").append(name); else {
-		if (n_starts==1 && subl < 1) filename=sub[0].append(".").append(name);
-		if (n_starts==1 && subl >0) filename = sub[0].append("_").append(numc).append(".").append(name);
-		if (n_starts>1  && subl < 1) filename = sub[0].append("_").append(numcc).append(".").append(name);
-		if (n_starts>1 && subl >0)  filename=sub[0].append("_").append(numcc).append("_").append(numc).append(".").append(name);
-	}
-
-	filename = In->output_info.getOutputPath() + filename;
-	if (name=="pro") {
-		vector<Real*> pointer;
-		FILE *fp;
-		fp=writer->OpenRaw(filename.c_str(),"w");
-		int length=OUT_key.size();
-		switch(lat->gradients) {
-			case 1:
-				writer->Writef(fp,"x\t");
-				break;
-			case 2:
-				writer->Writef(fp,"x\ty\t");
-				break;
-			case 3:
-				writer->Writef(fp,"x\ty\tz\t");
-				break;
-			default:
-				break;
-		}
-		for (int i=0; i<length; i++) {
-			string s=OUT_key[i];
-			s.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-			Real*  X = GetPointer(OUT_key[i],OUT_name[i],OUT_prop[i],Size);
-			if (X!=NULL) {
-				pointer.push_back(X);
-				key = OUT_key[i];
-				s = key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-				if (i<length-1) writer->Writef(fp,"%s\t",s.c_str()); else writer->Writef(fp,"%s",s.c_str());
-			} else {cout << " Error for 'pro' output. It is only possible to output quantities known to be a 'profile'. That is why output quantity " + s + " is rejected. " << endl;}
-		}
-		if (DOS) writer->Writef(fp,"\r\n"); else writer->Writef(fp,"\n");
-		Lat-> PutProfiles(fp,pointer,write_bounds,DOS);
-
-		writer->Close(fp);
-	}
-
-	if (name=="kal") {
-		if (start>first || subl>0) append=true;
-		FILE *fp;
-		if (!(writer->Exists(filename) && append)) {
-			fp=writer->OpenRaw(filename.c_str(),"w");
-			int length = OUT_key.size();
-			for (int i=0; i<length; i++) {
-				key=OUT_key[i];
-				string s=key.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
-				if (i<length-1) writer->Writef(fp,"%s\t",s.c_str()); else writer->Writef(fp,"%s",s.c_str());
-			}
-			if (DOS) writer->Writef(fp,"\r\n"); else writer->Writef(fp,"\n");
-		} else fp=writer->OpenRaw(filename.c_str(),"a");
-
-		if (fp == NULL) {
-			cerr << "Error trying to open " << filename.c_str() << endl;
-			perror("Error");
-		}
-
-
-		int length = OUT_key.size();
-		for (int i=0; i<length; i++) {
-			int int_result=0;
-			int result_nr=0;
-			Real Real_result=0;
-			string string_result;
-			vector<string> sub;
-			In-> split(OUT_prop[i],'(',sub);
-			result_nr= GetValue(OUT_key[i],OUT_name[i],sub[0],int_result,Real_result,string_result);
-			if (result_nr==0) {if (i<length-1) writer->Writef(fp,"NiN\t"); else writer->Writef(fp,"NiN");}
-			if (result_nr==1) {if (i<length-1) writer->Writef(fp,"%i\t",int_result); else writer->Writef(fp,"%i",int_result);}
-#ifdef LongReal
-			if (result_nr==2) {if (i<length-1) writer->Writef(fp,"%.16Le\t",Real_result); else  writer->Writef(fp,"%.16Le",Real_result);}
-#else
-			if (result_nr==2) {if (i<length-1) writer->Writef(fp,"%.16e\t",Real_result); else  writer->Writef(fp,"%.16e",Real_result);}
-#endif
-			if (result_nr==3) {
-				if (sub[0]==OUT_prop[i]) {
-					if (i<length-1) writer->Writef(fp,"%s\t",string_result.c_str()); else writer->Writef(fp,"%s",string_result.c_str());
-				} else {
-					Real* X=GetPointer(OUT_key[i],OUT_name[i],sub[0],Size);
-#ifdef LongReal
-					if (i<length-1) writer->Writef(fp,"%.16Le\t",lat->GetValue(X,sub[1])); else writer->Writef(fp,"%.16Le",lat->GetValue(X,sub[1]));
-#else
-					if (i<length-1) writer->Writef(fp,"%.16e\t",lat->GetValue(X,sub[1])); else writer->Writef(fp,"%.16e",lat->GetValue(X,sub[1]));
-#endif
-				}
-			}
-		}
-		if (DOS) writer->Writef(fp,"\r\n"); else writer->Writef(fp,"\n");
-		writer->Close(fp);
+	const bool first_problem_of_run = (start == 1 && subl == 0);
+	if (!json_writer->WriteProblem(filename, problem.str(), metadata.str(), append, first_problem_of_run)) {
+		cout << "Failed to write json output file " << filename << endl;
 	}
 }
 
