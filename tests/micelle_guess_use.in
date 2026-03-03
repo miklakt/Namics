@@ -26,7 +26,13 @@ newton : isaac : tolerance : 1e-08
 sys : noname : initial_guess : file
 sys : noname : guess_inputfile : output/micelle_2.outi
 
+output : json : append : false
+output : kal : append : false
 output : pro : append : false
+kal : sys : * : grand_potential
+kal : mol : surf : theta
+kal : mol : surf : theta_exc
+kal : mol : surf : phibulk
 pro : mon : A : phi
 pro : mon : B : phi
 pro : mol : surf : phi

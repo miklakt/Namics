@@ -413,7 +413,7 @@ bool Input:: CheckInput(void) {
 		elems.push_back("0:start");
 	}
 
-	static const std::vector<string> output_options = {"ana", "vtk", "kal", "pro", "vec", "pos"};
+	static const std::vector<string> output_options = {"ana", "vtk", "kal", "pro", "json", "vec", "pos"};
 	for (size_t i = 0; success && i < elems.size(); ++i) {
 		vector<std::string> set;
 		split(elems[i],':',set);
@@ -423,9 +423,17 @@ bool Input:: CheckInput(void) {
 			if (!ParseString(set[2],option,output_options,"Value for output extension '" + set[2] + "' not allowed. ")) {success=false;}
 			else {
 				const string& word=set[2];
-				const bool keyword_found = (word=="ana") || InSet(KEYS, word);
-				if (!keyword_found) {
-					KEYS.push_back(word);
+				if (word == "json") {
+					for (const string& migration_keyword : {string("json"), string("kal"), string("pro")}) {
+						if (!InSet(KEYS, migration_keyword)) {
+							KEYS.push_back(migration_keyword);
+						}
+					}
+				} else {
+					const bool keyword_found = (word=="ana") || InSet(KEYS, word);
+					if (!keyword_found) {
+						KEYS.push_back(word);
+					}
 				}
 			}
 

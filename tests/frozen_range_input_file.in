@@ -11,8 +11,9 @@ mol:SOLVENT:composition:(S)1
 mol:SOLVENT:freedom:solvent
 mon:W:freedom:frozen
 mon:W:frozen_filename:frozen
-output:pro:append:false
-output:pro:filename:frozen_range_input_file
+output:json:append:false
+output:json:filename:frozen_range_input_file
+kal:sys:NN:grand_potential
 pro:mon:*:phi
 pro:mol:*:phi
 start

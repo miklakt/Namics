@@ -13,6 +13,7 @@ runtime_input_save_memory="${output_dir}/homopolymer_adsorption_save_memory.in"
 benchmark_dir="${repo_root}/tests/benchmarks"
 benchmark_history="${benchmark_dir}/homopolymer_adsorption_test_benchmark.csv"
 benchmark_threshold_pct="15"
+compare_script="${repo_root}/tests/compare_profile_content.py"
 run_id="$(date -u +%Y%m%dT%H%M%S%3NZ)"
 run_log="${benchmark_dir}/homopolymer_adsorption_test_${run_id}.log"
 chi_values=(0 -2 -4 -6)
@@ -23,64 +24,18 @@ now_ms() {
   echo $(( $(date +%s%N) / 1000000 ))
 }
 
-compare_tabulated() {
-  local reference="$1"
-  local output="$2"
-  local x_tol="$3"
-  local value_tol="$4"
-
-  awk -v reference="${reference}" -v x_tol="${x_tol}" -v value_tol="${value_tol}" '
-function absval(x) {
-  return x < 0 ? -x : x
-}
-BEGIN {
-  n_ref = 0
-  while ((getline line < reference) > 0) {
-    ref_lines[++n_ref] = line
-  }
-  close(reference)
-}
-{
-  if (NR > n_ref) {
-    printf "ERROR: output has more lines than reference (extra line %d)\n", NR > "/dev/stderr"
-    exit 1
-  }
-
-  n_out = split($0, out, "\t")
-  n_expected = split(ref_lines[NR], expected, "\t")
-
-  if (NR == 1) {
-    if ($0 != ref_lines[NR]) {
-      printf "ERROR: header mismatch at line 1\n" > "/dev/stderr"
-      exit 1
-    }
-    next
-  }
-
-  if (n_out != n_expected || n_out < 3) {
-    printf "ERROR: malformed or inconsistent row at line %d\n", NR > "/dev/stderr"
-    exit 1
-  }
-
-  if (absval((out[1] + 0) - (expected[1] + 0)) > x_tol) {
-    printf "ERROR: x mismatch at line %d\n", NR > "/dev/stderr"
-    exit 1
-  }
-
-  for (i = 2; i <= n_out; i++) {
-    if (absval((out[i] + 0) - (expected[i] + 0)) > value_tol) {
-      printf "ERROR: value mismatch at line %d, col %d (tol=%s)\n", NR, i, value_tol > "/dev/stderr"
-      exit 1
-    }
-  }
-}
-END {
-  if (NR != n_ref) {
-    printf "ERROR: output has fewer lines than reference (output=%d, reference=%d)\n", NR, n_ref > "/dev/stderr"
-    exit 1
-  }
-}
-' "${output}"
+pick_output_file() {
+  local json_file="$1"
+  local pro_file="$2"
+  if [[ -s "${json_file}" ]]; then
+    echo "${json_file}"
+    return 0
+  fi
+  if [[ -s "${pro_file}" ]]; then
+    echo "${pro_file}"
+    return 0
+  fi
+  return 1
 }
 
 if [[ ! -x "${binary}" ]]; then
@@ -91,6 +46,11 @@ fi
 
 if [[ ! -f "${template_file}" ]]; then
   echo "ERROR: input template file not found: ${template_file}" >&2
+  exit 1
+fi
+
+if [[ ! -f "${compare_script}" ]]; then
+  echo "ERROR: compare script not found: ${compare_script}" >&2
   exit 1
 fi
 
@@ -110,8 +70,10 @@ solver_runtime_ms=0
 
 for chi in "${chi_values[@]}"; do
   reference_file="${reference_dir}/homopolymer_adsorption.chi_${chi}.pro.ref"
-  output_file="${output_dir}/homopolymer_adsorption.pro"
-  output_file_save_memory="${output_dir}/homopolymer_adsorption_save_memory.pro"
+  output_file_pro="${output_dir}/homopolymer_adsorption.pro"
+  output_file_json="${output_dir}/homopolymer_adsorption.json"
+  output_file_save_memory_pro="${output_dir}/homopolymer_adsorption_save_memory.pro"
+  output_file_save_memory_json="${output_dir}/homopolymer_adsorption_save_memory.json"
 
   if [[ ! -f "${reference_file}" ]]; then
     echo "ERROR: reference file not found: ${reference_file}" >&2
@@ -120,7 +82,7 @@ for chi in "${chi_values[@]}"; do
 
   # 2) Render input and run built namics.
   sed "s/{chi_Si}/${chi}/g" "${template_file}" > "${runtime_input}"
-  rm -f "${output_file}"
+  rm -f "${output_file_pro}" "${output_file_json}"
   run_start_ms="$(now_ms)"
   "${binary}" "${runtime_input}" > /dev/null
   run_elapsed_ms=$(( $(now_ms) - run_start_ms ))
@@ -128,18 +90,14 @@ for chi in "${chi_values[@]}"; do
   echo "chi_Si=${chi},mode=baseline,elapsed_ms=${run_elapsed_ms}" >> "${run_log}"
 
   # 3) Verify a tabulated output exists.
-  if [[ ! -s "${output_file}" ]]; then
-    echo "ERROR: expected output file was not created for chi_Si=${chi}: ${output_file}" >&2
-    exit 1
-  fi
-
-  if ! awk 'NF < 2 { exit 1 } END { if (NR < 2) exit 1 }' "${output_file}"; then
-    echo "ERROR: output file is not tabulated for chi_Si=${chi}: ${output_file}" >&2
+  output_file="$(pick_output_file "${output_file_json}" "${output_file_pro}" || true)"
+  if [[ -z "${output_file}" ]]; then
+    echo "ERROR: expected output file was not created for chi_Si=${chi}: ${output_file_json} or ${output_file_pro}" >&2
     exit 1
   fi
 
   # 4) Compare run output with the stored reference snapshot.
-  if ! compare_tabulated "${reference_file}" "${output_file}" "${x_tolerance}" "${phi_tolerance}"; then
+  if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
     echo "ERROR: output differs from reference for chi_Si=${chi}: ${reference_file}" >&2
     exit 1
   fi
@@ -149,29 +107,25 @@ for chi in "${chi_values[@]}"; do
     -e "s/{chi_Si}/${chi}/g" \
     -e 's#^//mol : pol : save_memory : true#mol : pol : save_memory : true#' \
     "${template_file}" > "${runtime_input_save_memory}"
-  rm -f "${output_file_save_memory}"
+  rm -f "${output_file_save_memory_pro}" "${output_file_save_memory_json}"
   run_start_ms="$(now_ms)"
   "${binary}" "${runtime_input_save_memory}" > /dev/null
   run_elapsed_ms=$(( $(now_ms) - run_start_ms ))
   solver_runtime_ms=$(( solver_runtime_ms + run_elapsed_ms ))
   echo "chi_Si=${chi},mode=save_memory,elapsed_ms=${run_elapsed_ms}" >> "${run_log}"
 
-  if [[ ! -s "${output_file_save_memory}" ]]; then
-    echo "ERROR: expected save_memory output was not created for chi_Si=${chi}: ${output_file_save_memory}" >&2
+  output_file_save_memory="$(pick_output_file "${output_file_save_memory_json}" "${output_file_save_memory_pro}" || true)"
+  if [[ -z "${output_file_save_memory}" ]]; then
+    echo "ERROR: expected save_memory output was not created for chi_Si=${chi}: ${output_file_save_memory_json} or ${output_file_save_memory_pro}" >&2
     exit 1
   fi
 
-  if ! awk 'NF < 2 { exit 1 } END { if (NR < 2) exit 1 }' "${output_file_save_memory}"; then
-    echo "ERROR: save_memory output is not tabulated for chi_Si=${chi}: ${output_file_save_memory}" >&2
-    exit 1
-  fi
-
-  if ! compare_tabulated "${reference_file}" "${output_file_save_memory}" "${x_tolerance}" "${phi_tolerance}"; then
+  if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file_save_memory}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
     echo "ERROR: save_memory output differs from reference for chi_Si=${chi}: ${reference_file}" >&2
     exit 1
   fi
 
-  if ! compare_tabulated "${output_file}" "${output_file_save_memory}" "${x_tolerance}" "${phi_tolerance}"; then
+  if ! python3 "${compare_script}" --left "${output_file}" --right "${output_file_save_memory}" --coord-tol "${x_tolerance}" --value-tol "${phi_tolerance}"; then
     echo "ERROR: save_memory output differs from baseline output for chi_Si=${chi}" >&2
     exit 1
   fi

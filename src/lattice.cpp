@@ -3,9 +3,9 @@ Lattice::Lattice(const Input& In_,const string& name_) :
 	BC(6) // boundary condition slots: lower/upper for x, y, z
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
 NAMICS_DBG("Lattice constructor" << endl);	In=&In_; name=name_;
-	writer = io::SharedWriter();
-	range_reader = io::SharedRangeReader();
-	guess_reader = io::SharedInitialGuessReader();
+	writer = io::legacy::SharedWriter();
+	range_reader = io::legacy::SharedRangeReader();
+	guess_reader = io::legacy::SharedInitialGuessReader();
 	KEYS.push_back("gradients"); KEYS.push_back("n_layers"); KEYS.push_back("offset_first_layer");
 	KEYS.push_back("geometry");
 	KEYS.push_back("n_layers_x");   KEYS.push_back("n_layers_y"); KEYS.push_back("n_layers_z");

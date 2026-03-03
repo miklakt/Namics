@@ -24,9 +24,19 @@ newton : isaac : i_info : 100
 newton : isaac : iterationlimit : 5000
 newton : isaac : tolerance : 1e-08
 
+output : kal : append : false
+output : pro : append : false
+output : json : append : false
+kal : sys : * : grand_potential
+kal : mol : surf : theta
+kal : mol : surf : theta_exc
+kal : mol : surf : phibulk
+pro : mon : A : phi
+pro : mon : B : phi
+pro : mol : surf : phi
+
 start
 
-newton : isaac : e_info : true
 mon : A : freedom : free
 
 sys : noname : final_guess : file

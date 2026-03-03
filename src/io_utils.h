@@ -18,6 +18,7 @@
 #include <vector>
 
 namespace io {
+namespace legacy {
 
 class Writer {
 public:
@@ -220,6 +221,7 @@ inline std::shared_ptr<InitialGuessReader> SharedInitialGuessReader() {
 	return instance;
 }
 
+} // namespace legacy
 } // namespace io
 
 #endif

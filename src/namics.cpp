@@ -327,7 +327,7 @@ int main(int argc, char *argv[])
 					cout << "input_error in output " << endl;
 					return 0;
 				} else {
-					if (Out[ii]->name=="kal") { //this is to make sure that append is set to true when 'kal'-file is not initiated for the first time.
+					if (Out[ii]->name=="kal") { // this ensures append=true for later starts after the kal file is created.
 						if (kal_append) Out[ii]->append=true;
 						else kal_append=true;
 					}

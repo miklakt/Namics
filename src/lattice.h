@@ -14,9 +14,9 @@ virtual ~Lattice();
 
 	string name;
 	const Input* In;
-	std::shared_ptr<io::Writer> writer;
-	std::shared_ptr<io::RangeReader> range_reader;
-	std::shared_ptr<io::InitialGuessReader> guess_reader;
+	std::shared_ptr<io::legacy::Writer> writer;
+	std::shared_ptr<io::legacy::RangeReader> range_reader;
+	std::shared_ptr<io::legacy::InitialGuessReader> guess_reader;
 	int MX,MY,MZ;
 	vector<int> mx;
 	vector<int> my;
