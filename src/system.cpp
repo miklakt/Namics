@@ -759,33 +759,35 @@ bool System::CheckInput(int start_)
 		}
 
 
-		vector<string> options;
-		options.push_back("equilibrium");
-		options.push_back("steady_state");
-		CalculationType = "";
-		if (GetValue("calculation_type").size() > 0)
-		{
-			if (!In->Get_string(GetValue("calculation_type"), CalculationType, options, " Info about calculation_type rejected; options are: 'equilibrium' and 'steady_state'."))
-			return false;
-		}
+			vector<string> options;
+			options.push_back("equilibrium");
+			CalculationType = "equilibrium";
+			if (GetValue("calculation_type").size() > 0)
+			{
+				if (!In->Get_string(GetValue("calculation_type"), CalculationType, options, " Info about calculation_type rejected; only 'equilibrium' is supported."))
+				return false;
+			}
 
-		int num_of_gradient_settings=0;
-		int num_of_mol = In->MolList.size();
-		for (int i=0; i<num_of_mol; i++)
-			if (Mol[i]->freedom =="gradient") num_of_gradient_settings++;
+			int num_of_gradient_settings=0;
+			int num_of_mol = In->MolList.size();
+			for (int i=0; i<num_of_mol; i++) {
+				if (Mol[i]->freedom =="gradient") num_of_gradient_settings++;
+			}
 
-		if (num_of_gradient_settings>0) {
-			if (CalculationType=="equilibrium") {cout <<" 'calculation_type : equilibrium' can not be combined with molecules have freedom 'gradient' ; use 'steady_state' instead." << endl; return false;}
-		} else {
-			if (CalculationType=="steady_state") {cout <<" 'calculation_type : steady_state' must be combined with one or more molecules have freedom 'gradient' " << endl; return false;}
-		}
-		if (num_of_gradient_settings>0) CalculationType=="steady_state"; else CalculationType=="equilibrium";
+			if (num_of_gradient_settings>0) {
+				cout << "Molecule freedom 'gradient' is not supported in this minimal build." << endl;
+				return false;
+			}
 
+			if (CalculationType=="steady_state") {
+				cout << "Calculation type 'steady_state' is not supported in this minimal build." << endl;
+				return false;
+			}
 
-		if (CalculationType=="steady_state") {
-			//Steady state is in development. For the time being this option is quite limited. In time some of these constraints will be lifted.
-			if (lat->gradients>2) {
-				cout <<"For 'calculation_type : steady_state' is currently limited to 1 gradient and 2 gradients calculations " << endl;
+			if (false && CalculationType=="steady_state") {
+				//Steady state is in development. For the time being this option is quite limited. In time some of these constraints will be lifted.
+				if (lat->gradients>2) {
+					cout <<"For 'calculation_type : steady_state' is currently limited to 1 gradient and 2 gradients calculations " << endl;
 				return false;
 			}
 			if (lat->fjc != 1) {

@@ -1,8 +1,8 @@
 #include "solve_scf.h"
 #include <iostream>
 
-Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,vector<Variate*>Var_,string name_) :
-	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, Lat{Lat_}, Mol{Mol_}, Var{Var_}, Sta{Sta_}, Rea{Rea_}
+Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,string name_) :
+	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, Lat{Lat_}, Mol{Mol_}, Sta{Sta_}, Rea{Rea_}
 {
 if(debug) cout <<"Constructor in Solve_scf " << endl;
 	lat=Lat;
@@ -23,14 +23,8 @@ if(debug) cout <<"Constructor in Solve_scf " << endl;
 	KEYS.push_back("min_accuracy_for_hessian");
 	KEYS.push_back("max_fr_reverse_direction");
 	KEYS.push_back("print_hessian_at_it");
-	KEYS.push_back("super_e_info");
-	KEYS.push_back("super_s_info");
-	KEYS.push_back("super_i_info");
-	KEYS.push_back("super_tolerance");
-	KEYS.push_back("super_iterationlimit");
 	KEYS.push_back("m");
 	KEYS.push_back("n_restart_DIIS");
-	KEYS.push_back("super_deltamax");
 	max_g = false; // compute g based on max error
 	rescue_status = NONE;
 	all=false;
@@ -66,8 +60,8 @@ if(debug) cout <<"AllocateMemeory in Solve " << endl;
 	if (Sys->constraintfields) iv +=M;
 	int length = In->MonList.size();
 	for (int i = 0; i < length; i++) iv+=Seg[i]->constraint_z.size();
-	x=Vector::Zero(iv); //voor LBFGS;
-	xx=&x[0]; //voor newton etc.
+	x_storage.assign(iv, 0);
+	xx=x_storage.data();
 	all=true;
 	int niv = In->ReactionList.size();
 	if (niv>0) {
@@ -119,11 +113,6 @@ if(debug) cout <<"CheckInput in Solve " << endl;
 		}
 		value_i_info=i_info;
 
-		super_e_info=In->Get_bool(GetValue("super_e_info"),false);
-		super_s_info=In->Get_bool(GetValue("super_s_info"),false);
-		super_i_info=In->Get_bool(GetValue("super_i_info"),false);
-		super_iterationlimit=In->Get_int(GetValue("super_iterationlimit"),iterationlimit/10);
-
 		if (GetValue("target_function").size() > 0) {
 			string target;
       			target = In->Get_string(GetValue("target_function"), target);
@@ -140,26 +129,24 @@ if(debug) cout <<"CheckInput in Solve " << endl;
 		}
 
 		deltamax=In->Get_Real(GetValue("deltamax"),0.1);
-		super_deltamax=In->Get_Real(GetValue("super_deltamax"),0.5);
 		if (deltamax < 0 || deltamax>100) {deltamax = 0.1;  cout << "Value of deltamax out of range 0..100, and value set to default value 0.1" <<endl; }
-		deltamin=0; super_deltamin=0;
+		deltamin=0;
 		deltamin=In->Get_Real(GetValue("deltamin"),deltamin);
 		if (deltamin < 0 || deltamin>100) {deltamin = deltamax/100000;  cout << "Value of deltamin out of range 0..100, and value set to default value deltamax/100000" <<endl; }
 		tolerance=In->Get_Real(GetValue("tolerance"),1e-7);
-		super_tolerance=In->Get_Real(GetValue("super_tolerance"),tolerance*10);
 		if (tolerance < 1e-16 ||tolerance>10) {tolerance = 1e-5;  cout << "Value of tolerance out of range 1e-12..10 Value set to default value 1e-5" <<endl; }
 
-		if (GetValue("method").size()==0) {SCF_method="pseudohessian";} else {
-			vector<string>method_options;
-			method_options.push_back("DIIS");
-			//method_options.push_back("Picard"); //can be included again when adjusted for charges and guess
-			method_options.push_back("pseudohessian");
-			method_options.push_back("hessian");
-			//method_options.push_back("conjugate_gradient");
-			method_options.push_back("LBFGS");
-			method_options.push_back("BRR");
-			if (!In->Get_string(GetValue("method"),SCF_method,method_options,"In 'solve_scf' the entry for 'method' not recognized: choose from:")) success=false;
-		}
+			if (GetValue("method").size()==0) {SCF_method="pseudohessian";} else {
+				vector<string>method_options;
+				method_options.push_back("DIIS");
+				//method_options.push_back("Picard"); //can be included again when adjusted for charges and guess
+				method_options.push_back("pseudohessian");
+				method_options.push_back("hessian");
+				//method_options.push_back("conjugate_gradient");
+				method_options.push_back("LBFGS");
+				method_options.push_back("BRR");
+				if (!In->Get_string(GetValue("method"),SCF_method,method_options,"In 'solve_scf' the entry for 'method' not recognized: choose from:")) success=false;
+			}
 		if (SCF_method=="hessian" || SCF_method=="pseudohessian") {
 			if (SCF_method=="hessian") {pseudohessian=false; hessian=true; solver=HESSIAN;} else { pseudohessian=true; hessian=false; solver=PSEUDOHESSIAN;}
 			samehessian=false; //In->Get_bool(GetValue("samehessian"),false);
@@ -221,11 +208,12 @@ if(debug) cout <<"CheckInput in Solve " << endl;
 			linesearchlimit=In->Get_int(GetValue("linesearchlimit"),linesearchlimit);
 		}
 
-		if (SCF_method=="LBFGS") {
-			solver=LBFGS;
-			m=In->Get_int(GetValue("m"),6);
-			if (m < 0 ||m>1000) {m=6;  cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<endl; }
-		}
+			if (SCF_method=="LBFGS") {
+				solver=LBFGS;
+				m=In->Get_int(GetValue("m"),6);
+				if (m < 0 ||m>1000) {m=6;  cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<endl; }
+			}
+
 		if (SCF_method=="BRR") {
 			solver=BRR;
 			m=In->Get_int(GetValue("m"),10);
@@ -323,10 +311,6 @@ if(debug) cout <<"PushOutput in  Solve " << endl;
 	}
 	length = In->MolList.size();
 	for (int i=0; i<length; i++){
-		int al_length=Mol[i]->MolAlList.size();
-		for (int k=0; k<al_length; k++) {
-			Mol[i]->Al[k]->PushOutput();
-		}
 		Mol[i]->PushOutput();
 	}
 	length = In->StateList.size();
@@ -498,26 +482,22 @@ private:
     vector<Reaction*> Rea;
     vector<Molecule*> Mol;
     System* Sys;
-    vector<Variate*> Var;
     int iterations =0;
-     Real residual=1;
+    Real residual=1;
 public:
-    SCF_LBFGS(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_,vector<Reaction*> Rea_,vector<Molecule*> Mol_,System* Sys_,vector<Variate*> Var_) :
-      In(In_),Lat(Lat_),Seg(Seg_),Sta(Sta_),Rea(Rea_),Mol(Mol_),Sys(Sys_),Var(Var_)  {
+    SCF_LBFGS(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_,vector<Reaction*> Rea_,vector<Molecule*> Mol_,System* Sys_) :
+      In(In_),Lat(Lat_),Seg(Seg_),Sta(Sta_),Rea(Rea_),Mol(Mol_),Sys(Sys_) {}
 
-	}
-
-    Real operator()(Vector& x_, Vector& g_) //checkout LBFGS.h; this way of computing residuals is the same as below procedure used by default in pseudohessian.
+    Real operator()(Vector& x_, Vector& g_)
     {
 	Real* x=&x_[0];
 	Real* g=&g_[0];
 	int iv=x_.size();
-
 	Sys->Classical_residual(x,g,residual,iterations, iv);
 	iterations++;
 	residual=g_.norm();
-       return residual;
-    }
+	return residual;
+	    }
 };
 
 bool Solve_scf::Solve(bool report_errors_) { //going SCF here
@@ -528,10 +508,10 @@ if(debug) cout <<"Solve in  Solve_scf " << endl;
 	if (niv>0) {
 		int i_solver=0;
 		if (solver==HESSIAN) i_solver=1;
-		if (solver==PSEUDOHESSIAN) i_solver=2;
-		if (solver==diis) i_solver=3;
-		if (solver==LBFGS) i_solver=4;
-		if (solver==BRR) i_solver=5;
+			if (solver==PSEUDOHESSIAN) i_solver=2;
+			if (solver==diis) i_solver=3;
+			if (solver==BRR) i_solver=4;
+			if (solver==LBFGS) i_solver=5;
 		bool ee_info, ss_info;
 		if (e_info) ee_info=true; else ee_info=false; e_info=false;
 		if (s_info) ss_info=true; else ss_info=false; s_info=false;
@@ -545,15 +525,16 @@ if(debug) cout <<"Solve in  Solve_scf " << endl;
 		e_info=ee_info;
 		s_info=ss_info;
 		if (i_solver==1) solver=HESSIAN;
-		if (i_solver==2) {solver=PSEUDOHESSIAN; pseudohessian=true;}
-		if (i_solver==3) solver=diis;
-		if (i_solver==4) solver=LBFGS;
-		if (i_solver==5) solver=BRR;
-		gradient = classical;
-		control = proceed;
-	}
+			if (i_solver==2) {solver=PSEUDOHESSIAN; pseudohessian=true;}
+			if (i_solver==3) solver=diis;
+			if (i_solver==4) solver=BRR;
+			if (i_solver==5) solver=LBFGS;
+			gradient = classical;
+			control = proceed;
+		}
+
 	Real res;
-	SCF_LBFGS fun(In,Lat,Seg,Sta,Rea,Mol,Sys,Var); //in the spirit of LBFGS module;
+	SCF_LBFGS fun(In,Lat,Seg,Sta,Rea,Mol,Sys);
 	NamicsLBFGSParam<Real> param;
 	LBFGSSolver<Real> mysolver(param);
 
@@ -587,8 +568,9 @@ if(debug) cout <<"Solve in  Solve_scf " << endl;
 			param.e_info =e_info;
 			param.i_info =i_info;
 			cout <<endl <<"LBFGS has been notified" << endl;
-			iterations =mysolver.minimize(fun,x,res);
-
+			Vector x_vec = Eigen::Map<Vector>(xx, iv);
+			iterations =mysolver.minimize(fun, x_vec, res);
+			std::copy_n(x_vec.data(), iv, xx);
 			cout <<endl <<"Problem solved: " << iterations << " iterations,  |g|: " << res <<  endl;
 		break;
 		default:
@@ -599,39 +581,6 @@ if(debug) cout <<"Solve in  Solve_scf " << endl;
 	return success;
 }
 
-
-bool Solve_scf::SuperIterate(int search, int target,int ets,int etm, int bm) {
-if(debug) cout <<"SuperIteration in  Solve_scf " << endl;
-	Real* x = (Real*) malloc(sizeof(Real)); H_Zero(x,1);
-	bool success=true;
-	value_search=search;				//cp superiteration cnontrols to solve. These can be used in residuals.
-	value_target=target;
-	value_ets=ets;
-	value_etm=etm;
-	value_bm =bm;
-	if (ets==-1 && etm==-1 && bm ==-1)  {                  //pick up initial guess;
-		x[0] =Var[search]->GetValue();
-	} else {
-		if (ets>-1) x[0] = Var[ets]->GetValue();
-		if (etm>-1) x[0] = Var[etm]->GetValue();
-		if (bm>-1) { x[0] = Var[bm]->GetValue(); super_tolerance *=10;}
-	}
-	if(debug) cout <<"Your guess for X: " << x[0] << endl;
-	gradient=custum; 				//the proper gradient is used
-	control=super;				//this is for inneriteration
-	e_info=super_e_info;
-	s_info=super_s_info;
-	i_info=super_i_info;
-	tolerance=super_tolerance;
-	solver=diis;
-	    if (ets==-1 && etm==-1 && bm ==-1) success=iterate_RF(x,1,super_iterationlimit,super_tolerance,super_deltamax,"Regula-Falsi search: ");
-	    if (ets>-1) success=iterate_RF(x,1,super_iterationlimit,super_tolerance,super_deltamax,"Regula-Falsi Eq-to_solvent search: ");
-	    if (etm>-1) success=iterate_RF(x,1,super_iterationlimit,super_tolerance,super_deltamax,"Regula-Falsi Eq-to_mu search: ");
-	    if (bm>-1) success=iterate_RF(x,1,super_iterationlimit,super_tolerance,super_deltamax,"Regula-Falsi balance-membrane search: ");
-	if (bm>-1) super_tolerance /=10;
-	if(debug) cout <<"My guess for X: " << x[0] << endl;
-	return success;
-}
 
 void Solve_scf::residuals(Real* x, Real* g){
  if (debug) cout <<"residuals in Solve_scf " << endl;
@@ -663,48 +612,6 @@ void Solve_scf::residuals(Real* x, Real* g){
 
 			}
 
-		break;
-		case custum:
-			if (debug) cout <<"Residuals in custum mode in Solve_scf " << endl;
-			if (value_ets==-1 && value_etm==-1 && value_bm==-1) { 			//guess from newton is stored in place.
-				Var[value_search]->PutValue(x[0]);
-			} else {
-				if (value_ets>-1) Var[value_ets]->PutValue(x[0]);
-				if (value_etm>-1) Var[value_etm]->PutValue(x[0]);
-				if (value_bm>-1) Var[value_bm]->PutValue(x[0]);
-			}
-
-			if (value_ets==-1|| value_search<0 || value_etm>-1 || value_bm>-1) {
-				control=proceed;					//prepare for solving scf eqns. (both for inneriteration and residuals)
-				gradient=classical;
-				if (SCF_method=="hessian") {hessian=true; pseudohessian=false; solver=HESSIAN;}
-				if (SCF_method=="pseudohessian") {hessian=false; pseudohessian=true; solver=PSEUDOHESSIAN;}
-				if (SCF_method=="DIIS") {solver=diis;}
-				if (SCF_method=="Picard") {solver=PICARD;}
-				e_info=super_e_info;
-				i_info=super_i_info;
-				s_info=super_s_info;
-				tolerance = super_tolerance;
-				Solve(false);						//find scf solution
-				control=super;
-				gradient=custum;
-			} else {
-				old_value_bm=value_bm;
-				old_value_ets=value_ets;				//prepare of next level of super-iteration.
-				old_value_etm=value_etm;
-				SuperIterate(value_search,value_target,-1,-1,-1);	//go to superiteration with new ets and etm values
-				value_ets = old_value_ets;				//reset conditions so that old iteration can continue
-				value_etm=old_value_etm;
-				value_bm=old_value_bm;
-			}
-
-			if (value_ets==-1 && value_etm==-1 && value_bm==-1) {			//get value for gradient.
-				g[0]=Var[value_target]->GetError();
-			} else {
-				if (value_ets>-1) g[0]=Var[value_ets]->GetError();
-				if (value_etm>-1) g[0]=Var[value_etm]->GetError();
-				if (value_bm>-1) g[0]=Var[value_bm]->GetError();
-			}
 		break;
 		case Picard:
 		{
@@ -740,9 +647,7 @@ void Solve_scf::residuals(Real* x, Real* g){
 		}
 		default:
 			if (debug) cout <<"Residuals in scf mode in Solve_scf " << endl;
-			if (Sys->CalculationType=="steady_state")
-				Sys->Steady_residual(x,g,residual,iterations, iv);
-			else Sys->Classical_residual(x,g,residual,iterations, iv);
+			Sys->Classical_residual(x,g,residual,iterations, iv);
 		break;
 	}
 }

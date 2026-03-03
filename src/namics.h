@@ -47,7 +47,7 @@ extern bool debug;
 
 enum MoleculeType {monomer, linear, branched, dendrimer, asym_dendrimer, comb, water};
 enum transfer {to_segment, to_bm, reset};
-enum EngineType {SCF, MICRO};
+enum EngineType {SCF};
 enum LatticeType {simple_cubic, hexagonal};
 enum SolverType {Pseudohessian,Lbfgs};
 enum CP{co_solvent_theta,co_solvent_phibulk,chi_C_D};

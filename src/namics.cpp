@@ -1,6 +1,5 @@
 #define MAINxH
 #include "tools_host.h"
-#include "alias.h"
 #include "input.h"
 #include "lattice.h"
 //#include "lat_preview.h"
@@ -11,11 +10,6 @@
 #include "LG1Planar.h"
 #include "LG2Planar.h"
 #include "molecule.h"
-#include "mol_water.h"
-#include "mol_clamp.h"
-#include "mol_dendrimer.h"
-#include "mol_asym_dendrimer.h"
-#include "mol_comb.h"
 #include "mol_branched.h"
 #include "mol_linear.h"
 #include "namics.h"
@@ -24,10 +18,8 @@
 #include "state.h"
 #include "reaction.h"
 #include "system.h"
-#include "variate.h"
 #include "sfnewton.h"
 #include "solve_scf.h"
-#include "microemulsion.h"
 #include <memory>
 
 string version = "2.2.2.2.2.1.1";
@@ -104,12 +96,10 @@ int main(int argc, char *argv[])
 	// Single ownership
 	unique_ptr<Input> In;              // Inputs read from file
 	unique_ptr<Lattice> Lat;
-	unique_ptr<Lattice> Lat_spherical; // auxiliary lattice for microemulsion
 	unique_ptr<Lattice> lat_p;
 	unique_ptr<Molecule> mol_p;
 	unique_ptr<Solve_scf> New;         // Solver and iteration scheme
 	unique_ptr<System> Sys;
-	unique_ptr<Microemulsion> Micro;
 
 	// Multi-instance collections
 	vector<Output *> Out;              // Outputs written to file
@@ -117,7 +107,6 @@ int main(int argc, char *argv[])
 	vector<Segment *> Seg;             // Properties of molecule segments
 	vector<State *> Sta;
 	vector<Reaction *> Rea;
-	vector<Variate *> Var;
 
 	// Create input class instance and handle errors(reference above)
 	In = make_unique<Input>(filename.str());
@@ -241,27 +230,25 @@ int main(int argc, char *argv[])
 				 	case monomer:
 						Mol.push_back(new Molecule(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
-					case water:
-						Mol.push_back(new mol_water(In.get(), Lat.get(), Seg, In->MolList[i]));
-						break;
+						case water:
+							Mol.push_back(new Molecule(In.get(), Lat.get(), Seg, In->MolList[i]));
+							break;
 					case linear:
 						if (mol_p->freedom=="clamped") {
-							Mol.push_back(new mol_clamp(In.get(), Lat.get(), Seg, In->MolList[i]));
-						} else {
-							Mol.push_back(new mol_linear(In.get(), Lat.get(), Seg, In->MolList[i]));
+							cout << "Unsupported molecule freedom 'clamped' for mol '" << In->MolList[i] << "'." << endl;
+							return 0;
 						}
+						Mol.push_back(new mol_linear(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
 					case branched:
 						Mol.push_back(new mol_branched(In.get(), Lat.get(), Seg, In->MolList[i]));
 						break;
 					case dendrimer:
-						Mol.push_back(new mol_dend(In.get(), Lat.get(), Seg, In->MolList[i]));
-						break;
 					case asym_dendrimer:
-						Mol.push_back(new mol_asym_dend(In.get(), Lat.get(), Seg, In->MolList[i]));
-						break;
 					case comb:
-						Mol.push_back(new mol_comb(In.get(), Lat.get(), Seg, In->MolList[i]));
+						cout << "Unsupported molecule architecture for mol '" << In->MolList[i]
+						     << "'. Only monomer, linear, branched and water are supported." << endl;
+						return 0;
 						break;
 					default:
 						cout <<"Unknown MolType " << endl;
@@ -279,74 +266,8 @@ int main(int argc, char *argv[])
 		if (!Sys->CheckChi_values(n_seg))return 0;
 
 
-			EngineType TheEngine;
-			TheEngine = SCF;
-			if (In->MicroList.size() > 0)
-			{
-				TheEngine = MICRO;
-		}
-
-		// Prepare variables used in variate class creation
-		int n_var = In->VarList.size();
-		int n_search = 0;
-		int n_scan = 0;
-		int n_ets = 0;
-		int n_bm = 0;
-		int n_etm = 0;
-		int n_target = 0;
-		int search_nr = -1, scan_nr = -1, target_nr = -1, ets_nr = -1, bm_nr = -1, etm_nr = -1;
-
-		// Create variate class instance and check inputs (reference above)
-		for (int k = 0; k < n_var; k++)
-		{
-			Var.push_back(new Variate(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), In->VarList[k]));
-			if (!Var[k]->CheckInput(start)) return 0;
-
-			if (Var[k]->scanning > -1) {scan_nr = k; n_scan++; }
-			if (Var[k]->searching > -1){search_nr = k; n_search++;}
-			if (Var[k]->targeting > -1){target_nr = k; n_target++;}
-			if (Var[k]->eq_to_solvating > -1){ets_nr = k; n_ets++;}
-			if (Var[k]->balance_membraning > -1){bm_nr = k; n_bm++;}
-			if (Var[k]->eq_to_mu > -1){etm_nr = k; n_etm++;}
-		}
-
-		// Error code for faulty variate class creation
-		if (n_etm > 1){
-			cout << "too many equate_to_mu's in var statements. The limit is 1 " << endl;
-			return 0;
-		}
-		if (n_ets > 1){
-			cout << "too many equate_to_solvent's in var statements. The limit is 1 " << endl;
-			return 0;
-		}
-		if (n_bm > 1){
-			cout << "too many balance membrane's in var statements. The limit is 1 " << endl;
-			return 0;
-		}
-		if (n_search > 1){
-			cout << "too many 'searches' in var statements. The limit is 1 " << endl;
-			return 0;
-		}
-		if (n_scan > 1){
-			cout << "too many 'scan's in var statements. The limit is 1 " << endl;
-			return 0;
-		}
-		if (n_target > 1){
-			cout << "too many 'target's in var statements. The limit is 1 " << endl;
-			return 0;
-		}
-		if (n_search > 0 && n_target == 0){
-			cout << "lonely search. Please specify in 'var' a target function, e.g. 'var : sys-NN : grand_potential : 0'" << endl;
-			return 0;
-		}
-		if (n_target > 0 && n_search == 0){
-			cout << "lonely target. Please specify in 'var' a search function, e.g. 'var : mol-lipid : search : theta'" << endl;
-			return 0;
-		}
-
-
 		// Create newton class instance and check inputs (reference above)
-		New = make_unique<Solve_scf>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), Var, In->NewtonList[0]);
+		New = make_unique<Solve_scf>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), In->NewtonList[0]);
 		if (!New->CheckInput(start)) return 0;
 
 
@@ -389,16 +310,9 @@ int main(int argc, char *argv[])
 		int IV_new=0;
 		int substart = 0;
 		int subloop = 0;
-		if (scan_nr < 0) substart = 0;
-		else substart = Var[scan_nr]->num_of_cals;
-		if (substart < 1) substart = 0; // Default to 1 substart
 		int n_out = 0;
 		int mon_length;
 		int state_length;
-		bool success = true;
-		switch (TheEngine)
-		{
-		case SCF:
 			// Prepare, catch errors for output class creation
 			n_out = In->OutputList.size();
 			if (n_out == 0)
@@ -422,9 +336,6 @@ int main(int argc, char *argv[])
 
 			while (subloop <= substart)
 			{
-				if (scan_nr > -1)
-					Var[scan_nr]->PutVarScan(subloop);
-
 				Sys->MakeItsLists();
 
 				New->AllocateMemory();
@@ -433,42 +344,33 @@ int main(int argc, char *argv[])
 				if (Sys->initial_guess != "none")
 				New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
 
-				if (search_nr < 0 && ets_nr < 0 && etm_nr < 0)
-				{
-					New->Solve(true);
+				New->Solve(true);
 
-					if (Sys->initial_guess == "previous_result" || Sys->initial_guess == "file") {
-						if (New->iv == IV_new) {
-							std::copy_n(New->xx, IV_new, X);
-						} else {
-							if (X!=NULL) free(X);
-							IV_new=New->iv;
-							X = (Real *)malloc(IV_new * sizeof(Real));
-							std::copy_n(New->xx, IV_new, X);
-							MX=Lat->MX;
-							MY=Lat->MY;
-							MZ=Lat->MZ;
-							fjc_old=Lat->fjc;
-							mon_length = Sys->ItMonList.size();
-							state_length = Sys->ItStateList.size();
-							MONLIST.clear();
-							STATELIST.clear();
-							for (int i = 0; i < mon_length; i++)
-							{
-								MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
-							}
-							for (int i = 0; i < state_length; i++)
-							{
-								STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
-							}
+				if (Sys->initial_guess == "previous_result" || Sys->initial_guess == "file") {
+					if (New->iv == IV_new) {
+						std::copy_n(New->xx, IV_new, X);
+					} else {
+						if (X!=NULL) free(X);
+						IV_new=New->iv;
+						X = (Real *)malloc(IV_new * sizeof(Real));
+						std::copy_n(New->xx, IV_new, X);
+						MX=Lat->MX;
+						MY=Lat->MY;
+						MZ=Lat->MZ;
+						fjc_old=Lat->fjc;
+						mon_length = Sys->ItMonList.size();
+						state_length = Sys->ItStateList.size();
+						MONLIST.clear();
+						STATELIST.clear();
+						for (int i = 0; i < mon_length; i++)
+						{
+							MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
+						}
+						for (int i = 0; i < state_length; i++)
+						{
+							STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
 						}
 					}
-				}
-				else
-				{
-					if (!debug)
-						cout << "Solve towards superiteration " << endl;
-					New->SuperIterate(search_nr, target_nr, ets_nr, etm_nr, bm_nr);
 				}
 				New->PushOutput();
 
@@ -497,33 +399,9 @@ int main(int argc, char *argv[])
 				subloop++;
 			}
 
-			break;
-			case MICRO:
-
-				Lat_spherical = make_unique<LGrad1>(*In,In->LatList[0]); // dummy added, used in microemulsion.
-				Lat_spherical->CheckInput(start,false);
-				Lat_spherical->geometry = "spherical";
-				Lat_spherical->AllocateMemory();
-				{
-					vector<Lattice*> MicroLat;
-					MicroLat.push_back(Lat.get());
-					MicroLat.push_back(Lat_spherical.get());
-					Micro = make_unique<Microemulsion>(In.get(),Out, MicroLat, Seg, Sta, Rea, Mol, Sys.get(), New.get(),Var, In->MicroList[0]);
-				}
-				success=Micro->CheckInput(start);
-				if (success) Micro->Doit(X,METHOD,MONLIST,STATELIST,CHARGED,MX,MY,MZ,fjc_old,search_nr,ets_nr,etm_nr,target_nr,bm_nr,subloop,kal_append);
-			break;
-		default:
-			cout << "TheEngine is unknown. Programming error " << endl;
-			return 0;
-			break;
-		}
-
 		for (auto all_segments : Seg)
 			all_segments->prepared = false;
 
-		if (scan_nr > -1)
-			Var[scan_nr]->ResetScanValue();
 		if (Sys->initial_guess == "previous_result"|| Sys->initial_guess == "file")
 		{
 			METHOD = New->SCF_method; //check this..
@@ -569,17 +447,12 @@ int main(int argc, char *argv[])
 
 		/******** Clear all class instances ********/
 
-			Micro.reset();
-		Lat_spherical.reset();
 		lat_p.reset();
 		mol_p.reset();
 
 		for (int i = 0; i < n_out; i++)
 			delete Out[i];
 		Out.clear();
-		for (int i = 0; i < n_var; i++)
-			delete Var[i];
-		Var.clear();
 		New.reset();
 		Sys.reset();
 		for (int i = 0; i < n_mol; i++)

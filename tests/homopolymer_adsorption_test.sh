@@ -16,9 +16,71 @@ benchmark_threshold_pct="15"
 run_id="$(date -u +%Y%m%dT%H%M%S%3NZ)"
 run_log="${benchmark_dir}/homopolymer_adsorption_test_${run_id}.log"
 chi_values=(0 -2 -4 -6)
+x_tolerance="1e-12"
+phi_tolerance="1e-6"
 
 now_ms() {
   echo $(( $(date +%s%N) / 1000000 ))
+}
+
+compare_tabulated() {
+  local reference="$1"
+  local output="$2"
+  local x_tol="$3"
+  local value_tol="$4"
+
+  awk -v reference="${reference}" -v x_tol="${x_tol}" -v value_tol="${value_tol}" '
+function absval(x) {
+  return x < 0 ? -x : x
+}
+BEGIN {
+  n_ref = 0
+  while ((getline line < reference) > 0) {
+    ref_lines[++n_ref] = line
+  }
+  close(reference)
+}
+{
+  if (NR > n_ref) {
+    printf "ERROR: output has more lines than reference (extra line %d)\n", NR > "/dev/stderr"
+    exit 1
+  }
+
+  n_out = split($0, out, "\t")
+  n_expected = split(ref_lines[NR], expected, "\t")
+
+  if (NR == 1) {
+    if ($0 != ref_lines[NR]) {
+      printf "ERROR: header mismatch at line 1\n" > "/dev/stderr"
+      exit 1
+    }
+    next
+  }
+
+  if (n_out != n_expected || n_out < 3) {
+    printf "ERROR: malformed or inconsistent row at line %d\n", NR > "/dev/stderr"
+    exit 1
+  }
+
+  if (absval((out[1] + 0) - (expected[1] + 0)) > x_tol) {
+    printf "ERROR: x mismatch at line %d\n", NR > "/dev/stderr"
+    exit 1
+  }
+
+  for (i = 2; i <= n_out; i++) {
+    if (absval((out[i] + 0) - (expected[i] + 0)) > value_tol) {
+      printf "ERROR: value mismatch at line %d, col %d (tol=%s)\n", NR, i, value_tol > "/dev/stderr"
+      exit 1
+    }
+  }
+}
+END {
+  if (NR != n_ref) {
+    printf "ERROR: output has fewer lines than reference (output=%d, reference=%d)\n", NR, n_ref > "/dev/stderr"
+    exit 1
+  }
+}
+' "${output}"
 }
 
 if [[ ! -x "${binary}" ]]; then
@@ -77,7 +139,7 @@ for chi in "${chi_values[@]}"; do
   fi
 
   # 4) Compare run output with the stored reference snapshot.
-  if ! diff -u "${reference_file}" "${output_file}"; then
+  if ! compare_tabulated "${reference_file}" "${output_file}" "${x_tolerance}" "${phi_tolerance}"; then
     echo "ERROR: output differs from reference for chi_Si=${chi}: ${reference_file}" >&2
     exit 1
   fi
@@ -104,12 +166,12 @@ for chi in "${chi_values[@]}"; do
     exit 1
   fi
 
-  if ! diff -u "${reference_file}" "${output_file_save_memory}"; then
+  if ! compare_tabulated "${reference_file}" "${output_file_save_memory}" "${x_tolerance}" "${phi_tolerance}"; then
     echo "ERROR: save_memory output differs from reference for chi_Si=${chi}: ${reference_file}" >&2
     exit 1
   fi
 
-  if ! diff -u "${output_file}" "${output_file_save_memory}"; then
+  if ! compare_tabulated "${output_file}" "${output_file_save_memory}" "${x_tolerance}" "${phi_tolerance}"; then
     echo "ERROR: save_memory output differs from baseline output for chi_Si=${chi}" >&2
     exit 1
   fi

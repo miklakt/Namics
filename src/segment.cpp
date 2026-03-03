@@ -1006,17 +1006,16 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 		}
 
 
-		options.push_back("free");
-		options.push_back("pinned");
-		options.push_back("frozen");
-		options.push_back("tagged");
-		options.push_back("clamp");
-		freedom="free";
-		freedom = In->Get_string(GetValue("freedom"),"free");
-		if (!In->InSet(options,freedom)) {
-			cout << "Freedom: '"<< freedom  <<"' for mon " + name + " not recognized. "<< endl;
-			cout << "Freedom choices: free, pinned, frozen, tagged, clamp " << endl; success=false;
-		}
+			options.push_back("free");
+			options.push_back("pinned");
+			options.push_back("frozen");
+			options.push_back("tagged");
+			freedom="free";
+			freedom = In->Get_string(GetValue("freedom"),"free");
+			if (!In->InSet(options,freedom)) {
+				cout << "Freedom: '"<< freedom  <<"' for mon " + name + " not recognized. "<< endl;
+				cout << "Freedom choices: free, pinned, frozen, tagged " << endl; success=false;
+			}
 
 		if (freedom =="free") {
 			if (GetValue("frozen_range").size()>0||GetValue("pinned_range").size()>0 || GetValue("tagged_range").size()>0 ||

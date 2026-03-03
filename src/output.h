@@ -9,7 +9,6 @@
 #include "molecule.h"
 #include "system.h"
 #include "solve_scf.h"
-#include "alias.h"
 #include "io_utils.h"
 #include <climits>
 #include <unistd.h>

@@ -3,7 +3,6 @@
 #include "namics.h"
 #include "input.h"
 #include "segment.h"
-#include "alias.h"
 #include "lattice.h"
 #include "tools_host.h"
 class mol_branched : public Molecule

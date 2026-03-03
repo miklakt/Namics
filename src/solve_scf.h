@@ -10,12 +10,10 @@
 #include "lattice.h"
 #include "molecule.h"
 #include "tools_host.h"
-#include "variate.h"
 #include "sfnewton.h"
 #include <functional>
 #include <Eigen/Core>
 #include "LBFGS.h"
-
 typedef Eigen::Matrix<Real,Eigen::Dynamic,1> Vector;
 typedef Eigen::Matrix<Real,Eigen::Dynamic,Eigen::Dynamic> Matrix;
 using namespace LBFGSpp;
@@ -25,7 +23,7 @@ class Solve_scf : public SFNewton {
 public:
 	Solve_scf() {};
 
-	Solve_scf(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,vector<Variate*>,string);
+	Solve_scf(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,string);
 
 	~Solve_scf();
 
@@ -46,7 +44,6 @@ public:
 	Lattice* Lat;
 	Lattice* lat;
 	vector<Molecule*> Mol;
-	vector<Variate*> Var;
 	vector<State*> Sta;
 	vector<Reaction*> Rea;
 
@@ -61,15 +58,13 @@ public:
 	SolverType SolType;
 	bool all;
 
-	Real super_tolerance,tolerance;
-	Real super_deltamax,deltamax;
-	Real super_deltamin,deltamin;
+	Real tolerance;
+	Real deltamax,deltamin;
 
-	int super_iterationlimit,iterationlimit;
+	int iterationlimit;
 	bool value_e_info;
-	bool super_s_info, value_s_info;
-	int super_i_info, value_i_info;
-	bool super_e_info;
+	bool value_s_info;
+	int value_i_info;
 	Real* temp_alpha;
 
 	vector<string> ints;
@@ -88,7 +83,7 @@ public:
 	int GetValue(string,int&,Real&,string&);
 	enum iteration_method {HESSIAN,PSEUDOHESSIAN,PICARD,diis,conjugate_gradient,LBFGS,BRR};
 	enum inner_iteration_method {super,proceed};
-	enum gradient_method {classical, Picard, custum, WEAK};
+	enum gradient_method {classical, Picard, WEAK};
 	iteration_method solver;
 	gradient_method gradient;
 	inner_iteration_method control;
@@ -96,14 +91,9 @@ public:
 
 	Real *xx;
 	Real *yy;
-	Vector x;
+	vector<Real> x_storage;
 	int *SIGN;
 	Real* alpha;
-	int value_search;
-	int value_target;
-	int value_ets,old_value_ets;
-	int value_etm,old_value_etm;
-	int value_bm,old_value_bm;
 
 	std::vector<string> KEYS;
 	ParameterStore PARAMETERS;
@@ -115,7 +105,6 @@ public:
 
 	bool Solve(bool);
 
-	bool SuperIterate(int,int,int,int,int);
 	void DeAllocateMemory();
 	void AllocateMemory();
 	bool PrepareForCalculations(void);

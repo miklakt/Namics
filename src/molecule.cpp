@@ -1,5 +1,142 @@
 #include "molecule.h"
 
+class Alias {
+public:
+	Alias(const Input* In_, Lattice* Lat_, string name_)
+		: Lat(Lat_), lat(Lat_), value(0), composition(""), active(false), H_phi(NULL), phi(NULL), rho(NULL),
+		  clamp(false), name(name_), In(In_) {
+		KEYS.push_back("value");
+	}
+
+	~Alias() {
+		if (H_phi != NULL) {
+			free(H_phi);
+			H_phi = NULL;
+			phi = NULL;
+			rho = NULL;
+		}
+	}
+
+	void AllocateMemory(int Clamp_nr, int n_box) {
+		(void)Clamp_nr;
+		(void)n_box;
+		if (H_phi != NULL) {
+			free(H_phi);
+		}
+		const int M = lat->M;
+		H_phi = (Real*)malloc(M * sizeof(Real));
+		phi = H_phi;
+		rho = H_phi;
+		H_Zero(H_phi, M);
+	}
+
+	void PrepareForCalculations() {
+		if (phi != NULL) std::fill_n(phi, lat->M, 0);
+	}
+
+	bool CheckInput(int start) {
+		(void)start;
+		cout << "Alias '" << name << "' is not supported in this minimal build." << endl;
+		return false;
+	}
+
+	void push(string s, Real X) {
+		Reals.push_back(s);
+		Reals_value.push_back(X);
+	}
+
+	void push(string s, int X) {
+		ints.push_back(s);
+		ints_value.push_back(X);
+	}
+
+	void push(string s, bool X) {
+		bools.push_back(s);
+		bools_value.push_back(X);
+	}
+
+	void push(string s, string X) {
+		strings.push_back(s);
+		strings_value.push_back(X);
+	}
+
+	void PushOutput() {
+		strings.clear();
+		strings_value.clear();
+		bools.clear();
+		bools_value.clear();
+		Reals.clear();
+		Reals_value.clear();
+		ints.clear();
+		ints_value.clear();
+		push("value", value);
+	}
+
+	int GetValue(string prop, int& int_result, Real& Real_result, string& string_result) {
+		int i=0;
+		int length = ints.size();
+		while (i<length) {
+			if (prop==ints[i]) {
+				int_result=ints_value[i];
+				return 1;
+			}
+			i++;
+		}
+		i=0;
+		length = Reals.size();
+		while (i<length) {
+			if (prop==Reals[i]) {
+				Real_result=Reals_value[i];
+				return 2;
+			}
+			i++;
+		}
+		i=0;
+		length = bools.size();
+		while (i<length) {
+			if (prop==bools[i]) {
+				string_result = bools_value[i] ? "true" : "false";
+				return 3;
+			}
+			i++;
+		}
+		i=0;
+		length = strings.size();
+		while (i<length) {
+			if (prop==strings[i]) {
+				string_result=strings_value[i];
+				return 3;
+			}
+			i++;
+		}
+		return 0;
+	}
+
+	Lattice* Lat;
+	Lattice* lat;
+	int value;
+	string composition;
+	bool active;
+	vector<int> frag;
+	Real* H_phi;
+	Real* phi;
+	Real* rho;
+	bool clamp;
+	string name;
+	const Input* In;
+
+	vector<string> ints;
+	vector<string> Reals;
+	vector<string> bools;
+	vector<string> strings;
+	vector<Real> Reals_value;
+	vector<int> ints_value;
+	vector<bool> bools_value;
+	vector<string> strings_value;
+	std::vector<string> KEYS;
+	ParameterStore PARAMETERS;
+};
+
 
 Molecule::Molecule(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) {
 	In=In_; Seg=Seg_; name=name_;  Lat=Lat_;
@@ -331,30 +468,11 @@ if (debug) cout <<"CheckInput for Mol " + name << endl;
 			}
 		} else
 		if ( IsClamped() ){
-			freedom="clamped";
-			if (GetValue("freedom").size() > 0) freedom = In->Get_string(GetValue("freedom"),"clamped");
-			if (freedom !="clamped") {
-				cout <<"For mol " + name + " the setting for 'freedom' was not equal to 'clamped'; This is not consistent with composition. " << endl;
-				success=false;
-			} else {
-				n_box=Seg[mon_nr[0]]->n_box;
-				if (GetValue("theta").size() >0) {
-					theta=In->Get_Real(GetValue("theta"),n_box*chainlength);
-					if (theta!=n_box*chainlength)
-					cout <<"Input value for 'theta' is ignored for clamped molecule '" + name + "'"  << endl;
-				} theta= n_box*chainlength;
-				if (GetValue("n").size() >0) { n=In->Get_Real(GetValue("n"),n);
-					if (n!=n_box)
-					cout <<"Input value for 'n' is ignored for clamped molecule '" + name + "'"  << endl;
-				} n= n_box;
-				if (GetValue("phibulk").size() >0) {
-					success=false;
-					cout <<"For mol '" + name + "' the value of freedom is 'clamped' and therfore you can not set 'phibulk'. Problem terminated. " << endl;
-				}
-			}
+			cout << "For mol '" << name << "' freedom 'clamped' is not supported in this minimal build." << endl;
+			success=false;
 		} else
 		if (GetValue("freedom").size()==0 && !IsTagged() ) {
-			cout <<"For mol " + name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' 'range_restricted' 'clamped' 'tagged' . Problem terminated " << endl; success = false;
+			cout <<"For mol " + name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' 'range_restricted' 'tagged' . Problem terminated " << endl; success = false;
 			} else {
 
 				if (!IsTagged()) {
@@ -1222,18 +1340,21 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 		}
 
 		if (SUB[0]=="dend") {
-			MolType=dendrimer; keyfound=true;
-			s=s.substr(6,s.length()-7);
-			if (save_memory) {success=false; cout <<"In dendrimer no save_memory implemented yet. contact frans.leermakers@wur.nl....." << endl; return success;}
+			cout << "Molecule architecture '@dend' is not supported in this minimal build." << endl;
+			return false;
 		}
 		if (SUB[0]=="comb") {
-			if (save_memory) {success=false; cout <<"In comb no save_memory implemented yet. contact frans.leermakers@wur.nl ....." << endl; return success;}
-			MolType=comb; keyfound=true;
-			s=s.substr(6,s.length()-7);
+			cout << "Molecule architecture '@comb' is not supported in this minimal build." << endl;
+			return false;
 		}
 		if (!keyfound) { success=false; cout << "Keyword specifying Moltype not recognised: select from @dend, @comb. @water Problem terminated "<< endl ;
 			return success;
 		 }
+	}
+
+	if (s.find('#') != string::npos) {
+		cout << "Aliases in molecule composition are not supported in this minimal build." << endl;
+		return false;
 	}
 
 	while (aliases && success) {
@@ -2512,13 +2633,34 @@ if (debug) cout <<"ComputePhi for Mol " + name << endl;
 }
 
 Real Molecule::GetPhib1() {
-	return 0;
+	if (MolType != water) return 0;
+	NAMICS_DBG_THIS("GetPhib1 in Molecule (water mode)" << endl);
+	if (phibulk <0) {
+		cout <<"problem in computation of phib1 for MolType water." << endl;
+		return 0;
+	}
+	phib1=1/Kw +(1-sqrt(4*Kw*phibulk+1))/(2*Kw*Kw*phibulk);
+	return phib1;
 }
 
-void Molecule::AddToGP(Real*) {
+void Molecule::AddToGP(Real* GP) {
+	if (MolType != water) return;
+	NAMICS_DBG_THIS("AddToGP in Molecule (water mode)" << endl);
+	int M=lat->M;
+	Real* G=Seg[MolMonList[0]]->G1;
+	for (int i=0; i<M; i++) {
+		GP[i]+=(phi[i]-phibulk)-phib1*G[i]/(1-Kw*phib1*G[i]) + phib1/(1-Kw*phib1);
+	}
 }
 
-void Molecule::AddToF(Real*) {
+void Molecule::AddToF(Real* F) {
+	if (MolType != water) return;
+	NAMICS_DBG_THIS("AddToF in Molecule (water mode)" << endl);
+	int M=lat->M;
+	Real* G=Seg[MolMonList[0]]->G1;
+	for (int i=0; i<M; i++) {
+		F[i]-=(phi[i])-phib1*G[i]/(1-Kw*phib1*G[i]);
+	}
 }
 
 
@@ -2526,6 +2668,16 @@ bool Molecule::ComputePhi(){
 if (debug) cout <<"ComputePhi for Molecule " + name << endl; //default computation for monomer only....
 	int M=lat->M;
 	bool success=true;
+	if (MolType == water) {
+		if (phib1>0) {
+			Real* G=Seg[MolMonList[0]]->G1;
+			for (int i=0; i<=M; i++) {
+				rho[i]=phib1*G[i]/pow((1-Kw*phib1*G[i]),2);
+			}
+			GN=lat->ComputeGN(rho,Markov,M)/phib1;
+		}
+		return success;
+	}
 	std::copy_n(Seg[mon_nr[0]]->G1, M, phi);
 	GN=lat->WeightedSum(phi);
 	if (compute_phi_alias)

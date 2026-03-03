@@ -37,14 +37,7 @@ OBJEXT      := o
 #Flags, Libraries and Includes
 CFLAGS      := -Wall -O3 -ffast-math -std=$(CXX_STD) -march=native
 LIB         := -lm -lpthread
-INC         := -I/usr/include/eigen3 -I$(SRCDIR) -Iexternal/LBFGSpp/include -I/usr/local/include -I/usr/include
-LBFGSPP_HEADER := external/LBFGSpp/include/LBFGSpp/Param.h
-
-ifeq ($(filter clean cleaner,$(MAKECMDGOALS)),)
-ifeq ($(wildcard $(LBFGSPP_HEADER)),)
-$(error Missing LBFGSpp headers. Run: git submodule update --init --recursive)
-endif
-endif
+INC         := -I$(SRCDIR) -Iexternal/LBFGSpp/include -I/usr/include/eigen3 -I/usr/local/include/eigen3 -I/usr/local/include -I/usr/include
 
 # MacOS: add Homebrew paths for headers and libraries
 ifeq ($(UNAME_S),Darwin)
@@ -83,6 +76,8 @@ $(info )
 $(info Platform:    $(UNAME_S))
 $(info C++ standard: $(CXX_STD))
 $(info Compiler:    $(CC))
+$(info Eigen:       required)
+$(info LBFGSpp:     required)
 ifdef PAR_STL
 ifeq ($(HAS_TBB),yes)
 $(info TBB:         found)

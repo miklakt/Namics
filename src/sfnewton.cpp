@@ -1,9 +1,7 @@
-#include <Eigen/Dense>
 #include <iostream>
 #include "sfnewton.h"
 #include "tools_host.h"
 
-using namespace Eigen;
 using namespace std;
 
 SFNewton::SFNewton () : residual{0} {
@@ -775,25 +773,56 @@ if(debug) cout <<"Ax in  SFNewton (own svdcmp) " << endl;
 		return;
 	}
 
-	MatrixXd M(N, N);
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			const Real value = A[i * N + j];
-			if (value != value) throw -2;
-			M(i, j) = static_cast<double>(value);
+	// Solve A * X = 1 using Gaussian elimination with partial pivoting.
+	vector<Real> M(A, A + N * N);
+	vector<Real> b(N, 1.0);
+
+	for (int i = 0; i < N; ++i) {
+		for (int j = 0; j < N; ++j) {
+			if (M[i * N + j] != M[i * N + j]) throw -2;
 		}
 	}
 
-	JacobiSVD<MatrixXd> svd(M, ComputeFullU | ComputeFullV);
-	VectorXd s = svd.singularValues();
-	VectorXd u_sum = svd.matrixU().rowwise().sum();
-	VectorXd coeff = VectorXd::Zero(N);
-	for (int i = 0; i < N; ++i) {
-		const double sigma = s(i);
-		if (std::abs(sigma) > 1e-14) coeff(i) = u_sum(i) / sigma;
+	for (int col = 0; col < N; ++col) {
+		int pivot = col;
+		Real max_abs = fabs(M[col * N + col]);
+		for (int row = col + 1; row < N; ++row) {
+			const Real v = fabs(M[row * N + col]);
+			if (v > max_abs) {
+				max_abs = v;
+				pivot = row;
+			}
+		}
+		if (max_abs < 1e-14) throw -3;
+
+		if (pivot != col) {
+			for (int j = col; j < N; ++j) {
+				std::swap(M[col * N + j], M[pivot * N + j]);
+			}
+			std::swap(b[col], b[pivot]);
+		}
+
+		const Real diag = M[col * N + col];
+		for (int row = col + 1; row < N; ++row) {
+			const Real factor = M[row * N + col] / diag;
+			if (factor == 0) continue;
+			M[row * N + col] = 0;
+			for (int j = col + 1; j < N; ++j) {
+				M[row * N + j] -= factor * M[col * N + j];
+			}
+			b[row] -= factor * b[col];
+		}
 	}
-	VectorXd result = svd.matrixV() * coeff;
-	for (int i = 0; i < N; ++i) X[i] = static_cast<Real>(result(i));
+
+	for (int row = N - 1; row >= 0; --row) {
+		Real sum = b[row];
+		for (int j = row + 1; j < N; ++j) {
+			sum -= M[row * N + j] * X[j];
+		}
+		const Real diag = M[row * N + row];
+		if (fabs(diag) < 1e-14) throw -3;
+		X[row] = sum / diag;
+	}
 }
 
 void SFNewton::DIIS(Real* x, Real* x_x0, Real* xR, Real* Aij, Real* Apij,Real* Ci, int k, int k_diis, int m, int nvar) {
@@ -867,100 +896,15 @@ Real SFNewton::computeresidual(Real* array, int size) {
 
 
 bool SFNewton::iterate_BRR(Real*x,int nvar_, int m, int iterationlimit,Real tolerance, Real delta_max) {
-#ifdef LongReal
-	cout <<"BRR is turned off due to long double calculations. Go to SFNewton to fix it" << endl;
+	(void)x;
+	(void)nvar_;
+	(void)m;
+	(void)iterationlimit;
+	(void)tolerance;
+	(void)delta_max;
+	cout << "BRR method is disabled in this minimal build. Use DIIS or pseudohessian." << endl;
 	return false;
 }
-#else
-
-if(debug) cout <<"Iterate_BBR in SFNewton " << endl; // trying the inverse Broyden notation using Eigen library.
-	int nvar=nvar_;
-	bool success=true;
-
-	MatrixXd CC(nvar,m+1); CC.setZero();
-	MatrixXd DD(nvar,m+1); DD.setZero();
-	MatrixXd thinQ(MatrixXd::Identity(nvar,m+1));
-	VectorXd y(nvar); //moet g-g0 gaan bevatten
-    VectorXd S(m+1);
-    Real* g = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g, nvar, 0);
-    Real* g0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g0, nvar, 0);
-    Real* p = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(p, nvar, 0);
-    Real* x0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(x0, nvar, 0);
-    Map<VectorXd> gg(g,nvar);
-    Map<VectorXd> gg0(g0,nvar);
-    //Map<VectorXd> pp0(p0,nvar);
-    Map<VectorXd> s(p,nvar);
-    Map<VectorXd> xx(x,nvar);
-    Map<VectorXd> xx0(x0,nvar);
-    double stHy,nHts;
-    int k=0;
-    int it=0;
-
-    Real error;
-    Real alpha;
-    residuals(x,g);
-    error=norm2(g,nvar);
-
-    if (e_info) {
-		cout <<"Broyden Rank Reduction -inverse notation- notified"<< endl;
-		cout <<"Your guess: " << error << endl;
-	}
-    while (it <iterationlimit && error>tolerance) {
-		std::copy_n(x, nvar, x0);
-		s=-gg+CC.block(0,1,nvar,k)*DD.block(0,1,nvar,k).transpose()*gg; //sign of s changed wrt Rotten thesis; equivalent to sign change of g.
-		std::copy_n(g, nvar, g0);
-		if (error>1) alpha=delta_max;
-		else alpha=delta_max - it*(1.0-delta_max)/1e4*log(error);
-		if (alpha>1) alpha=1;
-		if (alpha<0) alpha=tolerance;
-
-		xx=xx0+alpha*s;
-		residuals(x,g);
-		error=norm2(g,nvar);
-
-
-			//residuals(x,g);
-		//}
-		if (e_info && it%i_info==0) {
-			cout << "i = " << it <<"\tg = " << error << "\talpha = "<< alpha << endl;
-
-		}
-		y=gg0-gg; //sign of y changed wrt Rotten thesis ; equivalent to sign change of g.
-		it++;
-		if (k==m) {
-			HouseholderQR<MatrixXd> qr(DD);
-			DD=qr.householderQ()*thinQ;
-			CC=CC*qr.matrixQR().triangularView<Upper>().transpose()*thinQ;
-			JacobiSVD<MatrixXd> svd(CC,ComputeThinU | ComputeThinV);
-			S=svd.singularValues();
-			CC=svd.matrixU()*S.asDiagonal();
-			DD=DD*svd.matrixV();
-			CC.col(k).setZero(); DD.col(k).setZero();k--;
-			for (int i=m-1; i>1; i--) {
-				if (S(i)/S(0)< tolerance) {
-					CC.col(k).setZero(); DD.col(k).setZero();k--;
-				}
-			}
-		}
-		k++;
-		CC.col(k)=CC.block(0,1,nvar,k-1)*DD.block(0,1,nvar,k-1).transpose()*y-y;
-		stHy=s.dot(CC.col(k)); if (stHy==0) {
-			cout <<"stHy = 0"<< endl;
-			return false;
-		}
-		DD.col(k)=DD.block(0,1,nvar,k-1)*CC.block(0,1,nvar,k-1).transpose()*s-s;
-		nHts=pow(DD.col(k).dot(DD.col(k)),0.5); if (nHts==0) {
-			cout <<"nHts = 0 " << endl;
-			return false;
-		}
-		CC.col(k)=(s-CC.col(k))/stHy*nHts;
-		DD.col(k)=DD.col(k)/nHts;
-	}
-	if (it == iterationlimit+1) return false;
-	cout <<"BRR: that will do. Error: " << error << endl;
-	return success;
-}
-#endif
 
 bool SFNewton::iterate_DIIS(Real*x,int nvar_, int m, int iterationlimit,Real tolerance, Real delta_max, int restart_DIIS) {
 if(debug) cout <<"Iterate_DIIS in SFNewton " << endl;

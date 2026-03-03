@@ -667,6 +667,12 @@ bool Input:: CheckInput(void) {
 		vector<std::string> set;
 		split(elems[i],':',set);
 		word=set[1];
+		if (word=="alias" || word=="var" || word=="micro") {
+			cout << "Keyword '" << word << "' is not supported in this minimal build." << endl;
+			success=false;
+			i++;
+			continue;
+		}
 		//word.erase(std::remove(word.begin(), word.end(), ' '), word.end());
 		j=0; Keywordfound=false;
 		while (j<key_length) {

@@ -60,17 +60,8 @@ NAMICS_DBG_THIS("Load in output " << endl);	bool success=true;
 							OUT_prop.push_back(s);
 						}
 					} else {
-						int AlListlength=Mol[molnr]->MolAlList.size();
-						for (int j=0; j<AlListlength; j++) {
-							if (Mol[molnr]->Al[j]->value <1) {
-								OUT_key.push_back(OUT_key[i]);
-								OUT_name.push_back(OUT_name[i]);
-								string s="";
-								s=s.append(Mol[molnr]->Al[j]->name);
-								s=s.append(sub[1]);
-								OUT_prop.push_back(s);
-							}
-						}
+						cout << "Alias-based wildcard output is not supported in this minimal build." << endl;
+						return false;
 					}
 					OUT_key.erase(OUT_key.begin()+i);
 					OUT_name.erase(OUT_name.begin()+i);
@@ -304,16 +295,14 @@ NAMICS_DBG_THIS("GetPointer in output " << endl); int monlistlength=In->MonList.
 int Output::GetValue(string key, string name, string prop, int &int_result, Real &Real_result, string &string_result) {
 NAMICS_DBG_THIS("GetValue (long) in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
-	int allistlength;
 	int choice=0;
-	int i,j;
+	int i;
 	if  (key=="sys") choice=1;
 	if  (key=="mol") choice=2;
 	if  (key=="mon") choice=3;
 	if  (key=="newton") choice=4;
 	if  (key=="lat") choice=5;
 	if  (key=="output") choice=6;
-	if  (key=="alias") choice=7;
 	switch(choice) {
 		case 1:
 			return Sys->GetValue(prop,int_result,Real_result,string_result);
@@ -340,18 +329,6 @@ NAMICS_DBG_THIS("GetValue (long) in output " << endl); int monlistlength=In->Mon
 			break;
 		case 6:
 			return GetValue(prop,name,int_result,Real_result,string_result);
-			break;
-		case 7:
-			i=0;
-			while (i<mollistlength) {
-				j=0;
-				allistlength=Mol[i]->MolAlList.size();
-				while(j<allistlength) {
-					if (name==Mol[i]->Al[j]->name) return Mol[i]->Al[j]->GetValue(prop,int_result,Real_result,string_result);
-					j++;
-				}
-				i++;
-			}
 			break;
 		default:
 			cout << "Program error: in Output, GetValue reaches default...." << endl;
