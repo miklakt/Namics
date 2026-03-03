@@ -1,5 +1,4 @@
 #include "segment.h"
-#include <random>
 #include <fstream>
 
 Segment::Segment(const Input* In_,Lattice* Lat_, string name_,int segnr,int N_seg) {
@@ -26,9 +25,6 @@ NAMICS_DBG("Segment constructor" + name << endl);
 	KEYS.push_back("seed");
 	KEYS.push_back("var_pos");
 	KEYS.push_back("phi");
-	KEYS.push_back("n");
-	KEYS.push_back("size");
-	KEYS.push_back("pos");
 	KEYS.push_back("set_equal_to");
 	Amplitude=0; labda=0; seed=1;
 	var_pos=0;
@@ -363,8 +359,8 @@ NAMICS_DBG("ParseFreedoms " << endl);
 		if (GetValue("frozen_range").size()>0 && GetValue("frozen_filename").size()>0) {
 			cout<< "For mon " + name + ", you can not combine 'frozen_range' with 'frozen_filename' " <<endl; success=false;
 		}
-		if (GetValue("frozen_range").size()==0 && GetValue("frozen_filename").size()==0 && GetValue("n").size()==0) {
-			cout<< "For mon " + name + ", you should provide either 'frozen_range' or 'frozen_filename' or specify the number of particles by  'n' " <<endl; success=false;
+		if (GetValue("frozen_range").size()==0 && GetValue("frozen_filename").size()==0) {
+			cout<< "For mon " + name + ", you should provide either 'frozen_range' or 'frozen_filename' " <<endl; success=false;
 		}
 		if (GetValue("frozen_range").size()>0) {
 			s_freedom="frozen_range";
@@ -528,154 +524,6 @@ NAMICS_DBG("ParseFreedoms " << endl);
 				if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,s_freedom);
 			}
 		}
-		if (GetValue("frozen_range").size()==0 && lat->geometry == "cylindrical" && lat->gradients == 2) {
-			int fjc=lat->fjc;
-			//this case we can have a particle at the axis
-			if (GetValue("n").size()==0 || GetValue("pos").size()==0 || GetValue("size").size()==0) {
-
-				success=false;
-				cout <<"For seg " << name << endl;
-				cout <<"Expecting values for 'n', 'pos' and 'size' for the definition of the particle at the axis of cylindrical coordonate system " << endl;
-				cout<< "More specifically we expect n : 1 ; size < n_layers_x and size < n_layers_y; pos : (0,y) " << endl;
-			}
-			n=ParseInt(GetValue("n"),-1); if (n!=1) {success = false; cout <<"expect value for 'n' to be unity, that is, 'n : 1' in this case"<< endl; }
-			R=ParseInt(GetValue("size"),-1); if (R<0) {success = false ; cout <<"expecting positive integer for 'size' " << endl; }
-			R*=fjc; //R is expressed in grit-units
-			if (GetValue("pos")=="?") {success = false; cout <<" expect (0,y) coordinate in this case, in segment size units" << endl; }
-			if (success) {
-				int fjc=lat->fjc;
-				px.clear(); py.clear(); pz.clear();
-				vector<int>open;
-				vector<int>close;
-				vector<string>sub;
-				string t=GetValue("pos");
-				if (!In->EvenBrackets(t,open,close)) {cout << "Brackets in 'pos' not balanced "<<endl; success=false;};
-				int opensize=open.size();
-			       	if (opensize !=n ) {
-					success=false; cout <<"number of positions not equal to 'n' " << endl;
-				} else {
-					for (int i=0; i<n; i++) {
-						sub.clear();
-						string tt=t.substr(open[i]+1,close[i]-open[i]-1); //cout << tt << endl;
-						In->split(tt,',',sub);
-						if (sub.size() !=2) {
-							success=false;
-							cout <<"pos does not contain expected (x,y) set. Problem occurred for for particle nr " << i << "We found: " +tt << endl;
-						} else {
-							px.push_back(ParseInt(sub[0],-1));px[i]*=fjc; //px in grit units
-							py.push_back(ParseInt(sub[1],-1));py[i]*=fjc; //py in grit units
-							if (px[i] !=0) {success=false; cout << "pos x for particle " << i << " is expected to be 0; we found " << px[i] << endl; }
-							if (py[i] <0 || py[i]>lat->MY) {success=false; cout << "pos y for particle " << i << " out of bounds or not an integer: " << py[i] << endl; }
-							pz.push_back(0);
-						}
-					}
-				}
-			}
-
-		}
-		if (n_pos<1 && lat->gradients==3 && px.size()==0 && !block) {
-			n=0; R=0; px.clear(); py.clear(); pz.clear();
-			int fjc=lat->fjc;
-			bool found=false;
-			if (GetValue("n").size()==0 || GetValue("pos").size()==0 || GetValue("size").size()==0) {
-				success=false; cout <<"Expecting values for 'n', 'pos' and 'size' for the definition of the set of spherical particles in the system. " << endl;
-			} else {
-				n=ParseInt(GetValue("n"),-1); if (n<0) {success=false; cout <<" expecting positive integer for 'n'" << endl;}
-				R=ParseInt(GetValue("size"),-1); if (R<0) {success =false ; cout <<" expecting positive integer for 'size' "<<endl; }
-				R*=fjc;  //here I alrady express R in grit units not segment units.
-				//		px.push_back(1+rand()%lat->MX);
-				//		py.push_back(1+rand()%lat->MY);
-				//		pz.push_back(1+rand()%lat->MZ);
-				//	}
-				//}
-				if (GetValue("pos")=="?") {
-					cout << "Info: 'pos' variable should contain either the keywords 'regular' or 'random' or a sequence of n times '(x,y,z)' coordinates" << endl;
-				       	success=false;
-				}
-				if (GetValue("pos")=="regular"||GetValue("pos")=="random") {
-					found=true;
-					int MX=lat->MX;
-					int MY=lat->MY;
-					int MZ=lat->MZ;
- 					int V=MX*MY*MZ;
-					int a = pow(V/n,1.0/3.0);
-					if (a<2*R) {
-						cout << "Warning: overlap can not be avoided " << endl;
-					}
-					int n_placed=0;
-					if (a>2*R+1) a--;
-
-					for (int i=1; i<MX-2*R+2; i+=a)
-					for (int j=1; j<MY-2*R+2; j+=a)
-					for (int k=1; k<MZ-2*R+2; k+=a) {
-						if (n_placed < n) {
-							px.push_back(i); py.push_back(j); pz.push_back(k);//px py and pz are already in grit units.
-							n_placed++;
-						}
-
-					}
-					if (n_placed < n) { cout <<"Problem: could not place all n particles in volume. Placed only  "<< n_placed << " partictles " << endl; }
-				}
-
-				if (GetValue("pos")=="random" && success) {
-					srand(1);
-					int num_of_moves =100*n*n;
-					int I;
-					int X;
-					int Y;
-					int Z;
-					int MX=lat->MX; //grit units
-					int MY=lat->MY; //grit units
-					int MZ=lat->MZ; //grit unicts
-					for (int i=0; i<num_of_moves; i++) { //randomise...
-						I=rand()%n;
-						X=px[I]; Y=py[I]; Z=pz[I];
-						px[I]+=rand()%3-1; if (px[I]<1) px[I]+=MX; if (px[I]>MX) px[I]-=MX;
-						py[I]+=rand()%3-1; if (py[I]<1) py[I]+=MY; if (py[I]>MY) py[I]-=MY;
-						pz[I]+=rand()%3-1; if (pz[I]<1) pz[I]+=MZ; if (pz[I]>MZ) pz[I]-=MZ;
-						if (Overlap(I,R)) {
-							px[I]=X; py[I]=Y; pz[I]=Z;
-						}
-					}
-				}
-				if (!found) {
-					vector<int>open;
-					vector<int>close;
-					vector<string>sub;
-					string t=GetValue("pos");
-					if (!In->EvenBrackets(t,open,close)) {cout << "Brackets in 'pos' not balanced "<<endl; success=false;};
-					int opensize=open.size();
-			        	if (opensize !=n ) {
-							success=false; cout <<"number of positions not equal to 'n' " << endl;
-						} else {
-							for (int i=0; i<n; i++) {
-								sub.clear();
-							string tt=t.substr(open[i]+1,close[i]-open[i]-1); //cout << tt << endl;
-							In->split(tt,',',sub);
-							if (sub.size() !=3) {
-								success=false;
-								cout <<"Format error: 'pos' did not contain the keywords 'regular' nor 'random'," << endl;
-								cout <<"nor did 'pos'  contain expected (x,y,z) sets. Problem occurred for for particle nr " << i << "We found: " +tt << endl;
-							} else {
-								px.push_back(ParseInt(sub[0],-1)); px[i]*=fjc;
-								py.push_back(ParseInt(sub[1],-1)); py[i]*=fjc;
-								pz.push_back(ParseInt(sub[2],-1)); pz[i]*=fjc;
-								if (px[i] <0 || px[i]>lat->MX) {success=false; cout << "pos x for particle " << i << " out of bounds or not an integer: " << px[i] << endl; }
-								if (py[i] <0 || py[i]>lat->MY) {success=false; cout << "pos y for particle " << i << " out of bounds or not an integer: " << py[i] << endl; }
-								if (pz[i] <0 || pz[i]>lat->MZ) {success=false; cout << "pos z for particle " << i << " out of bounds or not an integer: " << pz[i] << endl; }
-							}
-						}
-					}
-				}
-			}
-		}
-		if (px.size()>0) {
-			HMaskDone=true;
-			if (success) {
-			if (!lat->PutMask(H_MASK,px,py,pz,R)) cout <<"overlap occurred "<<endl;
-			}
-
-		}
 	}
 
 	if (freedom == "tagged") {
@@ -770,34 +618,6 @@ Real Segment::PinnedVolume() {
 		//(volume) = 0; for (int __i = 0; __i < (M); ++__i) (volume) += (MASK)[__i] * (lat->L)[__i];
 	}
 	return volume/lat->fjc;
-}
-
-bool Segment::Overlap(int I, int R) {
-	int X=px[I];
-	int Y=py[I];
-	int Z=pz[I];
-	int n=px.size();
-	int RR=4*R*R;
-	int dx,dy,dz;
-	int MX=lat->MX;
-	int MY=lat->MY;
-	int MZ=lat->MZ;
-
-	for (int i=0; i<n; i++) {
-		if (i != I) {
-			dx=px[i]-X;
-			if (dx>MX/2)  dx-=MX;
-			if (dx<-MX/2) dx+=MX;
-			dy=py[i]-Y;
-			if (dy>MY/2)  dy-=MY;
-			if (dy<-MY/2) dy+=MY;
-			dz=pz[i]-Z;
-			if (dz>MZ/2)  dz-=MZ;
-			if (dz<-MZ/2) dz+=MZ;
-			if (dx*dx+dy*dy+dz*dz<RR+4) return true;
-		}
-	}
-	return false;
 }
 
 bool Segment::PrepareForCalculations(Real* KSAM, bool first_time) {
@@ -1192,17 +1012,6 @@ Real Segment::Get_g(int ii) {
 void Segment::Put_beta(int ii, Real BETA) {
 	constraint_beta[ii]=BETA; //just to enable it to be outputted.
 	u[constraint_z[ii]] +=BETA;
-}
-
-Real Segment::Volume_particles() {
-	Real volume=0;
-	if (freedom=="frozen") {
-		volume = 0;
-	}
-	for (int __i = 0; __i < (lat->M); ++__i) {
-		volume += H_MASK[__i];
-	}
-	return 1.0*volume;
 }
 
 bool Segment::PutAdsorptionGuess(Real chi,Real* Mask) {
@@ -1717,14 +1526,6 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 	push("theta",theta);
 	Real theta_exc=0;
 	Real RMS=0;
-	if (freedom == "frozen" && n==1 && lat->geometry=="cylindrical") {
-		string s=GetValue("pos");
-		int length = s.size();
-		if (length>3) push("pos",s.substr(3,length-4));
-		push("size",R);
-
-	}
-
 	if (freedom == "frozen" || freedom == "pinned") {
 		Real num_of_points;
 		(num_of_points) = 0; for (int __i = 0; __i < (M); ++__i) (num_of_points) += (MASK)[__i];

@@ -2022,7 +2022,9 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 		Real Volume_particles=0;
 		int num_of_seg=In->MonList.size();
 		for (int i=0; i<num_of_seg; i++) {
-			if (Seg[i]->freedom=="frozen") Volume_particles += Seg[i]->Volume_particles();
+			if (Seg[i]->freedom=="frozen") {
+				for (int __j = 0; __j < lat->M; ++__j) Volume_particles += Seg[i]->MASK[__j];
+			}
 		}
 		push("Gamma",theta-(TrueVolume-Volume_particles)*phibulk);
 	}

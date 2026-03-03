@@ -23,11 +23,6 @@ public:
 	vector<int> bx;
 	vector<int> by;
 	vector<int> bz;
-	vector<int> px;
-	vector<int> py;
-	vector<int> pz;
-	int n;
-	int R;
 	vector<int> constraint_z;
 	vector<Real> constraint_phi;
 	vector<Real> constraint_beta;
@@ -107,8 +102,6 @@ public:
 	void push(string,int);
 	void push(string,bool);
 	void push(string,string);
-	Real Volume_particles(void);
-	bool Overlap(int,int);
 	void PushOutput();
 	Real* GetPointer(string,int&);
 	int* GetPointerInt(string,int&);
