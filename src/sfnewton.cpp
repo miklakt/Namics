@@ -1,4 +1,5 @@
 #include <iostream>
+#include <numeric>
 #include "sfnewton.h"
 #include "tools_host.h"
 
@@ -106,8 +107,7 @@ NAMICS_DBG("multiply in Newton" << endl);
 
 Real SFNewton::norm2(Real*x, int nvar) { //done
 NAMICS_DBG("norm2 in Newton" << endl);
-	Real sum=0;
-	for (int i=0; i<nvar; i++) sum += pow(x[i],2);
+	const Real sum = std::inner_product(x, x + nvar, x, Real(0));
 	return sqrt(sum);
 }
 
@@ -282,7 +282,7 @@ Real SFNewton::linecriterion(Real *g, Real *g0, Real *p, Real *p0, int nvar) {
 NAMICS_DBG("linecriterion in Newton " << endl);
 	Real normg,gg0;
 	normg = norm2(g0,nvar);
-  	(gg0) = 0; for (int __i = 0; __i < (nvar); ++__i) (gg0) += (g)[__i] * (g0)[__i];
+	gg0 = std::inner_product(g, g + nvar, g0, Real(0));
 
 	gg0=gg0/normg/normg;
 	normg = pow(norm2(g,nvar)/normg,2);
@@ -317,9 +317,7 @@ NAMICS_DBG("direction in Newton " << endl);
 		newtondirection = signdeterminant(h,nvar)>0;
 	}
 	if ( !newtondirection ) {
-		for (int i=0; i<nvar; i++) {
-			p[i] *= -1;
-		}
+		std::transform(p, p + nvar, p, [](Real value) { return -value; });
 		if ( e_info && t_info) cout << "*";
 	}
 }
@@ -344,7 +342,7 @@ NAMICS_DBG("resethessian in Newton" << endl);
 void SFNewton::newhessian(Real *h, Real *g, Real *g0, Real *x, Real *p, int nvar, Real accuracy,Real ALPHA,bool filter) {//done
 NAMICS_DBG("newhessian in Newton" << endl);
 
-	Real dmin=0,sum=0,theta=0,php=0,dg=0,gg=0,g2=0,py=0,y2=0;
+	Real dmin=0,sum=0,theta=0,php=0,gg=0,g2=0,py=0,y2=0;
 	dmin = 1/pow(2.0,nbits); // alternative: DBL_EPSILON or DBL_MIN
 	if (!pseudohessian){
 		findhessian(h,g,x,nvar,filter);
@@ -353,21 +351,19 @@ NAMICS_DBG("newhessian in Newton" << endl);
 			Real *y = new Real[nvar];
 			Real *hp = new Real[nvar];
 			py = php = y2 = gg = g2 = 0;
-			for (int i=0; i<nvar; i++) {
-				y[i] = dg = g[i]-g0[i];
-				py += p[i]*dg;
-				y2 += pow(y[i],2);
-				gg += g[i]*g0[i];
-				g2 += pow(g[i],2);
-			}
+			std::transform(g, g + nvar, g0, y, std::minus<Real>());
+			py = std::inner_product(p, p + nvar, y, Real(0));
+			y2 = std::inner_product(y, y + nvar, y, Real(0));
+			gg = std::inner_product(g, g + nvar, g0, Real(0));
+			g2 = std::inner_product(g, g + nvar, g, Real(0));
 
 			if ( !newtondirection ) {
 				multiply(hp,1,h,p,nvar);
 			} else {
-				for (int i=0; i<nvar; i++) hp[i] = -g0[i];
+				std::transform(g0, g0 + nvar, hp, [](Real value) { return -value; });
 			}
 
-			(php) = 0; for (int __i = 0; __i < (nvar); ++__i) (php) += (p)[__i] * (hp)[__i];
+			php = std::inner_product(p, p + nvar, hp, Real(0));
 			theta = py/(10*dmin+ALPHA*php);
 
 			if ( nvar>=1 && theta>0 && iterations==resetiteration+1 && accuracy > max_accuracy_for_hessian_scaling) {
@@ -377,10 +373,8 @@ NAMICS_DBG("newhessian in Newton" << endl);
 				ALPHA *= theta;
 				py /= theta;
 				php /= theta;
-				for (int i=0; i<nvar; i++) {
-					p[i] /= theta;
-					h[i+nvar*i] *= theta;
-				}
+				std::transform(p, p + nvar, p, [theta](Real value) { return value / theta; });
+				for (int i=0; i<nvar; i++) h[i+nvar*i] *= theta;
 			}
 			if (nvar>=1) trustfactor *= (4/(pow(theta-1,2)+1)+0.5);
 			if ( nvar>1 ) {
@@ -388,7 +382,7 @@ NAMICS_DBG("newhessian in Newton" << endl);
 				theta = fabs(py/(ALPHA*php));
 				if ( theta<.01 ) sum /= 0.8;
 				else if ( theta>100 ) sum *= theta/50;
-				for (int i=0; i<nvar; i++) y[i] -= ALPHA*hp[i];
+				std::transform(y, y + nvar, hp, y, [ALPHA](Real yi, Real hpi) { return yi - ALPHA * hpi; });
 
 				updatpos(h,y,p,nvar,1.0/sum);
 				trouble -= signdeterminant(h,nvar);
@@ -397,11 +391,10 @@ NAMICS_DBG("newhessian in Newton" << endl);
 				trouble = 0;
 				theta = py>0.2*ALPHA*php ? 1 : 0.8*ALPHA*php/(ALPHA*php-py);
 				if ( theta<1 ) {
-					py = 0;
-					for (int i=0; i<nvar; i++) {
-						y[i] = theta*y[i]+(1-theta)*ALPHA*hp[i];
-						py += p[i]*y[i];
-					}
+					std::transform(y, y + nvar, hp, y, [theta, ALPHA](Real yi, Real hpi) {
+						return theta * yi + (1 - theta) * ALPHA * hpi;
+					});
+					py = std::inner_product(p, p + nvar, y, Real(0));
 				}
 				updatpos(h,y,y,nvar,1.0/(ALPHA*py));
 				updateneg(h,hp,nvar,-1.0/php);
@@ -429,9 +422,7 @@ NAMICS_DBG("numhessian in Newton" << endl);
 		x[i] += di;
 		COMPUTEG(x,g1,nvar,filter);
 		x[i] = xt;
-		for (int j=0; j<nvar; j++ ) {
-			h[j+nvar*i] = (g1[j]-g[j])/di;
-		}
+		std::transform(g1, g1 + nvar, g, &h[nvar * i], [di](Real g1v, Real gv) { return (g1v - gv) / di; });
 	}
 	delete [] g1;
 	COMPUTEG(x,g,nvar,filter);
@@ -548,7 +539,7 @@ NAMICS_DBG("zero in Newton " << endl);
 		}
 	}
 
-	for (int i=0; i<nvar; i++) x[i] = x0[i]+alpha*p[i];
+	std::transform(x0, x0 + nvar, p, x, [alpha](Real x0v, Real pv) { return x0v + alpha * pv; });
 	valid = true;
 
 	COMPUTEG(x,g,nvar,filter);
@@ -671,7 +662,9 @@ NAMICS_DBG("iterate in SFNewton" << endl);
 
 	std::copy_n(x, nvar, x0);
 	if (filter) {
-		for (int i=0; i<nvar; i++) x[i]+=1e-10*(Real)rand() / (Real)((unsigned)RAND_MAX + 1);
+		std::transform(x, x + nvar, x, [](Real xv) {
+			return xv + 1e-10 * (Real)rand() / (Real)((unsigned)RAND_MAX + 1);
+		});
 		residuals(x,g);
 		std::copy_n(x0, IV, x);
 		int xxx=0;
@@ -756,7 +749,7 @@ Real* g = (Real*) malloc(nvar*sizeof(Real));
 			printf("it = %i g = %e \n",it,residual);
 #endif
 		}
-		for (int __i = 0; __i < (nvar); ++__i) (x)[__i] += (delta_max) * (g)[__i];
+		std::transform(x, x + nvar, g, x, [delta_max](Real xv, Real gv) { return xv + delta_max * gv; });
 		residual=computeresidual(g,nvar);
 		//inneriteration(x,g,h,residual,nvar);
 		it++;
@@ -842,7 +835,7 @@ NAMICS_DBG("DIIS in  SFNewton " << endl);
       		posi +=m;
 		}
 	  	Real Dvalue;
-    		(Dvalue) = 0; for (int __i = 0; __i < (nvar); ++__i) (Dvalue) += (x_x0+posi*nvar)[__i] * (x_x0+k*nvar)[__i];
+		Dvalue = std::inner_product(x_x0 + posi * nvar, x_x0 + (posi + 1) * nvar, x_x0 + k * nvar, Real(0));
 		Aij[i+m*(k_diis-1)] = Aij[k_diis-1+m*i] = Dvalue + 1e-9;
 		// write to (compressed) matrix Apij
 		for (int j=0; j<k_diis; j++)
@@ -854,10 +847,8 @@ NAMICS_DBG("DIIS in  SFNewton " << endl);
 
 	Real normC=0;
 
-	for (int i=0; i<k_diis; i++)
-    	normC +=Ci[i];
-	for (int i=0; i<k_diis; i++)
-    	Ci[i] =Ci[i]/normC;
+	normC = std::accumulate(Ci, Ci + k_diis, Real(0));
+	std::transform(Ci, Ci + k_diis, Ci, [normC](Real value) { return value / normC; });
 	std::fill_n(x, nvar, 0);
 	posi = k-k_diis+1;
 
@@ -887,8 +878,7 @@ Real SFNewton::computeresidual(Real* array, int size) {
 
   } else {
     // Compute residual based on sum of errors
-		residual = 0;
-		for (int i = 0; i < size; i++) residual += array[i] * array[i];
+		residual = std::inner_product(array, array + size, array, Real(0));
 		residual = sqrt(residual);
   }
 
@@ -929,8 +919,8 @@ NAMICS_DBG("Iterate_DIIS in SFNewton " << endl);
 
 		residuals(x,g);
 
-		for (int __i = 0; __i < (nvar); ++__i) (x)[__i] += (-delta_max) * (g)[__i];
-		for (int __i = 0; __i < (nvar); ++__i) (x_x0)[__i] = (x)[__i] - (x0)[__i];
+		std::transform(x, x + nvar, g, x, [delta_max](Real xv, Real gv) { return xv - delta_max * gv; });
+		std::transform(x, x + nvar, x0, x_x0, std::minus<Real>());
 		std::copy_n(x, nvar, xR);
   		residual = computeresidual(g, nvar);
 
@@ -949,9 +939,9 @@ NAMICS_DBG("Iterate_DIIS in SFNewton " << endl);
 			std::copy_n(x, nvar, x0);
 			residuals(x,g);
 			k=iterations % m; k_diis++; //plek voor laatste opslag
-			for (int __i = 0; __i < (nvar); ++__i) (x)[__i] += (-delta_max) * (g)[__i];
+			std::transform(x, x + nvar, g, x, [delta_max](Real xv, Real gv) { return xv - delta_max * gv; });
 			std::copy_n(x, nvar, xR+k*nvar);
-			for (int __i = 0; __i < (nvar); ++__i) (x_x0+k*nvar)[__i] = (x)[__i] - (x0)[__i];
+			std::transform(x, x + nvar, x0, x_x0 + k * nvar, std::minus<Real>());
 			DIIS(x,x_x0,xR,Aij,Apij,Ci,k,k_diis,m,nvar);
     			residual = computeresidual(g, nvar);
 			if(e_info && iterations%i_info == 0){
@@ -1073,59 +1063,49 @@ bool SFNewton::iterate_conjugate_gradient(Real *x, int nvar,int iterationlimit ,
 	}
 	residuals(x,g);
 
-	for (int z=0; z<nvar; z++) {
-		r[z] = -g[z];
-		d[z]=r[z];
-		delta_new += r[z]*r[z];
-	}
+	std::transform(g, g + nvar, r, [](Real value) { return -value; });
+	std::copy_n(r, nvar, d);
+	delta_new = std::inner_product(r, r + nvar, r, Real(0));
 
 	accuracy= pow(delta_new,0.5);
 
 	cout << "i = " << iterations << " |g| = "<< accuracy << endl;
 	while (tolerance < accuracy && iterations<iterationlimit) {
 		j=0;
-		delta_d=0;
-		for (int z=0; z<nvar; z++) delta_d += d[z]*d[z];
+		delta_d = std::inner_product(d, d + nvar, d, Real(0));
 		inner_err = pow(delta_d,0.5);
 		proceed=true;
     // line search
 		while (proceed) {
-			teller=0;
-
-			for (int z=0; z<nvar; z++) {
-				teller -= g[z]*d[z];
-
-				x0[z]=x[z];
-			}
+			teller = -std::inner_product(g, g + nvar, d, Real(0));
+			std::copy_n(x, nvar, x0);
 			Hd(H_d,d,x,x0,g,dg,nvar);
-			noemer=0;
-
-			for (int z=0; z<nvar; z++) noemer +=H_d[z]*d[z];
+			noemer = std::inner_product(H_d, H_d + nvar, d, Real(0));
 			alpha=teller/noemer;
 
-			for (int z=0; z<nvar; z++) {x[z]=x0[z]+deltamax*alpha*d[z];}
+			std::transform(x0, x0 + nvar, d, x, [deltamax, alpha](Real x0v, Real dv) {
+				return x0v + deltamax * alpha * dv;
+			});
 			residuals(x,g);
 			j++;
 			proceed =(j<j_max && alpha*inner_err> 1e-8);
 		}
 
 
-   		for (int z=0; z<nvar; z++) r_old[z]=r[z];
-		for (int z=0; z<nvar; z++) r[z]=-g[z];
+		std::copy_n(r, nvar, r_old);
+		std::transform(g, g + nvar, r, [](Real value) { return -value; });
 		delta_old=delta_new;
-		delta_new=0;
-    		for (int z=0; z<nvar; z++) delta_mid += r[z]*r_old[z];
-		for (int z=0; z<nvar; z++) delta_new += r[z]*r[z];
+		delta_mid += std::inner_product(r, r + nvar, r_old, Real(0));
+		delta_new = std::inner_product(r, r + nvar, r, Real(0));
 		beta =  (delta_new-delta_mid)/delta_old;
-		for (int z=0; z<nvar; z++) d[z]=r[z]+beta*d[z];
+		std::transform(r, r + nvar, d, d, [beta](Real rv, Real dv) { return rv + beta * dv; });
 		k++;
-		rd=0;
-		for (int z=0; z<nvar; z++) rd +=r[z]*d[z];
+		rd = std::inner_product(r, r + nvar, d, Real(0));
 
 		if (k == nvar || rd<=0) {
 			k=0; beta=0;
 
-			for (int z=0; z<nvar; z++) d[z]=r[z];
+			std::copy_n(r, nvar, d);
 		}
 		iterations++;
 		accuracy = pow(delta_new,0.5);
@@ -1146,17 +1126,17 @@ void SFNewton::Hd(Real *H_q, Real *q, Real *x, Real *x0, Real *g, Real* dg, Real
 
 
 	Real epsilon = 2e-8; //double precision. Machine error =10^-16; epsilon = 2 sqrt(precision)
+	const int nvar_i = static_cast<int>(nvar);
 
-	Real normq = norm2(q,nvar);
-	Real normx = norm2(x0,nvar);
+	Real normq = norm2(q,nvar_i);
+	Real normx = norm2(x0,nvar_i);
 	Real delta = epsilon* (1+normx)/normq;
 
 
 
-	for (int i=0; i<nvar; i++)
-    x[i] = x0[i] + delta*q[i];
+	std::transform(x0, x0 + nvar_i, q, x, [delta](Real x0v, Real qv) { return x0v + delta * qv; });
 
 	residuals(x,dg);
   
-	for (int i=0; i<nvar; i++) H_q[i] = (dg[i]-g[i])/delta;
+	std::transform(dg, dg + nvar_i, g, H_q, [delta](Real dgv, Real gv) { return (dgv - gv) / delta; });
 }
