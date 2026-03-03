@@ -785,16 +785,20 @@ NAMICS_DBG("ReadRangeFile in LGrad2 " << endl);	if (fjc>1) {
 	bool success=true;
 	string content;
 	vector<string> lines;
-	vector<string> sub;
 	vector<string> xyz;
-	string Infilename=In->name;
-	In->split(Infilename,'.',sub);
+	string input_stem = In->name;
+	const size_t slash_pos = input_stem.find_last_of("/\\");
+	const size_t dot_pos = input_stem.find_last_of('.');
+	if (dot_pos != string::npos && (slash_pos == string::npos || dot_pos > slash_pos)) {
+		input_stem.erase(dot_pos);
+	}
+	const string resolved_range_file = input_stem + "." + filename;
 
 	int length;
 	int length_xyz;
 	int px,py,p_i,x,y;
 	int i=0;
-	if (!io::ReadSanitizedFile(sub[0].append(".").append(filename),content)) {
+	if (!io::ReadSanitizedFile(resolved_range_file,content)) {
 		success=false;
 		return success;
 	}

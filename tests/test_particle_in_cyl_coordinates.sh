@@ -5,10 +5,10 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
 
 binary="${repo_root}/bin/namics"
-input_file="${repo_root}/tests/frozen_range_input_file.in"
-reference_file="${repo_root}/tests/reference/frozen_range_input_file.json.ref"
+input_file="${repo_root}/tests/particle_in_cyl_coordinates.in"
+reference_file="${repo_root}/tests/reference/particle_in_cyl_coordinates.json.ref"
 output_dir="${repo_root}/output"
-output_file_json="${output_dir}/frozen_range_input_file.json"
+output_file_json="${output_dir}/particle_in_cyl_coordinates.json"
 compare_script="${repo_root}/tests/compare_profile_content.py"
 phi_tolerance="1e-6"
 xy_tolerance="1e-12"
@@ -24,20 +24,12 @@ if [[ ! -x "${binary}" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${input_file}" ]]; then
-  echo "ERROR: input file not found: ${input_file}" >&2
-  exit 1
-fi
-
-if [[ ! -f "${reference_file}" ]]; then
-  echo "ERROR: reference file not found: ${reference_file}" >&2
-  exit 1
-fi
-
-if [[ ! -f "${compare_script}" ]]; then
-  echo "ERROR: compare script not found: ${compare_script}" >&2
-  exit 1
-fi
+for required_file in "${input_file}" "${reference_file}" "${compare_script}"; do
+  if [[ ! -f "${required_file}" ]]; then
+    echo "ERROR: required file not found: ${required_file}" >&2
+    exit 1
+  fi
+done
 
 mkdir -p "${output_dir}"
 rm -f "${output_file_json}"
@@ -50,8 +42,8 @@ if [[ ! -s "${output_file_json}" ]]; then
 fi
 
 if ! python3 "${compare_script}" --left "${reference_file}" --right "${output_file_json}" --coord-tol "${xy_tolerance}" --value-tol "${phi_tolerance}"; then
-  echo "ERROR: output differs from reference (within tolerance): ${reference_file}" >&2
+  echo "ERROR: output differs from reference: ${reference_file}" >&2
   exit 1
 fi
 
-echo "PASS: frozen range input file regression test"
+echo "PASS: particle_in_cyl_coordinates regression test"

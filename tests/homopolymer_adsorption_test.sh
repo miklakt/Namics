@@ -64,7 +64,7 @@ solver_runtime_ms=0
 } > "${run_log}"
 
 for chi in "${chi_values[@]}"; do
-  reference_file="${reference_dir}/homopolymer_adsorption.chi_${chi}.pro.ref"
+  reference_file="${reference_dir}/homopolymer_adsorption.chi_${chi}.json.ref"
 
   if [[ ! -f "${reference_file}" ]]; then
     echo "ERROR: reference file not found: ${reference_file}" >&2
