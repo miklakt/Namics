@@ -533,12 +533,7 @@ if(debug) cout <<"Solve in  Solve_scf " << endl;
 			control = proceed;
 		}
 
-	Real res;
-	SCF_LBFGS fun(In,Lat,Seg,Sta,Rea,Mol,Sys);
-	NamicsLBFGSParam<Real> param;
-	LBFGSSolver<Real> mysolver(param);
-
-	switch(solver) {
+		switch(solver) {
 		case HESSIAN:
 			success=iterate(xx,iv,iterationlimit,tolerance,deltamax,deltamin,true);
 		break;
@@ -559,19 +554,23 @@ if(debug) cout <<"Solve in  Solve_scf " << endl;
 		break;
 		case LBFGS:
 			success=true;
-			res=0;
+			{
+			SCF_LBFGS fun(In,Lat,Seg,Sta,Rea,Mol,Sys);
+			LBFGSParam<Real> param;
 			param.epsilon=tolerance;
 			param.m=m;
-			param.delta_max = deltamax;
-			param.delta_min = deltamin;
 			param.max_iterations =iterationlimit;
-			param.e_info =e_info;
-			param.i_info =i_info;
+			if (deltamax > 0) param.max_step = deltamax;
+			if (deltamin > 0 && deltamax > deltamin) param.min_step = deltamin;
+			LBFGSSolver<Real> mysolver(param);
+			Real fx=0;
 			cout <<endl <<"LBFGS has been notified" << endl;
 			Vector x_vec = Eigen::Map<Vector>(xx, iv);
-			iterations =mysolver.minimize(fun, x_vec, res);
+			iterations =mysolver.minimize(fun, x_vec, fx);
 			std::copy_n(x_vec.data(), iv, xx);
+			Real res = mysolver.final_grad_norm();
 			cout <<endl <<"Problem solved: " << iterations << " iterations,  |g|: " << res <<  endl;
+			}
 		break;
 		default:
 			cout <<"Solve is lost" << endl; success=false;

@@ -13,7 +13,7 @@
 #include "sfnewton.h"
 #include <functional>
 #include <Eigen/Core>
-#include "LBFGS.h"
+#include <LBFGS.h>
 typedef Eigen::Matrix<Real,Eigen::Dynamic,1> Vector;
 typedef Eigen::Matrix<Real,Eigen::Dynamic,Eigen::Dynamic> Matrix;
 using namespace LBFGSpp;

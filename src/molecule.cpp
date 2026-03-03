@@ -27,7 +27,7 @@ public:
 		H_phi = (Real*)malloc(M * sizeof(Real));
 		phi = H_phi;
 		rho = H_phi;
-		H_Zero(H_phi, M);
+			std::fill_n(H_phi, M, 0);
 	}
 
 	void PrepareForCalculations() {
@@ -287,8 +287,8 @@ if (debug) cout <<"AllocateMemory in Mol " + name << endl;
 		for (int i=0; i<length_; i++) {N+=n_mon[i];}
 	}
 
-	H_phi = (Real*) malloc(M*MolMonList.size()*sizeof(Real)); H_Zero(H_phi,M*MolMonList.size());
-	H_phitot = (Real*) malloc(M*sizeof(Real)); H_Zero(H_phitot,M);
+	H_phi = (Real*) malloc(M*MolMonList.size()*sizeof(Real)); std::fill_n(H_phi, M * MolMonList.size(), 0);
+	H_phitot = (Real*) malloc(M*sizeof(Real)); std::fill_n(H_phitot, M, 0);
 	if (freedom=="clamped") {
 		H_Bx=(int*) malloc(n_box*sizeof(int));
 		H_By=(int*) malloc(n_box*sizeof(int));
@@ -299,8 +299,8 @@ if (debug) cout <<"AllocateMemory in Mol " + name << endl;
 		H_Px2=(int*) malloc(n_box*sizeof(int));
 		H_Py2=(int*) malloc(n_box*sizeof(int));
 		H_Pz2=(int*) malloc(n_box*sizeof(int));
-		H_mask1=(Real*) malloc(n_box*m*sizeof(Real)); H_Zero(H_mask1,m*n_box);
-		H_mask2=(Real*) malloc(n_box*m*sizeof(Real)); H_Zero(H_mask2,m*n_box);
+		H_mask1=(Real*) malloc(n_box*m*sizeof(Real)); std::fill_n(H_mask1, m * n_box, 0);
+		H_mask2=(Real*) malloc(n_box*m*sizeof(Real)); std::fill_n(H_mask2, m * n_box, 0);
 		H_gn = (Real*) malloc(n_box*sizeof(Real));
 	}
 	if (freedom=="clamped") {

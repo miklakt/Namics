@@ -73,7 +73,7 @@ C Copyright (2018) Wageningen University, NL.
 	maxFrReverseDirection=0.4;
 	numIterationsForHessian=100;
 	minAccuracyForHessian=0.1;
-	reverseDirection=(int*) malloc(reverseDirectionRange*sizeof(int)); H_Zero(reverseDirection,reverseDirectionRange);
+	reverseDirection=(int*) malloc(reverseDirectionRange*sizeof(int)); std::fill_n(reverseDirection, reverseDirectionRange, 0);
 
 }
 
@@ -328,7 +328,7 @@ void SFNewton::startderivatives(Real *h, Real *g, Real *x, int nvar){ //done
 	(void)x;
 if(debug) cout <<"startderivatives in Newton" << endl;
 	Real diagonal = 1+norm2(g,nvar);
-	H_Zero(h,nvar*nvar);
+	std::fill_n(h, nvar * nvar, 0);
 	for (int i=0; i<nvar; i++) {
 		h[i+nvar*i] = diagonal;
 	}
@@ -887,7 +887,8 @@ Real SFNewton::computeresidual(Real* array, int size) {
 
   } else {
     // Compute residual based on sum of errors
-		residual = H_Dot(array,array,size);
+		residual = 0;
+		for (int i = 0; i < size; i++) residual += array[i] * array[i];
 		residual = sqrt(residual);
   }
 
@@ -910,9 +911,9 @@ bool SFNewton::iterate_DIIS(Real*x,int nvar_, int m, int iterationlimit,Real tol
 if(debug) cout <<"Iterate_DIIS in SFNewton " << endl;
 	int nvar=nvar_;
 	bool success;
-  Real* Aij = (Real*) malloc(m*m*sizeof(Real)); H_Zero(Aij,m*m);
-  Real* Apij = (Real*) malloc(m*m*sizeof(Real)); H_Zero(Apij,m*m);
-  Real* Ci = (Real*) malloc(m*sizeof(Real)); H_Zero(Ci,m);
+  Real* Aij = (Real*) malloc(m*m*sizeof(Real)); std::fill_n(Aij, m * m, 0);
+  Real* Apij = (Real*) malloc(m*m*sizeof(Real)); std::fill_n(Apij, m * m, 0);
+  Real* Ci = (Real*) malloc(m*sizeof(Real)); std::fill_n(Ci, m, 0);
   d_Ci = Ci;
   Real* xR = (Real*) malloc(m*nvar*sizeof(Real)); std::fill_n(xR, m*nvar, 0);
   Real* x_x0 = (Real*) malloc(m*nvar*sizeof(Real)); std::fill_n(x_x0, m*nvar, 0);
