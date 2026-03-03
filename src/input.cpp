@@ -1,55 +1,92 @@
 #include "input.h"
+#include <cctype>
+
+namespace {
+void NormalizeLine(string& line, bool strip_tabs = true) {
+	line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+	if (strip_tabs) {
+		line.erase(std::remove(line.begin(), line.end(), '\t'), line.end());
+	}
+}
+
+bool StartsWith(const string& value, const string& prefix) {
+	return value.rfind(prefix, 0) == 0;
+}
+
+bool EndsWith(const string& value, const string& suffix) {
+	return value.size() >= suffix.size() &&
+		value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+bool IsEmptyOrComment(const string& line) {
+	return line.empty() || (line.size() >= 2 && StartsWith(line, "//"));
+}
+
+bool HasBalancedBrackets(
+	const string& expression,
+	char open_bracket,
+	char close_bracket,
+	vector<int>& open_positions,
+	vector<int>& close_positions) {
+	vector<char> stack;
+	for (size_t i = 0; i < expression.size(); ++i) {
+		if (expression[i] == open_bracket) {
+			stack.push_back(expression[i]);
+			open_positions.push_back(static_cast<int>(i));
+		} else if (expression[i] == close_bracket) {
+			close_positions.push_back(static_cast<int>(i));
+			if (stack.empty()) return false;
+			stack.pop_back();
+		}
+	}
+	return stack.empty();
+}
+} // namespace
 
 Input::Input(const string& name_) {
 	name=name_;
-	KEYS.push_back("start");
-	KEYS.push_back("sys");
-	KEYS.push_back("mol");
-	KEYS.push_back("mon");
-	KEYS.push_back("alias");
- 	KEYS.push_back("lat");
-	KEYS.push_back("newton");
-	KEYS.push_back("output");
-	KEYS.push_back("var");
-	KEYS.push_back(OutputInfo::IN_CLASS_NAME);
-	KEYS.push_back("state");
-	KEYS.push_back("reaction");
-	KEYS.push_back("micro");
+	KEYS = {
+		"start",
+		"sys",
+		"mol",
+		"mon",
+		"alias",
+		"lat",
+		"newton",
+		"output",
+		"var",
+		OutputInfo::IN_CLASS_NAME,
+		"state",
+		"reaction"
+	};
 
 	in_file.open(name.c_str()); Input_error=false;
 
 	if (in_file.is_open()) {
 		int line_nr=0;
-		bool add=true;
 		std:: string In_line;
 		std:: string last;
 		while (in_file) {
 			line_nr++;
 			std::getline(in_file,In_line);
-			In_line.erase(std::remove(In_line.begin(), In_line.end(), ' '), In_line.end());
-			In_line.erase(std::remove(In_line.begin(), In_line.end(), '\t'), In_line.end());
-			if (In_line.length()==0) add = false;
-			if (In_line.length()>=2) {if (In_line.substr(0,2) == "//") add = false;}
-			if (In_line.length()>7) {if (In_line.substr(0,7) == "include") {
+			NormalizeLine(In_line);
+			bool add = !IsEmptyOrComment(In_line);
+			if (In_line.length()>7 && StartsWith(In_line, "include")) {
 				add = false;
 				string filename_inc;
-				string s=In_line.substr(8,In_line.size()-1);
-				int length=s.length();
-				if (s.substr(length-2,length-1)=="::")
-					filename_inc=s.substr(0,length-2);
-				else filename_inc=s;
+				const string include_spec = In_line.substr(8);
+				if (EndsWith(include_spec, "::")) filename_inc = include_spec.substr(0, include_spec.size() - 2);
+				else filename_inc = include_spec;
 				inc_file.open(filename_inc);
 				if (inc_file.is_open()) {
 					int line_nr_inc=0;
 					while (inc_file) {
 						line_nr_inc++;
-						bool add_also=true;
 						std::getline(inc_file,In_line);
-						In_line.erase(std::remove(In_line.begin(), In_line.end(), ' '), In_line.end());
-						In_line.erase(std::remove(In_line.begin(), In_line.end(), '\t'), In_line.end());
-						if (In_line.length()==0) add_also = false;
-						if (In_line.length()>=2) {if (In_line.substr(0,2) == "//") add_also = false;}
-						if (add_also) elems.push_back(std::to_string(line_nr).append("-").append(std::to_string(line_nr_inc)).append(":").append(In_line)); else add_also=true;
+						NormalizeLine(In_line);
+						if (!IsEmptyOrComment(In_line)) {
+							elems.push_back(std::to_string(line_nr).append("-").append(std::to_string(line_nr_inc)).append(":").append(In_line));
+						}
 					}
 
 					inc_file.close();
@@ -57,11 +94,11 @@ Input::Input(const string& name_) {
 					cout <<"'include : " << filename_inc <<"' not working because file is not found " << endl; Input_error=true;
 				}
 
-			}}
+			}
 			if (add) {
 				elems.push_back(std::to_string(line_nr).append(":").append(In_line));
 				last=In_line;
-			} else add=true;
+			}
 		}
 
 		if (last.substr(0,5) != "start") {
@@ -77,55 +114,26 @@ Input::Input(const string& name_) {
 Input::~Input() {
 }
 
-bool Input::ArePair(char opening,char closing) const {
-	if (opening == '(' && closing == ')') return true;
-	else if (opening == '[' && closing == ']') return true;
-	//else if (opening == '{' && closing == '}') return true;
-	return false;
-}
-
 bool Input::EvenSquareBrackets(const string& exp,vector<int> &open, vector<int> &close) const {
-	vector <char> S;
-	int length = exp.size();
-	for (int i=0; i<length; i++) {
-		if (exp[i] == '[' ) {S.push_back(exp[i]); open.push_back(i);}
-		else if (exp[i] == ']') { close.push_back(i);
-			if (S.size()==0 || !ArePair(S[S.size()-1],exp[i])) return false;
-			else
-			S.pop_back();
-		}
-	}
-	return S.size()==0 ? true:false;
+	return HasBalancedBrackets(exp, '[', ']', open, close);
 }
 
 bool Input::EvenBrackets(const string& exp,vector<int> &open, vector<int> &close) const {
-	vector <char> S;
-	int length = exp.size();
-	for (int i=0; i<length; i++) {
-		if (exp[i] == '(' ) {S.push_back(exp[i]); open.push_back(i);}
-		else if (exp[i] == ')') { close.push_back(i);
-			if (S.size()==0 || !ArePair(S[S.size()-1],exp[i])) return false;
-			else
-			S.pop_back();
-		}
-	}
-	return S.size()==0 ? true:false;
+	return HasBalancedBrackets(exp, '(', ')', open, close);
 }
 
 bool Input::ReadFile(const string& fname, string &In_buffer) const {
 	ifstream this_file;
 	bool success=true;
-	bool add;
 	this_file.open(fname.c_str());
 	std:: string In_line;
 	if (this_file.is_open()) {
 		while (this_file) {
-			add=true;
 			std::getline(this_file,In_line);
-			In_line.erase(std::remove(In_line.begin(), In_line.end(), ' '), In_line.end());
-			if (In_line.length()==0) add = false;
-			if (In_line.length()>2) {if (In_line.substr(0,2) == "//") {add = false;}}
-			if (add) {In_buffer.append(In_line).append("#");};
+			NormalizeLine(In_line, false);
+			if (In_line.empty()) continue;
+			if (In_line.length()>2 && StartsWith(In_line, "//")) continue;
+			In_buffer.append(In_line).append("#");
 		}
 		this_file.close();
 		if (In_buffer.size()==0) {cout << "File " + fname + " is empty " << endl; success=false; }
@@ -135,182 +143,43 @@ bool Input::ReadFile(const string& fname, string &In_buffer) const {
 
 
 void Input::PrintList(const std::vector<std::string>& LIST) const {
-	int length=LIST.size();
-	int i=0;
-	while (i<length) {cout << LIST[i] << " ; "; i++; }
+	for (const std::string& item : LIST) {
+		cout << item << " ; ";
+	}
 }
 
 std::vector<std::string>& Input::split(const std::string& s, char delim, std::vector<std::string>&elems) const {
-	bool add=true;
 	std::stringstream ss(s);
 	std::string item;
 	while (std::getline(ss,item,delim)) {
 		item.erase(std::remove(item.begin(), item.end(), ' '), item.end());
 		std::size_t pos = item.find("//");
-		if (add) {elems.push_back(item.substr(0,pos));}
-		add=true;
+		elems.push_back(item.substr(0,pos));
 	}
 	return elems;
 }
 
-bool Input:: IsDigit(const string& s) const {
-	return (s=="0" || s=="1" ||s=="2" || s=="3" || s=="4" || s=="5" ||s=="6" || s=="7" || s=="8" || s=="9" || s=="10");
-}
-
-int Input:: Get_int(const string& s, int ss) const {
-	bool success = false;
-	int sss;
-	stringstream string_s;
-        string_s << s;
-	string_s >> sss;
-	string sub; if (s.length()>0) sub = s.substr(0,1);
-	string sub2; if (s.length()>1) sub2= s.substr(1,1);
-	if (sub=="-") { if (s.length()>1) {if (IsDigit(sub2)) {success=true;} }}
- 	else {if (s.length()>0) {if (IsDigit(sub)) { success = true;}}}
-	if (!success) sss=ss;
-	return  sss;
-}
-
-bool Input:: Get_int(const string& s, int &ss, const std::string &error) const {
-	bool success = false;
-	stringstream string_s;
-        string_s << s;
-	string_s >> ss;
-	string sub; if (s.length()>0) sub = s.substr(0,1);
-	string sub2; if (s.length()>1) sub2= s.substr(1,1);
-	if (sub=="-") { if (s.length()>1) {if (IsDigit(sub2)) {success=true;} }}
- 	else {if (s.length()>0) {if (IsDigit(sub)) { success = true;}}}
-	if (!success) cout << error << endl;
-	return success;
-}
-
-bool Input:: Get_int(const string& s, int &ss, int low, int high, const std::string &error) const {
-	bool success = false;
-	stringstream string_s;
-        string_s << s;
-	string_s >> ss;
-	string sub; if (s.length()>0) sub = s.substr(0,1);
-	string sub2; if (s.length()>1) sub2= s.substr(1,1);
-	if (sub=="-") { if (s.length()>1) {if (IsDigit(sub2)) {success=true;} }}
- 	else {if (s.length()>0) {if (IsDigit(sub)) { success = true;}}}
-	if (!success) {cout << error << endl;
-	} else {
-		success=false;
-		if (ss<low || ss>high) {cout << "Value out of range: " << error << endl ; } else success=true;
-	}
-	return success;
-}
-
-string Input:: Get_string(const string& s, const string &ss) const {
-	if (s.length() > 0) { return s;} else {return ss;}
-
-}
-bool Input:: Get_string(const string& s, string &ss, const  std::string &error) const {
-	bool success = false;
-	if (s.length() > 0) { ss=s; success = true;}
-	if (!success) cout << error << endl;
-	return success;
-}
-bool Input:: Get_string(const string& s, string &ss, const std::vector<std::string>&S, const std::string &error) const {
-	bool success = false;
-	if (s.length() > 0) { ss=s; success = true;}
-	if (!success) {cout << error << endl;}
-	else {	success=InSet(S,ss);
-		if (!success) {cout << error << " value '" << ss << "' is not allowed. Select from: " << endl;
-			PrintList(S); cout << endl;
-		}
-	}
-	return success;
-}
-
-Real Input:: Get_Real(const string& s, Real ss) const {
-	bool success=false;
-	Real sss;
-	stringstream string_s;
-	string_s << s ;
-	string_s >> sss;
-	string sub; if (s.length()>0) sub = s.substr(0,1);
-	string sub2; if (s.length()>1) sub2= s.substr(1,1);
-	if (sub=="-") { if (s.length()>1) {if (IsDigit(sub2)) {success=true;} }}
- 	else {if (s.length()>0) {if (IsDigit(sub)) { success = true;}}}
-	if (!success) sss=ss;
-	return sss;
-}
-bool Input:: Get_Real(const string& s, Real &ss, const std::string &error) const {
-	bool success=false;
-	stringstream string_s;
-	string_s << s ;
-	string_s >> ss;
-	string sub; if (s.length()>0) sub = s.substr(0,1);
-	string sub2; if (s.length()>1) sub2= s.substr(1,1);
-	if (sub=="-") { if (s.length()>1) {if (IsDigit(sub2)) {success=true;} }}
- 	else {if (s.length()>0) {if (IsDigit(sub)) { success = true;}}}
-	if (!success) cout << error << endl;
-	return success;
-}
-bool Input:: Get_Real(const string& s, Real &ss, Real low, Real high, const  std::string &error) const {
-	bool success=false;
-	stringstream string_s;
-	string_s << s ;
-	string_s >> ss;
-	string sub; if (s.length()>0) sub = s.substr(0,1);
-	string sub2; if (s.length()>1) sub2= s.substr(1,1);
-	if (sub=="-") { if (s.length()>1) {if (IsDigit(sub2)) {success=true;} }}
- 	else {if (s.length()>0) {if (IsDigit(sub)) { success = true;}}}
-	if (!success) {cout << error << endl;
-	} else {
-		success=false;
-		if (ss<low || ss>high) {cout << "Value out of range: " << error << endl ; } else success=true;
-	}
-	return success;
-}
-
-bool Input:: Get_bool(const string& s, bool ss) const {
-	bool success=true;
-	bool sss;
-	if (s =="true" || s =="True" || s =="TRUE") {sss=true; success=true;} else
-	if (s =="false" ||  s =="False" || s =="FALSE") sss=false; else success=false;
-	if (!success) sss=ss;
-	return sss;
-}
-bool Input:: Get_bool(const string& s, bool &ss, const std::string &error) const {
-	bool success=false;
-	if (s =="true" ||  s =="True" || s =="TRUE") {ss=true; success=true;} else
-	if (s =="false" ||  s =="False" || s =="FALSE") ss=false; else success=false;
-	if (!success) cout << error << endl;
-	return success;
-}
-
 bool Input:: TestNum(std::vector<std::string> &S, const string& c,int num_low, int num_high, int UptoStartNumber ) const {
-	bool InList=false;
-	int i=0;
-	int length = elems.size();
 	int n_starts=0;
-	while (i<length) {
+	for (const std::string& entry : elems) {
 		std::vector<std::string> set;
-	       	split(elems[i],':',set);
+		split(entry, ':', set);
 		if (set[1].substr(0,5)=="start") n_starts++;
-		if (c==set[1] && n_starts<UptoStartNumber ){
-			InList=false;
-			int S_length=S.size();
-			for (int k=0; k<S_length; k++) if (set[2]==S[k]) InList=true;
-			if (!InList) S.push_back(set[2]);
+		if (c==set[1] && n_starts<UptoStartNumber && !ContainsValue(S, set[2])) {
+			S.push_back(set[2]);
 		}
-		i++;
 	}
-	int number=S.size();
-	if (number>num_low-1 && number<num_high+1) {return true;}
-	return false;
+	const int number = static_cast<int>(S.size());
+	return number >= num_low && number <= num_high;
 }
 
 int Input:: GetNumStarts() const {
-	int length = elems.size();
 	int number=0;
-	for (int i=0; i<length; i++) {
+	for (size_t i = 0; i < elems.size(); ++i) {
 		vector<std::string> set;
 		split(elems[i],':',set);
 		if (set[1] == "start") number++;
-		if ( (i==length-1)&& ( set[1].substr(0,5)!="start") ) {
+		if (i == elems.size() - 1 && set[1].substr(0,5)!="start") {
 			number++;
 			//elems.push_back("start");
 		}
@@ -319,45 +188,17 @@ int Input:: GetNumStarts() const {
 }
 
 bool Input:: InSet(const std::vector<std::string> &Standard, const string& keyword) const {
-	bool success=false;
-	int S_length = Standard.size();
-	int i=0;
-	while (i<S_length && !success) {
-		if (Standard[i] == keyword) success=true;
-		i++;
-	}
-	return success;
+	return ContainsValue(Standard, keyword);
 }
 bool Input:: InSet(const std::vector<std::string> &Standard, int &pos, const string& keyword) const {
-	bool success=false;
-	int S_length = Standard.size();
-	int i=0;
-	while (i<S_length && !success) {
-		if (Standard[i] == keyword) {success=true; pos=i;}
-		i++;
-	}
-	return success;
+	return ContainsValue(Standard, keyword, &pos);
 }
 
 bool Input:: InSet(const vector<int> &Standard, int keyword) const {
-	bool success=false;
-	int S_length = Standard.size();
-	int i=0;
-	while (i<S_length && !success) {
-		if (Standard[i] == keyword) success=true;
-		i++;
-	}
-	return success;
+	return ContainsValue(Standard, keyword);
 }
 bool Input:: InSet(const vector<int> &Standard, int &pos, int keyword) const {
-	bool success=false;
-	int S_length = Standard.size();
-	int i=0;
-	while (i<S_length && !success) {
-		if (Standard[i] == keyword) {success=true; pos=i;}
-		i++;
-	}
-	return success;
+	return ContainsValue(Standard, keyword, &pos);
 }
 
 // In->CheckParameters("keyword", name, start, KEYS, PARAMETERS)
@@ -443,125 +284,80 @@ NAMICS_DBG("LoadItems in Input " << endl); Out_key.clear();
 	Out_name.clear();
 	Out_prop.clear();
 	bool success=true;
-	bool wild_monlist=false;
-	bool wild_mollist=false;
-	bool wild_aliaslist=false;
-	int name_length;
-	bool key_found,name_found;
- 	int k;
 	for (size_t i = 0; i < elems.size() ; i++) {
 		vector<std::string> set;
 		split(elems[i],':',set);
 		if (set[1] == template_) {
-			key_found=false;
+			bool key_found=false;
+			bool name_found=false;
+			bool wild_monlist=false;
+			bool wild_mollist=false;
+			bool wild_aliaslist=false;
+
+			auto report_unknown_name = [&](const std::vector<std::string>& shown) {
+				cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
+				PrintList(shown);
+			};
+			auto validate_name = [&](const std::vector<std::string>& search, const std::vector<std::string>* shown = nullptr) {
+				if (ContainsValue(search, set[3])) return true;
+				report_unknown_name(shown == nullptr ? search : *shown);
+				return false;
+			};
+			auto validate_singleton_name = [&](const std::vector<std::string>& singleton_list) {
+				if (set[3]=="*" && !singleton_list.empty()) set[3]=singleton_list[0];
+				return !singleton_list.empty() && set[3] == singleton_list[0] ? true : (report_unknown_name(singleton_list), false);
+			};
+			auto validate_name_or_wildcard = [&](const std::vector<std::string>& search, bool& wildcard) {
+				if (set[3]=="*") {
+					wildcard=true;
+					return true;
+				}
+				return validate_name(search);
+			};
+			auto append_entries = [&](const std::vector<std::string>& names) {
+				for (const std::string& name : names) {
+					Out_key.push_back(set[2]);
+					Out_name.push_back(name);
+					Out_prop.push_back(set[4]);
+				}
+			};
+
 			for (size_t j = 0 ; j < KEYS.size() ; j++) {
 				if (KEYS[j] == set[2]) {
 					key_found=true;
 					switch (j-1) {
 						case 0:
-							if (set[3]=="*") set[3]=SysList[0];
-							name_found = (SysList[0]==set[3]);
-							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
-								PrintList(SysList);}
+							name_found = validate_singleton_name(SysList);
 							break;
 						case 1:
-							name_found=false;
-							if (set[3]=="*") { name_found = true; wild_mollist=true;}
-							k=0; name_length=MolList.size();
-							while (k<name_length && !name_found) {
-								if (MolList[k]==set[3]) name_found=true;
-								k++;
-							}
-							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: " << endl;
-								PrintList(MolList);
-							}
+							name_found = validate_name_or_wildcard(MolList, wild_mollist);
 							break;
 						case 2:
-							name_found=false;
-							if (set[3]=="*") {name_found=true; wild_monlist=true;}
-							k=0; name_length=MonList.size();
-							while (k<name_length && !name_found) {
-								if (MonList[k]==set[3]) name_found=true;
-								k++;
-							}
-							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
-								PrintList(MonList);
-							}
+							name_found = validate_name_or_wildcard(MonList, wild_monlist);
 							break;
 						case 3:
-							name_found=false;
-							k=0; name_length=AliasList.size();
-							if (set[3]=="*") {name_found=true; wild_aliaslist=true;}
-
-							while (k<name_length && !name_found) {
-								if (AliasList[k]==set[3]) name_found=true;
-								k++;
-							}
-							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
-								PrintList(AliasList);
-							}
+							name_found = validate_name_or_wildcard(AliasList, wild_aliaslist);
 							break;
 						case 4:
-							if (set[3]=="*") set[3]=LatList[0];
-							name_found = (LatList[0]==set[3]);
-							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
-								PrintList(LatList);
-							}
+							name_found = validate_singleton_name(LatList);
 							break;
 						case 5:
-							if (set[3]=="*") set[3]=NewtonList[0];
-							name_found = (NewtonList[0]==set[3]);
-							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
-								PrintList(NewtonList);
-							}
+							name_found = validate_singleton_name(NewtonList);
 							break;
 						case 6:
-							k=0; name_length=OutputList.size(); name_found=false;
-							while (k<name_length) {
-								if (OutputList[k]==set[3]) name_found=true;
-								k++;
-							}
-							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
-								PrintList(OutputList);
-							}
+							name_found = validate_name(OutputList);
 							break;
 						case 7:
-							name_found=false;
-							k=0; name_length=VarList.size();
-							while (k<name_length && !name_found) {
-								if (VarList[k]==set[3]) name_found=true;
-								k++;
-							}
-							if (!name_found) {cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
-								PrintList(MonList);
-							}
+							name_found = validate_name(VarList, &MonList);
 							break;
 						case 8:
 							name_found=true;
 							break;
 						case 9:
-							name_found=false;
-							k=0; name_length=StateList.size();
-							while (k<name_length && !name_found) {
-								if (StateList[k]==set[3]) name_found=true;
-								k++;
-							}
+							name_found = ContainsValue(StateList, set[3]);
 							break;
 						case 10:
-							name_found=false;
-							k=0; name_length=ReactionList.size();
-							while (k<name_length && !name_found) {
-								if (ReactionList[k]==set[3]) name_found=true;
-								k++;
-							}
-							break;
-						case 11:
-							name_found=false;
-							k=0; name_length=MicroList.size();
-							while (k<name_length && !name_found) {
-								if (MicroList[k]==set[3]) name_found=true;
-									k++;
-							}
+							name_found = ContainsValue(ReactionList, set[3]);
 							break;
 						default:
 							key_found=false;
@@ -576,21 +372,15 @@ NAMICS_DBG("LoadItems in Input " << endl); Out_key.clear();
 			}
 			if (!name_found) {return false;}
 			if (wild_aliaslist) {
-				int length =AliasList.size();
-				for (int i=0; i<length; i++) {Out_key.push_back(set[2]); Out_name.push_back(AliasList[i]); Out_prop.push_back(set[4]); }
+				append_entries(AliasList);
 			}
 			if (wild_mollist) {
-				int length =MolList.size();
-				for (int i=0; i<length; i++) {Out_key.push_back(set[2]); Out_name.push_back(MolList[i]); Out_prop.push_back(set[4]); }
+				append_entries(MolList);
 			}
 			if (wild_monlist) {
-				int length =MonList.size();
-				for (int i=0; i<length; i++) {Out_key.push_back(set[2]); Out_name.push_back(MonList[i]); Out_prop.push_back(set[4]); }
+				append_entries(MonList);
 			}
 			if (!(wild_monlist || wild_mollist ||wild_aliaslist)) {Out_key.push_back(set[2]); Out_name.push_back(set[3]); Out_prop.push_back(set[4]);}
-			wild_aliaslist=false;
-			wild_mollist=false;
-			wild_monlist=false;
 
 			if (set[1]=="vtk" && Out_key.size()>1) {
 				cout << "vtk output can have only one entry: the following entries were found:" << endl; success =false;
@@ -604,87 +394,58 @@ NAMICS_DBG("LoadItems in Input " << endl); Out_key.clear();
 
 bool Input:: CheckInput(void) {
 	bool success=true;
-	bool Keywordfound;
-	int key_length=KEYS.size();
-	int length = elems.size();
-	int j;
+	int key_length=static_cast<int>(KEYS.size());
 	bool last_start=false;
 
-	string word;
-
-	if (length==0) {cout << "inputfile is empty " << endl; success=false; }
-	int i=0;
-	while (i<length) {
+	if (elems.empty()) {cout << "inputfile is empty " << endl; success=false; }
+	for (const std::string& entry : elems) {
 		last_start=false;
 		vector<std::string> set;
-		split(elems[i],':',set);
+		split(entry,':',set);
 		if (set.size() !=5) {if (set[1]!="start") {
-			cout <<elems[i] << endl;
+			cout <<entry << endl;
 			cout << " Line number " << set[0] << " does not contain 4 items" << endl; success=false; return false;}
 		}
 		if (set[1]=="start") last_start=true;
-		i++;
 	}
 
 	if (!last_start) {
-		elems.push_back("0:start"); length++;
+		elems.push_back("0:start");
 	}
 
-	i=0;
-	while (success && i<length) {
+	static const std::vector<string> output_options = {"ana", "vtk", "kal", "pro", "vec", "pos"};
+	for (size_t i = 0; success && i < elems.size(); ++i) {
 		vector<std::string> set;
 		split(elems[i],':',set);
 
 		if (set[1]=="output") {
-			vector<string> options;
-			options.push_back("ana"); options.push_back("vtk"); options.push_back("kal"); options.push_back("pro"); options.push_back("vec"); options.push_back("pos");
 			string option;
-			if (!Get_string(set[2],option,options,"Value for output extension '" + set[2] + "' not allowed. ")) {success=false;}
+			if (!ParseString(set[2],option,output_options,"Value for output extension '" + set[2] + "' not allowed. ")) {success=false;}
 			else {
-				word=set[2];
-
-				j=0; Keywordfound=false; key_length =KEYS.size();
- 				if (word=="ana") Keywordfound=true;
-				while (j<key_length) {
-					if (word==KEYS[j]) {Keywordfound=true; }
-					j++;
-				}
-				if (!Keywordfound) {
+				const string& word=set[2];
+				const bool keyword_found = (word=="ana") || InSet(KEYS, word);
+				if (!keyword_found) {
 					KEYS.push_back(word);
-					key_length++;
 				}
 			}
 
 		}
-
-
-
-
-		i++;
 	}
-	i=0;
-	while (i<length) {
+	key_length = static_cast<int>(KEYS.size());
+	for (size_t i = 0; i < elems.size(); ++i) {
 		vector<std::string> set;
 		split(elems[i],':',set);
-		word=set[1];
-		if (word=="alias" || word=="var" || word=="micro") {
+		const string& word=set[1];
+		if (word=="alias" || word=="var") {
 			cout << "Keyword '" << word << "' is not supported in this minimal build." << endl;
 			success=false;
-			i++;
 			continue;
 		}
-		//word.erase(std::remove(word.begin(), word.end(), ' '), word.end());
-		j=0; Keywordfound=false;
-		while (j<key_length) {
-			if (word==KEYS[j]) {Keywordfound=true; }
-			j++;
-		}
-		if (!Keywordfound) {cout << word << " is not valid keyword in line " << set[0] << endl;
+		if (!InSet(KEYS, word)) {cout << word << " is not valid keyword in line " << set[0] << endl;
 			cout << "select one of the following:" << endl;
 			for( int k=0; k<key_length; k++) cout << KEYS[k] << endl;
 			success=false;
 		}
-		i++;
 	}
 	if (success) success=MakeLists(1);
 	if (!output_info.isOutputExists()) {
@@ -702,27 +463,32 @@ bool Input::MakeLists(int start) {
 	MonList.clear();
 	MolList.clear();
 	OutputList.clear();
-	MicroList.clear();
 	VarList.clear();
 	StateList.clear();
 	ReactionList.clear();
 
-	if (!TestNum(SysList,"sys",0,1,start)) {cout << "There can be no more than 1 'sys name' in the input" << endl; success=false; }
+	auto test_count = [&](std::vector<string>& list, const string& key, int low, int high, const string& error, bool fail_on_error = true) {
+		const bool ok = TestNum(list, key, low, high, start);
+		if (!ok && !error.empty()) cout << error << endl;
+		if (!ok && fail_on_error) success=false;
+		return ok;
+	};
+
+	test_count(SysList,"sys",0,1,"There can be no more than 1 'sys name' in the input");
 	if (SysList.size()==0) SysList.push_back("NN");
-	if (!TestNum(LatList,"lat",1,1,start)) {cout << "There must be exactly one 'lat name' in the input" << endl; success=false;}
-	if (!TestNum(NewtonList,"newton",0,1,start)) {cout << "There can be no more than 1 'newton name' in input" << endl; success=false;}
+	test_count(LatList,"lat",1,1,"There must be exactly one 'lat name' in the input");
+	test_count(NewtonList,"newton",0,1,"There can be no more than 1 'newton name' in input");
 	if (NewtonList.size()==0) NewtonList.push_back("NN");
-	if (!TestNum(NewtonList,"newton",0,1,start)) {cout << "There can be no more than 1 'newton name' in input" << endl; success=false;}
-	if (!TestNum(MonList,"mon",1,1000,start)) {cout << "There must be at least one 'mon name' in input" << endl; success=false;}
-	if (!TestNum(StateList,"state",0,1000,start)) {cout << "There can not be more than 1000 'state name's in input" << endl; success=false;}
-	if (!TestNum(ReactionList,"reaction",0,1000,start)) {cout << "There can not be more than 1000 reaction name's in input" << endl; success=false;}
-	TestNum(AliasList,"alias",0,1000,start);
+	test_count(NewtonList,"newton",0,1,"There can be no more than 1 'newton name' in input");
+	test_count(MonList,"mon",1,1000,"There must be at least one 'mon name' in input");
+	test_count(StateList,"state",0,1000,"There can not be more than 1000 'state name's in input");
+	test_count(ReactionList,"reaction",0,1000,"There can not be more than 1000 reaction name's in input");
+	test_count(AliasList,"alias",0,1000,"", false);
 	if (AliasList.size()==0) AliasList.push_back("NN");
-	if (!TestNum(MolList,"mol",1,1000,start)) {cout << "There must be at least one 'mol name' in input" << endl; success=false;}
-	if (!TestNum(OutputList,"output",1,1000,start)) {cout << "No output defined! " << endl;}
-	if (!TestNum(MicroList,"micro",0,1,start)) {cout << "There can be no more than 1 'micro' engine brand name in the input " << endl; success=false;}
-	if (!TestNum(VarList,"var",0,10,start))
-	if (VarList.size()==0) VarList.push_back("NN");
+	test_count(MolList,"mol",1,1000,"There must be at least one 'mol name' in input");
+	test_count(OutputList,"output",1,1000,"No output defined! ", false);
+	const bool var_ok = TestNum(VarList,"var",0,10,start);
+	if (!var_ok && VarList.size()==0) VarList.push_back("NN");
 	return success;
 }
 

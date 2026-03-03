@@ -89,11 +89,11 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 	if (success) {
 		DOS=false;
 		if (GetValue("DOS").size()>0) {
-			DOS=In->Get_bool(GetValue("DOS"),DOS);
+			DOS=ParseBool(GetValue("DOS"),DOS);
 		}
 
 		if (GetValue("append").size()>0) {
-			append=In->Get_bool(GetValue("append"),append);
+			append=ParseBool(GetValue("append"),append);
 
 			if (name=="pro") {
 					if (append) cout << "Warning: for output of type 'pro', the append is set to 'false'." << endl;
@@ -104,8 +104,8 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 			if (name=="pro") append=false;
 		}
 
-		write_bounds = In->Get_bool(GetValue("write_bounds"),false);
-		write  = In->Get_bool(GetValue("write"),true);
+		write_bounds = ParseBool(GetValue("write_bounds"),false);
+		write  = ParseBool(GetValue("write"),true);
 
 		if (GetValue("header_separator").size()>0) {
 			sep=GetValue("header_separator");
@@ -123,7 +123,7 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 		}
 
 		if (GetValue("use_output_folder").size()>0) {
-			use_output_folder = In->Get_bool(GetValue("use_output_folder"),use_output_folder);
+			use_output_folder = ParseBool(GetValue("use_output_folder"),use_output_folder);
 		} // default is set in the constructor
 
 		if (success) {
@@ -138,7 +138,7 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 			option_list.push_back("always");
 			option_list.push_back("no_error");
 			option_list.push_back("never");
-			if (!In->Get_string(GetValue("write_output"),write_option,option_list,"In output: 'write_output' not recognised. Use 'always', 'never', or 'no_error'. The last value is default.")){
+			if (!ParseString(GetValue("write_output"),write_option,option_list,"In output: 'write_output' not recognised. Use 'always', 'never', or 'no_error'. The last value is default.")){
 				cout <<"continue with write_output : no_error" << endl;
 			}
 		}

@@ -40,11 +40,11 @@ NAMICS_DBG("CheckInput in Reaction " + name << endl);	bool success=true;
 			cout <<" reaction " << name << " has no K nor pK value" << endl; success=false;
 		} else {
 			if (GetValue("K").size() ==0) {
-				pK=In->Get_Real(GetValue("pK"),pK);
+				pK=ParseReal(GetValue("pK"),pK);
 				if (pK==-100) {cout <<" reaction " << name << " no valid pK value found " << endl; success=false; }
 				K=pow(10,-pK); 
 			} else {
-				K=In->Get_Real(GetValue("K"),pK);
+				K=ParseReal(GetValue("K"),pK);
 				if (K<0) {
 					cout <<" reaction " << name << " has not a positive value for 'K' " << endl; success=false;
 				} else {
@@ -93,7 +93,7 @@ NAMICS_DBG("CheckInput in Reaction " + name << endl);	bool success=true;
 							}
 							if (!found) {cout << " reaction : " << name << " equation " << equation << " state " << state_name << " not found " << endl; success=false;  }
 							
-							int sto=In->Get_int(sub_plus[l].substr(0,open[0]),0);
+							int sto=ParseInt(sub_plus[l].substr(0,open[0]),0);
 							if (sto<1) {
 								if (sto==0) cout << " reaction : " << name << " equation : " << equation << " has a zero as stocheometry number " << endl;
 								else

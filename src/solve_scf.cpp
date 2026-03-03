@@ -98,14 +98,14 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 	m=10;
 	success=In->CheckParameters("newton",name,start, KEYS, PARAMETERS);
 	if (success) {
-		iterationlimit=In->Get_int(GetValue("iterationlimit"),1000);
+		iterationlimit=ParseInt(GetValue("iterationlimit"),1000);
 		if (iterationlimit < 0 || iterationlimit>1e6) {iterationlimit = 1000;}
 
-		e_info=In->Get_bool(GetValue("e_info"),true); value_e_info=e_info;
-		hs_info=In->Get_bool(GetValue("hs_info"),true);
-		s_info=In->Get_bool(GetValue("s_info"),false); value_s_info =s_info;
-		t_info=In->Get_bool(GetValue("t_info"),false);
-		i_info=In->Get_int(GetValue("i_info"),1);
+		e_info=ParseBool(GetValue("e_info"),true); value_e_info=e_info;
+		hs_info=ParseBool(GetValue("hs_info"),true);
+		s_info=ParseBool(GetValue("s_info"),false); value_s_info =s_info;
+		t_info=ParseBool(GetValue("t_info"),false);
+		i_info=ParseInt(GetValue("i_info"),1);
 		if (i_info == 0) {
 		// We cannot divide by zero (see modulus statements in sfnewton), but this will probably be what the user means.
 		cerr << "WARNING: i_info cannot be zero ! Defaulting to iterationlimit + 1."<< endl;
@@ -115,7 +115,7 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 
 		if (GetValue("target_function").size() > 0) {
 			string target;
-      			target = In->Get_string(GetValue("target_function"), target);
+      			target = ParseString(GetValue("target_function"), target);
 			using namespace std::placeholders;
 			if ( target.find("log") != string::npos  ) target_function = bind(&Solve_scf::gradient_log, this, _1, _2, _3, _4, _5);
 			else if ( target.find("quotient") != string::npos  ) target_function = bind(&Solve_scf::gradient_quotient, this, _1, _2, _3, _4, _5);
@@ -128,12 +128,12 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 			target_function = bind(&Solve_scf::gradient_minus, this, _1, _2, _3, _4, _5);
 		}
 
-		deltamax=In->Get_Real(GetValue("deltamax"),0.1);
+		deltamax=ParseReal(GetValue("deltamax"),0.1);
 		if (deltamax < 0 || deltamax>100) {deltamax = 0.1;  cout << "Value of deltamax out of range 0..100, and value set to default value 0.1" <<endl; }
 		deltamin=0;
-		deltamin=In->Get_Real(GetValue("deltamin"),deltamin);
+		deltamin=ParseReal(GetValue("deltamin"),deltamin);
 		if (deltamin < 0 || deltamin>100) {deltamin = deltamax/100000;  cout << "Value of deltamin out of range 0..100, and value set to default value deltamax/100000" <<endl; }
-		tolerance=In->Get_Real(GetValue("tolerance"),1e-7);
+		tolerance=ParseReal(GetValue("tolerance"),1e-7);
 		if (tolerance < 1e-16 ||tolerance>10) {tolerance = 1e-5;  cout << "Value of tolerance out of range 1e-12..10 Value set to default value 1e-5" <<endl; }
 
 			if (GetValue("method").size()==0) {SCF_method="pseudohessian";} else {
@@ -145,44 +145,44 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 				//method_options.push_back("conjugate_gradient");
 				method_options.push_back("LBFGS");
 				method_options.push_back("BRR");
-				if (!In->Get_string(GetValue("method"),SCF_method,method_options,"In 'solve_scf' the entry for 'method' not recognized: choose from:")) success=false;
+				if (!ParseString(GetValue("method"),SCF_method,method_options,"In 'solve_scf' the entry for 'method' not recognized: choose from:")) success=false;
 			}
 		if (SCF_method=="hessian" || SCF_method=="pseudohessian") {
 			if (SCF_method=="hessian") {pseudohessian=false; hessian=true; solver=HESSIAN;} else { pseudohessian=true; hessian=false; solver=PSEUDOHESSIAN;}
-			samehessian=false; //In->Get_bool(GetValue("samehessian"),false);
-			max_accuracy_for_hessian_scaling=In->Get_Real(GetValue("max_accuracy_for_hessian_scaling"),0.1);
+			samehessian=false; //ParseBool(GetValue("samehessian"),false);
+			max_accuracy_for_hessian_scaling=ParseReal(GetValue("max_accuracy_for_hessian_scaling"),0.1);
 			if (max_accuracy_for_hessian_scaling<1e-7 || max_accuracy_for_hessian_scaling>1) {
 				cout <<"max_accuracy_for_hessian_scaling is out of range: 1e-7...1; default value 0.1 is used instead" << endl;
 				max_accuracy_for_hessian_scaling=0.1;
 			}
-			minAccuracyForHessian=In->Get_Real(GetValue("min_accuracy_for_hessian"),0.5);
+			minAccuracyForHessian=ParseReal(GetValue("min_accuracy_for_hessian"),0.5);
 			if (minAccuracyForHessian<0 ||minAccuracyForHessian>1) {
 				cout <<"min_accuracy_for_hessian is out of range: 0...0.1; default value 0 is used instead (no hessian computation)" << endl;
 				minAccuracyForHessian=0;
 			}
-			maxFrReverseDirection =In->Get_Real(GetValue("max_fr_reverse_direction"),0.4);
+			maxFrReverseDirection =ParseReal(GetValue("max_fr_reverse_direction"),0.4);
 			if (maxFrReverseDirection <0.1 ||maxFrReverseDirection >0.5) {
 				cout <<"max_fr_reverse_direction is out of range: 0.1...0.5; default value 0.4 is used instead" << endl;
 				maxFrReverseDirection =0.4;
 			}
 
-			n_iterations_for_hessian=In->Get_int(GetValue("n_iterations_for_hessian"),iterationlimit+100);
+			n_iterations_for_hessian=ParseInt(GetValue("n_iterations_for_hessian"),iterationlimit+100);
 			if (n_iterations_for_hessian<1 ) {
 				cout <<" n_iterations_for_hessian setting must be larger than unity; hessian evaluations will not be done " << endl;
 				n_iterations_for_hessian=iterationlimit+100;
 			}
-			maxNumSmallAlpha=In->Get_int(GetValue("max_n_small_alpha"),50);
+			maxNumSmallAlpha=ParseInt(GetValue("max_n_small_alpha"),50);
 			if (maxNumSmallAlpha<10 ||maxNumSmallAlpha>1000) {
 				cout <<" max_n_small_alpha is out of range: 10, ..., 100;  max_n_small_alpha is set to default: 50 " << endl;
 				maxNumSmallAlpha=50;
 			}
 
-			deltamin=In->Get_Real(GetValue("delta_min"),0);
+			deltamin=ParseReal(GetValue("delta_min"),0);
 			if (deltamin <0 || deltamin>deltamax) {
 				cout <<"delta_min is out of range; 0, ..., " << deltamax << "; delta_min value set to 0 " << endl;
 				deltamin=0;
 			}
-			smallAlpha=In->Get_Real(GetValue("small_alpha"),0.00001);
+			smallAlpha=ParseReal(GetValue("small_alpha"),0.00001);
 			if (smallAlpha <0 || smallAlpha>1) {
 				cout <<"small_alpha is out of range; 0, ..., 1; small_alpha value set to default: 1e-5 " << endl;
 				smallAlpha=0.00001;
@@ -190,10 +190,10 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 		}
 		if (SCF_method=="DIIS") {
 			solver=diis;
-			m=In->Get_int(GetValue("m"),10);
+			m=ParseInt(GetValue("m"),10);
 			if (m < 0 ||m>100) {m=10;  cout << "Value of 'm' out of range 0..100, value set to default value 10" <<endl; }
 			restart_DIIS=iterationlimit;
-			restart_DIIS=In->Get_int(GetValue("n_restart_DIIS"),iterationlimit);
+			restart_DIIS=ParseInt(GetValue("n_restart_DIIS"),iterationlimit);
 			if (restart_DIIS < 0 || restart_DIIS > iterationlimit*10) {
 				restart_DIIS=iterationlimit; cout <<"Value of 'n_restart_DIIS' out of range 0 .. iterationlimit; value set to iterationlimit" << endl;
 			}
@@ -205,18 +205,18 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 		}
 		if (SCF_method=="conjugate_gradient") {
 			solver= conjugate_gradient;
-			linesearchlimit=In->Get_int(GetValue("linesearchlimit"),linesearchlimit);
+			linesearchlimit=ParseInt(GetValue("linesearchlimit"),linesearchlimit);
 		}
 
 			if (SCF_method=="LBFGS") {
 				solver=LBFGS;
-				m=In->Get_int(GetValue("m"),6);
+				m=ParseInt(GetValue("m"),6);
 				if (m < 0 ||m>1000) {m=6;  cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<endl; }
 			}
 
 		if (SCF_method=="BRR") {
 			solver=BRR;
-			m=In->Get_int(GetValue("m"),10);
+			m=ParseInt(GetValue("m"),10);
 			if (m < 0 ||m>1000) {m=10;  cout << "In method 'BRR', value of 'm' out of range 0..1000, value set to default value 10" <<endl; }
 		}
 
@@ -224,18 +224,18 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 				vector<string>gradient_options;
 				gradient_options.push_back("classical");
 				//gradient_options.push_back("Picard");
-				if (!In->Get_string(GetValue("gradient_type"),gradients,gradient_options,"In 'solve_scf' the entry for 'gradient_type' not recognized: choose from:")) success=false;
+				if (!ParseString(GetValue("gradient_type"),gradients,gradient_options,"In 'solve_scf' the entry for 'gradient_type' not recognized: choose from:")) success=false;
 				if (gradients=="classical") gradient=classical;
 				if (gradients=="Picard")  gradient=Picard;
 			}
 
-		StoreFileGuess=In->Get_string(GetValue("store_guess"),"");
-		ReadFileGuess=In->Get_string(GetValue("read_guess"),"");
+		StoreFileGuess=ParseString(GetValue("store_guess"),"");
+		ReadFileGuess=ParseString(GetValue("read_guess"),"");
 		if (GetValue("stop_criterion").size() > 0) {
 			vector<string>options;
 			options.push_back("norm_of_g");
 			options.push_back("max_of_element_of_|g|");
-			if (!In->Get_string(GetValue("stop_criterion"),stop_criterion,options,"In newton the stop_criterion setting was not recognised")) {success=false; };
+			if (!ParseString(GetValue("stop_criterion"),stop_criterion,options,"In newton the stop_criterion setting was not recognised")) {success=false; };
 			if(GetValue("stop_criterion") == options[1]) {
 				max_g = true;
 			}

@@ -71,7 +71,7 @@ NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 			}
 			if (GetValue("alphabulk").size()>0) {
 				fixed=true;
-				alphabulk=In->Get_Real(GetValue("alphabulk"),alphabulk);
+				alphabulk=ParseReal(GetValue("alphabulk"),alphabulk);
 				if (alphabulk <0 || alphabulk > 1) {
 					cout << "for state " << name << " value for alphabulk is out of range 0 ... 1 " << endl;
 					success=false;
@@ -80,7 +80,7 @@ NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 			valence = 0;
 			if (GetValue("valence").size()>0) {
 				const string valence_value = GetValue("valence");
-				valence=In->Get_Real(valence_value,valence);
+				valence=ParseReal(valence_value,valence);
 				if (valence <-10 || valence > 10) {
 					cout << "for state " << name << " value for valence " << valence_value << " is out of range -10 ... 10 " << endl;
 					success=false;
@@ -95,7 +95,7 @@ NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 		Chi=-999;
 		const string chi_value = GetValue("chi_"+chi_name[i]);
 		if (chi_value.size()>0) {
-			Chi=In->Get_Real(chi_value,Chi);
+			Chi=ParseReal(chi_value,Chi);
 			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "not valid." << endl; }
 			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "value ignored: set to zero!" << endl; Chi=0;}
 

@@ -407,7 +407,7 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 	} else {
 		save_memory=false;
 		if (GetValue("save_memory").size()>0) {
-			save_memory=In->Get_bool(GetValue("save_memory"),false);
+			save_memory=ParseBool(GetValue("save_memory"),false);
 		}
 		if (GetValue("composition").size()==0) {cout << "For mol '" + name + "' the definition of 'composition' is required" << endl; success = false;
 		} else {
@@ -442,7 +442,7 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 				vector<string> free_list;
 				free_list.push_back("restricted");
 				free_list.push_back("fill_range");
-				if (!In->Get_string(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) return false;
+				if (!ParseString(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) return false;
 				if (freedom=="restricted") {
 					if (GetValue("theta").size() ==0 && GetValue("n").size()==0) {
 							cout <<"In mol " + name + ", the setting 'freedom = restricted' or 'freedom = range_restricted',should be combined with a value for 'theta' or 'n'; do not use both settings! "<<endl; success=false;
@@ -450,8 +450,8 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 							if (GetValue("theta").size() >0 && GetValue("n").size()>0) {
 							cout <<"In mol " + name + ", the setting 'freedom = restricted' of 'freedom = range_restricted' do not specify both 'n' and 'theta' "<<endl; success=false;
 					} else {
-							if (GetValue("n").size()>0) {n=In->Get_Real(GetValue("n"),10*lat->volume);theta=n*chainlength;}
-							if (GetValue("theta").size()>0) {theta = In->Get_Real(GetValue("theta"),10*lat->volume);n=theta/chainlength;}
+							if (GetValue("n").size()>0) {n=ParseReal(GetValue("n"),10*lat->volume);theta=n*chainlength;}
+							if (GetValue("theta").size()>0) {theta = ParseReal(GetValue("theta"),10*lat->volume);n=theta/chainlength;}
 							if (theta < 0 ) {    //|| theta > lat->volume) {
 								cout << "In mol " + name + ", the value of 'n' or 'theta' " << theta << "  is out of range 0 .. 'volume'/N, cq 'volume' "<< lat->volume << endl; success=false;
 							}
@@ -485,7 +485,7 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 					//free_list.push_back("gradient");
 				}
 				free_list.push_back("restricted");
-				if (!In->Get_string(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) success=false;
+				if (!ParseString(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) success=false;
 				if (freedom == "solvent") {
 					if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the solvent" << endl; }
 				}
@@ -495,7 +495,7 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 				if (MolType == water && freedom=="solvent" ) {
 					Kw=50;
 					if (GetValue("Kw").size()>0) {
-						Kw=In->Get_Real(GetValue("Kw"),-1);
+						Kw=ParseReal(GetValue("Kw"),-1);
 						if (Kw < 0) {
 								cout << "Value for assosication constant Kw (used in the water model) should be positive." << endl;
 								cout << "In mol " + name + ", the value of 'Kw' serves in the 'association' water model. " << endl;
@@ -517,7 +517,7 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 					if (GetValue("phibulk").size() ==0) {
 						cout <<"In mol " + name + ", the setting 'freedom = free' should be combined with a value for 'phibulk'. "<<endl; return false;
 					} else {
-						phibulk=In->Get_Real(GetValue("phibulk"),-1);
+						phibulk=ParseReal(GetValue("phibulk"),-1);
 						if (phibulk < 0 || phibulk >1) {
 							cout << "In mol " + name + ", the value of 'phibulk' is out of range 0 .. 1." << endl; return false;
 						}
@@ -526,7 +526,7 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 
 				B=1;
 				if (GetValue("B").size()>0){
-					B=In->Get_Real(GetValue("B"),B);
+					B=ParseReal(GetValue("B"),B);
 					if (B<1e-9) {
 						cout <<"for Mol" + name + " mobility B should have a posititve value. Default value B=1 is chosen. " << endl;
 						B=1;
@@ -544,8 +544,8 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 							if (GetValue("phi_LB_x").size()==0 || GetValue("phi_UB_x").size()==0) {
 								cout <<"in mol " + name + "the setting 'freedom : gradient' should be combined with values of 'phi_LB_x' and 'phi_UB_x'=phibulk " << endl; return false;
 							} else {
-								phi_UB_X=In->Get_Real(GetValue("phi_UB_x"),-1); phibulk=phi_UB_X;
-								phi_LB_X=In->Get_Real(GetValue("phi_LB_x"),-1);
+								phi_UB_X=ParseReal(GetValue("phi_UB_x"),-1); phibulk=phi_UB_X;
+								phi_LB_X=ParseReal(GetValue("phi_LB_x"),-1);
 								if (phi_UB_X < 0 || phi_UB_X >1 || phi_LB_X <0 || phi_UB_X > 1 ) {
 									cout << "In mol " + name + ", the value of 'phi_UB_x' or 'phi_LB_x' is out of range 0 .. 1." << endl; return false;
 								}
@@ -555,10 +555,10 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 							if (GetValue("phi_LB_x").size()==0 || GetValue("phi_UB_x").size()==0 || GetValue("phi_LB_y").size()==0 || GetValue("phi_UB_y").size()==0) {
 								cout <<"in mol " + name + "the setting 'freedom : gradient' should be combined with values of 'phi_LB_x', 'phi_UB_x', 'phi_LB_y' and 'phi_UB_y'=phibulk values."  << endl; return false;
 							} else {
-								phi_UB_X=In->Get_Real(GetValue("phi_UB_x"),-1);
-								phi_LB_X=In->Get_Real(GetValue("phi_LB_x"),-1);
-								phi_UB_Y=In->Get_Real(GetValue("phi_UB_y"),-1); phibulk=phi_UB_Y;
-								phi_LB_Y=In->Get_Real(GetValue("phi_LB_y"),-1);
+								phi_UB_X=ParseReal(GetValue("phi_UB_x"),-1);
+								phi_LB_X=ParseReal(GetValue("phi_LB_x"),-1);
+								phi_UB_Y=ParseReal(GetValue("phi_UB_y"),-1); phibulk=phi_UB_Y;
+								phi_LB_Y=ParseReal(GetValue("phi_LB_y"),-1);
 								if (phi_UB_X < 0 || phi_UB_X >1 || phi_LB_X <0 || phi_UB_X > 1 ) {
 									cout << "In mol " + name + ", the value of 'phi_UB_x' or 'phi_LB_x' is out of range 0 .. 1." << endl; return false;
 								}
@@ -581,8 +581,8 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 							cout <<"In mol " + name + ", the setting 'freedom = restricted' of 'freedom = range_restricted' do not specify both 'n' and 'theta' "<<endl; success=false;
 							} else {
 
-								if (GetValue("n").size()>0) {n=In->Get_Real(GetValue("n"),10*lat->volume);theta=n*chainlength;}
-								if (GetValue("theta").size()>0) {theta = In->Get_Real(GetValue("theta"),10*lat->volume);n=theta/chainlength;}
+								if (GetValue("n").size()>0) {n=ParseReal(GetValue("n"),10*lat->volume);theta=n*chainlength;}
+								if (GetValue("theta").size()>0) {theta = ParseReal(GetValue("theta"),10*lat->volume);n=theta/chainlength;}
 								if (theta < 0 || theta > lat->volume) {
 									cout << "In mol " + name + ", the value of 'n' or 'theta' is out of range 0 .. 'volume', cq 'volume'/N." << endl; success=false;
 
@@ -620,7 +620,7 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 
 		ring=false;
 		if (GetValue("ring").size() > 0) {
-			In->Get_bool(GetValue("ring"),ring,"Input for ring is either 'true' or 'false'. Moreover, first and last segments of the backbone will be put on top of each other (chain length gets shorter by one). ");
+			ParseBool(GetValue("ring"),ring,"Input for ring is either 'true' or 'false'. Moreover, first and last segments of the backbone will be put on top of each other (chain length gets shorter by one). ");
 			if (ring) {
 				int length;
 				switch (MolType) {
@@ -662,14 +662,14 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 
 	}
 	Markov=1;
-	if (GetValue("Markov").size()>0) Markov=In->Get_int(GetValue("Markov"),1);
+	if (GetValue("Markov").size()>0) Markov=ParseInt(GetValue("Markov"),1);
 	if (Markov<1 || Markov>2) {
 		cout <<" Integer value for 'Markov' is by default 1 and may be set to 2 for some mol_types and fjc-choices only. Markov value out of bounds. Proceed with caution. " << endl; success = false;
 	}
 	if (Markov==2) lat->Markov=2;
 	k_stiff=lat->k_stiff; //pick up 'default' value from lattice.
 	if (GetValue("k_stiff").size()>0) {
-		k_stiff=In->Get_Real(GetValue("k_stiff"),k_stiff);
+		k_stiff=ParseReal(GetValue("k_stiff"),k_stiff);
 		if (k_stiff<0 || k_stiff>10) {
 			success =false;
 			cout <<" Real value for 'k_stiff' out of bounds (0 < k_stiff < 10). " << endl;
@@ -1156,7 +1156,7 @@ NAMICS_DBG("Molecule:: ExpandBrackets" << endl);
 				} else {
 					done=false;
 
-					int x=In->Get_int(s.substr(pos_close+1),-1);
+					int x=ParseInt(s.substr(pos_close+1),-1);
 					if (x<1) {
 							cout <<"Number of 'repeats' smaller or equal to zero (or '# repeats' is missing) in composition at pos : " << pos_close+1 << " for: " << s << endl; return false;
 					}
@@ -1172,7 +1172,7 @@ NAMICS_DBG("Molecule:: ExpandBrackets" << endl);
 		if (pos_low < open[length-1]&& done) {
 			done=false;
 			pos_close=close[length-1];
-			int x=In->Get_int(s.substr(pos_close+1),0);
+			int x=ParseInt(s.substr(pos_close+1),0);
 			string sA,sB,sC;
 			sA=s.substr(0,pos_low);
 			sB=s.substr(pos_low+1,pos_close-pos_low-1);
@@ -1201,7 +1201,7 @@ NAMICS_DBG("Molecule:: Interpret" << endl);
 		open.clear(); close.clear();
 		In->EvenBrackets(sub[i],open,close);
 		if (open.size()==0) {
-			int a=In->Get_int(sub[i],0);
+			int a=ParseInt(sub[i],0);
 			if (Al[a]->active) Al[a]->active=false; else Al[a]->active=true;
 		} else {
 			int k=0;
@@ -1236,7 +1236,7 @@ NAMICS_DBG("Molecule:: Interpret" << endl);
 					last_b[generation]=mon_nr.size()-1;
 					for (int i=0; i<AlListLength; i++) {if (Al[i]->active) Al[i]->frag.push_back(1); else Al[i]->frag.push_back(0);}
 				}
-				int nn = In->Get_int(sub[i].substr(close[k]+1,s.size()-close[k]-1),0);
+				int nn = ParseInt(sub[i].substr(close[k]+1,s.size()-close[k]-1),0);
 				if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity " << endl; success=false; return success;
 				//throw "Composition error";
 				} else {
@@ -1518,7 +1518,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 
 				if (length_dd==4) {
 					mnr=GetMonNr(sub_dd[2]);
-					a=In->Get_int(sub_dd[2],0);
+					a=ParseInt(sub_dd[2],0);
 					if (Al[a]->active) Al[a]->active=false; else Al[a]->active=true;
 
 				} else mnr=GetMonNr(sub[0]);
@@ -1541,7 +1541,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 					if (first_a[first_a.size()-1]==-1) first_a[first_a.size()-1]=arm;
 					last_a[last_a.size()-1]=arm;
 
-					f=In->Get_int(sub[k+1],0); //should not contain double dots....
+					f=ParseInt(sub[k+1],0); //should not contain double dots....
 					if (f<1) {
 						success=false; cout <<"In dendrimer-composition, in generation "<<i << " an integer number is expected at argument " << k+1 << " problem terminated" << endl;
 					}
@@ -1554,7 +1554,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 						open.clear(); close.clear();
             In->EvenBrackets(sub_dd[dd],open,close);
 						if (open.size()==0) {
-							a=In->Get_int(sub_dd[dd],-1);
+							a=ParseInt(sub_dd[dd],-1);
 							if (a==-1) {
 								cout <<"No integer found. Possibly you have a segment name in composition that is not surrounded by brackets " << endl; success=false;
 							} else {if (Al[a]->active) Al[a]->active=false; else Al[a]->active=true;}
@@ -1565,7 +1565,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 								mnr=GetMonNr(segname);
 								if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; this occurs at generation " <<i << " arm " << k << "."  << endl; success=false;}
 								mon_nr.push_back(mnr);
-								nn=In->Get_int(sub_dd[dd].substr(close[j]+1,s.size()-close[j]-1),0);
+								nn=ParseInt(sub_dd[dd].substr(close[j]+1,s.size()-close[j]-1),0);
 								if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity; this occurs at generation " <<i << " arm " <<k <<"."<< endl; success=false;}
 								n_mon.push_back(nn); N+=nn;
 								d_mon.push_back(degeneracy*f);
@@ -1640,7 +1640,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 				mnr=GetMonNr(segname);
 				if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; this occurs at generation " << endl; success=false;}
 				mon_nr.push_back(mnr); d_mon.push_back(1);
-				nn=In->Get_int(sub_gen[0].substr(close[j]+1,s.size()-close[j]-1),0);
+				nn=ParseInt(sub_gen[0].substr(close[j]+1,s.size()-close[j]-1),0);
 				if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity; this occurs at generation " << endl; success=false;}
 				n_mon.push_back(nn); N+=nn;
 				chainlength +=nn;
@@ -1658,7 +1658,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 				success=false; return success;
 			}
 
-			n_arm.push_back(In->Get_int(sub[3],0));
+			n_arm.push_back(ParseInt(sub[3],0));
 			first_s.push_back(N+1);
 			last_s.push_back(-1);
 			first_b.push_back(-1);
@@ -1671,7 +1671,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 				mnr=GetMonNr(segname);
 				if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; this occurs at generation " << endl; success=false; return success; }
 				mon_nr.push_back(mnr); d_mon.push_back(n_arm[0]);
-				nn=In->Get_int(sub[1].substr(close[j]+1,s.size()-close[j]-1),0);
+				nn=ParseInt(sub[1].substr(close[j]+1,s.size()-close[j]-1),0);
 				if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity; this occurs at generation " << endl; success=false; return success; }
 				n_mon.push_back(nn); N+=nn;
 				chainlength +=nn;
@@ -1710,7 +1710,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 					mnr=GetMonNr(segname);
 					if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; Use ring(?) for details." << endl; success=false; return success; }
 					mon_nr.push_back(mnr); d_mon.push_back(1);
-					nn=In->Get_int(sub[2].substr(close[j]+1,s.size()-close[j]-1),0);
+					nn=ParseInt(sub[2].substr(close[j]+1,s.size()-close[j]-1),0);
 					if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity; Use ring(? ) for details. "<< endl; success=false; return success; }
 					n_mon.push_back(nn); N+=nn;
 					chainlength +=nn;
@@ -1735,7 +1735,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 				mnr=GetMonNr(segname);
 				if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; " << endl; success=false; return success; }
 				mon_nr.push_back(mnr); d_mon.push_back(1);
-				nn=In->Get_int(sub_gen[2].substr(close[j]+1,s.size()-close[j]-1),0);
+				nn=ParseInt(sub_gen[2].substr(close[j]+1,s.size()-close[j]-1),0);
 				if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity;  " << endl; success=false; return success; }
 				n_mon.push_back(nn); N+=nn;
 				chainlength +=nn;

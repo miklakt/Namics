@@ -775,17 +775,17 @@ NAMICS_DBG("ReadRange in LGrad3 " << endl);	bool success=true;
 
 	if (coor.size()!=3) {cout << "In mon " + 	seg_name + ", for 'pos 1', in '" + range_type + "' the coordiantes do not come in set of three: 'x,y,z'" << endl; success=false;}
 	else {
-		r[0]=In->Get_int(coor[0],0);
-		r[1]=In->Get_int(coor[1],0);
-		r[2]=In->Get_int(coor[2],0);
+		r[0]=ParseInt(coor[0],0);
+		r[1]=ParseInt(coor[1],0);
+		r[2]=ParseInt(coor[2],0);
 	}
 	coor.clear(); In->split(set[1],',',coor);
 
 	if (coor.size()!=3) {cout << "In mon " + seg_name+ ", for 'pos 2', in '" + range_type + "', the coordinates do not come in set of three: 'x,y,z'" << endl; success=false;}
 	else {
-		r[3]=In->Get_int(coor[0],0);
-		r[4]=In->Get_int(coor[1],0);
-		r[5]=In->Get_int(coor[2],0);
+		r[3]=ParseInt(coor[0],0);
+		r[4]=ParseInt(coor[1],0);
+		r[5]=ParseInt(coor[2],0);
 	}
 	if (r[0] > r[3]) {cout << "In mon " + seg_name+ ", for 'pos 1', the x-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
 	if (r[1] > r[4]) {cout << "In mon " + seg_name+ ", for 'pos 1', the y-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
@@ -822,14 +822,14 @@ NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
 		i=0;
 		if (n_pos==0) {
 			while (i<length){
-				if (In->Get_int(lines[i],0)==1) n_pos++;
+				if (ParseInt(lines[i],0)==1) n_pos++;
 				i++;
 			};
 			if (n_pos==0) {cout << "Warning: Input file for locations of 'particles' does not contain any unities." << endl;}
 		} else {
 			i=0; p_i=0;
 			for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++) for (z=1; z<MZ+1; z++) {
-				if (In->Get_int(lines[i],0)==1) {H_p[p_i]=x*JX+y*JY+fjc-1+z; p_i++;}
+				if (ParseInt(lines[i],0)==1) {H_p[p_i]=x*JX+y*JY+fjc-1+z; p_i++;}
 				i++;
 			}
 		}
@@ -844,11 +844,11 @@ NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
 				if (length_xyz!=3) {
 					cout << "In mon " + seg_name + " " +range_type+"_filename  the expected 'triple coordinate' structure 'x,y,z' was not found. " << endl;  success = false;
 				} else {
-					px=In->Get_int(xyz[0],0);
+					px=ParseInt(xyz[0],0);
 					if (px < 1 || px > MX) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the x-coordinate in "+range_type+"_filename out of bounds: 1.." << MX << endl; success =false;}
-					py=In->Get_int(xyz[1],0);
+					py=ParseInt(xyz[1],0);
 					if (py < 1 || py > MY) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MY << endl; success =false;}
-					pz=In->Get_int(xyz[2],0);
+					pz=ParseInt(xyz[2],0);
 					if (pz < 1 || pz > MZ) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MZ << endl; success =false;}
 				}
 				H_p[i]=px*JX+py*JY+fjc-1+pz;
@@ -883,7 +883,7 @@ bool LGrad3::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 		} else {
 			for (int x=1; x<MX+1; x++)
 			for (int y=1; y<MY+1; y++)
-			for (int z=1; z<MZ+1; z++) Mask[x*JX + y*JY + z]=In->Get_int(lines[x*JX + y*JY + z],-1);
+			for (int z=1; z<MZ+1; z++) Mask[x*JX + y*JY + z]=ParseInt(lines[x*JX + y*JY + z],-1);
 		}
 	} else  {
 		for (int i=0; i<length_px; i++) {

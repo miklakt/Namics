@@ -136,7 +136,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 		int m_x;
 		int MX=lat->MX;
 		if (GetValue("sub_box_size").size()>0) {
-			m_x=In->Get_int(GetValue("sub_box_size"),-1);
+			m_x=ParseInt(GetValue("sub_box_size"),-1);
 			if (m_x <1 || m_x > MX) {success=false; cout <<"Value of sub_box_size is out of bounds: 1 ... " << MX << endl; }
 			if (mx>0) {
 				if (m_x!=mx) {
@@ -195,18 +195,18 @@ NAMICS_DBG("ParseFreedoms " << endl);
 						if (coor.size()!=3) {
 							success=false; cout <<" In 'clamp_info' for segment '"+name+"' for box number "<< i <<" the coordinates for the p1 position (px1,py1,pz1) not correct format: found " << set[1] << endl;
 						} else {
-							px1.push_back(In->Get_int(coor[0],-10000));
-							py1.push_back(In->Get_int(coor[1],-10000));
-							pz1.push_back(In->Get_int(coor[2],-10000));
+							px1.push_back(ParseInt(coor[0],-10000));
+							py1.push_back(ParseInt(coor[1],-10000));
+							pz1.push_back(ParseInt(coor[2],-10000));
 						}
 						coor.clear();
 						In->split(set[2],',',coor);
 						if (coor.size()!=3) {
 							success=false; cout <<" In 'clamp_info' for segment '"+name+"' for box number "<< i <<" the coordinates for the box position (px2,py2,pz2) not correct format. " << endl;
 						} else {
-							px2.push_back(In->Get_int(coor[0],-10000));
-							py2.push_back(In->Get_int(coor[1],-10000));
-							pz2.push_back(In->Get_int(coor[2],-10000));
+							px2.push_back(ParseInt(coor[0],-10000));
+							py2.push_back(ParseInt(coor[1],-10000));
+							pz2.push_back(ParseInt(coor[2],-10000));
 						}
 						bx.push_back((px2[i]+px1[i]-mx)/2);
 						by.push_back((py2[i]+py1[i]-mx)/2);
@@ -318,7 +318,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 						p_range.append(to_string(var_pos));
 
 					} else {
-						int cor=In->Get_int(xyz[kk],-1);
+						int cor=ParseInt(xyz[kk],-1);
 						if (((kk==0) && (cor <1 || cor > n_layers_x)) || ((kk==1) && (cor <1 || cor > n_layers_y))  ||((kk==2) && (cor <1 || cor > n_layers_z))) {
 							cout <<" For mon " + name+ ", the 'pinned_range' is not parsed properly! Coordinates either out of bounds or keywords 'var_pos', 'firstlayer', 'lastlayer' were not found" << endl;
 							success=false;
@@ -472,7 +472,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 					}
 
 					if (xyz[kk]!="firstlayer" && xyz[kk]!="lastlayer" && xyz[kk]!="lowerbound" && xyz[kk]!="upperbound" && xyz[kk]!="var_pos") {
-						int cor=In->Get_int(xyz[kk],-1);
+						int cor=ParseInt(xyz[kk],-1);
 						if ((kk==0 && (cor <0 || cor > n_layers_x+1)) || (kk==1 && (cor <0 || cor > n_layers_y+1))  ||(kk==2 && (cor <0 || cor > n_layers_z+1))) {
 							cout <<" For mon " + name+ ", the 'frozen_range' is not parsed properly! Coordinates either out of bounds or keywords  'var_pos', 'firstlayer', 'lastlayer', 'lowerbound', 'upperbound' were not found" << endl;
 							success=false;
@@ -538,8 +538,8 @@ NAMICS_DBG("ParseFreedoms " << endl);
 				cout <<"Expecting values for 'n', 'pos' and 'size' for the definition of the particle at the axis of cylindrical coordonate system " << endl;
 				cout<< "More specifically we expect n : 1 ; size < n_layers_x and size < n_layers_y; pos : (0,y) " << endl;
 			}
-			n=In->Get_int(GetValue("n"),-1); if (n!=1) {success = false; cout <<"expect value for 'n' to be unity, that is, 'n : 1' in this case"<< endl; }
-			R=In->Get_int(GetValue("size"),-1); if (R<0) {success = false ; cout <<"expecting positive integer for 'size' " << endl; }
+			n=ParseInt(GetValue("n"),-1); if (n!=1) {success = false; cout <<"expect value for 'n' to be unity, that is, 'n : 1' in this case"<< endl; }
+			R=ParseInt(GetValue("size"),-1); if (R<0) {success = false ; cout <<"expecting positive integer for 'size' " << endl; }
 			R*=fjc; //R is expressed in grit-units
 			if (GetValue("pos")=="?") {success = false; cout <<" expect (0,y) coordinate in this case, in segment size units" << endl; }
 			if (success) {
@@ -562,8 +562,8 @@ NAMICS_DBG("ParseFreedoms " << endl);
 							success=false;
 							cout <<"pos does not contain expected (x,y) set. Problem occurred for for particle nr " << i << "We found: " +tt << endl;
 						} else {
-							px.push_back(In->Get_int(sub[0],-1));px[i]*=fjc; //px in grit units
-							py.push_back(In->Get_int(sub[1],-1));py[i]*=fjc; //py in grit units
+							px.push_back(ParseInt(sub[0],-1));px[i]*=fjc; //px in grit units
+							py.push_back(ParseInt(sub[1],-1));py[i]*=fjc; //py in grit units
 							if (px[i] !=0) {success=false; cout << "pos x for particle " << i << " is expected to be 0; we found " << px[i] << endl; }
 							if (py[i] <0 || py[i]>lat->MY) {success=false; cout << "pos y for particle " << i << " out of bounds or not an integer: " << py[i] << endl; }
 							pz.push_back(0);
@@ -580,8 +580,8 @@ NAMICS_DBG("ParseFreedoms " << endl);
 			if (GetValue("n").size()==0 || GetValue("pos").size()==0 || GetValue("size").size()==0) {
 				success=false; cout <<"Expecting values for 'n', 'pos' and 'size' for the definition of the set of spherical particles in the system. " << endl;
 			} else {
-				n=In->Get_int(GetValue("n"),-1); if (n<0) {success=false; cout <<" expecting positive integer for 'n'" << endl;}
-				R=In->Get_int(GetValue("size"),-1); if (R<0) {success =false ; cout <<" expecting positive integer for 'size' "<<endl; }
+				n=ParseInt(GetValue("n"),-1); if (n<0) {success=false; cout <<" expecting positive integer for 'n'" << endl;}
+				R=ParseInt(GetValue("size"),-1); if (R<0) {success =false ; cout <<" expecting positive integer for 'size' "<<endl; }
 				R*=fjc;  //here I alrady express R in grit units not segment units.
 				//		px.push_back(1+rand()%lat->MX);
 				//		py.push_back(1+rand()%lat->MY);
@@ -657,9 +657,9 @@ NAMICS_DBG("ParseFreedoms " << endl);
 								cout <<"Format error: 'pos' did not contain the keywords 'regular' nor 'random'," << endl;
 								cout <<"nor did 'pos'  contain expected (x,y,z) sets. Problem occurred for for particle nr " << i << "We found: " +tt << endl;
 							} else {
-								px.push_back(In->Get_int(sub[0],-1)); px[i]*=fjc;
-								py.push_back(In->Get_int(sub[1],-1)); py[i]*=fjc;
-								pz.push_back(In->Get_int(sub[2],-1)); pz[i]*=fjc;
+								px.push_back(ParseInt(sub[0],-1)); px[i]*=fjc;
+								py.push_back(ParseInt(sub[1],-1)); py[i]*=fjc;
+								pz.push_back(ParseInt(sub[2],-1)); pz[i]*=fjc;
 								if (px[i] <0 || px[i]>lat->MX) {success=false; cout << "pos x for particle " << i << " out of bounds or not an integer: " << px[i] << endl; }
 								if (py[i] <0 || py[i]>lat->MY) {success=false; cout << "pos y for particle " << i << " out of bounds or not an integer: " << py[i] << endl; }
 								if (pz[i] <0 || pz[i]>lat->MZ) {success=false; cout << "pos z for particle " << i << " out of bounds or not an integer: " << pz[i] << endl; }
@@ -723,7 +723,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 						if (kk==1) t_range.append(to_string(n_layers_y));
 						if (kk==2) t_range.append(to_string(n_layers_z));
 					} else {
-						int cor=In->Get_int(xyz[kk],-1);
+						int cor=ParseInt(xyz[kk],-1);
 						if ((kk==0 && (cor <1 || cor > n_layers_x)) || (kk==1 && (cor <1 || cor > n_layers_y))  ||(kk==2 && (cor <1 || cor > n_layers_z))) {
 							cout <<" For mon " + name+ ", the 'tagged_range' is not parsed properly! Coordinates either out of bounds or keywords 'firstlayer', 'lastlayer' were not found" << endl;
 							success=false;
@@ -833,7 +833,7 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 	}
 	if (!(freedom ==" frozen" || freedom =="tagged")) for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * (KSAM)[__i];
 	if (GetValue("seed").size()>0) {
-		seed=In->Get_int(GetValue("seed"),1);
+		seed=ParseInt(GetValue("seed"),1);
 	}
 	if (GetValue("fluctuation_potentials").size()>0&& first_time)
 	{
@@ -861,7 +861,7 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 					cout <<"putting u_ext" << endl;
 					for (int x=1; x<MX; x++) u_ext[x]+=Amplitude*(sin(2.0*PIE*x/labda));
 				} else {
-					int x=In->Get_int(sub[0],MX/2);
+					int x=ParseInt(sub[0],MX/2);
 					u_ext[x]=Amplitude;
 				}
 				break;
@@ -869,7 +869,7 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 				s = GetValue("fluctuation_potentials");
 				In->split(s, ',', sub);
 				if (sub.size() !=2) {success=false; cout <<"expecting in 'mon : " + name + " : fluctuation_potentials : '  coordinate info in 2d, such as: x,5"<<endl; }
-				my=In->Get_int(sub[1],0);
+				my=ParseInt(sub[1],0);
 				if (my<0 || my>lat->MY) {success =false; cout << "in fluctuation potentials the y-coordinate is out of bounds."<< endl; }
 				labda_y=lat->MY;
 				JX=lat->JX;
@@ -910,7 +910,7 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 					}
 				} else
 				{
-					int mz=In->Get_int(sub[2],0);
+					int mz=ParseInt(sub[2],0);
 					if (mz<1 || mz>lat->MZ)
 					{
 						success=false;
@@ -992,7 +992,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	fixedPsi0=false;
 	success = In->CheckParameters("mon",name,start, KEYS, PARAMETERS);
 	if(success) {
-		if (GetValue("var_pos").size()>0) var_pos=In->Get_int(GetValue("var_pos"),0);
+		if (GetValue("var_pos").size()>0) var_pos=ParseInt(GetValue("var_pos"),0);
 
 		copy_of.clear();
 		if (GetValue("set_equal_to").size()>0) {
@@ -1011,7 +1011,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 			options.push_back("frozen");
 			options.push_back("tagged");
 			freedom="free";
-			freedom = In->Get_string(GetValue("freedom"),"free");
+			freedom = ParseString(GetValue("freedom"),"free");
 			if (!In->InSet(options,freedom)) {
 				cout << "Freedom: '"<< freedom  <<"' for mon " + name + " not recognized. "<< endl;
 				cout << "Freedom choices: free, pinned, frozen, tagged " << endl; success=false;
@@ -1027,13 +1027,13 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 
 		valence =0;
 		if (GetValue("valence").size()>0) {
-			valence=In->Get_Real(GetValue("valence"),0);
+			valence=ParseReal(GetValue("valence"),0);
 			if (valence<-10 || valence > 10) cout <<"For mon " + name + " valence value out of range -10 .. 10. Default value used instead" << endl;
 		}
 		epsilon=80;
 		if (GetValue("epsilon").size()>0) {
 			if (copy_of.size()>0) cout <<"For segment " << name << "value for epsilon will be overwritten by the value of segment " << copy_of << endl;
-			epsilon=In->Get_Real(GetValue("epsilon"),80);
+			epsilon=ParseReal(GetValue("epsilon"),80);
 			if (epsilon<1 || epsilon > 250) cout <<"For mon " + name + " relative epsilon value out of range 1 .. 250. Default value 80 used instead" << endl;
 		}
 		if (valence !=0) {
@@ -1046,7 +1046,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 		if (GetValue("e.psi0/kT").size()>0) {
 			PSI0=0;
 			fixedPsi0=true;
-			PSI0=In->Get_Real(GetValue("e.psi0/kT"),0);
+			PSI0=ParseReal(GetValue("e.psi0/kT"),0);
 			if (PSI0!=0 && valence !=0) {
 				success=false;
 				cout <<"You can set only 'valence' or 'e.psi0/kT', but not both " << endl;
@@ -1078,7 +1078,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 		Chi=-999;
 		const string chi_value = GetValue("chi_"+chi_name[i]);
 		if (chi_value.size()>0) {
-			Chi=In->Get_Real(chi_value,Chi);
+			Chi=ParseReal(chi_value,Chi);
 			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "not valid." << endl; }
 			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "value ignored: set to zero!" << endl; Chi=0;}
 
@@ -1088,7 +1088,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 
 	if (GetValue("fluctuation_potentials").size()>0) {
 		if (GetValue("fluctuation_wavelength").size()>0) {
-				labda=In->Get_int(GetValue("fluctuation_wavelength"),0);
+				labda=ParseInt(GetValue("fluctuation_wavelength"),0);
 				if (labda<1 || labda>lat->MX || labda > lat->MY || labda > lat->MZ) {
 					success = false;cout <<"fluctuation_wavelength must be a positive number smaller or equal to the 'box' size" << endl;
 				}
@@ -1098,7 +1098,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 		}
 		if (lat->gradients==2) {
 			labda = lat->MY;
-			labda=In->Get_int(GetValue("fluctuation_wavelength"),labda);
+			labda=ParseInt(GetValue("fluctuation_wavelength"),labda);
 			if (labda !=lat->MY) {
 				labda=lat->MY; cout <<"fluctuation_wavelength is set to n_layers_y." << endl;
 			}
@@ -1114,7 +1114,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 			}
 	}
 	if (GetValue("fluctuation_amplitude").size()>0) {
-		Amplitude = In->Get_Real(GetValue("fluctuation_amplitude"),1);
+		Amplitude = ParseReal(GetValue("fluctuation_amplitude"),1);
 		if (GetValue("fluctuation_potentials").size()==0) {
 			success = false; cout <<"fluctuation_amplitude should be combined with fluctuation_potentials and optionally with fluctuation_wavelength" << endl;
 		}
@@ -1149,8 +1149,8 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 			string sA=s.substr(open[k]+1,close[k]-open[k]-1);
 			sub.clear();
 			In->split(sA,',',sub);
-				int zz=In->Get_int(sub[0],0);
-				Real RHO=In->Get_Real(sub[1],-1);
+				int zz=ParseInt(sub[0],0);
+				Real RHO=ParseReal(sub[1],-1);
 				if (zz<1 || zz>lat->MX) {
 					cout <<"In constraints for segment " + name + "failed to understand '" + sA + "' no valid integer found for first argument. For help use: 'mon : " +name + " : phi : ?' " << endl; success=false;
 				} else constraint_z.push_back(zz);
@@ -1579,38 +1579,38 @@ bool Segment::GetClamp(string filename) {
 				NN.clear();
 				in_file >> line_ >> NN >> line_ >> X >> Y >> Z >> line_ >> line_ >> line_ >> line_;
 				if (NN.size()>0) {
-				if (!In->Get_int(NN,pos,"")) { success=false; cout<<" length of 'fragment' not an integer " << endl; }
+				if (!ParseInt(NN,pos,"")) { success=false; cout<<" length of 'fragment' not an integer " << endl; }
 				else {if (N>0) {if (N!=pos) {cout <<"lengths of fregment are not equal " << endl; success=false;}} else N = pos;}
-				if (!In->Get_int(X,pos,"")) {success=false; cout <<"X-value for sub_box size is not integer " << endl;  }
+				if (!ParseInt(X,pos,"")) {success=false; cout <<"X-value for sub_box size is not integer " << endl;  }
 				else {if (mx>0) {if (mx !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else mx=pos; }
-				if (!In->Get_int(Y,pos,"")) {success=false; cout <<"Y-value for sub_box size is not integer " << endl;  }
+				if (!ParseInt(Y,pos,"")) {success=false; cout <<"Y-value for sub_box size is not integer " << endl;  }
 				else {if (my>0) {if (my !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else my=pos; }
-				if (!In->Get_int(Z,pos,"")) {success=false; cout <<"Z-value for sub_box size is not integer " << endl;  }
+				if (!ParseInt(Z,pos,"")) {success=false; cout <<"Z-value for sub_box size is not integer " << endl;  }
 				else {if (mz>0) {if (mz !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else mz=pos; }
 				}
 			}
 			if (i==2) {in_file>>X>>Y>>Z;
-				if (!In->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(X,pos,"")) {success =false; cout << " X-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
 				else bx.push_back(pos);
-				if (!In->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(Y,pos,"")) {success =false; cout << " Y-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
 				else by.push_back(pos);
-				if (!In->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(Z,pos,"")) {success =false; cout << " Z-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
 				else bz.push_back(pos);
 			}
 			if (i==3) {in_file>>X>>Y>>Z;
-				if (!In->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(X,pos,"")) {success =false; cout << " X-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
 				else px1.push_back(pos);
-				if (!In->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
 				else py1.push_back(pos);
-				if (!In->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
 				else pz1.push_back(pos);
 			}
 			if (i==4) {i=0;in_file>>X>>Y>>Z;
-				if (!In->Get_int(X,pos,"")) {success =false; cout << " X-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(X,pos,"")) {success =false; cout << " X-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
 				else px2.push_back(pos);
-				if (!In->Get_int(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
 				else py2.push_back(pos);
-				if (!In->Get_int(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
+				if (!ParseInt(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
 				else pz2.push_back(pos);
 			}
 		}

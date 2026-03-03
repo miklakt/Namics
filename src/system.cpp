@@ -460,7 +460,7 @@ bool System::CheckInput(int start_)
 	{
 		if (GetValue("find_local_solution").size()>0) {
 			split = 2;
-			local_solution=In->Get_bool(GetValue("find_local_solution"),false);
+			local_solution=ParseBool(GetValue("find_local_solution"),false);
 			if (local_solution) {
 				if (lat->gradients!=3) {
 					local_solution =false; cout << "find_local_solution is rejected as it requires 3 gradient system. " << endl;
@@ -475,7 +475,7 @@ bool System::CheckInput(int start_)
 					}
 				}
 				if (GetValue("split").size()>0) {
-					split=In->Get_int(GetValue("split"),2);
+					split=ParseInt(GetValue("split"),2);
 					if (!(split ==2 || split ==4 || split ==8 ||split ==16 || split==32 || split==64 || split ==128) ) {
 						cout <<"Value for split should be 2^n, with n= 1,..,6. used split = 2 instead." << endl;
 						split =2;
@@ -500,7 +500,7 @@ bool System::CheckInput(int start_)
 		}
 #else
 		if (GetValue("overflow_protection").size() > 0) {
-			if (In->Get_bool(GetValue("overflow_protection"),true)) {
+			if (ParseBool(GetValue("overflow_protection"),true)) {
 				cout<<"You request 'overflow_protection', but the program was not compiled with the #define LongReal" << endl;
 				cout<<"1. Go to namics.h in the /src directory and turn on #define LongReal  ." <<endl;
 				cout<<"2. Do not request 'overflow_protection'." << endl;
@@ -585,7 +585,7 @@ bool System::CheckInput(int start_)
 			vector<string> constraints;
 			constraints.push_back("delta");
 			ConstraintType = "";
-			if (!In->Get_string(GetValue("constraint"), ConstraintType, constraints, "Info about 'constraint' rejected"))
+			if (!ParseString(GetValue("constraint"), ConstraintType, constraints, "Info about 'constraint' rejected"))
 			{
 				success = false;
 			};
@@ -669,16 +669,16 @@ bool System::CheckInput(int start_)
 							else
 							{
 								int rr;
-								rr=In->Get_int(coor[0], -1)*units;
+								rr=ParseInt(coor[0], -1)*units;
 								if (rr<0 || rr>lat->MX) {cout << "Coordinate x for delta_range is out of bonds. " << endl; success=false; }
 								else px.push_back(rr);
 								if (grad > 1) {
-									rr=In->Get_int(coor[1], -1)*units;
+									rr=ParseInt(coor[1], -1)*units;
 									if (rr<0 || rr>lat->MY) {cout << "Coordinate y for delta_range is out of bonds. " << endl; success=false; }
 									else py.push_back(rr);
 								}
 								if (grad > 2){
-									rr=In->Get_int(coor[2], -1)*units;
+									rr=ParseInt(coor[2], -1)*units;
 									if (rr<0 || rr>lat->MZ) {cout << "Coordinate z for delta_range is out of bonds. " << endl; success=false; }
 									pz.push_back(rr);
 								}
@@ -741,7 +741,7 @@ bool System::CheckInput(int start_)
 						phi_ratio=1.0*Mol[DeltaMolList[0]]->chainlength/Mol[DeltaMolList[1]]->chainlength;
 						if (phi_ratio>0) phi_ratio=sqrt(phi_ratio);
 					}
-					else phi_ratio=In->Get_Real(GetValue("phi_ratio"),-1);
+					else phi_ratio=ParseReal(GetValue("phi_ratio"),-1);
 					if (phi_ratio<0) {cout <<" phi_ratio shoud contain keyword 'critical_ratio' or a positive real number, typically 1. " << endl; success=false;}
 				} else {
 					success=false; cout <<"Please give a value for 'phi_ratio' (typically 1 or specify the keyword 'critical_ratio')" << endl;
@@ -756,7 +756,7 @@ bool System::CheckInput(int start_)
 			CalculationType = "equilibrium";
 			if (GetValue("calculation_type").size() > 0)
 			{
-				if (!In->Get_string(GetValue("calculation_type"), CalculationType, options, " Info about calculation_type rejected; only 'equilibrium' is supported."))
+				if (!ParseString(GetValue("calculation_type"), CalculationType, options, " Info about calculation_type rejected; only 'equilibrium' is supported."))
 				return false;
 			}
 
@@ -822,7 +822,7 @@ bool System::CheckInput(int start_)
 			options.push_back("membrane");
 			options.push_back("micelle");
 			options.push_back("none");
-			In->Get_string(GetValue("initial_guess"), initial_guess, options, " Info about 'initial_guess' rejected;");
+			ParseString(GetValue("initial_guess"), initial_guess, options, " Info about 'initial_guess' rejected;");
 			if (initial_guess == "file")
 			{
 				if (GetValue("guess_inputfile").size() > 0)
@@ -872,7 +872,7 @@ bool System::CheckInput(int start_)
 			options.clear();
 			options.push_back("next_problem");
 			options.push_back("file");
-			if (!In->Get_string(GetValue("final_guess"), final_guess, options, " Info about 'final_guess' rejected; default: 'next_problem' used."))
+			if (!ParseString(GetValue("final_guess"), final_guess, options, " Info about 'final_guess' rejected; default: 'next_problem' used."))
 			{
 				final_guess = "next_problem";
 			}
@@ -1017,7 +1017,7 @@ bool System::CheckInput(int start_)
 								XstateList_2.push_back(k);
 							}
 						}
-						int sto = In->Get_int(SUB[2].substr(0, SUB[2].length() - 1), -1);
+						int sto = ParseInt(SUB[2].substr(0, SUB[2].length() - 1), -1);
 						if (sto < 0)
 						{
 							success = false;
@@ -1557,7 +1557,7 @@ bool System::CheckChi_values(int n_seg)
 	for (int i = 0; i < n_seg; i++)
 		for (int k = 0; k < n_seg; k++)
 		{
-			CHI[i * n_seg + k] = In->Get_Real(Seg[i]->GetValue("chi_" + Seg[k]->name), 123);
+			CHI[i * n_seg + k] = ParseReal(Seg[i]->GetValue("chi_" + Seg[k]->name), 123);
 		}
 	for (int i = 0; i < n_seg; i++)
 		for (int k = 0; k < n_seg; k++)

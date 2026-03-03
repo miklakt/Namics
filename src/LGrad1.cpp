@@ -467,12 +467,12 @@ NAMICS_DBG("ReadRange in LGrad1 " << endl);	bool success=true;
 	block=true;
 	In->split(set[0],',',coor);
 	if (coor.size()!=1) {cout << "In mon " + seg_name + ", for 'pos 1', in '" + range_type + "' the coordiantes must come as a single coordinate 'x'" << endl; r[0]=0; success=false;}
-	else r[0]=In->Get_int(coor[0],-1) ;
+	else r[0]=ParseInt(coor[0],-1) ;
 
 	coor.clear(); In->split(set[1],',',coor);
 
 	if (coor.size()!=1) {cout << "In mon " + seg_name+ ", for 'pos 2', in '" + range_type + "' the coordinates must come as a single coordinate 'x'" << endl; r[3]=0; success=false;}
-	else r[3]=In->Get_int(coor[0],-1);
+	else r[3]=ParseInt(coor[0],-1);
 	if (r[0] > r[3]) {cout << "In mon " + seg_name+ ", for 'pos 1', the x-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
 
 	return success;
@@ -505,13 +505,13 @@ NAMICS_DBG("ReadRangeFile in LGrad1 " << endl);	if (fjc>1) {
 	if (length == MX) { //expect to read 'mask file';
 		if (n_pos==0) {
 			for (i = 0 ; i < length ; ++i) {
-				if (In->Get_int(lines[i],0)==1) n_pos++;
+				if (ParseInt(lines[i],0)==1) n_pos++;
 			}
 			if (n_pos==0) {cout << "Warning: Input file for locations of 'particles' does not contain any elements." << endl;}
 		} else {
 			p_i=0;
 			for (x=1; x<MX+1; x++) {
-				if (In->Get_int(lines[x-1],0)==1) {H_p[p_i]=x; p_i++;}
+				if (ParseInt(lines[x-1],0)==1) {H_p[p_i]=x; p_i++;}
 			}
 		}
 	} else { //expect to read x only
@@ -525,7 +525,7 @@ NAMICS_DBG("ReadRangeFile in LGrad1 " << endl);	if (fjc>1) {
 				if (length_xyz!=1) {
 					cout << "In mon " + seg_name + " " +range_type+"_filename  the expected 'single coordinate' 'x' was not found. " << endl;  success = false;
 				} else {
-					px=In->Get_int(xyz[0],0);
+					px=ParseInt(xyz[0],0);
 					if (px < 1 || px > MX) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the x-coordinate in "+range_type+"_filename out of bounds: 1.." << MX << endl; success =false;}
 				}
 				H_p[i]=px;
@@ -558,7 +558,7 @@ bool LGrad1::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (readfile) {
 		if (MX!=length) {success=false; cout <<"inputfile for filling delta_range has not expected length in x-direction" << endl;
 		} else {
-			for (int x=1; x<MX+1; x++) Mask[x]=In->Get_int(lines[x],-1);
+			for (int x=1; x<MX+1; x++) Mask[x]=ParseInt(lines[x],-1);
 		}
 	} else  {
 		for (int i=0; i<length_px; i++) {

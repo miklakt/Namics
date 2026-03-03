@@ -280,7 +280,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 		vector<string> options;
 		if (checking) {
 			gradients=1;
-			gradients=In->Get_int(GetValue("gradients"),1);
+			gradients=ParseInt(GetValue("gradients"),1);
 			if (gradients<0||gradients>3) {cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << endl; gradients=1;}
 			options.clear();
 			options.push_back("spherical");
@@ -288,7 +288,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 			options.push_back("flat");options.push_back("planar");
 
 			if (GetValue("geometry").size()>0) {
-				if (!In->Get_string(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
+				if (!ParseString(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
 					success=false;
 			} else geometry = "planar";
 			if (geometry=="flat") geometry="planar";
@@ -300,7 +300,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 
 		FJC=3;	fjc=1;
 		if (success && GetValue("FJC_choices").length()>0) {
-			if (!In->Get_int(GetValue("FJC_choices"),FJC,"FJC_choices can adopt only few integer values: 3 + i*2, with i = 0, 1, 2, 3, ..."))
+			if (!ParseInt(GetValue("FJC_choices"),FJC,"FJC_choices can adopt only few integer values: 3 + i*2, with i = 0, 1, 2, 3, ..."))
 				success=false;
 			else if ((FJC-3) %2 != 0) {
 				cout << "FJC_choices can adopt only few integer values: 3 + i*2, with i = 0, 1, 2, 3, ...." <<endl;
@@ -312,7 +312,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 
 		if (success && GetValue("b/l").length()>0) {
 			int fjc_new=1;
-			if (!In->Get_int(GetValue("b/l"),fjc_new,"b/l can adopt only few integer values: 1, 2, 3, ..."))
+			if (!ParseInt(GetValue("b/l"),fjc_new,"b/l can adopt only few integer values: 1, 2, 3, ..."))
 				success=false;
 			else {
 				if (fjc_new <1 ) {
@@ -336,7 +336,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 
 		bond_length=0;
 		if (GetValue("bondlength").size()>0) {
-			bond_length =  In->Get_Real(GetValue("bondlength"),5e-10);
+			bond_length =  ParseReal(GetValue("bondlength"),5e-10);
 			if (bond_length < 1e-11 || bond_length > 1e-8) {cout <<" bondlength out of range 1e-11..1e-8 " << endl; success=false;}
 		}
 		bond_length/=fjc;
@@ -346,7 +346,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 		options.push_back("simple_cubic"); options.push_back("hexagonal");
 		Value=GetValue("lattice_type");
 		if (Value.length()>0) {
-			if (!In->Get_string(Value,lat_type,options,"Input for 'lattice_type' not recognized. 'simple_cubic' or 'hexagonal'.")) success = false; else {
+			if (!ParseString(Value,lat_type,options,"Input for 'lattice_type' not recognized. 'simple_cubic' or 'hexagonal'.")) success = false; else {
 				if (lat_type == "simple_cubic") {lattice_type=simple_cubic; lambda=1.0/6.0; Z=6;}
 				if (lat_type == "hexagonal") {lattice_type=hexagonal; lambda=1.0/4.0; Z=4;}
 			}
@@ -356,11 +356,11 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 
 		offset_first_layer =0;
 		gradients=1;
-		gradients=In->Get_int(GetValue("gradients"),1);
+		gradients=ParseInt(GetValue("gradients"),1);
 		if (gradients<0||gradients>3) {cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << endl; gradients=1;}
 		switch(gradients) {
 			case 1:
-				MX = In->Get_int(GetValue("n_layers"),-123);
+				MX = ParseInt(GetValue("n_layers"),-123);
 
 				if (MX==-123) {success=false; cout <<"In 'lat' the parameter 'n_layers' is required. Problem terminated" << endl;}
 				else {
@@ -376,12 +376,12 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 				options.push_back("flat");options.push_back("planar");
 
 				if (GetValue("geometry").size()>0) {
-					if (!In->Get_string(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
+					if (!ParseString(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
 						success=false;
 				} else geometry = "planar";
 				if (geometry=="flat") geometry="planar";
 				if (geometry!="planar") {
-					offset_first_layer=In->Get_Real(GetValue("offset_first_layer"),0);
+					offset_first_layer=ParseReal(GetValue("offset_first_layer"),0);
 					if (offset_first_layer<0) {
 						cout <<"value of 'offset_first_layer' can not be negative. Value ignored. " << endl;
 						offset_first_layer=0;
@@ -403,10 +403,10 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 
 
 				if (GetValue("lowerbound").size()==0) BC[0]="mirror";
-				else if (!In->Get_string(GetValue("lowerbound"),BC[0],options,"For 'lowerbound' boundary condition not recognized. ")) success=false;
+				else if (!ParseString(GetValue("lowerbound"),BC[0],options,"For 'lowerbound' boundary condition not recognized. ")) success=false;
 
 				if (GetValue("upperbound").size()==0) BC[3]="mirror";
-				else if (!In->Get_string(GetValue("upperbound"),BC[3],options,"For 'upperbound' boundary condition not recognized."))
+				else if (!ParseString(GetValue("upperbound"),BC[3],options,"For 'upperbound' boundary condition not recognized."))
 					success = false;
 
 				break;
@@ -414,7 +414,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 				if (GetValue("upperbound").size()>0) {success=false; cout << "upperbound is only allowed in 1-gradient calculations" << endl;}
 				if (GetValue("lowerbound").size()>0) {success=false; cout << "lowerbound is only allowed in 1-gradient calculations" << endl;}
 
-				MX = In->Get_int(GetValue("n_layers_x"),-123);
+				MX = ParseInt(GetValue("n_layers_x"),-123);
 				if (MX==-123) {
 					success=false;
 					cout <<"In 'lat' the parameter 'n_layers_x' is required. Problem terminated" << endl;
@@ -426,7 +426,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 					}
 				}
 				MX=fjc*(MX);
-				MY = In->Get_int(GetValue("n_layers_y"),-123);
+				MY = ParseInt(GetValue("n_layers_y"),-123);
 				if (MY==-123) {
 					success=false;
 					cout <<"In 'lat' the parameter 'n_layers_y' is required. Problem terminated" << endl;
@@ -442,14 +442,14 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 				options.push_back("cylindrical");
 				options.push_back("flat");options.push_back("planar");
 				if (GetValue("geometry").size()>0) {
-					if (!In->Get_string(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
+					if (!ParseString(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
 						success=false;
 				} else geometry = "planar";
 				if (geometry=="flat") geometry="planar";
 				if (geometry=="planar") {volume = MX*MY;}
 
 				if (geometry!="planar") {
-					offset_first_layer=In->Get_Real(GetValue("offset_first_layer"),0);
+					offset_first_layer=ParseReal(GetValue("offset_first_layer"),0);
 					if (offset_first_layer<0) {
 						cout <<"value of 'offset_first_layer' can not be negative. Value ignored. " << endl;
 						offset_first_layer=0;
@@ -471,16 +471,16 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 				}
 
 				if (GetValue("lowerbound_x").size()==0) BC[0]="mirror";
-				else if (!In->Get_string(GetValue("lowerbound_x"),BC[0],options,"for 'lowerbound_x' boundary condition not recognized.  ")) success=false;
+				else if (!ParseString(GetValue("lowerbound_x"),BC[0],options,"for 'lowerbound_x' boundary condition not recognized.  ")) success=false;
 
 				if (GetValue("upperbound_x").size()==0) BC[3]="mirror";
-				else if (!In->Get_string(GetValue("upperbound_x"),BC[3],options,"for 'upperbound_x' boundary condition not recognized. ")) success = false;
+				else if (!ParseString(GetValue("upperbound_x"),BC[3],options,"for 'upperbound_x' boundary condition not recognized. ")) success = false;
 
 				if (GetValue("lowerbound_y").size()==0) BC[1]="mirror";
-				else if (!In->Get_string(GetValue("lowerbound_y"),BC[1],options,"for 'lowerbound_y' boundary condition not recognized. ")) success=false;
+				else if (!ParseString(GetValue("lowerbound_y"),BC[1],options,"for 'lowerbound_y' boundary condition not recognized. ")) success=false;
 
 				if (GetValue("upperbound_y").size()==0) BC[4]="mirror";
-				else if (!In->Get_string(GetValue("upperbound_y"),BC[4],options,"for 'upperbound_Y' boundary condition not recognized. ")) success = false;
+				else if (!ParseString(GetValue("upperbound_y"),BC[4],options,"for 'upperbound_Y' boundary condition not recognized. ")) success = false;
 
 
 				if (BC[0]=="periodic" || BC[3]=="periodic") {
@@ -497,11 +497,11 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 				if (GetValue("upperbound").size()>0) {success=false; cout << "upperbound is only allowed in 1-gradient calculations" << endl;}
 				if (GetValue("lowerbound").size()>0) {success=false; cout << "lowerbound is only allowed in 1-gradient calculations" << endl;}
 
-				if (!In->Get_int(GetValue("n_layers_x"),MX,1,1e6,"In 'lat' the parameter 'n_layers_x' is required"))
+				if (!ParseInt(GetValue("n_layers_x"),MX,1,1e6,"In 'lat' the parameter 'n_layers_x' is required"))
 					success=false;
-				if (!In->Get_int(GetValue("n_layers_y"),MY,1,1e6,"In 'lat' the parameter 'n_layers_y' is required"))
+				if (!ParseInt(GetValue("n_layers_y"),MY,1,1e6,"In 'lat' the parameter 'n_layers_y' is required"))
 					success=false;
-				if (!In->Get_int(GetValue("n_layers_z"),MZ,1,1e6,"In 'lat' the parameter 'n_layers_z' is required"))
+				if (!ParseInt(GetValue("n_layers_z"),MZ,1,1e6,"In 'lat' the parameter 'n_layers_z' is required"))
 					success=false;
 				MX=fjc*(MX);
 				MY=fjc*(MY);
@@ -514,22 +514,22 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 
 
 				if (GetValue("lowerbound_x").size()==0) BC[0]="mirror";
-				else if (!In->Get_string(GetValue("lowerbound_x"),BC[0],options,"for 'lowerbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
+				else if (!ParseString(GetValue("lowerbound_x"),BC[0],options,"for 'lowerbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
 
 				if (GetValue("upperbound_x").size()==0) BC[3]="mirror";
-				else if (!In->Get_string(GetValue("upperbound_x"),BC[3],options,"for 'upperbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
+				else if (!ParseString(GetValue("upperbound_x"),BC[3],options,"for 'upperbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
 
 				if (GetValue("lowerbound_y").size()==0) BC[1]="mirror";
-				else if (!In->Get_string(GetValue("lowerbound_y"),BC[1],options,"for 'lowerbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
+				else if (!ParseString(GetValue("lowerbound_y"),BC[1],options,"for 'lowerbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
 
 				if (GetValue("upperbound_y").size()==0) BC[4]="mirror";
-				else if (!In->Get_string(GetValue("upperbound_y"),BC[4],options,"for 'upperbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
+				else if (!ParseString(GetValue("upperbound_y"),BC[4],options,"for 'upperbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
 
 				if (GetValue("lowerbound_z").size()==0) BC[2]="mirror";
-				else if (!In->Get_string(GetValue("lowerbound_z"),BC[2],options,"for 'lowerbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
+				else if (!ParseString(GetValue("lowerbound_z"),BC[2],options,"for 'lowerbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
 
 				if (GetValue("upperbound_z").size()==0) BC[5]="mirror";
-				else if (!In->Get_string(GetValue("upperbound_z"),BC[5],options,"for 'upperbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
+				else if (!ParseString(GetValue("upperbound_z"),BC[5],options,"for 'upperbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
 
 				if (BC[1]=="periodic" || BC[4]=="periodic") {
 					if (BC[1] != BC[4]) {
@@ -556,12 +556,12 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 		if (gradients ==3 && fjc>2) {success = false; cout <<" When gradients is 3, FJC-choices are limited to 5 " << endl; }
 
 		if (GetValue("ignore_site_fraction").length()>0) {
-			ignore_sites=In->Get_bool(GetValue("ignore_sites"),false);
+			ignore_sites=ParseBool(GetValue("ignore_sites"),false);
 			if (!ignore_sites) cout <<"ignore_site_fraction is set to false. Full site fractions computed. " << endl;
 		}
 
 		if (GetValue("fcc_site_fraction").length()>0) {
-			fcc_sites=In->Get_bool(GetValue("fcc_site_fraction"),false);
+			fcc_sites=ParseBool(GetValue("fcc_site_fraction"),false);
 			if (!fcc_sites) cout <<"fcc_site_fraction is set to false. Full site fractions computed. " << endl;
 		}
 
@@ -570,7 +570,7 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 		}
 		stencil_full=true;
 		if (GetValue("stencil_full").length()>0) {
-			stencil_full=In->Get_bool(GetValue("stencil_full"),true);
+			stencil_full=ParseBool(GetValue("stencil_full"),true);
 			if (gradients<3 && stencil_full) cout << "untested territory for 'stencil_full' " << endl;
 		}
 		//Initialize system size and indexing
@@ -708,7 +708,7 @@ NAMICS_DBG("GetValue in lattice " << endl);if (X==NULL) cout << "pointer X is ze
 	switch(gradients) {
 		case 1:
 			if (sub.size()==1) {
-				x=In->Get_int(sub[0],x);
+				x=ParseInt(sub[0],x);
 				if (x==-1) x=MX; //trick to get the value of lastlayer; currently only in 1gradient case....
 				if (x<0||x>MX+1) {
 					cout <<"Requested postition in 'kal' output out of bounds." << endl;
@@ -718,8 +718,8 @@ NAMICS_DBG("GetValue in lattice " << endl);if (X==NULL) cout << "pointer X is ze
 			break;
 		case 2:
 			if (sub.size()==2) {
-				x=In->Get_int(sub[0],x);
-				y=In->Get_int(sub[1],y);
+				x=ParseInt(sub[0],x);
+				y=ParseInt(sub[1],y);
 				if (x<0||x>MX+1||y<0||y>MY+1) {
 					cout <<"Requested postition in 'kal' output out of bounds." << endl;
 					return 0;
@@ -728,9 +728,9 @@ NAMICS_DBG("GetValue in lattice " << endl);if (X==NULL) cout << "pointer X is ze
 			break;
 		case 3:
 			if (sub.size()>2) {
-				x=In->Get_int(sub[0],x);
-				y=In->Get_int(sub[1],y);
-				z=In->Get_int(sub[2],y);
+				x=ParseInt(sub[0],x);
+				y=ParseInt(sub[1],y);
+				z=ParseInt(sub[2],y);
 				if (x<0||x>MX+1||y<0||y>MY+1||z<0||z>MZ+1) {
 					cout <<"Requested postition in 'kal' output out of bounds." << endl;
 					return 0;
