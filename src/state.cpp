@@ -10,25 +10,25 @@ State::~State() {
 	DeAllocateMemory();
 }
 void State::DeAllocateMemory(){
-NAMICS_DBG_THIS("Destructor for State " + name << endl);}
+NAMICS_DBG("Destructor for State " + name << endl);}
 
 void State::AllocateMemory(int Clamp_nr, int n_box) {
 	(void)n_box;
 	(void)Clamp_nr;
-NAMICS_DBG_THIS("AllocateMemory in State " + name << endl);
+NAMICS_DBG("AllocateMemory in State " + name << endl);
 }
 
 void State::PrepareForCalculations() {
-NAMICS_DBG_THIS("PrepareForCalculations in State " + name << endl);
+NAMICS_DBG("PrepareForCalculations in State " + name << endl);
 }
 
 
 void State::PutParameter(string new_param) {
-NAMICS_DBG_THIS("PutParameter in State " + name << endl); KEYS.push_back(new_param);
+NAMICS_DBG("PutParameter in State " + name << endl); KEYS.push_back(new_param);
 }
 
 bool State::CheckInput(int start) {
-NAMICS_DBG_THIS("CheckInput in State " + name << endl);	bool success=true;
+NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 	chi_var_seg=-1;
 	chi_var_state=-1;
 	fixed=false;
@@ -79,9 +79,10 @@ NAMICS_DBG_THIS("CheckInput in State " + name << endl);	bool success=true;
 			}
 			valence = 0;
 			if (GetValue("valence").size()>0) {
-				valence=In->Get_Real(GetValue("valence"),valence);
+				const string valence_value = GetValue("valence");
+				valence=In->Get_Real(valence_value,valence);
 				if (valence <-10 || valence > 10) {
-					cout << "for state " << name << " value for valence " << GetValue("valence") << " is out of range -10 ... 10 " << endl;
+					cout << "for state " << name << " value for valence " << valence_value << " is out of range -10 ... 10 " << endl;
 					success=false;
 				}
 			}
@@ -92,10 +93,11 @@ NAMICS_DBG_THIS("CheckInput in State " + name << endl);	bool success=true;
 	Real Chi;
 	for (int i=0; i<length; i++) {
 		Chi=-999;
-		if (GetValue("chi_"+chi_name[i]).size()>0) {
-			Chi=In->Get_Real(GetValue("chi_"+chi_name[i]),Chi);
-			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<GetValue("chi_"+chi_name[i]) << "not valid." << endl; }
-			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<GetValue("chi_"+chi_name[i]) << "value ignored: set to zero!" << endl; Chi=0;}
+		const string chi_value = GetValue("chi_"+chi_name[i]);
+		if (chi_value.size()>0) {
+			Chi=In->Get_Real(chi_value,Chi);
+			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "not valid." << endl; }
+			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "value ignored: set to zero!" << endl; Chi=0;}
 
 		}
 		chi[i]=Chi;
@@ -104,35 +106,35 @@ NAMICS_DBG_THIS("CheckInput in State " + name << endl);	bool success=true;
 }
 
 string State::GetValue(string parameter){
-NAMICS_DBG_THIS("GetValue in State " + name << endl); auto it = PARAMETERS.find(parameter);
+	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 void State::PutChiKEY(string new_name) {
-NAMICS_DBG_THIS("PutChiKey " + name << endl); KEYS.push_back("chi_" + new_name);
+NAMICS_DBG("PutChiKey " + name << endl); KEYS.push_back("chi_" + new_name);
 	chi_name.push_back(new_name);
 	chi.push_back(-999);
 }
 
 void State::push(string s, Real X) {
-NAMICS_DBG_THIS("push (Real) in State " + name << endl); Reals.push_back(s);
+NAMICS_DBG("push (Real) in State " + name << endl); Reals.push_back(s);
 	Reals_value.push_back(X);
 }
 void State::push(string s, int X) {
-NAMICS_DBG_THIS("push (int) in State " + name << endl); ints.push_back(s);
+NAMICS_DBG("push (int) in State " + name << endl); ints.push_back(s);
 	ints_value.push_back(X);
 }
 void State::push(string s, bool X) {
-NAMICS_DBG_THIS("push (boool) in State " + name << endl); bools.push_back(s);
+NAMICS_DBG("push (boool) in State " + name << endl); bools.push_back(s);
 	bools_value.push_back(X);
 }
 void State::push(string s, string X) {
-NAMICS_DBG_THIS("push (string) in State " + name << endl); strings.push_back(s);
+NAMICS_DBG("push (string) in State " + name << endl); strings.push_back(s);
 	strings_value.push_back(X);
 }
 void State::PushOutput() {
-NAMICS_DBG_THIS("PushOutput in State " + name << endl); strings.clear();
+NAMICS_DBG("PushOutput in State " + name << endl); strings.clear();
 	strings_value.clear();
 	bools.clear();
 	bools_value.clear();
@@ -150,18 +152,18 @@ NAMICS_DBG_THIS("PushOutput in State " + name << endl); strings.clear();
 Real* State::GetPointer(string s,int &SIZE) {
 	(void)SIZE;
 	(void)s;
-NAMICS_DBG_THIS("GetPointer in State " + name << endl);	return NULL;
+NAMICS_DBG("GetPointer in State " + name << endl);	return NULL;
 }
 
 int* State::GetPointerInt(string s,int &SIZE) {
 	(void)SIZE;
 	(void)s;
-NAMICS_DBG_THIS("GetPointerInt in State " + name << endl);	return NULL;
+NAMICS_DBG("GetPointerInt in State " + name << endl);	return NULL;
 }
 
 
 int State::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-NAMICS_DBG_THIS("GetValue (long)  in State " + name << endl);	int i=0;
+NAMICS_DBG("GetValue (long)  in State " + name << endl);	int i=0;
 	int length = ints.size();
 	while (i<length) {
 		if (prop==ints[i]) {
@@ -202,7 +204,7 @@ NAMICS_DBG_THIS("GetValue (long)  in State " + name << endl);	int i=0;
 
 bool State::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
 	(void)Var_target_value_;
-NAMICS_DBG_THIS("State::PutVarInfo " << endl);	bool success=true;
+NAMICS_DBG("State::PutVarInfo " << endl);	bool success=true;
 	int length_mon,length_state;
 	chi_var_seg=-1;
 	chi_var_state=-1;
@@ -242,7 +244,7 @@ NAMICS_DBG_THIS("State::PutVarInfo " << endl);	bool success=true;
 }
 
 int State::PutVarScan(Real step, Real end_value, int steps, string scale_) {
-NAMICS_DBG_THIS("State::PutVarScan " << endl);	num_of_steps=-1;
+NAMICS_DBG("State::PutVarScan " << endl);	num_of_steps=-1;
 	scale=scale_;
 	Var_end_value=end_value;
 	if (scale=="exponential") {
@@ -279,7 +281,7 @@ NAMICS_DBG_THIS("State::PutVarScan " << endl);	num_of_steps=-1;
 }
 
 bool State::UpdateVarInfo(int step_nr) {
-NAMICS_DBG_THIS("State::UpdateVarInfo " << endl);	bool success=true;
+NAMICS_DBG("State::UpdateVarInfo " << endl);	bool success=true;
 	int length;
 	switch(Var_target) {
 		case 0:
@@ -311,7 +313,7 @@ NAMICS_DBG_THIS("State::UpdateVarInfo " << endl);	bool success=true;
 }
 
 bool State::ResetInitValue() {
-NAMICS_DBG_THIS("State::ResetInitValue() " << endl);	bool success=true;
+NAMICS_DBG("State::ResetInitValue() " << endl);	bool success=true;
 	int length;
 	switch(Var_target) {
 		case 0:
@@ -335,7 +337,7 @@ NAMICS_DBG_THIS("State::ResetInitValue() " << endl);	bool success=true;
 }
 
 void State::PutValue(Real X) {
-NAMICS_DBG_THIS("State::PutValue() " << endl);	int length;
+NAMICS_DBG("State::PutValue() " << endl);	int length;
 	switch(Var_target) {
 		case 0:
 			alphabulk=X;
@@ -357,7 +359,7 @@ NAMICS_DBG_THIS("State::PutValue() " << endl);	int length;
 }
 
 Real State::GetValue() {
-NAMICS_DBG_THIS("State::GetValue() " << endl);	int length;
+NAMICS_DBG("State::GetValue() " << endl);	int length;
 	Real X=0;
 	switch(Var_target) {
 		case 0:
@@ -382,7 +384,7 @@ NAMICS_DBG_THIS("State::GetValue() " << endl);	int length;
 }
 
 Real State::GetError() {
-NAMICS_DBG_THIS("State::GetError " << endl);	Real Error=0;
+NAMICS_DBG("State::GetError " << endl);	Real Error=0;
 	switch (Var_target) {
 		case 0:
 			cout <<"Program error in State::GetError" <<endl;

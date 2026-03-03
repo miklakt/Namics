@@ -11,7 +11,7 @@ mol_linear::~mol_linear() {
 
 
 bool mol_linear::ComputePhi() {
-if (debug) cout <<"ComputePhi in mol_linear " << endl;
+NAMICS_DBG("ComputePhi in mol_linear " << endl);
 	int b0 = first_b[0];
 	int bN = last_b[0];
 	int M=lat->M;

@@ -8,7 +8,7 @@ LG2Planar::LG2Planar(const Input& In_,const string& name_): LGrad2(In_,name_) {
 }
 
 LG2Planar::~LG2Planar() {
-NAMICS_DBG_THIS("LG2Planar destructor " << endl);}
+NAMICS_DBG("LG2Planar destructor " << endl);}
 
 
 void LG2Planar:: ComputeLambdas() {
@@ -24,7 +24,7 @@ void LG2Planar:: ComputeLambdas() {
 
 
 void LG2Planar::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
-NAMICS_DBG_THIS(" Side in LG2Planar " << endl);	if (ignore_sites) {
+NAMICS_DBG(" Side in LG2Planar " << endl);	if (ignore_sites) {
 		std::copy_n(X, M, X_side); return;
 	}
 	std::fill_n(X_side, M, 0);set_bounds(X);
@@ -727,7 +727,7 @@ void LG2Planar::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 
 
 void LG2Planar::propagate(Real *G, Real *G1, int s_from, int s_to,int M) { //this procedure should function on simple cubic lattice.
-NAMICS_DBG_THIS(" propagate in LGrad2 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
+NAMICS_DBG(" propagate in LGrad2 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
 	std::fill_n(gs, M, 0); set_bounds(gs_1);
 	if (fjc==1) {
 		if (!stencil_full) {
@@ -938,7 +938,7 @@ bool LG2Planar:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,in
 
 
 Real LG2Planar::DphiDt(Real *g, Real* B_phitot, Real* phiA, Real* phiB, Real* alphaA, Real* alphaB, Real B_A, Real B_B) {
-	NAMICS_DBG_THIS("LGrad2Planar: DphiDt not implemented yet " << endl);	Real AverageJ=0;
+	NAMICS_DBG("LGrad2Planar: DphiDt not implemented yet " << endl);	Real AverageJ=0;
 	int x, y;
 
 	//apply BC to the edges

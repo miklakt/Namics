@@ -83,7 +83,7 @@ SFNewton::~SFNewton() {
 
 
 void SFNewton::multiply(Real *v,Real alpha, Real *h, Real *w, int nvar) { //done
-if(debug) cout <<"multiply in Newton" << endl;
+NAMICS_DBG("multiply in Newton" << endl);
 	int i=0,i1=0,j=0;
 	Real sum=0;
 	Real *x = new Real[nvar];
@@ -105,14 +105,14 @@ if(debug) cout <<"multiply in Newton" << endl;
 
 
 Real SFNewton::norm2(Real*x, int nvar) { //done
-if(debug) cout <<"norm2 in Newton" << endl;
+NAMICS_DBG("norm2 in Newton" << endl);
 	Real sum=0;
 	for (int i=0; i<nvar; i++) sum += pow(x[i],2);
 	return sqrt(sum);
 }
 
 int SFNewton::signdeterminant(Real*h,int nvar) { //dome
-if(debug) cout <<"signdeterminant in Newton" << endl;
+NAMICS_DBG("signdeterminant in Newton" << endl);
 	int sign=1;
 	for (int i=0; i<nvar; i++) {
 		if ( h[i+i*nvar]<0 ) {
@@ -123,7 +123,7 @@ if(debug) cout <<"signdeterminant in Newton" << endl;
 }
 
 void SFNewton::updateneg(Real *l,Real *w, int nvar, Real alpha) { //done
-if(debug) cout <<"updateneg in Newton" << endl;
+NAMICS_DBG("updateneg in Newton" << endl);
 	int i=0,i1=0,j=0;
 	Real dmin=0,sum=0,b=0,d=0,p=0,lji=0,t=0;
 	dmin = 1.0/pow(2.0,54);
@@ -155,7 +155,7 @@ if(debug) cout <<"updateneg in Newton" << endl;
 }
 
 void SFNewton::decompos(Real *h, int nvar, int &ntr) { //done
-if(debug) cout <<"decompos in Newton" << endl;
+NAMICS_DBG("decompos in Newton" << endl);
 	int i,j,k;//itr,ntr;
 	Real sum,lsum,usum,phi,phitr,c,l;
 	Real *ha,*hai,*haj;
@@ -197,7 +197,7 @@ if(debug) cout <<"decompos in Newton" << endl;
 }
 
 void SFNewton::updatpos(Real *l, Real *w, Real *v, int nvar, Real alpha) { //done
-if(debug) cout <<"updatepos in Newton" << endl;
+NAMICS_DBG("updatepos in Newton" << endl);
 	int i,j;
 	Real b,c,d;
 	Real vai,waj,vaj;
@@ -231,7 +231,7 @@ if(debug) cout <<"updatepos in Newton" << endl;
 }
 
 void SFNewton::gausa(Real *l, Real *dup, Real *g, int nvar) {//done
-if(debug) cout <<"gausa in Newton" << endl;
+NAMICS_DBG("gausa in Newton" << endl);
 	int i,j;
 	Real*dupa,sum;
 	Real *ga;
@@ -253,7 +253,7 @@ if(debug) cout <<"gausa in Newton" << endl;
 }
 
 void SFNewton::gausb(Real *du, Real *p, int nvar) { //done
-if(debug) cout <<"gausb in Newton " << endl;
+NAMICS_DBG("gausb in Newton " << endl);
 	int i,j;
 	Real *pa,sum;
 	Real *duai;
@@ -272,14 +272,14 @@ if(debug) cout <<"gausb in Newton " << endl;
 
 Real SFNewton::residue(Real *g, Real *p, Real *x, int nvar, Real alpha) {
 	(void)alpha;
-if(debug) cout <<"residue in Newton " << endl;
+NAMICS_DBG("residue in Newton " << endl);
 	return sqrt(norm2(p,nvar)*norm2(g,nvar)/(1+norm2(x,nvar)));
 }
 
 Real SFNewton::linecriterion(Real *g, Real *g0, Real *p, Real *p0, int nvar) {
 	(void)p0;
 	(void)p;
-if(debug) cout <<"linecriterion in Newton " << endl;
+NAMICS_DBG("linecriterion in Newton " << endl);
 	Real normg,gg0;
 	normg = norm2(g0,nvar);
   	(gg0) = 0; for (int __i = 0; __i < (nvar); ++__i) (gg0) += (g)[__i] * (g0)[__i];
@@ -300,12 +300,12 @@ if(debug) cout <<"linecriterion in Newton " << endl;
 
 Real SFNewton::newfunction(Real *g, Real *x, int nvar) {
 	(void)x;
-if(debug) cout <<"newfunction in Newton " << endl;
+NAMICS_DBG("newfunction in Newton " << endl);
 	return pow(norm2(g,nvar),2);
 }
 
 void SFNewton::direction(Real *h, Real *p, Real *g, Real *g0, Real *x, int nvar, Real alpha, Real accuracy,bool filter){//done
-if(debug) cout <<"direction in Newton " << endl;
+NAMICS_DBG("direction in Newton " << endl);
 
 	newtondirection = true;
 	newhessian(h,g,g0,x,p,nvar,accuracy,alpha,filter);
@@ -326,7 +326,7 @@ if(debug) cout <<"direction in Newton " << endl;
 
 void SFNewton::startderivatives(Real *h, Real *g, Real *x, int nvar){ //done
 	(void)x;
-if(debug) cout <<"startderivatives in Newton" << endl;
+NAMICS_DBG("startderivatives in Newton" << endl);
 	Real diagonal = 1+norm2(g,nvar);
 	std::fill_n(h, nvar * nvar, 0);
 	for (int i=0; i<nvar; i++) {
@@ -335,14 +335,14 @@ if(debug) cout <<"startderivatives in Newton" << endl;
 }
 
 void SFNewton::resethessian(Real *h,Real *g,Real *x,int nvar){ //done
-if(debug) cout <<"resethessian in Newton" << endl;
+NAMICS_DBG("resethessian in Newton" << endl);
 	trouble = 0;
 	startderivatives(h,g,x,nvar);
 	resetiteration=iterations;
 }
 
 void SFNewton::newhessian(Real *h, Real *g, Real *g0, Real *x, Real *p, int nvar, Real accuracy,Real ALPHA,bool filter) {//done
-if(debug) cout <<"newhessian in Newton" << endl;
+NAMICS_DBG("newhessian in Newton" << endl);
 
 	Real dmin=0,sum=0,theta=0,php=0,dg=0,gg=0,g2=0,py=0,y2=0;
 	dmin = 1/pow(2.0,nbits); // alternative: DBL_EPSILON or DBL_MIN
@@ -414,7 +414,7 @@ if(debug) cout <<"newhessian in Newton" << endl;
 }
 
 void SFNewton::numhessian(Real* h,Real* g, Real* x, int nvar,bool filter) {//done
-if(debug) cout <<"numhessian in Newton" << endl;
+NAMICS_DBG("numhessian in Newton" << endl);
 	Real dmax2=0,dmax3=0,di=0;
 	Real *g1;
 	g1 = new Real[IV];
@@ -438,7 +438,7 @@ if(debug) cout <<"numhessian in Newton" << endl;
 }
 
 void SFNewton::decomposition(Real *h,int nvar, int &trouble){//done
-if(debug) cout <<"decomposition in Newton" << endl;
+NAMICS_DBG("decomposition in Newton" << endl);
 	int ntr=0;
 	decompos(h,nvar,ntr);
 
@@ -484,7 +484,7 @@ if(debug) cout <<"decomposition in Newton" << endl;
 }
 
 void SFNewton::findhessian(Real *h, Real *g, Real *x,int nvar,bool filter) {//done
-if(debug) cout <<"findhessian in Newton" << endl;
+NAMICS_DBG("findhessian in Newton" << endl);
 	if ( !samehessian ) {
 		if ( iterations==0 ) resethessian(h,g,x,nvar);
 		numhessian(h,g,x,nvar,filter); // passes through residuals so check pseudohessian
@@ -496,7 +496,7 @@ if(debug) cout <<"findhessian in Newton" << endl;
 
 
 Real SFNewton::newdirection(Real *h, Real *p, Real *p0, Real *g, Real *g0, Real *x, int nvar, Real ALPHA, bool filter) {//done
-if(debug) cout <<"newdirection in Newton" << endl;
+NAMICS_DBG("newdirection in Newton" << endl);
 
 	memcpy(p0, p, sizeof(*p0)*nvar);
 	Real accuracy=residue(g,p,x,nvar,ALPHA);
@@ -505,7 +505,7 @@ if(debug) cout <<"newdirection in Newton" << endl;
 }
 
 void SFNewton::newtrustregion(Real *p0,Real ALPHA_, Real &trustregion, Real& trustfactor, Real delta_max, Real delta_min, int nvar){
-if(debug) cout <<"newtrustregion in Newton" << endl;
+NAMICS_DBG("newtrustregion in Newton" << endl);
 	Real ALPHA=ALPHA_;
 	Real normp0 =0;
 	normp0= norm2(p0,nvar);
@@ -520,14 +520,14 @@ if(debug) cout <<"newtrustregion in Newton" << endl;
 }
 
 Real SFNewton::linesearch(Real *g, Real *g0, Real *p, Real *x, Real *x0, int nvar, Real alphabound,bool filter) {//done
-if(debug) cout <<"linesearch in Newton" << endl;
+NAMICS_DBG("linesearch in Newton" << endl);
 	Real newalpha = alphabound<1 ? alphabound : 1;
 	newalpha = zero(g,g0,p,x,x0,nvar,newalpha,filter);
 	return newalpha;
 }
 
 Real SFNewton::zero(Real *g, Real *g0, Real *p, Real *x, Real *x0, int nvar, Real newalpha,bool filter) {//done
-if(debug) cout <<"zero in Newton " << endl;
+NAMICS_DBG("zero in Newton " << endl);
 	Real alpha=newalpha;
 	bool valid, timedep;
 	lineiterations++;
@@ -564,7 +564,7 @@ if(debug) cout <<"zero in Newton " << endl;
 }
 
 Real SFNewton::stepchange(Real *g, Real *g0, Real *p, Real *p0, Real *x, Real *x0, int nvar, Real &alpha,bool filter){//done
-if(debug) cout <<"stepchange in Newton" << endl;
+NAMICS_DBG("stepchange in Newton" << endl);
 	Real change, crit;
 	change = crit = linecriterion(g,g0,p,p0,nvar);
 	while ( crit<0.35 && lineiterations<linesearchlimit ) {
@@ -610,7 +610,7 @@ bool SFNewton::Message(bool e_info_, bool s_info_, int it_, int iterationlimit_,
 	bool e_info=e_info_, s_info=s_info_; string s=s_;
 	int it=it_, iterationlimit=iterationlimit_;
 	Real residual=residual_, tolerance=tolerance_;
-	if (debug) cout <<"Message in  Newton " << endl;
+	NAMICS_DBG("Message in  Newton " << endl);
 	bool success=true;
 	if (it == iterationlimit) {
 		cout <<"Warning: "<<s<<"iteration not solved. Residual error= " << residual << endl;
@@ -635,7 +635,7 @@ bool SFNewton::Message(bool e_info_, bool s_info_, int it_, int iterationlimit_,
 }
 
 bool SFNewton::iterate(Real* x,int nvar_,int iterationlimit_,Real tolerance_, Real delta_max_, Real delta_min_,bool filter_) {
-if(debug) cout <<"iterate in SFNewton" << endl;
+NAMICS_DBG("iterate in SFNewton" << endl);
 	int nvar=nvar_;
 	int iterationlimit=iterationlimit_;
 	Real tolerance=tolerance_;
@@ -733,7 +733,7 @@ if(debug) cout <<"iterate in SFNewton" << endl;
 
 
 bool SFNewton::iterate_Picard(Real* x,int nvar, int iterationlimit, Real tolerance, Real delta_max) {
-if(debug) cout <<"Iterate_Picard in  SFNewton " << endl;
+NAMICS_DBG("Iterate_Picard in  SFNewton " << endl);
 
 Real* h  = (Real*) malloc(sizeof(Real));
 Real* g = (Real*) malloc(nvar*sizeof(Real));
@@ -767,7 +767,7 @@ free(h); free(g);
 }
 
 void SFNewton::Ax(Real* A, Real* X, int N){//From Ax_B; below B is not used: it is assumed to contain a row of unities.
-if(debug) cout <<"Ax in  SFNewton (own svdcmp) " << endl;
+NAMICS_DBG("Ax in  SFNewton (own svdcmp) " << endl);
 	if (N <= 1) {
 		X[0] = 1;
 		return;
@@ -826,7 +826,7 @@ if(debug) cout <<"Ax in  SFNewton (own svdcmp) " << endl;
 }
 
 void SFNewton::DIIS(Real* x, Real* x_x0, Real* xR, Real* Aij, Real* Apij,Real* Ci, int k, int k_diis, int m, int nvar) {
-if(debug) cout <<"DIIS in  SFNewton " << endl;
+NAMICS_DBG("DIIS in  SFNewton " << endl);
   	int posi;
 
 	if (k_diis>m) {
@@ -908,7 +908,7 @@ bool SFNewton::iterate_BRR(Real*x,int nvar_, int m, int iterationlimit,Real tole
 }
 
 bool SFNewton::iterate_DIIS(Real*x,int nvar_, int m, int iterationlimit,Real tolerance, Real delta_max, int restart_DIIS) {
-if(debug) cout <<"Iterate_DIIS in SFNewton " << endl;
+NAMICS_DBG("Iterate_DIIS in SFNewton " << endl);
 	int nvar=nvar_;
 	bool success;
   Real* Aij = (Real*) malloc(m*m*sizeof(Real)); std::fill_n(Aij, m * m, 0);
@@ -992,7 +992,7 @@ if(debug) cout <<"Iterate_DIIS in SFNewton " << endl;
 
 bool SFNewton::iterate_RF(Real*x, int nvar_,int iterationlimit,Real tolerance, Real delta_max, string s) {
 	(void)s;
-if(debug) cout <<"Iterate_RF in SFNewton " << endl;
+NAMICS_DBG("Iterate_RF in SFNewton " << endl);
 	int nvar=nvar_;
 	bool success;
 	Real* x0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(x0, nvar, 0);

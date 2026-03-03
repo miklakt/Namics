@@ -2,7 +2,7 @@
 Lattice::Lattice(const Input& In_,const string& name_) :
 	BC(6) // boundary condition slots: lower/upper for x, y, z
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
-NAMICS_DBG_THIS("Lattice constructor" << endl);	In=&In_; name=name_;
+NAMICS_DBG("Lattice constructor" << endl);	In=&In_; name=name_;
 	writer = io::SharedWriter();
 	range_reader = io::SharedRangeReader();
 	guess_reader = io::SharedInitialGuessReader();
@@ -38,7 +38,7 @@ NAMICS_DBG_THIS("Lattice constructor" << endl);	In=&In_; name=name_;
 }
 
 void Lattice::DeAllocateMemory(void) {
-NAMICS_DBG_THIS("DeAllocateMemory in lat " << endl);	if (!all_lattice) return;
+NAMICS_DBG("DeAllocateMemory in lat " << endl);	if (!all_lattice) return;
 	all_lattice=false;
 	l1_storage.clear();
 	l11_storage.clear();
@@ -89,7 +89,7 @@ NAMICS_DBG_THIS("DeAllocateMemory in lat " << endl);	if (!all_lattice) return;
 
 
 void Lattice::AllocateMemory(void) {
-NAMICS_DBG_THIS("AllocateMemory in lat " << endl);
+NAMICS_DBG("AllocateMemory in lat " << endl);
 	DeAllocateMemory();
 	all_lattice=true;
 	PutM();
@@ -243,7 +243,7 @@ NAMICS_DBG_THIS("AllocateMemory in lat " << endl);
 
 
 Lattice::~Lattice() {
-NAMICS_DBG_THIS("lattice destructor " << endl); DeAllocateMemory();
+NAMICS_DBG("lattice destructor " << endl); DeAllocateMemory();
 
 }
 
@@ -271,7 +271,7 @@ bool Lattice::PutSub_box(int mx_, int my_, int mz_,int n_box_) {
 }
 
 bool Lattice::CheckInput(int start, bool checking) {
-NAMICS_DBG_THIS("CheckInput in lattice " << endl);	bool success=true;
+NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 	mx.push_back(0); my.push_back(0); mz.push_back(0); jx.push_back(0); jy.push_back(0); m.push_back(0); n_box.push_back(0);
 	string Value;
 
@@ -691,17 +691,17 @@ bool Lattice::ResetInitValue() {
 }
 
 void Lattice::PutParameter(string new_param) {
-NAMICS_DBG_THIS("PutParameters in lattice " << endl); KEYS.push_back(new_param);
+NAMICS_DBG("PutParameters in lattice " << endl); KEYS.push_back(new_param);
 }
 
 string Lattice::GetValue(string parameter){
-NAMICS_DBG_THIS("GetValue in lattice " << endl); auto it = PARAMETERS.find(parameter);
+	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 Real Lattice::GetValue(Real* X,string s){
-NAMICS_DBG_THIS("GetValue in lattice " << endl);if (X==NULL) cout << "pointer X is zero" << endl;
+NAMICS_DBG("GetValue in lattice " << endl);if (X==NULL) cout << "pointer X is zero" << endl;
 	int x=0,y=0,z=0;
 	vector<string> sub;
 	In->split(s,',',sub);
@@ -747,29 +747,29 @@ NAMICS_DBG_THIS("GetValue in lattice " << endl);if (X==NULL) cout << "pointer X 
 
 
 bool Lattice::PrepareForCalculations(void) {
-NAMICS_DBG_THIS("PrepareForCalculations in lattice" << endl);	bool success=true;
+NAMICS_DBG("PrepareForCalculations in lattice" << endl);	bool success=true;
 	return success;
 }
 
 void Lattice::push(string s, Real X) {
-NAMICS_DBG_THIS("push (Real) in lattice " << endl); Reals.push_back(s);
+NAMICS_DBG("push (Real) in lattice " << endl); Reals.push_back(s);
 	Reals_value.push_back(X);
 }
 void Lattice::push(string s, int X) {
-NAMICS_DBG_THIS("push (int) in lattice " << endl); ints.push_back(s);
+NAMICS_DBG("push (int) in lattice " << endl); ints.push_back(s);
 	ints_value.push_back(X);
 }
 void Lattice::push(string s, bool X) {
-NAMICS_DBG_THIS("push (bool) in lattice " << endl); bools.push_back(s);
+NAMICS_DBG("push (bool) in lattice " << endl); bools.push_back(s);
 	bools_value.push_back(X);
 }
 void Lattice::push(string s, string X) {
-NAMICS_DBG_THIS("push (string) in lattice " << endl); strings.push_back(s);
+NAMICS_DBG("push (string) in lattice " << endl); strings.push_back(s);
 	strings_value.push_back(X);
 }
 
 Real* Lattice::GetPointer(string s,int &SIZE) {
-NAMICS_DBG_THIS("GetPointer for lattice " + name << endl);	vector<string> sub;
+NAMICS_DBG("GetPointer for lattice " + name << endl);	vector<string> sub;
 	SIZE=M;
 	In->split(s,';',sub);
 	if (sub[0]=="profile" && sub[1]=="0") return L;
@@ -778,7 +778,7 @@ NAMICS_DBG_THIS("GetPointer for lattice " + name << endl);	vector<string> sub;
 }
 
 int* Lattice::GetPointerInt(string s,int &SIZE) {
-NAMICS_DBG_THIS("GetPointerInt for lattice " + name << endl);	vector<string> sub;
+NAMICS_DBG("GetPointerInt for lattice " + name << endl);	vector<string> sub;
 	SIZE=M;
 	In->split(s,';',sub);
 	if (sub[0]=="array"){//get with sub[1] the number and put the pointer to integer array in return.
@@ -788,7 +788,7 @@ NAMICS_DBG_THIS("GetPointerInt for lattice " + name << endl);	vector<string> sub
 }
 
 void Lattice::PushOutput() {
-NAMICS_DBG_THIS("PushOutput in lat " << endl); strings.clear();
+NAMICS_DBG("PushOutput in lat " << endl); strings.clear();
 	strings_value.clear();
 	bools.clear();
 	bools_value.clear();
@@ -828,7 +828,7 @@ NAMICS_DBG_THIS("PushOutput in lat " << endl); strings.clear();
 
 
 int Lattice::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-NAMICS_DBG_THIS("GetValue (long)  in lattice " << endl);
+NAMICS_DBG("GetValue (long)  in lattice " << endl);
 	for ( size_t i = 0 ; i<ints.size() ; ++i)
 		if (prop==ints[i]) {
 			int_result=ints_value[i];
@@ -878,11 +878,11 @@ void Lattice::ComputeGN(std::span<Real> GN, std::span<const Real> Gg_f, std::spa
 
 
 bool Lattice::ReadGuess(string filename, Real *x ,string &method, vector<string> &monlist, vector<string> &statelist, bool &charged, int &mx, int &my, int &mz, int &fjc, int readx) {
-NAMICS_DBG_THIS("ReadGuess in output" << endl); return guess_reader->ReadInitialGuess(filename, x, method, monlist, statelist, charged, mx, my, mz, fjc, readx);
+NAMICS_DBG("ReadGuess in output" << endl); return guess_reader->ReadInitialGuess(filename, x, method, monlist, statelist, charged, mx, my, mz, fjc, readx);
 }
 
 bool Lattice::StoreGuess(string Filename,Real *x,string method, vector<string> monlist,vector<string>statelist, bool charged, int start) {
-NAMICS_DBG_THIS("StoreGuess in output" << endl);	bool success=true;
+NAMICS_DBG("StoreGuess in output" << endl);	bool success=true;
 	int mon_length = monlist.size();
 	int state_length = statelist.size();
 	string filename;
@@ -921,7 +921,7 @@ NAMICS_DBG_THIS("StoreGuess in output" << endl);	bool success=true;
 
 bool Lattice::GenerateGuess(Real* x, string CalculationType, string GuessType, Real A_value, Real B_value) {
 	(void)CalculationType;
-NAMICS_DBG_THIS("GenerateGuess in lat " << endl);//GuessType: lamellae,Im3m,FCC,BCC,HEX,gyroid,Real_gyroid,Real_diamond,perforated_lamellae
+NAMICS_DBG("GenerateGuess in lat " << endl);//GuessType: lamellae,Im3m,FCC,BCC,HEX,gyroid,Real_gyroid,Real_diamond,perforated_lamellae
 //CalculationType: micro_emulsion,micro_phasesegregation
 	bool success = true;
 	int i,j,k;
@@ -975,7 +975,7 @@ NAMICS_DBG_THIS("GenerateGuess in lat " << endl);//GuessType: lamellae,Im3m,FCC,
 
 
 bool Lattice::GuessVar(Real* x, Real theta,string GuessType, Real A_value, Real B_value){
-NAMICS_DBG_THIS("GuessVar in Lattice " << endl);	bool success = true;
+NAMICS_DBG("GuessVar in Lattice " << endl);	bool success = true;
 	int i;
 	if (fjc>1) cout <<"GuessVar is not yet prepared to work for FJC-choices > 3 " << endl;
 	int height = theta/1;

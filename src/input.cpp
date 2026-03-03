@@ -439,7 +439,7 @@ bool Input::CheckParameters(const string& keyword, const string& name, int start
 
 
 bool Input:: LoadItems(const string& template_,std::vector<std::string> &Out_key, std::vector<std::string> &Out_name, std::vector<std::string> &Out_prop) const {
-NAMICS_DBG_THIS("LoadItems in Input " << endl); Out_key.clear();
+NAMICS_DBG("LoadItems in Input " << endl); Out_key.clear();
 	Out_name.clear();
 	Out_prop.clear();
 	bool success=true;

@@ -4,7 +4,7 @@
 
 Segment::Segment(const Input* In_,Lattice* Lat_, string name_,int segnr,int N_seg) {
 	In=In_; Lat=Lat_; name=name_; n_seg=N_seg; seg_nr=segnr; prepared = 0;
-if (debug) cout <<"Segment constructor" + name << endl;
+NAMICS_DBG("Segment constructor" + name << endl);
 	lat=Lat;
 	KEYS.push_back("freedom");
 	KEYS.push_back("valence");
@@ -43,12 +43,12 @@ if (debug) cout <<"Segment constructor" + name << endl;
 	B=1; J=0;
 }
 Segment::~Segment() {
-if (debug) cout <<"Segment destructor " + name << endl;
+NAMICS_DBG("Segment destructor " + name << endl);
 	DeAllocateMemory();
 }
 
 void Segment::DeAllocateMemory(void){
-if (debug) cout << "In Segment, Deallocating memory " + name << endl;
+NAMICS_DBG( "In Segment, Deallocating memory " + name << endl);
 if (!all_segment) return;
 
 	free(r);
@@ -66,7 +66,7 @@ if (!all_segment) return;
 }
 
 void Segment::AllocateMemory() {
-if (debug) cout <<"Allocate Memory in Segment " + name << endl;
+NAMICS_DBG("Allocate Memory in Segment " + name << endl);
 	DeAllocateMemory();
 	int M=lat->M;
 	ns=state_name.size(); if (ns==0) ns=1;
@@ -129,7 +129,7 @@ if (debug) cout <<"Allocate Memory in Segment " + name << endl;
 }
 
 bool Segment::ParseFreedoms(bool& HMaskDone) {
-if (debug) cout <<"ParseFreedoms " << endl;
+NAMICS_DBG("ParseFreedoms " << endl);
 	bool success=true;
 	if (freedom =="clamp" ) {
 		n_box=0; mx=0;
@@ -801,7 +801,7 @@ bool Segment::Overlap(int I, int R) {
 }
 
 bool Segment::PrepareForCalculations(Real* KSAM, bool first_time) {
-if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
+NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 
 	int M=lat->M;
 
@@ -947,7 +947,7 @@ if (debug) cout <<"PrepareForCalcualtions in Segment " +name << endl;
 }
 
 void Segment::PutContraintBC() {
-if (debug) cout <<"PutConstraintBC Segment " + name << endl;
+NAMICS_DBG("PutConstraintBC Segment " + name << endl);
 	int gradients=lat->gradients;
 	int M=lat->M;
 	int MX=lat->MX;
@@ -975,7 +975,7 @@ if (debug) cout <<"PutConstraintBC Segment " + name << endl;
 }
 
 bool Segment::CheckInput(int start_) {
-if (debug) cout <<"CheckInput in Segment " + name << endl;
+NAMICS_DBG("CheckInput in Segment " + name << endl);
 	bool success;
 	start=start_;
 	block=false;
@@ -1076,10 +1076,11 @@ if (debug) cout <<"CheckInput in Segment " + name << endl;
 	Real Chi;
 	for (int i=0; i<length; i++) {
 		Chi=-999;
-		if (GetValue("chi_"+chi_name[i]).size()>0) {
-			Chi=In->Get_Real(GetValue("chi_"+chi_name[i]),Chi);
-			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<GetValue("chi_"+chi_name[i]) << "not valid." << endl; }
-			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<GetValue("chi_"+chi_name[i]) << "value ignored: set to zero!" << endl; Chi=0;}
+		const string chi_value = GetValue("chi_"+chi_name[i]);
+		if (chi_value.size()>0) {
+			Chi=In->Get_Real(chi_value,Chi);
+			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "not valid." << endl; }
+			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "value ignored: set to zero!" << endl; Chi=0;}
 
 		}
 		chi[i]=Chi;
@@ -1184,7 +1185,7 @@ string Segment::GetOriginal() {
 }
 
 Real Segment::Get_g(int ii) {
-	if (debug) cout <<"Get_g" + name << endl;
+	NAMICS_DBG("Get_g" + name << endl);
 	return constraint_phi[ii]/phi[constraint_z[ii]]-1.0;
 }
 
@@ -1205,7 +1206,7 @@ Real Segment::Volume_particles() {
 }
 
 bool Segment::PutAdsorptionGuess(Real chi,Real* Mask) {
-if (debug) cout <<"PutAdsorptionGuess" + name << endl;
+NAMICS_DBG("PutAdsorptionGuess" + name << endl);
 	bool success=true;
 	Real lambda;
 	if (lat->lattice_type==hexagonal) lambda=0.25; else lambda=1.0/6.0;
@@ -1240,7 +1241,7 @@ if (debug) cout <<"PutAdsorptionGuess" + name << endl;
 }
 
 bool Segment::PutTorusPotential(int sign) {
-if (debug) cout <<"PutTorusPotential " + name << endl;
+NAMICS_DBG("PutTorusPotential " + name << endl);
 	bool success=true;
 	Real distance=0;
 	int count=0;
@@ -1287,7 +1288,7 @@ if (debug) cout <<"PutTorusPotential " + name << endl;
 }
 
 bool Segment::PutMembranePotential(int sign) {
-if (debug) cout <<"PutMembranePotential " + name << endl;
+NAMICS_DBG("PutMembranePotential " + name << endl);
 	bool success=true;
 	int fjc=lat->fjc;
 	for (int x=1; x<4*fjc; x++) u[x]=-log(1.8)*sign;
@@ -1296,7 +1297,7 @@ if (debug) cout <<"PutMembranePotential " + name << endl;
 }
 
 void Segment::SetPhiSide(){
-if (debug) cout <<"SetPhiSide in Segment " + name << endl;
+NAMICS_DBG("SetPhiSide in Segment " + name << endl);
 	int M=lat->M;
 	if (ns==1) {
 
@@ -1316,7 +1317,7 @@ if (debug) cout <<"SetPhiSide in Segment " + name << endl;
 
 bool Segment::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
 	(void)Var_target_value_;
-if (debug) cout << "Segment::PutVarInfo " << endl;
+NAMICS_DBG( "Segment::PutVarInfo " << endl);
 	bool success=true;
 
 	int length_mon,length_state;
@@ -1363,7 +1364,7 @@ if (debug) cout << "Segment::PutVarInfo " << endl;
 }
 
 int Segment::PutVarScan(Real step, Real end_value, int steps, string scale_) {
-if (debug) cout << "Segment::PutVarScan " << endl;
+NAMICS_DBG( "Segment::PutVarScan " << endl);
 	num_of_steps=-1;
 	scale=scale_;
 	Var_end_value=end_value;
@@ -1401,7 +1402,7 @@ if (debug) cout << "Segment::PutVarScan " << endl;
 }
 
 bool Segment::UpdateVarInfo(int step_nr) {
-if (debug) cout << "Segment::UpdateVarInfo() " << endl;
+NAMICS_DBG( "Segment::UpdateVarInfo() " << endl);
 	bool success=true;
 	int length;
 	switch(Var_target) {
@@ -1461,7 +1462,7 @@ if (debug) cout << "Segment::UpdateVarInfo() " << endl;
 }
 
 bool Segment::ResetInitValue() {
-if (debug) cout << "Segment::ResetInitValue() " << endl;
+NAMICS_DBG( "Segment::ResetInitValue() " << endl);
 	bool success=true;
 	int length;
 	switch(Var_target) {
@@ -1494,7 +1495,7 @@ if (debug) cout << "Segment::ResetInitValue() " << endl;
 }
 
 void Segment::PutValue(Real X) {
-if (debug) cout << "Segment::PutValue() " << endl;
+NAMICS_DBG( "Segment::PutValue() " << endl);
 	int length;
 	switch(Var_target) {
 		case 0:
@@ -1525,7 +1526,7 @@ if (debug) cout << "Segment::PutValue() " << endl;
 }
 
 Real Segment::GetValue() {
-if (debug) cout << "Segment::GetValue() " << endl;
+NAMICS_DBG( "Segment::GetValue() " << endl);
 	Real X=0;
 	int length;
 	switch(Var_target) {
@@ -1623,81 +1624,80 @@ bool Segment::GetClamp(string filename) {
 }
 
 Real* Segment::GetMASK() {
-if (debug) cout <<"Get Mask for segment" + name << endl;
+NAMICS_DBG("Get Mask for segment" + name << endl);
 	if (MASK==NULL) {cout <<"MASK not yet created. Task to point to MASK in segment is rejected. " << endl; return NULL;}
 	else return MASK;
 }
 
 Real* Segment::GetPhi() {
-if (debug) cout <<"GetPhi in segment " + name << endl;
+NAMICS_DBG("GetPhi in segment " + name << endl);
 	int M=lat->M;
 	if (freedom=="frozen") std::copy_n(MASK, M, phi);
 	return phi;
 }
 
 string Segment::GetFreedom(void){
-if (debug) cout <<"GetFreedom for segment " + name << endl;
+NAMICS_DBG("GetFreedom for segment " + name << endl);
 	return freedom;
 }
 bool Segment::IsClamp(void) {
-if (debug) cout <<"Is free for " + name << endl;
+NAMICS_DBG("Is free for " + name << endl);
 	return freedom == "clamp";
 }
 bool Segment::IsFree(void) {
-if (debug) cout <<"Is free for " + name << endl;
+NAMICS_DBG("Is free for " + name << endl);
 	return freedom == "free";
 }
 bool Segment::IsPinned(void) {
-if (debug) cout <<"IsPinned for segment " + name << endl;
+NAMICS_DBG("IsPinned for segment " + name << endl);
 	return freedom == "pinned";
 }
 bool Segment::IsFrozen(void) {
-if (debug) cout <<"IsFrozen for segment " + name << endl;
+NAMICS_DBG("IsFrozen for segment " + name << endl);
 	phibulk =0;
 	return freedom == "frozen";
 }
 bool Segment::IsTagged(void) {
-if (debug) cout <<"IsTagged for segment " + name << endl;
+NAMICS_DBG("IsTagged for segment " + name << endl);
 	phibulk =0;
 	return freedom == "tagged";
 }
 
 void Segment::PutChiKEY(string new_name) {
-if (debug) cout <<"PutChiKey " + name << endl;
+NAMICS_DBG("PutChiKey " + name << endl);
 	KEYS.push_back("chi_" + new_name);
 	chi_name.push_back(new_name);
 	chi.push_back(-999);
 }
 
 string Segment::GetValue(string parameter) {
-if (debug) cout <<"GetValue for segment " + name + " for parameter " + parameter << endl;
 	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 void Segment::push(string s, Real X) {
-if (debug) cout <<"Push in Segment (Real) " + name << endl;
+NAMICS_DBG("Push in Segment (Real) " + name << endl);
 	Reals.push_back(s);
 	Reals_value.push_back(X);
 }
 void Segment::push(string s, int X) {
-if (debug) cout <<"Push in Segment (int) " + name << endl;
+NAMICS_DBG("Push in Segment (int) " + name << endl);
 	ints.push_back(s);
 	ints_value.push_back(X);
 }
 void Segment::push(string s, bool X) {
-if (debug) cout <<"Push in Segment (bool) " + name << endl;
+NAMICS_DBG("Push in Segment (bool) " + name << endl);
 	bools.push_back(s);
 	bools_value.push_back(X);
 }
 void Segment::push(string s, string X) {
-if (debug) cout <<"Push in Segment (string) " + name << endl;
+NAMICS_DBG("Push in Segment (string) " + name << endl);
 	strings.push_back(s);
 	strings_value.push_back(X);
 }
 void Segment::PushOutput() {
-if (debug) cout <<"PushOutput for segment " + name << endl;
+NAMICS_DBG("PushOutput for segment " + name << endl);
 	int M = lat->M;
 
 	strings.clear();
@@ -1826,7 +1826,7 @@ if (debug) cout <<"PushOutput for segment " + name << endl;
 }
 
 Real* Segment::GetPointer(string s, int &SIZE) {
-if (debug) cout <<"Get Pointer for segment " + name << endl;
+NAMICS_DBG("Get Pointer for segment " + name << endl);
 	vector<string> sub;
 	int M=lat->M;
 	SIZE=lat->M;
@@ -1878,7 +1878,7 @@ if (debug) cout <<"Get Pointer for segment " + name << endl;
 	return NULL;
 }
 int* Segment::GetPointerInt(string s, int &SIZE) {
-if (debug) cout <<"GetPointerInt for segment " + name << endl;
+NAMICS_DBG("GetPointerInt for segment " + name << endl);
 	vector<string> sub;
 	SIZE=lat->M;
 	In->split(s,';',sub);
@@ -1888,7 +1888,7 @@ if (debug) cout <<"GetPointerInt for segment " + name << endl;
 }
 
 int Segment::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-if (debug) cout <<"GetValue long for segment " + name << endl;
+NAMICS_DBG("GetValue long for segment " + name << endl);
 	int i=0;
 	int length = ints.size();
 	while (i<length) {
@@ -1938,7 +1938,7 @@ void Segment::UpdateValence(Real*g, Real* psi, Real* q, Real* eps,bool grad_epsi
 
 }
 int Segment::AddState(int id_,Real alphabulk,Real valence,bool fixed) {
-if (debug) cout <<"AddState " << id_ <<" to seg " << name << endl;
+NAMICS_DBG("AddState " << id_ <<" to seg " << name << endl);
 	int length = state_name.size();
 	int state_number=-1;
 	bool found=false;

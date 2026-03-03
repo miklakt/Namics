@@ -140,7 +140,7 @@ public:
 
 Molecule::Molecule(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) {
 	In=In_; Seg=Seg_; name=name_;  Lat=Lat_;
-if (debug) cout <<"Constructor for Mol " + name << endl;
+NAMICS_DBG("Constructor for Mol " + name << endl);
 	lat=Lat;
 	KEYS.push_back("freedom");
 	KEYS.push_back("composition");
@@ -187,7 +187,7 @@ Molecule::~Molecule() {
 }
 
 void Molecule :: DeAllocateMemory(){
-if (debug) cout <<"DeallocateMemory for Mol " + name << endl;
+NAMICS_DBG("DeallocateMemory for Mol " + name << endl);
 	if (!all_molecule) return;
 	free(H_phi);
 	free(H_phitot);
@@ -241,7 +241,7 @@ bool Molecule::DeleteAl() {
 }
 
 void Molecule:: AllocateMemory() {
-if (debug) cout <<"AllocateMemory in Mol " + name << endl;
+NAMICS_DBG("AllocateMemory in Mol " + name << endl);
 	DeAllocateMemory();
 	int M=lat->M;
 	int m=0;
@@ -335,7 +335,7 @@ if (debug) cout <<"AllocateMemory in Mol " + name << endl;
 }
 
 bool Molecule:: PrepareForCalculations(Real *KSAM) {
-if (debug) cout <<"PrepareForCalculations in Mol " + name << endl;
+NAMICS_DBG("PrepareForCalculations in Mol " + name << endl);
 int m=0;
 if (freedom=="clamped") m=lat->m[Seg[mon_nr[0]]->clamp_nr];
 int M=lat->M;
@@ -393,14 +393,14 @@ int M=lat->M;
 }
 
 bool Molecule::CheckInput(int start_, bool checking) {
-if (debug) cout <<"Molecule:: CheckInput for mol " << name << endl;
+NAMICS_DBG("Molecule:: CheckInput for mol " << name << endl);
 start=start_;
 phibulk=0;
 n=0;
 theta=0;
 norm=0;
 var_al_nr=-1;
-if (debug) cout <<"CheckInput for Mol " + name << endl;
+NAMICS_DBG("CheckInput for Mol " + name << endl);
 	bool success=true;
 	if (!In->CheckParameters("mol",name,start, KEYS, PARAMETERS)) {
 		success=false;
@@ -713,7 +713,7 @@ if (debug) cout <<"CheckInput for Mol " + name << endl;
 }
 
 bool Molecule::PutVarInfo(string Var_type_,string Var_target_,Real Var_target_value_){
-if (debug) cout <<"Molecule:: PutVarInfo in mol "+ name << endl;
+NAMICS_DBG("Molecule:: PutVarInfo in mol "+ name << endl);
 
 	bool success=true;
 	vector<string>sub;
@@ -816,7 +816,7 @@ if (debug) cout <<"Molecule:: PutVarInfo in mol "+ name << endl;
 }
 
 int Molecule::PutVarScan(Real step, Real end_value, int steps, string scale_) {
-if (debug) cout <<"Molecule:: PutVarScan" << endl;
+NAMICS_DBG("Molecule:: PutVarScan" << endl);
 	num_of_steps = -1;
 	scale=scale_;
 	Var_end_value=end_value;
@@ -849,7 +849,7 @@ if (debug) cout <<"Molecule:: PutVarScan" << endl;
 }
 
 bool Molecule::ResetInitValue() {
-if (debug) cout <<"Molecule:: ResetInitValue" << endl;
+NAMICS_DBG("Molecule:: ResetInitValue" << endl);
 	bool success=true;
 	cout <<"reset: ";
 	switch (Var_scan_value) {
@@ -916,7 +916,7 @@ if (debug) cout <<"Molecule:: ResetInitValue" << endl;
 }
 
 bool Molecule::UpdateVarInfo(int step_nr) {
-if (debug) cout <<"Molecule:: UpdateVarInfo" << endl;
+NAMICS_DBG("Molecule:: UpdateVarInfo" << endl);
 	bool success=true;
 	switch(Var_scan_value) {
 		case 0:
@@ -974,7 +974,7 @@ if (debug) cout <<"Molecule:: UpdateVarInfo" << endl;
 }
 
 Real Molecule::GetError() {
-if (debug) cout <<"Molecule:: GetError" << endl;
+NAMICS_DBG("Molecule:: GetError" << endl);
 	Real Error=0;
 	switch (Var_target) {
 		case 0:
@@ -1003,7 +1003,7 @@ if (debug) cout <<"Molecule:: GetError" << endl;
 }
 
 Real Molecule::GetValue(){
-if (debug) cout <<"Molecule:: GetValue" << endl;
+NAMICS_DBG("Molecule:: GetValue" << endl);
 	Real X=0;
 	switch (Var_search_value) {
 		case 0:
@@ -1027,7 +1027,7 @@ if (debug) cout <<"Molecule:: GetValue" << endl;
 	return X;
 }
 void Molecule::PutValue(Real X){
-if (debug) cout <<"Molecule:: PutValue" << endl;
+NAMICS_DBG("Molecule:: PutValue" << endl);
 	switch (Var_search_value) {
 		case 0:
 			theta=X; n=theta/chainlength;
@@ -1050,7 +1050,7 @@ if (debug) cout <<"Molecule:: PutValue" << endl;
 }
 
 int Molecule::GetAlNr(string s){
-if (debug) cout <<"GetAlNr for Mol " + name << endl;
+NAMICS_DBG("GetAlNr for Mol " + name << endl);
 	int n_als=MolAlList.size();
 	int found=-1;
 	int i=0;
@@ -1062,7 +1062,7 @@ if (debug) cout <<"GetAlNr for Mol " + name << endl;
 }
 
 int Molecule::GetMonNr(string s){
-if (debug) cout <<"GetMonNr for Mon " + name << endl;
+NAMICS_DBG("GetMonNr for Mon " + name << endl);
 	int n_segments=In->MonList.size();
 	int found=-1;
 	int i=0;
@@ -1074,7 +1074,7 @@ if (debug) cout <<"GetMonNr for Mon " + name << endl;
 }
 
 bool Molecule::ExpandAlias(vector<string> sub, string &s) {
-if (debug) cout <<"Molecule:: ExpandAlias" << endl;
+NAMICS_DBG("Molecule:: ExpandAlias" << endl);
 	bool success=true;
 	vector<int> open;
 	vector<int> close;
@@ -1124,7 +1124,7 @@ if (debug) cout <<"Molecule:: ExpandAlias" << endl;
 }
 
 bool Molecule::ExpandBrackets(string &s) {
-if (debug) cout <<"Molecule:: ExpandBrackets" << endl;
+NAMICS_DBG("Molecule:: ExpandBrackets" << endl);
 	bool success=true;
 	if (s[0] != '(') {cout <<"illegal composition. Expects composition to start with a '(' in: " << s << endl; return false;}
 	vector<int> open;
@@ -1186,7 +1186,7 @@ if (debug) cout <<"Molecule:: ExpandBrackets" << endl;
 }
 
 bool Molecule::Interpret(string s,int generation){
-if (debug) cout <<"Molecule:: Interpret" << endl;
+NAMICS_DBG("Molecule:: Interpret" << endl);
 	if (s=="[") return true;
 	bool success=true;
 	vector<string>sub;
@@ -1252,7 +1252,7 @@ if (debug) cout <<"Molecule:: Interpret" << endl;
 }
 
 bool Molecule::GenerateTree(string s,int generation,int &pos, vector<int> open,vector<int> close) {
-if (debug) cout <<"Molecule:: GenerateTree" << endl;
+NAMICS_DBG("Molecule:: GenerateTree" << endl);
 	bool success=true;
 	string ss;
 	int i=0;
@@ -1309,7 +1309,7 @@ if (debug) cout <<"Molecule:: GenerateTree" << endl;
 //}
 
 bool Molecule::Decomposition(string s){
-if (debug) cout <<"Decomposition for Mol " + name << endl;
+NAMICS_DBG("Decomposition for Mol " + name << endl);
 	bool success = true;
 	bool aliases = true;
 	MolType=linear;//default;
@@ -1781,12 +1781,12 @@ if (debug) cout <<"Decomposition for Mol " + name << endl;
 }
 
 int Molecule::GetChainlength(void){
-if (debug) cout <<"GetChainlength for Mol " + name << endl;
+NAMICS_DBG("GetChainlength for Mol " + name << endl);
 	return chainlength;
 }
 
 bool Molecule:: MakeMonList(void) {
-if (debug) cout <<"Molecule:: MakeMonList" << endl;
+NAMICS_DBG("Molecule:: MakeMonList" << endl);
 	MolMonList.clear();
 	bool success=true;
 	int length = mon_nr.size();
@@ -1813,7 +1813,7 @@ if (debug) cout <<"Molecule:: MakeMonList" << endl;
 }
 
 bool Molecule::IsClamped() {
-if (debug) cout <<"IsClamped for Mol " + name << endl;
+NAMICS_DBG("IsClamped for Mol " + name << endl);
 	bool success=false;
 	int length=mon_nr.size();
 	// In case of failed composition reading, mon_nr will be empty and mon_nr[0] will segfault, hence the empty check.
@@ -1828,7 +1828,7 @@ if (debug) cout <<"IsClamped for Mol " + name << endl;
 }
 
 bool Molecule::IsPinned() {
-if (debug) cout <<"IsPinned for Mol " + name << endl;
+NAMICS_DBG("IsPinned for Mol " + name << endl);
 	bool success=false;
 	int length=MolMonList.size();
 	int i=0;
@@ -1840,7 +1840,7 @@ if (debug) cout <<"IsPinned for Mol " + name << endl;
 }
 
 int Molecule::GetPinnedSeg() {
-if (debug) cout <<"GetPinnedSeg for Mol " + name << endl;
+NAMICS_DBG("GetPinnedSeg for Mol " + name << endl);
 	int segnr=-1;
 	int length=MolMonList.size();
 	int i=0;
@@ -1854,7 +1854,7 @@ if (debug) cout <<"GetPinnedSeg for Mol " + name << endl;
 }
 
 bool Molecule::IsTagged() {
-if (debug) cout <<"IsTagged for Mol " + name << endl;
+NAMICS_DBG("IsTagged for Mol " + name << endl);
 	bool success=false;
 	int length=MolMonList.size();
 	int i=0;
@@ -1866,7 +1866,7 @@ if (debug) cout <<"IsTagged for Mol " + name << endl;
 }
 
 Real Molecule::Charge() {
-if (debug) cout <<"Molecule:: Charge" << endl;
+NAMICS_DBG("Molecule:: Charge" << endl);
 	Real charge=0;
 	int length=mon_nr.size();
 	int length_states;
@@ -1880,7 +1880,7 @@ if (debug) cout <<"Molecule:: Charge" << endl;
 }
 
 bool Molecule::IsCharged() {
-if (debug) cout <<"IsCharged for Mol " + name << endl;
+NAMICS_DBG("IsCharged for Mol " + name << endl);
 	Real charge =0;
 	bool ischarged=false;
 	int length = n_mon.size();
@@ -1899,34 +1899,33 @@ if (debug) cout <<"IsCharged for Mol " + name << endl;
 }
 
 void Molecule::PutParameter(string new_param) {
-if (debug) cout <<"PutParameter for Mol " + name << endl;
+NAMICS_DBG("PutParameter for Mol " + name << endl);
 	KEYS.push_back(new_param);
 }
 
 string Molecule::GetValue(string parameter) {
-if (debug) cout <<"GetValue " + parameter + " for Mol " + name << endl;
 	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 void Molecule::push(string s, Real X) {
-if (debug) cout <<"push (Real) for Mol " + name << endl;
+NAMICS_DBG("push (Real) for Mol " + name << endl);
 	Reals.push_back(s);
 	Reals_value.push_back(X);
 }
 void Molecule::push(string s, int X) {
-if (debug) cout <<"push (int) for Mol " + name << endl;
+NAMICS_DBG("push (int) for Mol " + name << endl);
 	ints.push_back(s);
 	ints_value.push_back(X);
 }
 void Molecule::push(string s, bool X) {
-if (debug) cout <<"push (bool) for Mol " + name << endl;
+NAMICS_DBG("push (bool) for Mol " + name << endl);
 	bools.push_back(s);
 	bools_value.push_back(X);
 }
 void Molecule::push(string s, string X) {
-if (debug) cout <<"push (string) for Mol " + name << endl;
+NAMICS_DBG("push (string) for Mol " + name << endl);
 	strings.push_back(s);
 	strings_value.push_back(X);
 }
@@ -1934,7 +1933,7 @@ if (debug) cout <<"push (string) for Mol " + name << endl;
 
 
 void Molecule::PushOutput() {
-if (debug) cout <<"PushOutput for Mol " + name << endl;
+NAMICS_DBG("PushOutput for Mol " + name << endl);
 	int length_al=MolAlList.size();
 	for (int i=0; i<length_al; i++) Al[i]->PushOutput();
 	strings.clear();
@@ -2093,7 +2092,7 @@ if (debug) cout <<"PushOutput for Mol " + name << endl;
 }
 
 Real* Molecule::GetPointer(string s, int &SIZE) {
-if (debug) cout <<"GetPointer for Mol " + name << endl;
+NAMICS_DBG("GetPointer for Mol " + name << endl);
 	vector<string> sub;
 	int M= lat->M;
 	In->split(s,';',sub);
@@ -2137,7 +2136,7 @@ void Molecule::PutTheta(Real T){
 
 int* Molecule::GetPointerInt(string s, int &SIZE) {
 	(void)SIZE;
-if (debug) cout <<"GetPointerInt for Mol " + name << endl;
+NAMICS_DBG("GetPointerInt for Mol " + name << endl);
 	vector<string> sub;
 	In->split(s,';',sub);
 	if (sub[0]=="array") { //set SIZE and return array pointer.
@@ -2145,7 +2144,7 @@ if (debug) cout <<"GetPointerInt for Mol " + name << endl;
 	return NULL;
 }
 int Molecule::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-if (debug) cout <<"GetValue (long) for Mol " + name << endl;
+NAMICS_DBG("GetValue (long) for Mol " + name << endl);
 	int i=0;
 	int length = ints.size();
 	while (i<length) {
@@ -2186,7 +2185,7 @@ if (debug) cout <<"GetValue (long) for Mol " + name << endl;
 }
 
 Real Molecule::ComputeGibbs(Real R_gibbs) {
-if (debug) cout <<"ComputeGibbs for Mol " + name << endl;
+NAMICS_DBG("ComputeGibbs for Mol " + name << endl);
 	int fjc=lat->fjc;
 	int M=lat->M;
 	int gradients=lat->gradients;
@@ -2208,7 +2207,7 @@ if (debug) cout <<"ComputeGibbs for Mol " + name << endl;
 }
 
 bool Molecule::ComputeWidth() {
-if (debug) cout <<"ComputeWidth for Mol " + name << endl;
+NAMICS_DBG("ComputeWidth for Mol " + name << endl);
 	bool success=true;
 	int M=lat->M;
 	if (lat->gradients>1) {success=false; cout <<" Compute width of interface only in system with 'one-gradient'" << endl; return success; }
@@ -2284,7 +2283,7 @@ void Molecule::SetThetaBlocks(int split) {
 }
 
 Real* Molecule::propagate_forward(Real* G1, int &s, int block, int generation, int M) {
-if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
+NAMICS_DBG("1. propagate_forward for Mol " + name << endl);
 
 	int N= n_mon[block];
 
@@ -2348,7 +2347,7 @@ if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
 
 void Molecule::propagate_backward(Real* G1, int &s, int block, int unity, int M) {
 	(void)unity;
-if (debug) cout <<"propagate_backward for Mol " + name << endl;
+NAMICS_DBG("propagate_backward for Mol " + name << endl);
 
 	int N= n_mon[block];
 	if (save_memory) {
@@ -2433,7 +2432,7 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 
 
 Real* Molecule::propagate_forward(Real* G1, int &s, int block, Real* P, int generation, int M) {
-if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
+NAMICS_DBG("1. propagate_forward for Mol " + name << endl);
 
 	int N= n_mon[block];
 	if (save_memory) {
@@ -2492,7 +2491,7 @@ if (debug) cout <<"1. propagate_forward for Mol " + name << endl;
 }
 
 void Molecule::propagate_backward(Real* G1, int &s, int block, Real* P, int& unity, int M) {
-if (debug) cout <<"propagate_backward for Mol " + name << endl;
+NAMICS_DBG("propagate_backward for Mol " + name << endl);
 	int N= n_mon[block];
 	if (save_memory) {
 		int k,k0,t0,v0,t,rk1;
@@ -2593,7 +2592,7 @@ if (debug) cout <<"propagate_backward for Mol " + name << endl;
 }
 
 bool Molecule::ComputePhi(Real* BETA,int id){
-if (debug) cout <<"ComputePhi for Mol " + name << endl;
+NAMICS_DBG("ComputePhi for Mol " + name << endl);
 	bool success=true;
 	int M=lat->M;
 	lat->sub_box_on=0;//selecting 'standard' boundary condition
@@ -2634,7 +2633,7 @@ if (debug) cout <<"ComputePhi for Mol " + name << endl;
 
 Real Molecule::GetPhib1() {
 	if (MolType != water) return 0;
-	NAMICS_DBG_THIS("GetPhib1 in Molecule (water mode)" << endl);
+	NAMICS_DBG("GetPhib1 in Molecule (water mode)" << endl);
 	if (phibulk <0) {
 		cout <<"problem in computation of phib1 for MolType water." << endl;
 		return 0;
@@ -2645,7 +2644,7 @@ Real Molecule::GetPhib1() {
 
 void Molecule::AddToGP(Real* GP) {
 	if (MolType != water) return;
-	NAMICS_DBG_THIS("AddToGP in Molecule (water mode)" << endl);
+	NAMICS_DBG("AddToGP in Molecule (water mode)" << endl);
 	int M=lat->M;
 	Real* G=Seg[MolMonList[0]]->G1;
 	for (int i=0; i<M; i++) {
@@ -2655,7 +2654,7 @@ void Molecule::AddToGP(Real* GP) {
 
 void Molecule::AddToF(Real* F) {
 	if (MolType != water) return;
-	NAMICS_DBG_THIS("AddToF in Molecule (water mode)" << endl);
+	NAMICS_DBG("AddToF in Molecule (water mode)" << endl);
 	int M=lat->M;
 	Real* G=Seg[MolMonList[0]]->G1;
 	for (int i=0; i<M; i++) {
@@ -2665,7 +2664,7 @@ void Molecule::AddToF(Real* F) {
 
 
 bool Molecule::ComputePhi(){
-if (debug) cout <<"ComputePhi for Molecule " + name << endl; //default computation for monomer only....
+NAMICS_DBG("ComputePhi for Molecule " + name << endl); //default computation for monomer only....
 	int M=lat->M;
 	bool success=true;
 	if (MolType == water) {
@@ -2692,7 +2691,7 @@ if (debug) cout <<"ComputePhi for Molecule " + name << endl; //default computati
 
 
 Real Molecule::fraction(int segnr){
-if (debug) cout <<"fraction for mol_test " + name << endl; //default for monomer.
+NAMICS_DBG("fraction for mol_test " + name << endl); //default for monomer.
 	int Nseg=0;
 	int length = mon_nr.size();
 	int i=0;

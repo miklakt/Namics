@@ -4,7 +4,7 @@
 Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,string name_) :
 	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, Lat{Lat_}, Mol{Mol_}, Sta{Sta_}, Rea{Rea_}
 {
-if(debug) cout <<"Constructor in Solve_scf " << endl;
+NAMICS_DBG("Constructor in Solve_scf " << endl);
 	lat=Lat;
 	KEYS.push_back("gradient_type");
 	KEYS.push_back("method");
@@ -36,7 +36,7 @@ Solve_scf::~Solve_scf() {
 }
 
 void Solve_scf :: DeAllocateMemory(){
-if (debug) cout <<"DeAllocateMemory in Solve " << endl;
+NAMICS_DBG("DeAllocateMemory in Solve " << endl);
 
 		int niv = In->ReactionList.size();
 		if (niv>0) {
@@ -46,12 +46,12 @@ if (debug) cout <<"DeAllocateMemory in Solve " << endl;
 		//delete [] xx;
 		//free(xx);
 all=false;
-if (debug) cout <<"exit for 'destructor' in Solve " << endl;
+NAMICS_DBG("exit for 'destructor' in Solve " << endl);
 
 }
 
 void Solve_scf::AllocateMemory() {
-if(debug) cout <<"AllocateMemeory in Solve " << endl;
+NAMICS_DBG("AllocateMemeory in Solve " << endl);
 	if (all) DeAllocateMemory();
 	int M=lat->M;
 	iv = (Sys->ItMonList.size() + Sys->ItStateList.size())* M;
@@ -73,13 +73,13 @@ if(debug) cout <<"AllocateMemeory in Solve " << endl;
 }
 
 bool Solve_scf::PrepareForCalculations() {
-if (debug) cout <<"PrepareForCalculations in Solve " << endl;
+NAMICS_DBG("PrepareForCalculations in Solve " << endl);
 	bool success=true;
 	return success;
 }
 
 bool Solve_scf::CheckInput(int start_) { start=start_;
-if(debug) cout <<"CheckInput in Solve " << endl;
+NAMICS_DBG("CheckInput in Solve " << endl);
 	pseudohessian =false;
 	deltamin =0.1;
 	s_info=false;
@@ -246,39 +246,38 @@ if(debug) cout <<"CheckInput in Solve " << endl;
 
 
 void Solve_scf::PutParameter(string new_param) {
-if(debug) cout <<"PutParameter in Solve " << endl;
+NAMICS_DBG("PutParameter in Solve " << endl);
 	KEYS.push_back(new_param);
 }
 
 string Solve_scf::GetValue(string parameter){
-if(debug) cout <<"GetValue " + parameter + " in  Solve " << endl;
 	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 void Solve_scf::push(string s, Real X) {
-if(debug) cout <<"push (Real) in  Solve " << endl;
+NAMICS_DBG("push (Real) in  Solve " << endl);
 	Reals.push_back(s);
 	Reals_value.push_back(X);
 }
 void Solve_scf::push(string s, int X) {
-if(debug) cout <<"push (int) in  Solve " << endl;
+NAMICS_DBG("push (int) in  Solve " << endl);
 	ints.push_back(s);
 	ints_value.push_back(X);
 }
 void Solve_scf::push(string s, bool X) {
-if(debug) cout <<"push (bool) in  Solve " << endl;
+NAMICS_DBG("push (bool) in  Solve " << endl);
 	bools.push_back(s);
 	bools_value.push_back(X);
 }
 void Solve_scf::push(string s, string X) {
-if(debug) cout <<"push (string) in  Solve " << endl;
+NAMICS_DBG("push (string) in  Solve " << endl);
 	strings.push_back(s);
 	strings_value.push_back(X);
 }
 void Solve_scf::PushOutput() {
-if(debug) cout <<"PushOutput in  Solve " << endl;
+NAMICS_DBG("PushOutput in  Solve " << endl);
 	strings.clear();
 	strings_value.clear();
 	bools.clear();
@@ -321,7 +320,7 @@ if(debug) cout <<"PushOutput in  Solve " << endl;
 }
 
 int Solve_scf::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-if(debug) cout <<"GetValue (long) in  Solve " << endl;
+NAMICS_DBG("GetValue (long) in  Solve " << endl);
 	int i=0;
 	int length = ints.size();
 	while (i<length) {
@@ -436,7 +435,7 @@ void Solve_scf::Copy(Real* x, Real* X, int MX, int MY, int MZ, int fjc_old) {
 
 bool Solve_scf::Guess(Real *X, string METHOD, vector<string> MONLIST, vector<string> STATELIST, bool CHARGED, int MX, int MY, int MZ,int fjc_old){
 	(void)METHOD;
-	if (debug) cout << "Guess in Solve" << endl;
+	NAMICS_DBG( "Guess in Solve" << endl);
 	int M=lat->M;
 	bool success=true;
 	if (start ==1 && Sys->GuessType != "")  {
@@ -501,7 +500,7 @@ public:
 };
 
 bool Solve_scf::Solve(bool report_errors_) { //going SCF here
-if(debug) cout <<"Solve in  Solve_scf " << endl;
+NAMICS_DBG("Solve in  Solve_scf " << endl);
 	bool success=true;
 	bool report_errors=report_errors_;
 	int niv = In->ReactionList.size();
@@ -582,7 +581,7 @@ if(debug) cout <<"Solve in  Solve_scf " << endl;
 
 
 void Solve_scf::residuals(Real* x, Real* g){
- if (debug) cout <<"residuals in Solve_scf " << endl;
+ NAMICS_DBG("residuals in Solve_scf " << endl);
 	int M=lat->M;
 	Real chi;
 	int sysmon_length = Sys->SysMonList.size();
@@ -590,7 +589,7 @@ void Solve_scf::residuals(Real* x, Real* g){
 
 	switch(gradient) {
 		case WEAK:
-			if (debug) cout <<"Residuals for weak iteration " << endl;
+			NAMICS_DBG("Residuals for weak iteration " << endl);
 			for (size_t i = 0; i<In->ReactionList.size(); i++) {
 				if (Rea[i]->Sto.size()==3) Rea[i]->GuessAlpha();
 			}
@@ -614,7 +613,7 @@ void Solve_scf::residuals(Real* x, Real* g){
 		break;
 		case Picard:
 		{
-			if (debug) cout <<"Residuals in Picard mode in Solve_scf " << endl;
+			NAMICS_DBG("Residuals in Picard mode in Solve_scf " << endl);
 			int jump=sysmon_length;
 			if (Sys->charged) jump++;
 			std::copy_n(xx+jump*M, M, alpha);
@@ -645,7 +644,7 @@ void Solve_scf::residuals(Real* x, Real* g){
 		break;
 		}
 		default:
-			if (debug) cout <<"Residuals in scf mode in Solve_scf " << endl;
+			NAMICS_DBG("Residuals in scf mode in Solve_scf " << endl);
 			Sys->Classical_residual(x,g,residual,iterations, iv);
 		break;
 	}
@@ -673,7 +672,7 @@ void Solve_scf::gradient_minus(Real* g, int k, int M, int i, int j) {
 }
 
 void Solve_scf::inneriteration(Real* x, Real* g, Real* h, Real accuracy, Real& deltamax, Real ALPHA, int nvar) {
-if(debug) cout <<"inneriteration in Solve_scf " << endl;
+NAMICS_DBG("inneriteration in Solve_scf " << endl);
 	residual=accuracy; //hoping this is not creating problems with the use of residual...
 	switch(control) {
 		case super:

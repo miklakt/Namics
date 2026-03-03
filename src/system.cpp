@@ -13,8 +13,7 @@ System::System(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<St
 	Rea = Rea_;
 	lat=Lat;
 	prepared = false;
-	if (debug)
-		cout << "Constructor for system " << endl;
+	NAMICS_DBG( "Constructor for system " << endl);
   	KEYS.push_back("calculation_type");
 	KEYS.push_back("constraint");
 	KEYS.push_back("delta_range");
@@ -51,13 +50,11 @@ System::System(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<St
 }
 System::~System()
 {
-	if (debug)
-		cout << "Destructor for system " << endl;
+	NAMICS_DBG( "Destructor for system " << endl);
 	DeAllocateMemory();
 }
 void System:: DeAllocateMemory(void){
-	if (debug)
-		cout << "DeAllocateMemory in system " << endl;
+	NAMICS_DBG( "DeAllocateMemory in system " << endl);
 	if (!all_system) return;
 	free(H_GrandPotentialDensity);
 	free(H_FreeEnergyDensity);
@@ -91,8 +88,7 @@ all_system=false;
 
 void System::AllocateMemory()
 {
-	if (debug)
-		cout << "AllocateMemory in system " << endl;
+	NAMICS_DBG( "AllocateMemory in system " << endl);
 	DeAllocateMemory();
 	progress=0; old_residual=10;
 	int M = lat->M;
@@ -154,8 +150,7 @@ void System::AllocateMemory()
 
 bool System::generate_mask()
 {
-	if (debug)
-		cout << "generate_mask in system " << endl;
+	NAMICS_DBG( "generate_mask in system " << endl);
 	int M = lat->M;
 	bool success = true;
 	extra_constraints=0;
@@ -234,8 +229,7 @@ bool System::generate_mask()
 
 bool System::PrepareForCalculations(bool first_time)
 {
-	if (debug)
-		cout << "PrepareForCalculations in System " << endl;
+	NAMICS_DBG( "PrepareForCalculations in System " << endl);
 
 	bool success = true;
 	int M = lat->M;
@@ -448,15 +442,13 @@ bool System::MakeItsLists(void) {
 
 string System::GetMonName(int mon_number_I)
 {
-	if (debug)
-		cout << "GetMonName for system " << endl;
+	NAMICS_DBG( "GetMonName for system " << endl);
 	return Seg[mon_number_I]->name;
 }
 
 bool System::CheckInput(int start_)
 {
-	if (debug)
-		cout << "CheckInput for system " << endl;
+	NAMICS_DBG( "CheckInput for system " << endl);
 	start=start_;
 	bool success = true;
 	bool solvent_found = false;
@@ -1080,8 +1072,7 @@ bool System::CheckInput(int start_)
 
 bool System::IsUnique(int Segnr_, int Statenr_)
 {
-	if (debug)
-		cout << "System::IsUnique: Segnr = " << Segnr_ << " Statenr = " << Statenr_ << endl;
+	NAMICS_DBG( "System::IsUnique: Segnr = " << Segnr_ << " Statenr = " << Statenr_ << endl);
 	if (CalculationType=="steady_state") return true;
 	bool is_unique = true;
 	bool is_equal = true;
@@ -1152,7 +1143,7 @@ bool System::IsUnique(int Segnr_, int Statenr_)
 }
 
 bool System::UpdateVarInfo(int step_nr) {
-if (debug) cout <<"System:: UpdateVarInfo" << endl;
+NAMICS_DBG("System:: UpdateVarInfo" << endl);
 	bool success=true;
 	switch(Var_scan_value) {
 		case 0:
@@ -1172,7 +1163,7 @@ if (debug) cout <<"System:: UpdateVarInfo" << endl;
 }
 
 bool System::ResetInitValue() {
-if (debug) cout <<"System:: ResetInitValue" << endl;
+NAMICS_DBG("System:: ResetInitValue" << endl);
 	bool success=true;
 	cout <<"reset: ";
 	switch (Var_scan_value) {
@@ -1188,7 +1179,7 @@ if (debug) cout <<"System:: ResetInitValue" << endl;
 }
 
 int System::PutVarScan(Real step, Real end_value, int steps, string scale_) {
-if (debug) cout <<"System:: PutVarScan" << endl;
+NAMICS_DBG("System:: PutVarScan" << endl);
 	num_of_steps = -1;
 	scale=scale_;
 	Var_end_value=end_value;
@@ -1222,8 +1213,7 @@ if (debug) cout <<"System:: PutVarScan" << endl;
 
 bool System::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_)
 {
-	if (debug)
-		cout << "System::PutVarInfo " << endl;
+	NAMICS_DBG( "System::PutVarInfo " << endl);
 	bool success = true;
 	if (Var_type_ =="scan") {
 		Var_scan_value = -1;
@@ -1261,8 +1251,7 @@ bool System::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_va
 
 Real System::GetError()
 {
-	if (debug)
-		cout << "System::GetError " << endl;
+	NAMICS_DBG( "System::GetError " << endl);
 	Real Error = 0;
 	switch (Var_target)
 	{
@@ -1285,8 +1274,7 @@ Real System::GetError()
 
 bool System::IsCharged()
 {
-	if (debug)
-		cout << "System::IsCharged " << endl;
+	NAMICS_DBG( "System::IsCharged " << endl);
 	bool success = false;
 	int length = In->MolList.size();
 	for (int i = 0; i < length; i++)
@@ -1299,15 +1287,13 @@ bool System::IsCharged()
 
 void System::PutParameter(string new_param)
 {
-	if (debug)
-		cout << "PutParameter for system " << endl;
+	NAMICS_DBG( "PutParameter for system " << endl);
 	KEYS.push_back(new_param);
 }
 
 string System::GetValue(string parameter)
 {
-	if (debug)
-		cout << "GetValue " + parameter + " for system " << endl;
+	NAMICS_DBG( "GetValue " + parameter + " for system " << endl);
 	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
@@ -1315,36 +1301,31 @@ string System::GetValue(string parameter)
 
 void System::push(string s, Real X)
 {
-	if (debug)
-		cout << "push (Real) for system " << endl;
+	NAMICS_DBG( "push (Real) for system " << endl);
 	Reals.push_back(s);
 	Reals_value.push_back(X);
 }
 void System::push(string s, int X)
 {
-	if (debug)
-		cout << "push (int) for system " << endl;
+	NAMICS_DBG( "push (int) for system " << endl);
 	ints.push_back(s);
 	ints_value.push_back(X);
 }
 void System::push(string s, bool X)
 {
-	if (debug)
-		cout << "push (bool) for system " << endl;
+	NAMICS_DBG( "push (bool) for system " << endl);
 	bools.push_back(s);
 	bools_value.push_back(X);
 }
 void System::push(string s, string X)
 {
-	if (debug)
-		cout << "push (string) for system " << endl;
+	NAMICS_DBG( "push (string) for system " << endl);
 	strings.push_back(s);
 	strings_value.push_back(X);
 }
 void System::PushOutput()
 {
-	if (debug)
-		cout << "PushOutput for system " << endl;
+	NAMICS_DBG( "PushOutput for system " << endl);
 	strings.clear();
 	strings_value.clear();
 	bools.clear();
@@ -1482,8 +1463,7 @@ void System::PushOutput()
 
 Real *System::GetPointer(string s, int &SIZE)
 {
-	if (debug)
-		cout << "GetPointer for system " << endl;
+	NAMICS_DBG( "GetPointer for system " << endl);
 	vector<string> sub;
 	SIZE = lat->M;
 	In->split(s, ';', sub);
@@ -1506,8 +1486,7 @@ Real *System::GetPointer(string s, int &SIZE)
 int *System::GetPointerInt(string s, int &SIZE)
 {
 	(void)SIZE;
-	if (debug)
-		cout << "GetPointerInt for system " << endl;
+	NAMICS_DBG( "GetPointerInt for system " << endl);
 	vector<string> sub;
 	In->split(s, ';', sub);
 	if (sub[0] == "array")
@@ -1518,8 +1497,7 @@ int *System::GetPointerInt(string s, int &SIZE)
 
 int System::GetValue(string prop, int &int_result, Real &Real_result, string &string_result)
 {
-	if (debug)
-		cout << "GetValue (long) for system " << endl;
+	NAMICS_DBG( "GetValue (long) for system " << endl);
 	int length = ints.size();
 	for (int i = 0; i < length; ++i)
 	{
@@ -1573,8 +1551,7 @@ int System::GetMonNr(string MonName) {
 
 bool System::CheckChi_values(int n_seg)
 {
-	if (debug)
-		cout << "CheckChi_values for system " << endl;
+	NAMICS_DBG( "CheckChi_values for system " << endl);
 	bool success = true;
 	CHI = (Real *)malloc(n_seg * n_seg * sizeof(Real));
 	for (int i = 0; i < n_seg; i++)
@@ -1800,7 +1777,7 @@ void System::DoElectrostatics(Real *g, Real *x)
 }
 
 void System:: ComputePhis(Real* x,bool first_time, Real residual) {
-	if(debug) cout <<"ComputPhis in  system " << endl;
+	NAMICS_DBG("ComputPhis in  system " << endl);
 	if (first_time && (
 			initial_guess=="polymer_adsorption"||
 			initial_guess=="membrane_torus" ||
@@ -1819,7 +1796,7 @@ void System:: ComputePhis(Real* x,bool first_time, Real residual) {
 }
 
 bool System:: Put_U(Real* xx){
-	if (debug) cout << "Put_U in System" << endl;
+	NAMICS_DBG( "Put_U in System" << endl);
 	bool success=true;
 	int M=lat->M;
 	int itmonlistlength=ItMonList.size();
@@ -1832,7 +1809,7 @@ bool System:: Put_U(Real* xx){
 }
 
 bool System:: PutU(Real* xx) {
-if(debug) cout <<"PutU in  Solve " << endl;
+NAMICS_DBG("PutU in  Solve " << endl);
 	int M=lat->M;
 	int itmonlistlength=ItMonList.size();
 	int itstatelistlength=ItStateList.size();
@@ -1933,7 +1910,7 @@ if(debug) cout <<"PutU in  Solve " << endl;
 }
 
 void System::Classical_residual(Real* x,Real*g,Real residual, int iterations, int iv){
-if (debug) cout <<"Classical_residuals in scf mode in system " << endl;
+NAMICS_DBG("Classical_residuals in scf mode in system " << endl);
 	int M=lat->M;
 	Real chi;
 	int mon_length = In->MonList.size(); //also frozen segments
@@ -2033,7 +2010,7 @@ if (debug) cout <<"Classical_residuals in scf mode in system " << endl;
 
 
 void System::Steady_residual(Real* x,Real*g,Real residual, int iterations, int iv){
-if (debug) cout <<"steady_residuals in scf mode in system " << endl;
+NAMICS_DBG("steady_residuals in scf mode in system " << endl);
 	int M=lat->M;
 	Real chi;
 	int mon_length = In->MonList.size(); //also frozen segments
@@ -2162,7 +2139,7 @@ if (debug) cout <<"steady_residuals in scf mode in system " << endl;
 }
 
 bool System::ComputePhis(Real residual){
-if(debug) cout <<"ComputePhis in system" << endl;
+NAMICS_DBG("ComputePhis in system" << endl);
 	bool prepare_for_blocks=false;
 	int M= lat->M;
 	Real A=0, B=0; //A should contain sum_phi*charge; B should contain sum_phi
@@ -2274,12 +2251,12 @@ if(debug) cout <<"ComputePhis in system" << endl;
 				if (norm > 0)
 					for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (norm);
 
-				if (debug)
-				{
-					Real sum;
-					(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
-					cout << "Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl;
-				}
+					if (debug)
+					{
+						Real sum;
+						(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
+						NAMICS_DBG("Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl);
+					}
 			}
 			k++;
 		}
@@ -2313,11 +2290,11 @@ if(debug) cout <<"ComputePhis in system" << endl;
 			{
 				Real *phi = Mol[i]->phi + k * M;
 				for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (norm);
-				if (debug)
-				{
-					Real sum = lat->ComputeTheta(phi);
-					cout << "Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl;
-				}
+					if (debug)
+					{
+						Real sum = lat->ComputeTheta(phi);
+						NAMICS_DBG("Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl);
+					}
 				k++;
 			}
 		}
@@ -2379,12 +2356,12 @@ for (int j=0; j<n_mol; j++) {
 				Real *phi = Mol[solvent]->phi + k * M;
 				if (norm > 0)
 					for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (norm);
-				if (debug)
-				{
-					Real sum;
-					(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
-					cout << "Sumphi in mol " << solvent << "for mon " << k << ":" << sum << endl;
-				}
+					if (debug)
+					{
+						Real sum;
+						(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
+						NAMICS_DBG("Sumphi in mol " << solvent << "for mon " << k << ":" << sum << endl);
+					}
 				k++;
 			}
 		}
@@ -2398,12 +2375,12 @@ for (int j=0; j<n_mol; j++) {
 			Real *phi = Mol[neutralizer]->phi + k * M;
 			if (Mol[neutralizer]->norm > 0)
 				for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (Mol[neutralizer]->norm);
-			if (debug)
-			{
-				Real sum;
-				(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
-				cout << "Sumphi in mol " << neutralizer << "for mon " << k << ":" << sum << endl;
-			}
+				if (debug)
+				{
+					Real sum;
+					(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
+					NAMICS_DBG("Sumphi in mol " << neutralizer << "for mon " << k << ":" << sum << endl);
+				}
 			k++;
 		}
 	}
@@ -2616,8 +2593,7 @@ for (int j=0; j<n_mol; j++) {
 
 bool System::CheckResults(bool e_info_)
 {
-	if (debug)
-		cout << "CheckResults for system " << endl;
+	NAMICS_DBG( "CheckResults for system " << endl);
 
 	bool e_info = e_info_;
 	bool success = true;
@@ -2716,8 +2692,7 @@ Real System::GetE(int Seg1, int Seg2)
 
 Real System::GetFreeEnergy(void)
 { //eqn 2.91 of thesis of J.v.Male;
-	if (debug)
-		cout << "GetFreeEnergy for system " << endl;
+	NAMICS_DBG( "GetFreeEnergy for system " << endl);
 	int M = lat->M;
 	Real FreeEnergy = 0;
 	Real *F = FreeEnergyDensity;
@@ -2937,8 +2912,7 @@ Real System::GetKBar()
 
 Real System::GetGrandPotential(void)
 { //Eqn 293
-	if (debug)
-		cout << "GetGrandPotential for system " << endl;
+	NAMICS_DBG( "GetGrandPotential for system " << endl);
 	int M = lat->M;
 	Real *GP = GrandPotentialDensity;
 	int n_mol = In->MolList.size();
@@ -3126,8 +3100,7 @@ if (charged) {
 
 bool System::CreateMu(int pos)
 {
-	if (debug)
-		cout << "CreateMu for system " << endl;
+	NAMICS_DBG( "CreateMu for system " << endl);
 	int M=lat->M;
 	bool success = true;
 	Real constant;

@@ -10,26 +10,26 @@ Reaction::~Reaction() {
 	DeAllocateMemory();
 }
 void Reaction::DeAllocateMemory(){
-NAMICS_DBG_THIS("Destructor for Reaction " + name << endl);
+NAMICS_DBG("Destructor for Reaction " + name << endl);
 }
 
 void Reaction::AllocateMemory(int Clamp_nr, int n_box) {
 	(void)n_box;
 	(void)Clamp_nr;
-NAMICS_DBG_THIS("AllocateMemory in Reaction " + name << endl);	
+NAMICS_DBG("AllocateMemory in Reaction " + name << endl);	
 }
 
 void Reaction::PrepareForCalculations() {
-NAMICS_DBG_THIS("PrepareForCalculations in Reaction " + name << endl);
+NAMICS_DBG("PrepareForCalculations in Reaction " + name << endl);
 }
 
 
 void Reaction::PutParameter(string new_param) {
-NAMICS_DBG_THIS("PutParameter in Reaction " + name << endl); KEYS.push_back(new_param); 
+NAMICS_DBG("PutParameter in Reaction " + name << endl); KEYS.push_back(new_param); 
 }
 
 bool Reaction::CheckInput(int start) {
-NAMICS_DBG_THIS("CheckInput in Reaction " + name << endl);	bool success=true;
+NAMICS_DBG("CheckInput in Reaction " + name << endl);	bool success=true;
 	K=-1;
 	pK=-100;
 	Sto.clear();
@@ -135,29 +135,29 @@ NAMICS_DBG_THIS("CheckInput in Reaction " + name << endl);	bool success=true;
 }
  
 string Reaction::GetValue(string parameter){
-NAMICS_DBG_THIS("GetValue in Reaction " + name << endl); auto it = PARAMETERS.find(parameter);
+	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return ""; 
 }
  
 void Reaction::push(string s, Real X) {
-NAMICS_DBG_THIS("push (Real) in Reaction " + name << endl); Reals.push_back(s);
+NAMICS_DBG("push (Real) in Reaction " + name << endl); Reals.push_back(s);
 	Reals_value.push_back(X); 
 }
 void Reaction::push(string s, int X) {
-NAMICS_DBG_THIS("push (int) in Reaction " + name << endl); ints.push_back(s);
+NAMICS_DBG("push (int) in Reaction " + name << endl); ints.push_back(s);
 	ints_value.push_back(X); 
 }
 void Reaction::push(string s, bool X) {
-NAMICS_DBG_THIS("push (boool) in Reaction " + name << endl); bools.push_back(s);
+NAMICS_DBG("push (boool) in Reaction " + name << endl); bools.push_back(s);
 	bools_value.push_back(X); 
 }
 void Reaction::push(string s, string X) {
-NAMICS_DBG_THIS("push (string) in Reaction " + name << endl); strings.push_back(s);
+NAMICS_DBG("push (string) in Reaction " + name << endl); strings.push_back(s);
 	strings_value.push_back(X); 	
 }
 void Reaction::PushOutput() {
-NAMICS_DBG_THIS("PushOutput in Reaction " + name << endl); strings.clear();
+NAMICS_DBG("PushOutput in Reaction " + name << endl); strings.clear();
 	strings_value.clear();
 	bools.clear();
 	bools_value.clear();
@@ -172,17 +172,17 @@ NAMICS_DBG_THIS("PushOutput in Reaction " + name << endl); strings.clear();
 Real* Reaction::GetPointer(string s,int &SIZE) {
 	(void)SIZE;
 	(void)s;
-NAMICS_DBG_THIS("GetPointer in Reaction " + name << endl);	return NULL;
+NAMICS_DBG("GetPointer in Reaction " + name << endl);	return NULL;
 }
 int* Reaction::GetPointerInt(string s, int &SIZE) {
 	(void)SIZE;
 	(void)s;
-NAMICS_DBG_THIS("GetPointerInt in Reaction " + name << endl);	return NULL;
+NAMICS_DBG("GetPointerInt in Reaction " + name << endl);	return NULL;
 }
 
 
 int Reaction::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-NAMICS_DBG_THIS("GetValue (long)  in Reaction " + name << endl);	int i=0;
+NAMICS_DBG("GetValue (long)  in Reaction " + name << endl);	int i=0;
 	int length = ints.size();
 	while (i<length) {
 		if (prop==ints[i]) { 
@@ -353,7 +353,7 @@ bool Reaction::GuessAlpha() {
 
 bool Reaction::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
 	(void)Var_target_value_;
-NAMICS_DBG_THIS("Reaction::PutVarInfo " << endl);	bool success=true;
+NAMICS_DBG("Reaction::PutVarInfo " << endl);	bool success=true;
 	Var_target=-1;
 	Var_type="";
 	if (Var_type_=="scan"){
@@ -366,7 +366,7 @@ NAMICS_DBG_THIS("Reaction::PutVarInfo " << endl);	bool success=true;
 
 int Reaction::PutVarScan(Real step, Real end_value, int steps, string scale_) {
 	(void)steps;
-NAMICS_DBG_THIS("Reaction::PutVarScan " << endl);	num_of_steps=-1;
+NAMICS_DBG("Reaction::PutVarScan " << endl);	num_of_steps=-1;
 	scale=scale_;
 	Var_end_value=end_value;
 	if (scale=="exponential") {
@@ -390,7 +390,7 @@ NAMICS_DBG_THIS("Reaction::PutVarScan " << endl);	num_of_steps=-1;
 }
 
 bool Reaction::UpdateVarInfo(int step_nr) {
-NAMICS_DBG_THIS("Reaction::UpdateVarInfo " << endl);	bool success=true;
+NAMICS_DBG("Reaction::UpdateVarInfo " << endl);	bool success=true;
 	switch(Var_target) {
 		case 0:
 			if (scale=="exponential") {
@@ -406,7 +406,7 @@ NAMICS_DBG_THIS("Reaction::UpdateVarInfo " << endl);	bool success=true;
 }
 
 bool Reaction::ResetInitValue() {
-NAMICS_DBG_THIS("Reaction::ResetInitValue() " << endl);	bool success=true;
+NAMICS_DBG("Reaction::ResetInitValue() " << endl);	bool success=true;
 	switch(Var_target) {
 		case 0:
 			pK=Var_start_value;
@@ -419,7 +419,7 @@ NAMICS_DBG_THIS("Reaction::ResetInitValue() " << endl);	bool success=true;
 }
 
 void Reaction::PutValue(Real X) {
-NAMICS_DBG_THIS("Reaction::PutValue() " << endl);	switch(Var_target) {
+NAMICS_DBG("Reaction::PutValue() " << endl);	switch(Var_target) {
 		case 0:
 			pK=X;
 			break;
@@ -430,7 +430,7 @@ NAMICS_DBG_THIS("Reaction::PutValue() " << endl);	switch(Var_target) {
 }
 
 Real Reaction::GetValue() {
-NAMICS_DBG_THIS("Reaction::GetValue() " << endl);	Real X=0;
+NAMICS_DBG("Reaction::GetValue() " << endl);	Real X=0;
 	switch(Var_target) {
 		case 0:
 			X=pK; 
@@ -443,7 +443,7 @@ NAMICS_DBG_THIS("Reaction::GetValue() " << endl);	Real X=0;
 }
 
 Real Reaction::GetError() {
-NAMICS_DBG_THIS("Reaction::GetError " << endl);	Real Error=0;
+NAMICS_DBG("Reaction::GetError " << endl);	Real Error=0;
 	switch (Var_target) {
 		case 0:
 			cout <<"Program error in Reaction::GetVarError" <<endl;

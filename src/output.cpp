@@ -2,7 +2,7 @@
 #include "output.h"
 
 Output::Output(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_,int outnr,int N_out) {
-NAMICS_DBG_THIS("constructor in Output "<< endl);	In=In_; Lat = Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; n_output=N_out; output_nr=outnr;  New=New_;
+NAMICS_DBG("constructor in Output "<< endl);	In=In_; Lat = Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; n_output=N_out; output_nr=outnr;  New=New_;
 	writer = io::SharedWriter();
 	//KEYS.push_back("write_output");
 	lat=Lat;
@@ -22,13 +22,13 @@ NAMICS_DBG_THIS("constructor in Output "<< endl);	In=In_; Lat = Lat_; Seg=Seg_; 
 
 }
 Output::~Output() {
-NAMICS_DBG_THIS("destructor in output " << endl);}
+NAMICS_DBG("destructor in output " << endl);}
 void Output::PutParameter(string new_param) {
-NAMICS_DBG_THIS("PutParameter in Output " << endl); KEYS.push_back(new_param);
+NAMICS_DBG("PutParameter in Output " << endl); KEYS.push_back(new_param);
 }
 
 bool Output::Load() {
-NAMICS_DBG_THIS("Load in output " << endl);	bool success=true;
+NAMICS_DBG("Load in output " << endl);	bool success=true;
 	int molnr=0;
 	success= In->LoadItems(name, OUT_key, OUT_name, OUT_prop);
 	if (success) {
@@ -77,7 +77,7 @@ NAMICS_DBG_THIS("Load in output " << endl);	bool success=true;
 }
 
 bool Output::CheckInput(int start_) {
-NAMICS_DBG_THIS("CheckInput in output " << endl);	start=start_;
+NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 	if (name != "kal" && name != "pro") {
 		write = false;
 		cout << "Output type '" << name << "' is disabled. Only 'kal' and 'pro' are supported." << endl;
@@ -147,13 +147,13 @@ NAMICS_DBG_THIS("CheckInput in output " << endl);	start=start_;
 }
 
 string Output::GetValue(string parameter) {
-NAMICS_DBG_THIS("GetValue in output " << endl); auto it = PARAMETERS.find(parameter);
+NAMICS_DBG("GetValue in output " << endl); auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
 int* Output::GetPointerInt(string key, string name, string prop, int &Size) {
-NAMICS_DBG_THIS("GetPointerInt in output " << endl); int monlistlength=In->MonList.size();
+NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int listlength;
 	int choice;
@@ -223,7 +223,7 @@ NAMICS_DBG_THIS("GetPointerInt in output " << endl); int monlistlength=In->MonLi
 	return NULL;
 }
 Real* Output::GetPointer(string key, string name, string prop, int &Size) {
-NAMICS_DBG_THIS("GetPointer in output " << endl); int monlistlength=In->MonList.size();
+NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int listlength;
 	int choice;
@@ -293,7 +293,7 @@ NAMICS_DBG_THIS("GetPointer in output " << endl); int monlistlength=In->MonList.
 	return NULL;
 }
 int Output::GetValue(string key, string name, string prop, int &int_result, Real &Real_result, string &string_result) {
-NAMICS_DBG_THIS("GetValue (long) in output " << endl); int monlistlength=In->MonList.size();
+NAMICS_DBG("GetValue (long) in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int choice=0;
 	int i;
@@ -337,7 +337,7 @@ NAMICS_DBG_THIS("GetValue (long) in output " << endl); int monlistlength=In->Mon
 }
 
 void Output::WriteOutput(int subl) {
-NAMICS_DBG_THIS("WriteOutput in output " + name << endl);	lat->subl=subl;
+NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 	if (!write) return;
 	if (name != "kal" && name != "pro") {
 		return;

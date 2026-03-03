@@ -6,7 +6,7 @@
 LGrad2::LGrad2(const Input& In_,const string& name_): Lattice(In_,name_) {}
 
 LGrad2::~LGrad2() {
-NAMICS_DBG_THIS("LGrad2 destructor " << endl);}
+NAMICS_DBG("LGrad2 destructor " << endl);}
 
 
 void LGrad2:: ComputeLambdas() {
@@ -94,7 +94,7 @@ void LGrad2:: ComputeLambdas() {
 }
 
 bool LGrad2::PutM() {
-NAMICS_DBG_THIS("PutM in LGrad2 " << endl);	bool success=true;
+NAMICS_DBG("PutM in LGrad2 " << endl);	bool success=true;
 
 	if (geometry=="cylindrical")
 		volume = MY*PIE*(pow(MX+offset_first_layer,2)-pow(offset_first_layer,2));
@@ -106,15 +106,15 @@ NAMICS_DBG_THIS("PutM in LGrad2 " << endl);	bool success=true;
 }
 
 void LGrad2::TimesL(Real* X){
-NAMICS_DBG_THIS("TimesL in LGrad2 " << endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = (X)[__i] * (L)[__i];
+NAMICS_DBG("TimesL in LGrad2 " << endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = (X)[__i] * (L)[__i];
 }
 
 void LGrad2::DivL(Real* X){
-NAMICS_DBG_THIS("DivL in LGrad2 " << endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = ((L)[__i] != 0) ? ((X)[__i] / (L)[__i]) : 0;
+NAMICS_DBG("DivL in LGrad2 " << endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = ((L)[__i] != 0) ? ((X)[__i] / (L)[__i]) : 0;
 }
 
 Real LGrad2:: Moment(Real* X,Real Xb, int n) {
-NAMICS_DBG_THIS("Moment in LGrad2 " << endl);	Real Result=0;
+NAMICS_DBG("Moment in LGrad2 " << endl);	Real Result=0;
 	int x,y;
 	int zz;
 	Real Nz;
@@ -134,7 +134,7 @@ NAMICS_DBG_THIS("Moment in LGrad2 " << endl);	Real Result=0;
 }
 
 Real LGrad2::WeightedSum(Real* X){
-NAMICS_DBG_THIS("weighted sum in LGrad2 " << endl);	Real sum{0};
+NAMICS_DBG("weighted sum in LGrad2 " << endl);	Real sum{0};
 	remove_bounds(X);
 	if (geometry=="planar") {
 		(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i]; sum = sum/(fjc*fjc);
@@ -149,11 +149,11 @@ void LGrad2::vtk(string filename, Real* X, string id,bool writebounds) {
 	(void)X;
 	(void)id;
 	(void)writebounds;
-NAMICS_DBG_THIS("vtk in LGrad2 " << endl);	cout << "VTK output is disabled; use kal/pro output instead." << endl;
+NAMICS_DBG("vtk in LGrad2 " << endl);	cout << "VTK output is disabled; use kal/pro output instead." << endl;
 }
 
 void LGrad2::PutProfiles(FILE* pf,vector<Real*> X,bool writebounds,bool DOS){
-NAMICS_DBG_THIS("PutProfiles in LGrad2 " << endl);	Real one=1.0;
+NAMICS_DBG("PutProfiles in LGrad2 " << endl);	Real one=1.0;
 	int x,y,i;
 	int length=X.size();
 	int a;
@@ -174,7 +174,7 @@ NAMICS_DBG_THIS("PutProfiles in LGrad2 " << endl);	Real one=1.0;
 
 
 void LGrad2::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
-NAMICS_DBG_THIS(" Side in LGrad2 " << endl);	if (ignore_sites) {
+NAMICS_DBG(" Side in LGrad2 " << endl);	if (ignore_sites) {
 		std::copy_n(X, M, X_side); return;
 	}
 	std::fill_n(X_side, M, 0);//set_bounds(X);
@@ -709,7 +709,7 @@ void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 }
 
 void LGrad2::propagate(Real *G, Real *G1, int s_from, int s_to,int M) {
-NAMICS_DBG_THIS(" propagate in LGrad2 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
+NAMICS_DBG(" propagate in LGrad2 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
 	std::fill_n(gs, M, 0); set_bounds(gs_1);
 	if (fjc==1) {
 		if (lattice_type==simple_cubic) {
@@ -772,7 +772,7 @@ bool LGrad2::ReadRange(int* r, int* H_p, int &n_pos, bool &block, string range, 
 	(void)var_pos;
 	(void)n_pos;
 	(void)H_p;
-NAMICS_DBG_THIS("ReadRange in LGrad2 " << endl);	bool success=true;
+NAMICS_DBG("ReadRange in LGrad2 " << endl);	bool success=true;
 	vector<string>set;
 	vector<string>coor;
 	vector<string>xyz;
@@ -798,7 +798,7 @@ NAMICS_DBG_THIS("ReadRange in LGrad2 " << endl);	bool success=true;
 }
 
 bool LGrad2::ReadRangeFile(string filename,int* H_p, int &n_pos, string seg_name, string range_type) {
-NAMICS_DBG_THIS("ReadRangeFile in LGrad2 " << endl);	if (fjc>1) {
+NAMICS_DBG("ReadRangeFile in LGrad2 " << endl);	if (fjc>1) {
 		cout << "Rangefile is not implemented for FJC-choices >3; contact FL. " << endl;
 		return false;
 	}
@@ -900,7 +900,7 @@ bool LGrad2::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 }
 
 bool LGrad2::CreateMASK(Real* H_MASK, int* r, int* H_P, int n_pos, bool block) {
-NAMICS_DBG_THIS("CreateMask for LGrad2 " + name << endl);	bool success=true;
+NAMICS_DBG("CreateMask for LGrad2 " + name << endl);	bool success=true;
 	std::fill_n(H_MASK, M, static_cast<Real>(0));
 	// Build mask from either a block in r=[x1,y1,z1,x2,y2,z2] or list of indices in H_P.
 	if (block) {
@@ -1064,7 +1064,7 @@ void LGrad2::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool gra
 }
 
 void LGrad2::remove_bounds(Real *X){
-NAMICS_DBG_THIS("remove_bounds in LGrad2 " << endl);	int x,y;
+NAMICS_DBG("remove_bounds in LGrad2 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) {
@@ -1101,7 +1101,7 @@ NAMICS_DBG_THIS("remove_bounds in LGrad2 " << endl);	int x,y;
 }
 
 void LGrad2::set_bounds_x(Real* X, Real*Y, int shifty){
-NAMICS_DBG_THIS("set_bounds_x XY in LGrad2 " << endl);
+NAMICS_DBG("set_bounds_x XY in LGrad2 " << endl);
 	if (BX1>BXM)  {
 		//set_bounds_x(X,0); set_bounds_x(Y,0);
 		set_bounds_x(X,shifty); set_bounds_x(Y,shifty);
@@ -1128,7 +1128,7 @@ NAMICS_DBG_THIS("set_bounds_x XY in LGrad2 " << endl);
 }
 
 void LGrad2::set_bounds_y(Real* X, Real*Y, int shiftx){
-NAMICS_DBG_THIS("set_bounds_y XY in LGrad2 " << endl);
+NAMICS_DBG("set_bounds_y XY in LGrad2 " << endl);
 	if (BY1>BYM) {
 		//set_bounds_y(X,0); set_bounds_y(Y,0);
 		set_bounds_y(X,shiftx); set_bounds_y(Y,shiftx);
@@ -1154,7 +1154,7 @@ NAMICS_DBG_THIS("set_bounds_y XY in LGrad2 " << endl);
 }
 
 void LGrad2::set_bounds_x(Real* X,int shifty){
-NAMICS_DBG_THIS("set_bounds_x X in LGrad2 " << endl);	int y;
+NAMICS_DBG("set_bounds_x X in LGrad2 " << endl);	int y;
 	int k=0;
 
 	if (fjc==1) {
@@ -1173,7 +1173,7 @@ NAMICS_DBG_THIS("set_bounds_x X in LGrad2 " << endl);	int y;
 }
 
 void LGrad2::set_bounds_y(Real* X,int shiftx){
-NAMICS_DBG_THIS("set_bounds_y X in LGrad2 " << endl);	int x;
+NAMICS_DBG("set_bounds_y X in LGrad2 " << endl);	int x;
 	int k=0;
 
 	if (fjc==1) {
@@ -1192,7 +1192,7 @@ NAMICS_DBG_THIS("set_bounds_y X in LGrad2 " << endl);	int x;
 }
 
 void LGrad2::set_bounds(Real* X){
-NAMICS_DBG_THIS("set_bounds in LGrad2 " << endl);	int x,y;
+NAMICS_DBG("set_bounds in LGrad2 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) {
@@ -1237,7 +1237,7 @@ NAMICS_DBG_THIS("set_bounds in LGrad2 " << endl);	int x,y;
 }
 
 void LGrad2::set_M_bounds(Real* X){
-NAMICS_DBG_THIS("set_bounds in LGrad2 " << endl);	int x,y;
+NAMICS_DBG("set_bounds in LGrad2 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) {
@@ -1275,7 +1275,7 @@ NAMICS_DBG_THIS("set_bounds in LGrad2 " << endl);	int x,y;
 
 
 void LGrad2::remove_bounds(int *X){
-NAMICS_DBG_THIS("remove_bounds in LGrad2 " << endl);	int x,y;
+NAMICS_DBG("remove_bounds in LGrad2 " << endl);	int x,y;
 	int k;
 	if (fjc==1) {
 		for (x=0; x<MX+2; x++) {
@@ -1303,7 +1303,7 @@ NAMICS_DBG_THIS("remove_bounds in LGrad2 " << endl);	int x,y;
 }
 
 void LGrad2::set_bounds(int* X){
-NAMICS_DBG_THIS("set_bounds in LGrad2 " << endl);	int x,y;
+NAMICS_DBG("set_bounds in LGrad2 " << endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) {
@@ -1458,7 +1458,7 @@ void LGrad2::Initiate(Real* G,Real* Gz,int Markov, int M){
 }
 
 void LGrad2::Terminate(Real* Gz,Real* G,int Markov, int M){
-NAMICS_DBG_THIS("LGrad2:: terminate " << endl);	if (Markov==2) {
+NAMICS_DBG("LGrad2:: terminate " << endl);	if (Markov==2) {
 		cout <<"terminate in markov==2 is not tested" << endl;
 		std::fill_n(Gz, M, 0);
 		if (lattice_type == hexagonal&& !stencil_full) {
@@ -1479,7 +1479,7 @@ NAMICS_DBG_THIS("LGrad2:: terminate " << endl);	if (Markov==2) {
 
 bool LGrad2:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R){
 	(void)pz;
-NAMICS_DBG_THIS("PutMask in LGrad2 " << endl);	//R*=fjc; //is already done in segment
+NAMICS_DBG("PutMask in LGrad2 " << endl);	//R*=fjc; //is already done in segment
 	bool success=true;
 	int length =px.size();
 	int X,Y;
@@ -1521,7 +1521,7 @@ NAMICS_DBG_THIS("PutMask in LGrad2 " << endl);	//R*=fjc; //is already done in se
 
 
 Real LGrad2::DphiDt(Real* g, Real* B_phitot, Real* phiA, Real* phiB, Real* alphaA, Real* alphaB,Real B_A, Real B_B) {
-	NAMICS_DBG_THIS("LGrad2: DphiDt not implemented yet " << endl);	Real AverageJ=0;
+	NAMICS_DBG("LGrad2: DphiDt not implemented yet " << endl);	Real AverageJ=0;
 	int x, y;
 
 	//apply BC to the edges

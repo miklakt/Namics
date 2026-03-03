@@ -10,7 +10,7 @@ mol_branched::mol_branched(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,
 mol_branched::~mol_branched() { }
 
 void mol_branched::BackwardBra2ndO(Real* G_start, int generation,int &unity, int &s){
-if (debug) cout <<"BackwardBra2ndO in mol_branched " << endl;
+NAMICS_DBG("BackwardBra2ndO in mol_branched " << endl);
 	int b0 = first_b[generation];
 	int bN = last_b[generation];
 	vector<int> Br;
@@ -111,7 +111,7 @@ if (debug) cout <<"BackwardBra2ndO in mol_branched " << endl;
 
 
 Real* mol_branched::ForwardBra2ndO(Real* G0, int generation, int &s) {
-if (debug) cout <<"ForwardBra2nd0 in mol_branched " << endl;
+NAMICS_DBG("ForwardBra2nd0 in mol_branched " << endl);
 	int b0 = first_b[generation];
 	int bN = last_b[generation];
 	vector<int> Br;
@@ -168,7 +168,7 @@ if (debug) cout <<"ForwardBra2nd0 in mol_branched " << endl;
 
 
 void mol_branched::BackwardBra(Real* G_start, int generation, int &s){
-if (debug) cout <<"BackwardBr in mol_branched " << endl;
+NAMICS_DBG("BackwardBr in mol_branched " << endl);
 
 	int b0 = first_b[generation];
 	int bN = last_b[generation];
@@ -248,7 +248,7 @@ if (debug) cout <<"BackwardBr in mol_branched " << endl;
 }
 
 Real* mol_branched::ForwardBra(Real* G0, int generation, int &s) {
-if (debug) cout <<"ForwardBra in mol_branched " << endl;
+NAMICS_DBG("ForwardBra in mol_branched " << endl);
 	int b0 = first_b[generation];
 	int bN = last_b[generation];
 	vector<int> Br;
@@ -301,7 +301,7 @@ if (debug) cout <<"ForwardBra in mol_branched " << endl;
 
 
 bool mol_branched::ComputePhi() {
-if (debug) cout <<"ComputePhi in mol_branched " << endl;
+NAMICS_DBG("ComputePhi in mol_branched " << endl);
 
 	int M=lat->M;
 	bool success=true;
