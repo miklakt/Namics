@@ -8,11 +8,17 @@ binary="${repo_root}/bin/namics"
 input_file="${repo_root}/tests/frozen_range_input_file.in"
 reference_file="${repo_root}/tests/reference/frozen_range_input_file.pro.ref"
 output_dir="${repo_root}/output"
+output_file_kal="${output_dir}/frozen_range_input_file.kal"
 output_file_pro="${output_dir}/frozen_range_input_file.pro"
 output_file_json="${output_dir}/frozen_range_input_file.json"
 compare_script="${repo_root}/tests/compare_profile_content.py"
 phi_tolerance="1e-6"
 xy_tolerance="1e-12"
+
+cleanup() {
+  rm -f "${output_file_kal}" "${output_file_pro}" "${output_file_json}"
+}
+trap cleanup EXIT
 
 if [[ ! -x "${binary}" ]]; then
   echo "ERROR: built binary not found or not executable: ${binary}" >&2
@@ -36,7 +42,7 @@ if [[ ! -f "${compare_script}" ]]; then
 fi
 
 mkdir -p "${output_dir}"
-rm -f "${output_file_pro}" "${output_file_json}"
+rm -f "${output_file_kal}" "${output_file_pro}" "${output_file_json}"
 
 "${binary}" "${input_file}" > /dev/null
 

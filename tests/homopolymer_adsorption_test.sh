@@ -19,6 +19,23 @@ run_log="${benchmark_dir}/homopolymer_adsorption_test_${run_id}.log"
 chi_values=(0 -2 -4 -6)
 x_tolerance="1e-12"
 phi_tolerance="1e-6"
+output_file_kal="${output_dir}/homopolymer_adsorption.kal"
+output_file_pro="${output_dir}/homopolymer_adsorption.pro"
+output_file_json="${output_dir}/homopolymer_adsorption.json"
+output_file_save_memory_kal="${output_dir}/homopolymer_adsorption_save_memory.kal"
+output_file_save_memory_pro="${output_dir}/homopolymer_adsorption_save_memory.pro"
+output_file_save_memory_json="${output_dir}/homopolymer_adsorption_save_memory.json"
+
+cleanup() {
+  rm -f \
+    "${output_file_kal}" \
+    "${output_file_pro}" \
+    "${output_file_json}" \
+    "${output_file_save_memory_kal}" \
+    "${output_file_save_memory_pro}" \
+    "${output_file_save_memory_json}"
+}
+trap cleanup EXIT
 
 now_ms() {
   echo $(( $(date +%s%N) / 1000000 ))
@@ -70,10 +87,6 @@ solver_runtime_ms=0
 
 for chi in "${chi_values[@]}"; do
   reference_file="${reference_dir}/homopolymer_adsorption.chi_${chi}.pro.ref"
-  output_file_pro="${output_dir}/homopolymer_adsorption.pro"
-  output_file_json="${output_dir}/homopolymer_adsorption.json"
-  output_file_save_memory_pro="${output_dir}/homopolymer_adsorption_save_memory.pro"
-  output_file_save_memory_json="${output_dir}/homopolymer_adsorption_save_memory.json"
 
   if [[ ! -f "${reference_file}" ]]; then
     echo "ERROR: reference file not found: ${reference_file}" >&2
