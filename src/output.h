@@ -10,18 +10,15 @@
 #include "system.h"
 #include "solve_scf.h"
 #include "json_writer.h"
-#include <climits>
-#include <unistd.h>
 
 class Output {
 public:
-	Output(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,string,int,int);
+	Output(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,string);
 
 ~Output();
 
 	string name;
 	const Input* In;
-	Lattice* Lat;
 	Lattice* lat;
 	vector<Segment*> Seg;
 	vector<State*> Sta;
@@ -30,21 +27,11 @@ public:
 	System* Sys;
 	Solve_scf* New;
 	std::shared_ptr<io::json::JsonWriter> json_writer;
-	int n_output;
-	int subl;
-	int n_starts;
 	int start;
-	int output_nr;
 	bool write_bounds;
 	bool append;
 	bool write;
-	bool input_error;
-	bool DOS;
-	int first;
-	string output_folder;
-	string bin_folder;
 	bool use_output_folder;
-	string write_option;
 	string sep;
 
   	vector<string> ints;
@@ -56,7 +43,6 @@ public:
 	vector<int > SizeVectorInt;
 	vector<Real*> PointerVectorReal;
 	vector<int*> PointerVectorInt;
-	vector<int> pointer_size;
   	vector<int> ints_value;
   	vector<bool> bools_value;
   	vector<string> strings_value;

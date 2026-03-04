@@ -40,7 +40,6 @@ extern Real T;
 extern Real k_B;
 extern Real k_BT;
 extern Real PIE;
-extern int DEBUG_BREAK;
 extern Real eps0;
 extern bool debug;
 #endif

@@ -35,25 +35,17 @@ bool IsJsonBoolString(const std::string& value) {
 
 } // namespace
 
-Output::Output(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_,int outnr,int N_out) {
-NAMICS_DBG("constructor in Output "<< endl);	In=In_; Lat = Lat_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; n_output=N_out; output_nr=outnr;  New=New_;
+Output::Output(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_) {
+NAMICS_DBG("constructor in Output "<< endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; New=New_;
 	json_writer = io::json::SharedJsonWriter();
-	//KEYS.push_back("write_output");
-	lat=Lat;
+	lat=Lat_;
 	KEYS.push_back("write_bounds");
 	KEYS.push_back("append");
 	KEYS.push_back("use_output_folder");
 	KEYS.push_back("write");
-	KEYS.push_back("clear");
-	KEYS.push_back("DOS");
 	KEYS.push_back("header_separator");
 	KEYS.push_back("filename");
-	input_error=false;
-	bin_folder = "bin"; // folder in Namics where the binary is located
 	use_output_folder = true; // LINUX ONLY, when you remove this, add it as a default to its CheckInputs part.
-	n_starts = In->GetNumStarts();
-	first=0;
-
 }
 Output::~Output() {
 NAMICS_DBG("destructor in output " << endl);}
@@ -117,26 +109,14 @@ NAMICS_DBG("Load in output " << endl);	bool success=true;
 
 bool Output::CheckInput(int start_) {
 NAMICS_DBG("CheckInput in output " << endl);	start=start_;
-	if (name != "json") {
-		write = false;
-		cout << "Output type '" << name << "' is disabled. Only 'json' is supported." << endl;
-		return true;
-	}
-
 	bool success=true;
 	success=In->CheckParameters("output",name,start, KEYS, PARAMETERS);
 	if (success) {
-		DOS=false;
-		if (GetValue("DOS").size()>0) {
-			DOS=ParseBool(GetValue("DOS"),DOS);
+		if (GetValue("append").size()>0) {
+			append=ParseBool(GetValue("append"),append);
+		} else {
+			append=false;
 		}
-
-			if (GetValue("append").size()>0) {
-				append=ParseBool(GetValue("append"),append);
-				if (first==0) first=start;
-			} else {
-				append=false;
-			}
 
 		write_bounds = ParseBool(GetValue("write_bounds"),false);
 		write  = ParseBool(GetValue("write"),true);
@@ -164,16 +144,6 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 			if (!Load()) {
 				cout <<"Error in Load() in output" << endl;
 				success=false;
-			}
-		}
-		write_option="no_error";
-		if (GetValue("write_output").size()>0) {
-			vector<string> option_list;
-			option_list.push_back("always");
-			option_list.push_back("no_error");
-			option_list.push_back("never");
-			if (!ParseString(GetValue("write_output"),write_option,option_list,"In output: 'write_output' not recognised. Use 'always', 'never', or 'no_error'. The last value is default.")){
-				cout <<"continue with write_output : no_error" << endl;
 			}
 		}
 	} else cout <<"Error in CheckParameters in output" << endl;
@@ -373,9 +343,6 @@ NAMICS_DBG("GetValue (long) in output " << endl); int monlistlength=In->MonList.
 void Output::WriteOutput(int subl) {
 NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 	if (!write) return;
-	if (name != "json") {
-		return;
-	}
 	int Size=0;
 	string filename;
 	vector<string> sub;

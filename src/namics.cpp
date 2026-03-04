@@ -38,7 +38,6 @@ Real k_B = 1.38065e-23;
 Real k_BT = k_B * T;
 Real eps0 = 8.85418e-12;
 Real PIE = 3.14159265;
-int DEBUG_BREAK = 1;
 //Used for command line switches
 bool debug = false;
 
@@ -101,7 +100,7 @@ int main(int argc, char *argv[])
 	unique_ptr<System> Sys;
 
 	// Multi-instance collections
-	vector<Output *> Out;              // Outputs written to file
+	unique_ptr<Output> Out;            // Output written to file
 	vector<Molecule *> Mol;            // Properties of entire molecule
 	vector<Segment *> Seg;             // Properties of molecule segments
 	vector<State *> Sta;
@@ -309,28 +308,23 @@ int main(int argc, char *argv[])
 		int IV_new=0;
 		int substart = 0;
 		int subloop = 0;
-		int n_out = 0;
 		int mon_length;
 		int state_length;
-			// Prepare, catch errors for output class creation
-			n_out = In->OutputList.size();
-			if (n_out == 0)
-				cout << "Warning: no output defined!" << endl;
-
-			// Create output class instance and check inputs (reference above)
-			for (int ii = 0; ii < n_out; ii++)
-			{
-				Out.push_back(new Output(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), In->OutputList[ii], ii, n_out));
-				if (!Out[ii]->CheckInput(start))
-				{
-					cout << "input_error in output " << endl;
-					return 0;
-				}
+		// Prepare and create output class instance.
+		Out.reset();
+		if (In->OutputList.empty()) {
+			cout << "Warning: no output defined!" << endl;
+		} else {
+			Out = make_unique<Output>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), "json");
+			if (!Out->CheckInput(start)) {
+				cout << "input_error in output " << endl;
+				return 0;
 			}
+		}
 
-			while (subloop <= substart)
-			{
-				Sys->MakeItsLists();
+		while (subloop <= substart)
+		{
+			Sys->MakeItsLists();
 
 				New->AllocateMemory();
 				//} else
@@ -368,10 +362,7 @@ int main(int argc, char *argv[])
 				}
 				New->PushOutput();
 
-				for (int ii = 0; ii < n_out; ii++)
-				{
-					Out[ii]->WriteOutput(subloop);
-				}
+				if (Out) Out->WriteOutput(subloop);
 				if (Sys->final_guess == "file")
 				{
 					MONLIST.clear();
@@ -444,9 +435,7 @@ int main(int argc, char *argv[])
 		lat_p.reset();
 		mol_p.reset();
 
-		for (int i = 0; i < n_out; i++)
-			delete Out[i];
-		Out.clear();
+		Out.reset();
 		New.reset();
 		Sys.reset();
 		for (int i = 0; i < n_mol; i++)

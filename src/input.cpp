@@ -382,11 +382,6 @@ NAMICS_DBG("LoadItems in Input " << endl); Out_key.clear();
 			}
 			if (!(wild_monlist || wild_mollist ||wild_aliaslist)) {Out_key.push_back(set[2]); Out_name.push_back(set[3]); Out_prop.push_back(set[4]);}
 
-			if (set[1]=="vtk" && Out_key.size()>1) {
-				cout << "vtk output can have only one entry: the following entries were found:" << endl; success =false;
-				int length =Out_key.size();
-				for (int i=0; i<length; i++) {cout << set[1] << " : " << Out_key[i] << " : " << Out_name[i] << " : " << Out_prop[i] << endl; }
-			}
 		} //end temp
 	} //end i;
 	return success;
@@ -413,28 +408,20 @@ bool Input:: CheckInput(void) {
 		elems.push_back("0:start");
 	}
 
-	static const std::vector<string> output_options = {"ana", "vtk", "json", "vec", "pos"};
+	bool has_json_output = false;
 	for (size_t i = 0; success && i < elems.size(); ++i) {
 		vector<std::string> set;
 		split(elems[i],':',set);
-
-			if (set[1]=="output") {
-				string option;
-				if (!ParseString(set[2],option,output_options,"Value for output extension '" + set[2] + "' not allowed. ")) {success=false;}
-				else {
-					const string& word=set[2];
-					if (word != "json") {
-						const bool keyword_found = (word=="ana") || InSet(KEYS, word);
-						if (!keyword_found) {
-							KEYS.push_back(word);
-						}
-					} else if (!InSet(KEYS, "json")) {
-						KEYS.push_back("json");
-					}
-				}
-
+		if (set[1]=="output") {
+			if (set[2] != "json") {
+				cout << "Value for output extension '" << set[2] << "' not allowed. Only 'json' is supported." << endl;
+				success=false;
+			} else {
+				has_json_output = true;
+			}
 		}
 	}
+	if (has_json_output && !InSet(KEYS, "json")) KEYS.push_back("json");
 	key_length = static_cast<int>(KEYS.size());
 	for (size_t i = 0; i < elems.size(); ++i) {
 		vector<std::string> set;
