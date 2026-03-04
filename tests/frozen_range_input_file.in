@@ -11,6 +11,7 @@ mol:SOLVENT:composition:(S)1
 mol:SOLVENT:freedom:solvent
 mon:W:freedom:frozen
 mon:W:frozen_filename:frozen
+newton : isaac : method : pseudohessian
 output:json:append:false
 output:json:filename:frozen_range_input_file
 json:mon:*:phi

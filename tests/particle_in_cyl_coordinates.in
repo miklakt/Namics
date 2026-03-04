@@ -11,6 +11,7 @@ mon : W : freedom : free
 
 mol : water : composition : (W)1
 mol : water : freedom : solvent
+newton : isaac : method : pseudohessian
 
 output : json : append : false
 output : json : filename : particle_in_cyl_coordinates

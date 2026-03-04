@@ -22,6 +22,7 @@ newton : isaac : e_info : false
 newton : isaac : i_info : 100
 newton : isaac : iterationlimit : 5000
 newton : isaac : tolerance : 1e-08
+newton : isaac : method : pseudohessian
 
 sys : noname : initial_guess : file
 sys : noname : guess_inputfile : output/micelle_2.outi

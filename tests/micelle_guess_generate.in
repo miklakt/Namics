@@ -23,6 +23,7 @@ newton : isaac : e_info : false
 newton : isaac : i_info : 100
 newton : isaac : iterationlimit : 5000
 newton : isaac : tolerance : 1e-08
+newton : isaac : method : pseudohessian
 
 output : json : append : false
 json : mon : A : phi
