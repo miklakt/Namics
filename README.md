@@ -18,7 +18,9 @@ make
 ## Tests
 
 ```bash
+make test-all
 make test-homopolymer-adsorption
 make test-frozen-range-input-file
 make test-micelle-self-assembly
+make test-particle-in-cyl-coordinates
 ```
