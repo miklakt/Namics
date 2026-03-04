@@ -144,14 +144,6 @@ NAMICS_DBG("weighted sum in LGrad2 " << endl);	Real sum{0};
 	return sum;
 }
 
-void LGrad2::vtk(string filename, Real* X, string id,bool writebounds) {
-	(void)filename;
-	(void)X;
-	(void)id;
-	(void)writebounds;
-NAMICS_DBG("vtk in LGrad2 " << endl);	cout << "VTK output is disabled; use json output instead." << endl;
-}
-
 void LGrad2::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
 NAMICS_DBG(" Side in LGrad2 " << endl);	if (ignore_sites) {
 		std::copy_n(X, M, X_side); return;

@@ -220,14 +220,6 @@ NAMICS_DBG("weighted sum in LGrad1 " << endl);	Real sum{0};
 	return sum;
 }
 
-void LGrad1::vtk(string filename, Real* X, string id,bool writebounds) {
-	(void)writebounds;
-	(void)id;
-	(void)X;
-	(void)filename;
-NAMICS_DBG("vtk in LGrad1 " << endl);	cout << "for system with one gradient there is no VTK output available " << endl;
-}
-
 void LGrad1::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
 NAMICS_DBG(" Side in LGrad1 " << endl);
 	if (ignore_sites) {

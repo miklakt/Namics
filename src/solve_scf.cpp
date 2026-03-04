@@ -29,6 +29,9 @@ NAMICS_DBG("Constructor in Solve_scf " << endl);
 	rescue_status = NONE;
 	all=false;
 	restart_DIIS =0;
+	xx = nullptr;
+	yy = nullptr;
+	SIGN = nullptr;
 }
 
 Solve_scf::~Solve_scf() {
@@ -37,15 +40,14 @@ Solve_scf::~Solve_scf() {
 
 void Solve_scf :: DeAllocateMemory(){
 NAMICS_DBG("DeAllocateMemory in Solve " << endl);
-
-		int niv = In->ReactionList.size();
-		if (niv>0) {
-			free(yy);
-			free(SIGN);
-		}
-		//delete [] xx;
-		//free(xx);
-all=false;
+	if (!all) return;
+	delete[] xx;
+	delete[] yy;
+	delete[] SIGN;
+	xx = nullptr;
+	yy = nullptr;
+	SIGN = nullptr;
+	all=false;
 NAMICS_DBG("exit for 'destructor' in Solve " << endl);
 
 }
@@ -60,14 +62,14 @@ NAMICS_DBG("AllocateMemeory in Solve " << endl);
 	if (Sys->constraintfields) iv +=M;
 	int length = In->MonList.size();
 	for (int i = 0; i < length; i++) iv+=Seg[i]->constraint_z.size();
-	x_storage.assign(iv, 0);
-	xx=x_storage.data();
-	all=true;
+	xx = new Real[iv]();
 	int niv = In->ReactionList.size();
 	if (niv>0) {
-		yy=(Real*) malloc(niv*sizeof(Real)); std::fill_n(yy, niv, 0);
-		SIGN=(int*) malloc((niv)*sizeof(int)); for (int i=0; i<niv; i++) SIGN[i]=1.0;
+		yy = new Real[niv]();
+		SIGN = new int[niv];
+		std::fill_n(SIGN, niv, 1);
 	}
+	all=true;
 
 	Sys->AllocateMemory();
 }

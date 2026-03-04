@@ -91,7 +91,6 @@ public:
 
 	Real *xx;
 	Real *yy;
-	vector<Real> x_storage;
 	int *SIGN;
 	Real* alpha;
 

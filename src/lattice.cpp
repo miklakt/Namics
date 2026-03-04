@@ -32,34 +32,55 @@ NAMICS_DBG("Lattice constructor" << endl);	In=&In_; name=name_;
 	offset_first_layer=0;
 	Markov=1;
 	subl=0;
+	l1 = nullptr;
+	l11 = nullptr;
+	l_1 = nullptr;
+	l_11 = nullptr;
+	H = nullptr;
+	B_X1 = nullptr;
+	B_Y1 = nullptr;
+	B_Z1 = nullptr;
+	B_XM = nullptr;
+	B_YM = nullptr;
+	B_ZM = nullptr;
+	L = nullptr;
+	lambda0 = nullptr;
+	fcc_lambda0 = nullptr;
+	lambda_1 = nullptr;
+	fcc_lambda_1 = nullptr;
+	lambda1 = nullptr;
+	fcc_lambda1 = nullptr;
+	LAMBDA = nullptr;
+	LABDA = nullptr;
+	LABDA_1 = nullptr;
+	X = nullptr;
 }
 
 void Lattice::DeAllocateMemory(void) {
 NAMICS_DBG("DeAllocateMemory in lat " << endl);	if (!all_lattice) return;
 	all_lattice=false;
-	l1_storage.clear();
-	l11_storage.clear();
-	l_1_storage.clear();
-	l_11_storage.clear();
-	H_storage.clear();
-	B_X1_storage.clear();
-	B_Y1_storage.clear();
-	B_Z1_storage.clear();
-	B_XM_storage.clear();
-	B_YM_storage.clear();
-	B_ZM_storage.clear();
-	L_storage.clear();
-	lambda0_storage.clear();
-	fcc_lambda0_storage.clear();
-	lambda_1_storage.clear();
-	fcc_lambda_1_storage.clear();
-	lambda1_storage.clear();
-	fcc_lambda1_storage.clear();
-	LAMBDA_storage.clear();
-	LABDA_storage.clear();
-	LABDA_1_storage.clear();
-	X_storage.clear();
-
+	delete[] l1;
+	delete[] l11;
+	delete[] l_1;
+	delete[] l_11;
+	delete[] H;
+	delete[] B_X1;
+	delete[] B_Y1;
+	delete[] B_Z1;
+	delete[] B_XM;
+	delete[] B_YM;
+	delete[] B_ZM;
+	delete[] L;
+	delete[] lambda0;
+	delete[] fcc_lambda0;
+	delete[] lambda_1;
+	delete[] fcc_lambda_1;
+	delete[] lambda1;
+	delete[] fcc_lambda1;
+	delete[] LAMBDA;
+	delete[] LABDA;
+	delete[] LABDA_1;
+	delete[] X;
 	l1 = nullptr;
 	l11 = nullptr;
 	l_1 = nullptr;
@@ -91,12 +112,12 @@ NAMICS_DBG("AllocateMemory in lat " << endl);
 	all_lattice=true;
 	PutM();
 	if (fjc>1) {
-		B_X1_storage.assign(fjc, 0); B_X1=B_X1_storage.data();
-		B_Y1_storage.assign(fjc, 0); B_Y1=B_Y1_storage.data();
-		B_Z1_storage.assign(fjc, 0); B_Z1=B_Z1_storage.data();
-		B_XM_storage.assign(fjc, 0); B_XM=B_XM_storage.data();
-		B_YM_storage.assign(fjc, 0); B_YM=B_YM_storage.data();
-		B_ZM_storage.assign(fjc, 0); B_ZM=B_ZM_storage.data();
+		B_X1 = new int[fjc]();
+		B_Y1 = new int[fjc]();
+		B_Z1 = new int[fjc]();
+		B_XM = new int[fjc]();
+		B_YM = new int[fjc]();
+		B_ZM = new int[fjc]();
 	}
 
 	switch (gradients) {
@@ -203,37 +224,37 @@ NAMICS_DBG("AllocateMemory in lat " << endl);
 
 	}
 	if (fcc_sites) {
-		fcc_lambda_1_storage.assign(M, 0.0); fcc_lambda_1=fcc_lambda_1_storage.data();
-		fcc_lambda1_storage.assign(M, 0.0); fcc_lambda1=fcc_lambda1_storage.data();
-		fcc_lambda0_storage.assign(M, 0.0); fcc_lambda0=fcc_lambda0_storage.data();
+		fcc_lambda_1 = new Real[M]();
+		fcc_lambda1 = new Real[M]();
+		fcc_lambda0 = new Real[M]();
 	}
 
 	if (fjc==1) {
 		if (gradients<3) {
-		L_storage.assign(M, 0.0); L=L_storage.data();
-		lambda_1_storage.assign(M, 0.0); lambda_1=lambda_1_storage.data();
-		lambda1_storage.assign(M, 0.0); lambda1=lambda1_storage.data();
-		lambda0_storage.assign(M, 0.0); lambda0=lambda0_storage.data();
+		L = new Real[M]();
+		lambda_1 = new Real[M]();
+		lambda1 = new Real[M]();
+		lambda0 = new Real[M]();
 		}
 	} else {
-		L_storage.assign(M, 0.0); L=L_storage.data();
-		LAMBDA_storage.assign(FJC*M, 0.0); LAMBDA=LAMBDA_storage.data();
+		L = new Real[M]();
+		LAMBDA = new Real[FJC*M]();
 	}
 	if (Markov==2) {
 		if (fjc==1) {
-			l1_storage.assign(M, 0.0); l1=l1_storage.data();
-			l_1_storage.assign(M, 0.0); l_1=l_1_storage.data();
-			l11_storage.assign(M, 0.0); l11=l11_storage.data();
-			l_11_storage.assign(M, 0.0); l_11=l_11_storage.data();
+			l1 = new Real[M]();
+			l_1 = new Real[M]();
+			l11 = new Real[M]();
+			l_11 = new Real[M]();
 		} else {
-			LABDA_storage.assign(FJC*M, 0.0); LABDA=LABDA_storage.data();
-			LABDA_1_storage.assign(FJC*M, 0.0); LABDA_1=LABDA_1_storage.data();
+			LABDA = new Real[FJC*M]();
+			LABDA_1 = new Real[FJC*M]();
 		}
-		H_storage.assign(M, 0.0); H=H_storage.data();
+		H = new Real[M]();
 	}
 
 
-	X_storage.assign(M, 0.0); X=X_storage.data();
+	X = new Real[M]();
 	ComputeLambdas();
 }
 

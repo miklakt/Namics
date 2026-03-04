@@ -43,18 +43,6 @@ inline bool ReadSanitizedFile(const std::string& filename, std::string& buffer) 
 	return true;
 }
 
-inline bool ReadSanitizedLines(const std::string& filename, std::vector<std::string>& lines) {
-	std::string content;
-	if (!ReadSanitizedFile(filename, content)) return false;
-	lines.clear();
-	std::stringstream ss(content);
-	std::string item;
-	while (std::getline(ss, item, '#')) {
-		if (!item.empty()) lines.push_back(item);
-	}
-	return true;
-}
-
 template <typename RealT>
 inline bool ReadInitialGuess(const std::string& filename,
                              RealT* x,
