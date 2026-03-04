@@ -19,10 +19,8 @@ mol : surf : freedom : restricted
 mol : surf : n : 75
 
 newton : isaac : e_info : false
-newton : isaac : i_info : 100
-newton : isaac : iterationlimit : 5000
 newton : isaac : tolerance : 1e-08
-newton : isaac : method : pseudohessian
+newton : isaac : method : DIIS
 
 sys : noname : initial_guess : file
 sys : noname : guess_inputfile : output/micelle_2.outi
@@ -31,3 +29,4 @@ output : json : append : false
 json : mon : A : phi
 json : mon : B : phi
 json : mol : surf : phi
+start

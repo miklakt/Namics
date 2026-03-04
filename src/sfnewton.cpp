@@ -1,3 +1,4 @@
+#include <Eigen/Dense>
 #include <iostream>
 #include <numeric>
 #include "sfnewton.h"
@@ -766,56 +767,25 @@ NAMICS_DBG("Ax in  SFNewton (own svdcmp) " << endl);
 		return;
 	}
 
-	// Solve A * X = 1 using Gaussian elimination with partial pivoting.
-	vector<Real> M(A, A + N * N);
-	vector<Real> b(N, 1.0);
+	Eigen::MatrixXd M(N, N);
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			const Real value = A[i * N + j];
+			if (value != value) throw -2;
+			M(i, j) = static_cast<double>(value);
+		}
+	}
 
+	Eigen::JacobiSVD<Eigen::MatrixXd> svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
+	Eigen::VectorXd s = svd.singularValues();
+	Eigen::VectorXd u_sum = svd.matrixU().rowwise().sum();
+	Eigen::VectorXd coeff = Eigen::VectorXd::Zero(N);
 	for (int i = 0; i < N; ++i) {
-		for (int j = 0; j < N; ++j) {
-			if (M[i * N + j] != M[i * N + j]) throw -2;
-		}
+		const double sigma = s(i);
+		if (std::abs(sigma) > 1e-14) coeff(i) = u_sum(i) / sigma;
 	}
-
-	for (int col = 0; col < N; ++col) {
-		int pivot = col;
-		Real max_abs = fabs(M[col * N + col]);
-		for (int row = col + 1; row < N; ++row) {
-			const Real v = fabs(M[row * N + col]);
-			if (v > max_abs) {
-				max_abs = v;
-				pivot = row;
-			}
-		}
-		if (max_abs < 1e-14) throw -3;
-
-		if (pivot != col) {
-			for (int j = col; j < N; ++j) {
-				std::swap(M[col * N + j], M[pivot * N + j]);
-			}
-			std::swap(b[col], b[pivot]);
-		}
-
-		const Real diag = M[col * N + col];
-		for (int row = col + 1; row < N; ++row) {
-			const Real factor = M[row * N + col] / diag;
-			if (factor == 0) continue;
-			M[row * N + col] = 0;
-			for (int j = col + 1; j < N; ++j) {
-				M[row * N + j] -= factor * M[col * N + j];
-			}
-			b[row] -= factor * b[col];
-		}
-	}
-
-	for (int row = N - 1; row >= 0; --row) {
-		Real sum = b[row];
-		for (int j = row + 1; j < N; ++j) {
-			sum -= M[row * N + j] * X[j];
-		}
-		const Real diag = M[row * N + row];
-		if (fabs(diag) < 1e-14) throw -3;
-		X[row] = sum / diag;
-	}
+	Eigen::VectorXd result = svd.matrixV() * coeff;
+	for (int i = 0; i < N; ++i) X[i] = static_cast<Real>(result(i));
 }
 
 void SFNewton::DIIS(Real* x, Real* x_x0, Real* xR, Real* Aij, Real* Apij,Real* Ci, int k, int k_diis, int m, int nvar) {

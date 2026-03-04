@@ -5,7 +5,7 @@ lat : sphere : gradients : 1
 lat : sphere : FJC_choices : 5
 
 mon : A : freedom : pinned
-mon : A : pinned_range : 1;15
+mon : A : pinned_range : 1;14
 mon : B : freedom : free
 mon : W : freedom : free
 mon : A : chi_W : 2.0
@@ -21,9 +21,8 @@ mol : surf : n : 75
 
 newton : isaac : e_info : false
 newton : isaac : i_info : 100
-newton : isaac : iterationlimit : 5000
 newton : isaac : tolerance : 1e-08
-newton : isaac : method : pseudohessian
+newton : isaac : method : DIIS
 
 output : json : append : false
 json : mon : A : phi
