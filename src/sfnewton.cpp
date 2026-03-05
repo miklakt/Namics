@@ -778,11 +778,12 @@ NAMICS_DBG("Ax in  SFNewton (own svdcmp) " << endl);
 
 	Eigen::JacobiSVD<Eigen::MatrixXd> svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
 	Eigen::VectorXd s = svd.singularValues();
-	Eigen::VectorXd u_sum = svd.matrixU().rowwise().sum();
+	const Eigen::VectorXd ones = Eigen::VectorXd::Ones(N);
+	Eigen::VectorXd u_proj = svd.matrixU().transpose() * ones;
 	Eigen::VectorXd coeff = Eigen::VectorXd::Zero(N);
 	for (int i = 0; i < N; ++i) {
 		const double sigma = s(i);
-		if (std::abs(sigma) > 1e-14) coeff(i) = u_sum(i) / sigma;
+		if (std::abs(sigma) > 1e-14) coeff(i) = u_proj(i) / sigma;
 	}
 	Eigen::VectorXd result = svd.matrixV() * coeff;
 	for (int i = 0; i < N; ++i) X[i] = static_cast<Real>(result(i));
