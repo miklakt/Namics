@@ -2,6 +2,7 @@
 #include "output.h"
 
 #include <cctype>
+#include <filesystem>
 #include <limits>
 
 namespace {
@@ -345,32 +346,24 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 	if (!write) return;
 	int Size=0;
 	string filename;
-	vector<string> sub;
-
-	string infilename = In->name;
-	if (GetValue("filename").size()>0) infilename=GetValue("filename");
-	In->split(infilename,'.',sub);
-	if (sub.size() == 0) sub.push_back(infilename);
-
-	if (use_output_folder == true) {
-
-		int occurrences = 0;
-		string::size_type path_pos = 0;
-		string slash = "/";
-
-		// Check if we have any slashes in the filename (are we in inputs, or higher up?)
-		while ((path_pos = sub[0].find(slash, path_pos)) != string::npos) {
-    	++occurrences;
-    	path_pos += slash.length();
-		}
-
-		// If we're not in the inputs folder, discard the path and take only the filename
-		if  (occurrences != 0) {
-			size_t found = sub[0].find_last_of("/\\");
-			sub[0] = sub[0].substr(found+1);
-		}
+	const string configured_filename = GetValue("filename");
+	const string infilename = configured_filename.size() > 0 ? configured_filename : In->name;
+	std::filesystem::path out_path(infilename);
+	if (use_output_folder) {
+		out_path = out_path.filename();
 	}
-	filename = sub[0].append(".json");
+
+	string base_name;
+	if (out_path.has_stem()) {
+		base_name = out_path.stem().string();
+	} else {
+		base_name = out_path.filename().string();
+	}
+	if (base_name.empty()) {
+		base_name = "output";
+	}
+
+	filename = base_name + ".json";
 	filename = In->output_info.getOutputPath() + filename;
 
 	vector<Real*> profile_pointer;

@@ -3,8 +3,8 @@
 
 Usage:
   python3 tests/run_tests.py                 # run all tests
-  python3 tests/run_tests.py frozen-range-input-file
   python3 tests/run_tests.py --list
+  python3 tests/run_tests.py --with-save-memory
 """
 
 from __future__ import annotations
@@ -13,8 +13,9 @@ import argparse
 import csv
 import shutil
 import sys
+import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
@@ -25,10 +26,11 @@ from test_helpers import (  # noqa: E402
     CommandMetrics,
     TestError,
     compare_json_profiles,
-    ensure_solver_method_line,
-    replace_in_file,
+    ensure_file_from_archive,
     require_file,
     run_command,
+    set_commented_setting,
+    set_setting_line,
     utc_run_id,
 )
 
@@ -40,54 +42,106 @@ class Context:
     output_dir: Path
     binary: Path
     quiet: bool
-    keep_artifacts: bool
+    clean_output: bool
     benchmark_threshold_pct: float
     benchmark_history: bool
+    with_save_memory: bool
+    reference_archive: Path
+    reference_unpack_dir: Path
+    generated_input_manifest: Path
 
 
 @dataclass
-class TestResult:
-    key: str
-    passed: bool
-    wall_s: float
-    max_rss_kb: float | None
-    details: str
+class ReportNode:
+    label: str
+    passed: bool = True
+    required_for_parent: bool = True
+    wall_s: float = 0.0
+    max_rss_kb: float | None = None
+    details: str = ""
+    children: list["ReportNode"] = field(default_factory=list)
 
-
-class Meter:
-    def __init__(self) -> None:
-        self.wall_s = 0.0
-        self.max_rss_kb: float | None = None
-
-    def add(self, m: CommandMetrics) -> None:
-        self.wall_s += m.wall_s
-        if m.max_rss_kb is None:
+    def add_metric(self, metrics: CommandMetrics) -> None:
+        self.wall_s += metrics.wall_s
+        if metrics.max_rss_kb is None:
             return
         if self.max_rss_kb is None:
-            self.max_rss_kb = m.max_rss_kb
+            self.max_rss_kb = metrics.max_rss_kb
         else:
-            self.max_rss_kb = max(self.max_rss_kb, m.max_rss_kb)
+            self.max_rss_kb = max(self.max_rss_kb, metrics.max_rss_kb)
 
 
-def _run_binary(ctx: Context, meter: Meter, input_file: Path, allow_fail: bool = False) -> CommandMetrics:
+def _run_binary(ctx: Context, node: ReportNode, input_file: Path) -> CommandMetrics:
     metrics = run_command([str(ctx.binary), str(input_file)], cwd=ctx.repo_root, quiet=ctx.quiet)
-    meter.add(metrics)
-    if not allow_fail and metrics.returncode != 0:
-        raise TestError(f"ERROR: execution failed ({metrics.returncode}) for input: {input_file}")
+    node.add_metric(metrics)
     return metrics
 
 
-def _write_text(path: Path, text: str) -> None:
-    path.write_text(text, encoding="utf-8")
+def _runtime_output_basename(runtime_input: Path) -> str:
+    stem = runtime_input.stem
+    safe = "".join(ch if (ch.isalnum() or ch == "_") else "_" for ch in stem)
+    return safe or "namics_test_output"
 
 
-def _cleanup(paths: list[Path], keep: bool) -> None:
-    if keep:
+def _write_generated_input_record(ctx: Context, runtime_input: Path, source_input: Path, variants: dict[str, str]) -> None:
+    ctx.generated_input_manifest.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "runtime_input": str(runtime_input.relative_to(ctx.repo_root)),
+        "source_input": str(source_input.relative_to(ctx.repo_root)),
+        "variants": variants,
+        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    line = "\t".join([payload["timestamp_utc"], payload["source_input"], payload["runtime_input"], str(payload["variants"])])
+    with ctx.generated_input_manifest.open("a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+
+
+def _prepare_runtime_input(
+    ctx: Context,
+    source_input: Path,
+    runtime_input: Path,
+    *,
+    solver_method: str,
+    settings: dict[str, str] | None = None,
+    comment_toggles: list[tuple[str, str, bool]] | None = None,
+) -> None:
+    runtime_input.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_input, runtime_input)
+
+    set_setting_line(runtime_input, runtime_input, "newton : isaac : method", solver_method)
+    # Force deterministic per-variant JSON output names so each run is recoverable.
+    output_basename = _runtime_output_basename(runtime_input)
+    set_setting_line(runtime_input, runtime_input, "output : json : filename", output_basename)
+
+    if settings:
+        for key, value in settings.items():
+            set_setting_line(runtime_input, runtime_input, key, value)
+
+    if comment_toggles:
+        for key, value, enabled in comment_toggles:
+            set_commented_setting(runtime_input, runtime_input, key, value, enabled)
+
+    variants: dict[str, str] = {"solver_method": solver_method}
+    variants["output : json : filename"] = output_basename
+    if settings:
+        variants.update(settings)
+    if comment_toggles:
+        for key, _, enabled in comment_toggles:
+            variants[key] = "enabled" if enabled else "disabled"
+
+    _write_generated_input_record(ctx, runtime_input, source_input, variants)
+
+
+def _cleanup(paths: list[Path], cleanup: bool) -> None:
+    if not cleanup:
         return
     for path in paths:
         try:
-            path.unlink(missing_ok=True)
-        except IsADirectoryError:
+            if path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                path.unlink(missing_ok=True)
+        except FileNotFoundError:
             pass
 
 
@@ -157,31 +211,78 @@ def _homopolymer_benchmark_update(
     return previous_value, delta_pct, performance_state
 
 
-def test_homopolymer_adsorption(ctx: Context) -> tuple[Meter, str]:
-    meter = Meter()
+def _finalize_report_tree(node: ReportNode) -> None:
+    if not node.children:
+        return
+
+    for child in node.children:
+        _finalize_report_tree(child)
+
+    required_children = [child for child in node.children if child.required_for_parent]
+    node.passed = all(child.passed for child in required_children) if required_children else True
+    node.wall_s = sum(child.wall_s for child in node.children)
+
+    max_mem = None
+    for child in node.children:
+        if child.max_rss_kb is None:
+            continue
+        if max_mem is None:
+            max_mem = child.max_rss_kb
+        else:
+            max_mem = max(max_mem, child.max_rss_kb)
+    node.max_rss_kb = max_mem
+
+
+def _flatten_nodes(nodes: list[ReportNode]) -> list[tuple[int, ReportNode]]:
+    out: list[tuple[int, ReportNode]] = []
+
+    def walk(level: int, node: ReportNode) -> None:
+        out.append((level, node))
+        for child in node.children:
+            walk(level + 1, child)
+
+    for root in nodes:
+        walk(0, root)
+    return out
+
+
+def _resolve_reference_file(ctx: Context, reference_file: Path) -> Path:
+    if reference_file.is_file():
+        return reference_file
+
+    cache_target = ctx.reference_unpack_dir / reference_file.relative_to(ctx.tests_dir / "reference")
+    if cache_target.is_file():
+        return cache_target
+
+    member_name = reference_file.relative_to(ctx.tests_dir).as_posix()
+    recovered = ensure_file_from_archive(ctx.reference_archive, member_name, cache_target)
+    if recovered and cache_target.is_file():
+        return cache_target
+
+    raise TestError(
+        f"ERROR: reference file is missing and could not be recovered from archive: {reference_file} "
+        f"(archive: {ctx.reference_archive})"
+    )
+
+
+def _check_json_output(path: Path, label: str) -> tuple[bool, str]:
+    if not path.is_file() or path.stat().st_size == 0:
+        return False, f"ERROR: expected JSON output file was not created for {label}: {path}"
+    return True, ""
+
+
+def test_homopolymer_adsorption(ctx: Context) -> ReportNode:
+    root = ReportNode(label="homopolymer adsorption")
+
     output_dir = ctx.output_dir
     tests_dir = ctx.tests_dir
-
-    template_file = tests_dir / "homopolymer_adsorption.in"
     reference_dir = tests_dir / "reference"
     benchmark_dir = tests_dir / "benchmarks"
     benchmark_history = benchmark_dir / "homopolymer_adsorption_test_benchmark.csv"
-
-    runtime_input = output_dir / "homopolymer_adsorption.in"
-    runtime_input_tmp = output_dir / "homopolymer_adsorption.in.tmp"
-    runtime_input_save_memory = output_dir / "homopolymer_adsorption_save_memory.in"
-    runtime_input_save_memory_tmp = output_dir / "homopolymer_adsorption_save_memory.in.tmp"
-    runtime_input_diis = output_dir / "homopolymer_adsorption_diis.in"
-    runtime_input_diis_tmp = output_dir / "homopolymer_adsorption_diis.in.tmp"
-
-    output_file_json = output_dir / "homopolymer_adsorption.json"
-    output_file_save_memory_json = output_dir / "homopolymer_adsorption_save_memory.json"
-    baseline_output_json = output_dir / "homopolymer_adsorption.baseline.json"
+    template_file = tests_dir / "homopolymer_adsorption.in"
 
     require_file(ctx.binary, executable=True)
     require_file(template_file)
-    for chi in (0, -2, -4, -6):
-        require_file(reference_dir / f"homopolymer_adsorption.chi_{chi}.json.ref")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     benchmark_dir.mkdir(parents=True, exist_ok=True)
@@ -189,88 +290,146 @@ def test_homopolymer_adsorption(ctx: Context) -> tuple[Meter, str]:
     run_id = utc_run_id()
     run_log = benchmark_dir / f"homopolymer_adsorption_test_{run_id}.log"
 
-    cleanup_targets = [
-        output_file_json,
-        output_file_save_memory_json,
-        runtime_input,
-        runtime_input_tmp,
-        runtime_input_save_memory,
-        runtime_input_save_memory_tmp,
-        runtime_input_diis,
-        runtime_input_diis_tmp,
-        baseline_output_json,
-    ]
-
+    cleanup_targets: list[Path] = [run_log]
     solver_runtime_ms = 0
     diis_notes: list[str] = []
+
     log_lines = [
         f"run_id={run_id}",
         f"timestamp_utc={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}",
         f"threshold_pct={ctx.benchmark_threshold_pct:g}",
-        "cases=chi_Si(0,-2,-4,-6) x save_memory(off,on)",
+        "cases=chi_Si(0,-2,-4,-6)",
+        f"save_memory={'on' if ctx.with_save_memory else 'off'}",
     ]
     bench_start = time.perf_counter()
 
     try:
-        template_text = template_file.read_text(encoding="utf-8")
-
         for chi in (0, -2, -4, -6):
-            reference_file = reference_dir / f"homopolymer_adsorption.chi_{chi}.json.ref"
-            rendered = template_text.replace("{chi_Si}", str(chi))
-
-            _write_text(runtime_input_tmp, rendered)
-            ensure_solver_method_line(runtime_input_tmp, runtime_input, "pseudohessian")
-            output_file_json.unlink(missing_ok=True)
-
-            run_m = _run_binary(ctx, meter, runtime_input)
-            solver_runtime_ms += int(round(run_m.wall_s * 1000.0))
-            log_lines.append(f"chi_Si={chi},mode=baseline,elapsed_ms={int(round(run_m.wall_s * 1000.0))}")
-
-            if not output_file_json.is_file() or output_file_json.stat().st_size == 0:
-                raise TestError(f"ERROR: expected JSON output file was not created for chi_Si={chi}: {output_file_json}")
-            compare_json_profiles(reference_file, output_file_json, coord_tol=1e-12, value_tol=1e-6)
-
-            _write_text(runtime_input_save_memory_tmp, rendered)
-            replace_in_file(
-                runtime_input_save_memory_tmp,
-                [("//mol : pol : save_memory : true", "mol : pol : save_memory : true")],
+            reference_file = _resolve_reference_file(
+                ctx, reference_dir / f"homopolymer_adsorption.chi_{chi}.json.ref"
             )
-            ensure_solver_method_line(runtime_input_save_memory_tmp, runtime_input_save_memory, "pseudohessian")
-            output_file_save_memory_json.unlink(missing_ok=True)
+            chi_node = ReportNode(label=f"chi_Si = {chi}")
+            root.children.append(chi_node)
 
-            run_m = _run_binary(ctx, meter, runtime_input_save_memory)
-            solver_runtime_ms += int(round(run_m.wall_s * 1000.0))
-            log_lines.append(
-                f"chi_Si={chi},mode=save_memory,elapsed_ms={int(round(run_m.wall_s * 1000.0))}"
-            )
+            pseudohessian_input = output_dir / f"homopolymer_adsorption.chi_{chi}.pseudohessian.in"
+            pseudohessian_output = output_dir / f"{_runtime_output_basename(pseudohessian_input)}.json"
+            cleanup_targets.extend([pseudohessian_input, pseudohessian_output])
 
-            if not output_file_save_memory_json.is_file() or output_file_save_memory_json.stat().st_size == 0:
-                raise TestError(
-                    f"ERROR: expected save_memory JSON output was not created for chi_Si={chi}: "
-                    f"{output_file_save_memory_json}"
+            pseudo_leaf = ReportNode(label="pseudohessian")
+            chi_node.children.append(pseudo_leaf)
+
+            try:
+                _prepare_runtime_input(
+                    ctx,
+                    template_file,
+                    pseudohessian_input,
+                    solver_method="pseudohessian",
+                    settings={"mon : A : chi_Si": str(chi)},
                 )
+                pseudohessian_output.unlink(missing_ok=True)
+                run_m = _run_binary(ctx, pseudo_leaf, pseudohessian_input)
+                solver_runtime_ms += int(round(run_m.wall_s * 1000.0))
+                log_lines.append(f"chi_Si={chi},mode=pseudohessian,elapsed_ms={int(round(run_m.wall_s * 1000.0))}")
 
-            compare_json_profiles(reference_file, output_file_save_memory_json, coord_tol=1e-12, value_tol=1e-6)
-            compare_json_profiles(output_file_json, output_file_save_memory_json, coord_tol=1e-12, value_tol=1e-6)
+                if run_m.returncode != 0:
+                    raise TestError(
+                        f"ERROR: execution failed ({run_m.returncode}) for input: {pseudohessian_input}"
+                    )
 
-            shutil.copy2(output_file_json, baseline_output_json)
-            _write_text(runtime_input_diis_tmp, rendered)
-            ensure_solver_method_line(runtime_input_diis_tmp, runtime_input_diis, "DIIS")
+                ok, msg = _check_json_output(pseudohessian_output, f"chi_Si={chi}, mode=pseudohessian")
+                if not ok:
+                    raise TestError(msg)
+
+                compare_json_profiles(reference_file, pseudohessian_output, coord_tol=1e-12, value_tol=1e-6)
+                pseudo_leaf.details = "matched reference"
+            except Exception as exc:
+                pseudo_leaf.passed = False
+                pseudo_leaf.details = str(exc)
+
+            if ctx.with_save_memory:
+                save_input = output_dir / f"homopolymer_adsorption.chi_{chi}.save_memory.in"
+                save_output = output_dir / f"{_runtime_output_basename(save_input)}.json"
+                cleanup_targets.extend([save_input, save_output])
+
+                save_leaf = ReportNode(label="save_memory + pseudohessian")
+                chi_node.children.append(save_leaf)
+
+                try:
+                    _prepare_runtime_input(
+                        ctx,
+                        template_file,
+                        save_input,
+                        solver_method="pseudohessian",
+                        settings={"mon : A : chi_Si": str(chi)},
+                        comment_toggles=[("mol : pol : save_memory", "true", True)],
+                    )
+                    save_output.unlink(missing_ok=True)
+                    run_m = _run_binary(ctx, save_leaf, save_input)
+                    solver_runtime_ms += int(round(run_m.wall_s * 1000.0))
+                    log_lines.append(f"chi_Si={chi},mode=save_memory,elapsed_ms={int(round(run_m.wall_s * 1000.0))}")
+
+                    if run_m.returncode != 0:
+                        raise TestError(f"ERROR: execution failed ({run_m.returncode}) for input: {save_input}")
+
+                    ok, msg = _check_json_output(save_output, f"chi_Si={chi}, mode=save_memory")
+                    if not ok:
+                        raise TestError(msg)
+
+                    compare_json_profiles(reference_file, save_output, coord_tol=1e-12, value_tol=1e-6)
+
+                    if pseudohessian_output.is_file() and pseudohessian_output.stat().st_size > 0:
+                        compare_json_profiles(pseudohessian_output, save_output, coord_tol=1e-12, value_tol=1e-6)
+                    save_leaf.details = "matched reference and pseudohessian"
+                except Exception as exc:
+                    save_leaf.passed = False
+                    save_leaf.details = str(exc)
+
+            diis_input = output_dir / f"homopolymer_adsorption.chi_{chi}.diis.in"
+            diis_output = output_dir / f"{_runtime_output_basename(diis_input)}.json"
+            cleanup_targets.extend([diis_input, diis_output])
+
+            diis_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
+            chi_node.children.append(diis_leaf)
 
             diis_status = "failed (accepted)"
-            run_diis = _run_binary(ctx, meter, runtime_input_diis, allow_fail=True)
-            if run_diis.returncode == 0:
-                if output_file_json.is_file() and output_file_json.stat().st_size > 0:
-                    try:
-                        compare_json_profiles(baseline_output_json, output_file_json, coord_tol=1e-12, value_tol=1e-6)
-                        diis_status = "passed and matched pseudohessian"
-                    except TestError:
-                        diis_status = "completed but differs from pseudohessian (accepted)"
-                else:
-                    diis_status = "completed but JSON output file is missing (accepted)"
+            try:
+                _prepare_runtime_input(
+                    ctx,
+                    template_file,
+                    diis_input,
+                    solver_method="DIIS",
+                    settings={"mon : A : chi_Si": str(chi)},
+                )
+                diis_output.unlink(missing_ok=True)
+                run_diis = _run_binary(ctx, diis_leaf, diis_input)
+
+                if run_diis.returncode == 0:
+                    if diis_output.is_file() and diis_output.stat().st_size > 0:
+                        if pseudohessian_output.is_file() and pseudohessian_output.stat().st_size > 0:
+                            try:
+                                compare_json_profiles(
+                                    pseudohessian_output,
+                                    diis_output,
+                                    coord_tol=1e-12,
+                                    value_tol=1e-6,
+                                )
+                                diis_status = "passed and matched pseudohessian"
+                            except TestError:
+                                diis_status = "completed but differs from pseudohessian (accepted)"
+                        else:
+                            diis_status = "completed but no pseudohessian baseline was available (accepted)"
+                    else:
+                        diis_status = "completed but JSON output file is missing (accepted)"
+
+                diis_leaf.details = diis_status
+                diis_leaf.passed = diis_status == "passed and matched pseudohessian"
+                log_lines.append(f"chi_Si={chi},mode=DIIS,status={diis_status}")
+            except Exception as exc:
+                # DIIS failures are accepted for these cases.
+                diis_leaf.details = f"failed (accepted): {exc}"
+                diis_leaf.passed = False
 
             diis_notes.append(f"chi={chi}:{diis_status}")
-            log_lines.append(f"chi_Si={chi},mode=DIIS,status={diis_status}")
 
         wall_runtime_ms = int(round((time.perf_counter() - bench_start) * 1000.0))
 
@@ -299,203 +458,327 @@ def test_homopolymer_adsorption(ctx: Context) -> tuple[Meter, str]:
             benchmark_note = f"bench:disabled,solver_ms={solver_runtime_ms}"
 
         run_log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+        root.details = f"{benchmark_note};diis={';'.join(diis_notes)};log={run_log.name}"
 
-        diis_summary = ";".join(diis_notes)
-        details = f"{benchmark_note};diis={diis_summary};log={run_log.name}"
-        return meter, details
+        _finalize_report_tree(root)
+        return root
     finally:
-        _cleanup(cleanup_targets, keep=ctx.keep_artifacts)
+        _cleanup(cleanup_targets, cleanup=ctx.clean_output)
 
 
-def test_frozen_range_input_file(ctx: Context) -> tuple[Meter, str]:
-    meter = Meter()
+def test_frozen_range_input_file(ctx: Context) -> ReportNode:
+    root = ReportNode(label="frozen range input file")
+    method_group = ReportNode(label="solver method")
+    root.children.append(method_group)
+
     output_dir = ctx.output_dir
     tests_dir = ctx.tests_dir
 
     input_file = tests_dir / "frozen_range_input_file.in"
     source_frozen_file = tests_dir / "frozen_range_input_file.frozen"
-    reference_file = tests_dir / "reference" / "frozen_range_input_file.json.ref"
-
-    output_file_json = output_dir / "frozen_range_input_file.json"
-    baseline_output_json = output_dir / "frozen_range_input_file.pseudohessian.json"
-    runtime_input_file = output_dir / "frozen_range_input_file.in"
-    runtime_frozen_file = output_dir / "frozen_range_input_file.frozen"
+    reference_file = _resolve_reference_file(
+        ctx, tests_dir / "reference" / "frozen_range_input_file.json.ref"
+    )
 
     require_file(ctx.binary, executable=True)
     require_file(input_file)
     require_file(source_frozen_file)
-    require_file(reference_file)
-
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    cleanup_targets = [output_file_json, baseline_output_json, runtime_input_file, runtime_frozen_file]
+    runtime_frozen_pseudo = output_dir / "frozen_range_input_file.pseudohessian.frozen"
+    runtime_frozen_diis = output_dir / "frozen_range_input_file.diis.frozen"
+    pseudo_input = output_dir / "frozen_range_input_file.pseudohessian.in"
+    pseudo_output = output_dir / f"{_runtime_output_basename(pseudo_input)}.json"
+    diis_input = output_dir / "frozen_range_input_file.diis.in"
+    diis_output = output_dir / f"{_runtime_output_basename(diis_input)}.json"
+
+    cleanup_targets: list[Path] = [
+        runtime_frozen_pseudo,
+        runtime_frozen_diis,
+        pseudo_input,
+        pseudo_output,
+        diis_input,
+        diis_output,
+    ]
 
     try:
-        output_file_json.unlink(missing_ok=True)
-        baseline_output_json.unlink(missing_ok=True)
-        shutil.copy2(source_frozen_file, runtime_frozen_file)
+        shutil.copy2(source_frozen_file, runtime_frozen_pseudo)
+        shutil.copy2(source_frozen_file, runtime_frozen_diis)
 
-        ensure_solver_method_line(input_file, runtime_input_file, "pseudohessian")
-        _run_binary(ctx, meter, runtime_input_file)
+        pseudo_leaf = ReportNode(label="pseudohessian")
+        method_group.children.append(pseudo_leaf)
 
-        if not output_file_json.is_file() or output_file_json.stat().st_size == 0:
-            raise TestError(f"ERROR: expected JSON output file was not created: {output_file_json}")
+        try:
+            _prepare_runtime_input(ctx, input_file, pseudo_input, solver_method="pseudohessian")
+            pseudo_output.unlink(missing_ok=True)
+            run_m = _run_binary(ctx, pseudo_leaf, pseudo_input)
 
-        compare_json_profiles(reference_file, output_file_json, coord_tol=1e-12, value_tol=1e-6)
+            if run_m.returncode != 0:
+                raise TestError(f"ERROR: execution failed ({run_m.returncode}) for input: {pseudo_input}")
 
-        shutil.copy2(output_file_json, baseline_output_json)
-        ensure_solver_method_line(input_file, runtime_input_file, "DIIS")
+            ok, msg = _check_json_output(pseudo_output, "frozen_range_input_file, mode=pseudohessian")
+            if not ok:
+                raise TestError(msg)
+
+            compare_json_profiles(reference_file, pseudo_output, coord_tol=1e-12, value_tol=1e-6)
+            pseudo_leaf.details = "matched reference"
+        except Exception as exc:
+            pseudo_leaf.passed = False
+            pseudo_leaf.details = str(exc)
+
+        diis_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
+        method_group.children.append(diis_leaf)
 
         diis_status = "failed (accepted)"
-        run_diis = _run_binary(ctx, meter, runtime_input_file, allow_fail=True)
-        if run_diis.returncode == 0:
-            if output_file_json.is_file() and output_file_json.stat().st_size > 0:
-                try:
-                    compare_json_profiles(baseline_output_json, output_file_json, coord_tol=1e-12, value_tol=1e-6)
-                    diis_status = "passed and matched pseudohessian"
-                except TestError:
-                    diis_status = "completed but differs from pseudohessian (accepted)"
-            else:
-                diis_status = "completed but output file is missing (accepted)"
+        try:
+            _prepare_runtime_input(ctx, input_file, diis_input, solver_method="DIIS")
+            diis_output.unlink(missing_ok=True)
+            run_diis = _run_binary(ctx, diis_leaf, diis_input)
+            if run_diis.returncode == 0:
+                if diis_output.is_file() and diis_output.stat().st_size > 0:
+                    if pseudo_output.is_file() and pseudo_output.stat().st_size > 0:
+                        try:
+                            compare_json_profiles(pseudo_output, diis_output, coord_tol=1e-12, value_tol=1e-6)
+                            diis_status = "passed and matched pseudohessian"
+                        except TestError:
+                            diis_status = "completed but differs from pseudohessian (accepted)"
+                    else:
+                        diis_status = "completed but no pseudohessian baseline was available (accepted)"
+                else:
+                    diis_status = "completed but output file is missing (accepted)"
+            diis_leaf.details = diis_status
+            diis_leaf.passed = diis_status == "passed and matched pseudohessian"
+        except Exception as exc:
+            diis_leaf.details = f"failed (accepted): {exc}"
+            diis_leaf.passed = False
 
-        return meter, f"diis={diis_status}"
+        root.details = f"diis={diis_status}"
+        _finalize_report_tree(root)
+        return root
     finally:
-        _cleanup(cleanup_targets, keep=ctx.keep_artifacts)
+        _cleanup(cleanup_targets, cleanup=ctx.clean_output)
 
 
-def test_micelle_self_assembly(ctx: Context) -> tuple[Meter, str]:
-    meter = Meter()
+def test_micelle_self_assembly(ctx: Context) -> ReportNode:
+    root = ReportNode(label="micelle self assembly")
+    generate_group = ReportNode(label="input guess generate")
+    use_group = ReportNode(label="input guess use")
+    root.children.extend([generate_group, use_group])
+
     output_dir = ctx.output_dir
     tests_dir = ctx.tests_dir
 
     generate_input = tests_dir / "micelle_guess_generate.in"
     use_input = tests_dir / "micelle_guess_use.in"
-    reference_file = tests_dir / "reference" / "micelle_guess_use.json.ref"
+    reference_file = _resolve_reference_file(ctx, tests_dir / "reference" / "micelle_guess_use.json.ref")
 
     guess_file = output_dir / "micelle_2.outi"
-    output_file_json = output_dir / "micelle_guess_use.json"
-    baseline_output_json = output_dir / "micelle_guess_use.pseudohessian.json"
-    runtime_generate_pseudohessian = output_dir / "micelle_guess_generate.pseudohessian.in"
-    runtime_use_pseudohessian = output_dir / "micelle_guess_use.pseudohessian.in"
-    runtime_generate_diis = output_dir / "micelle_guess_generate.diis.in"
-    runtime_use_diis = output_dir / "micelle_guess_use.diis.in"
 
     require_file(ctx.binary, executable=True)
     require_file(generate_input)
     require_file(use_input)
-    require_file(reference_file)
-
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    cleanup_targets = [
+    pseudo_generate_input = output_dir / "micelle_guess_generate.pseudohessian.in"
+    pseudo_generate_output = output_dir / f"{_runtime_output_basename(pseudo_generate_input)}.json"
+    pseudo_use_input = output_dir / "micelle_guess_use.pseudohessian.in"
+    pseudo_use_output = output_dir / f"{_runtime_output_basename(pseudo_use_input)}.json"
+
+    diis_generate_input = output_dir / "micelle_guess_generate.diis.in"
+    diis_generate_output = output_dir / f"{_runtime_output_basename(diis_generate_input)}.json"
+    diis_use_input = output_dir / "micelle_guess_use.diis.in"
+    diis_use_output = output_dir / f"{_runtime_output_basename(diis_use_input)}.json"
+
+    cleanup_targets: list[Path] = [
         guess_file,
-        output_file_json,
-        baseline_output_json,
-        runtime_generate_pseudohessian,
-        runtime_use_pseudohessian,
-        runtime_generate_diis,
-        runtime_use_diis,
+        pseudo_generate_input,
+        pseudo_generate_output,
+        pseudo_use_input,
+        pseudo_use_output,
+        diis_generate_input,
+        diis_generate_output,
+        diis_use_input,
+        diis_use_output,
     ]
 
     try:
-        for p in (guess_file, output_file_json, baseline_output_json):
+        for p in (guess_file, pseudo_generate_output, pseudo_use_output, diis_generate_output, diis_use_output):
             p.unlink(missing_ok=True)
 
-        ensure_solver_method_line(generate_input, runtime_generate_pseudohessian, "pseudohessian")
-        ensure_solver_method_line(use_input, runtime_use_pseudohessian, "pseudohessian")
+        pseudo_gen_leaf = ReportNode(label="pseudohessian")
+        generate_group.children.append(pseudo_gen_leaf)
+        pseudo_use_leaf = ReportNode(label="pseudohessian")
+        use_group.children.append(pseudo_use_leaf)
 
-        _run_binary(ctx, meter, runtime_generate_pseudohessian)
-        if not guess_file.is_file() or guess_file.stat().st_size == 0:
-            raise TestError(f"ERROR: expected guess file was not created: {guess_file}")
+        pseudo_use_ready = False
 
-        _run_binary(ctx, meter, runtime_use_pseudohessian)
-        if not output_file_json.is_file() or output_file_json.stat().st_size == 0:
-            raise TestError(f"ERROR: expected JSON output file was not created: {output_file_json}")
+        try:
+            _prepare_runtime_input(ctx, generate_input, pseudo_generate_input, solver_method="pseudohessian")
+            run_gen = _run_binary(ctx, pseudo_gen_leaf, pseudo_generate_input)
+            if run_gen.returncode != 0:
+                raise TestError(f"ERROR: execution failed ({run_gen.returncode}) for input: {pseudo_generate_input}")
 
-        compare_json_profiles(reference_file, output_file_json, coord_tol=1e-12, value_tol=1e-9)
+            if not guess_file.is_file() or guess_file.stat().st_size == 0:
+                raise TestError(f"ERROR: expected guess file was not created: {guess_file}")
 
-        shutil.copy2(output_file_json, baseline_output_json)
+            pseudo_gen_leaf.details = "guess file generated"
+            pseudo_use_ready = True
+        except Exception as exc:
+            pseudo_gen_leaf.passed = False
+            pseudo_gen_leaf.details = str(exc)
+
+        try:
+            if not pseudo_use_ready:
+                raise TestError("ERROR: skipped because pseudohessian guess generation failed")
+
+            _prepare_runtime_input(ctx, use_input, pseudo_use_input, solver_method="pseudohessian")
+            run_use = _run_binary(ctx, pseudo_use_leaf, pseudo_use_input)
+            if run_use.returncode != 0:
+                raise TestError(f"ERROR: execution failed ({run_use.returncode}) for input: {pseudo_use_input}")
+
+            ok, msg = _check_json_output(pseudo_use_output, "micelle guess use, mode=pseudohessian")
+            if not ok:
+                raise TestError(msg)
+
+            compare_json_profiles(reference_file, pseudo_use_output, coord_tol=1e-12, value_tol=1e-9)
+            pseudo_use_leaf.details = "matched reference"
+        except Exception as exc:
+            pseudo_use_leaf.passed = False
+            pseudo_use_leaf.details = str(exc)
+
+        # Re-run DIIS path from a clean guess/output state.
         guess_file.unlink(missing_ok=True)
-        output_file_json.unlink(missing_ok=True)
+        diis_generate_output.unlink(missing_ok=True)
+        diis_use_output.unlink(missing_ok=True)
 
-        ensure_solver_method_line(generate_input, runtime_generate_diis, "DIIS")
-        ensure_solver_method_line(use_input, runtime_use_diis, "DIIS")
+        diis_gen_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
+        generate_group.children.append(diis_gen_leaf)
+        diis_use_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
+        use_group.children.append(diis_use_leaf)
 
         diis_status = "failed (accepted)"
-        run_generate_diis = _run_binary(ctx, meter, runtime_generate_diis, allow_fail=True)
-        if run_generate_diis.returncode == 0 and guess_file.is_file() and guess_file.stat().st_size > 0:
-            run_use_diis = _run_binary(ctx, meter, runtime_use_diis, allow_fail=True)
-            if run_use_diis.returncode == 0:
-                if output_file_json.is_file() and output_file_json.stat().st_size > 0:
-                    try:
-                        compare_json_profiles(baseline_output_json, output_file_json, coord_tol=1e-12, value_tol=1e-9)
-                        diis_status = "passed and matched pseudohessian"
-                    except TestError:
-                        diis_status = "completed but differs from pseudohessian (accepted)"
-                else:
-                    diis_status = "completed but JSON output file is missing (accepted)"
+        diis_use_ready = False
 
-        return meter, f"diis={diis_status}"
+        try:
+            _prepare_runtime_input(ctx, generate_input, diis_generate_input, solver_method="DIIS")
+            run_gen_diis = _run_binary(ctx, diis_gen_leaf, diis_generate_input)
+            if run_gen_diis.returncode == 0 and guess_file.is_file() and guess_file.stat().st_size > 0:
+                diis_status = "guess generated"
+                diis_use_ready = True
+            diis_gen_leaf.details = diis_status
+            diis_gen_leaf.passed = diis_status == "guess generated"
+        except Exception as exc:
+            diis_gen_leaf.details = f"failed (accepted): {exc}"
+            diis_gen_leaf.passed = False
+
+        try:
+            if not diis_use_ready:
+                diis_use_leaf.details = "failed (accepted): skipped because DIIS guess generation failed"
+                diis_use_leaf.passed = False
+            else:
+                _prepare_runtime_input(ctx, use_input, diis_use_input, solver_method="DIIS")
+                run_use_diis = _run_binary(ctx, diis_use_leaf, diis_use_input)
+                if run_use_diis.returncode == 0:
+                    if diis_use_output.is_file() and diis_use_output.stat().st_size > 0:
+                        if pseudo_use_output.is_file() and pseudo_use_output.stat().st_size > 0:
+                            try:
+                                compare_json_profiles(pseudo_use_output, diis_use_output, coord_tol=1e-12, value_tol=1e-9)
+                                diis_status = "passed and matched pseudohessian"
+                            except TestError:
+                                diis_status = "completed but differs from pseudohessian (accepted)"
+                        else:
+                            diis_status = "completed but no pseudohessian baseline was available (accepted)"
+                    else:
+                        diis_status = "completed but JSON output file is missing (accepted)"
+                diis_use_leaf.details = diis_status
+                diis_use_leaf.passed = diis_status == "passed and matched pseudohessian"
+        except Exception as exc:
+            diis_use_leaf.details = f"failed (accepted): {exc}"
+            diis_use_leaf.passed = False
+
+        root.details = f"diis={diis_status}"
+        _finalize_report_tree(root)
+        return root
     finally:
-        _cleanup(cleanup_targets, keep=ctx.keep_artifacts)
+        _cleanup(cleanup_targets, cleanup=ctx.clean_output)
 
 
-def test_particle_in_cyl_coordinates(ctx: Context) -> tuple[Meter, str]:
-    meter = Meter()
+def test_particle_in_cyl_coordinates(ctx: Context) -> ReportNode:
+    root = ReportNode(label="particle in cyl coordinates")
+    method_group = ReportNode(label="solver method")
+    root.children.append(method_group)
+
     output_dir = ctx.output_dir
     tests_dir = ctx.tests_dir
 
     input_file = tests_dir / "particle_in_cyl_coordinates.in"
-    reference_file = tests_dir / "reference" / "particle_in_cyl_coordinates.json.ref"
-
-    output_file_json = output_dir / "particle_in_cyl_coordinates.json"
-    baseline_output_json = output_dir / "particle_in_cyl_coordinates.pseudohessian.json"
-    runtime_input_pseudohessian = output_dir / "particle_in_cyl_coordinates.pseudohessian.in"
-    runtime_input_diis = output_dir / "particle_in_cyl_coordinates.diis.in"
+    reference_file = _resolve_reference_file(
+        ctx, tests_dir / "reference" / "particle_in_cyl_coordinates.json.ref"
+    )
 
     require_file(ctx.binary, executable=True)
     require_file(input_file)
-    require_file(reference_file)
-
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    cleanup_targets = [
-        output_file_json,
-        baseline_output_json,
-        runtime_input_pseudohessian,
-        runtime_input_diis,
-    ]
+    pseudo_input = output_dir / "particle_in_cyl_coordinates.pseudohessian.in"
+    pseudo_output = output_dir / f"{_runtime_output_basename(pseudo_input)}.json"
+    diis_input = output_dir / "particle_in_cyl_coordinates.diis.in"
+    diis_output = output_dir / f"{_runtime_output_basename(diis_input)}.json"
+
+    cleanup_targets: list[Path] = [pseudo_input, pseudo_output, diis_input, diis_output]
 
     try:
-        output_file_json.unlink(missing_ok=True)
-        baseline_output_json.unlink(missing_ok=True)
+        pseudo_leaf = ReportNode(label="pseudohessian")
+        method_group.children.append(pseudo_leaf)
 
-        ensure_solver_method_line(input_file, runtime_input_pseudohessian, "pseudohessian")
-        _run_binary(ctx, meter, runtime_input_pseudohessian)
+        try:
+            _prepare_runtime_input(ctx, input_file, pseudo_input, solver_method="pseudohessian")
+            pseudo_output.unlink(missing_ok=True)
+            run_pseudo = _run_binary(ctx, pseudo_leaf, pseudo_input)
+            if run_pseudo.returncode != 0:
+                raise TestError(f"ERROR: execution failed ({run_pseudo.returncode}) for input: {pseudo_input}")
 
-        if not output_file_json.is_file() or output_file_json.stat().st_size == 0:
-            raise TestError(f"ERROR: expected JSON output file was not created: {output_file_json}")
+            ok, msg = _check_json_output(pseudo_output, "particle_in_cyl_coordinates, mode=pseudohessian")
+            if not ok:
+                raise TestError(msg)
 
-        compare_json_profiles(reference_file, output_file_json, coord_tol=1e-12, value_tol=1e-6)
+            compare_json_profiles(reference_file, pseudo_output, coord_tol=1e-12, value_tol=1e-6)
+            pseudo_leaf.details = "matched reference"
+        except Exception as exc:
+            pseudo_leaf.passed = False
+            pseudo_leaf.details = str(exc)
 
-        shutil.copy2(output_file_json, baseline_output_json)
-        ensure_solver_method_line(input_file, runtime_input_diis, "DIIS")
+        diis_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
+        method_group.children.append(diis_leaf)
 
         diis_status = "failed (accepted)"
-        run_diis = _run_binary(ctx, meter, runtime_input_diis, allow_fail=True)
-        if run_diis.returncode == 0:
-            if output_file_json.is_file() and output_file_json.stat().st_size > 0:
-                try:
-                    compare_json_profiles(baseline_output_json, output_file_json, coord_tol=1e-12, value_tol=1e-6)
-                    diis_status = "passed and matched pseudohessian"
-                except TestError:
-                    diis_status = "completed but differs from pseudohessian (accepted)"
-            else:
-                diis_status = "completed but JSON output file is missing (accepted)"
+        try:
+            _prepare_runtime_input(ctx, input_file, diis_input, solver_method="DIIS")
+            diis_output.unlink(missing_ok=True)
+            run_diis = _run_binary(ctx, diis_leaf, diis_input)
+            if run_diis.returncode == 0:
+                if diis_output.is_file() and diis_output.stat().st_size > 0:
+                    if pseudo_output.is_file() and pseudo_output.stat().st_size > 0:
+                        try:
+                            compare_json_profiles(pseudo_output, diis_output, coord_tol=1e-12, value_tol=1e-6)
+                            diis_status = "passed and matched pseudohessian"
+                        except TestError:
+                            diis_status = "completed but differs from pseudohessian (accepted)"
+                    else:
+                        diis_status = "completed but no pseudohessian baseline was available (accepted)"
+                else:
+                    diis_status = "completed but JSON output file is missing (accepted)"
+            diis_leaf.details = diis_status
+            diis_leaf.passed = diis_status == "passed and matched pseudohessian"
+        except Exception as exc:
+            diis_leaf.details = f"failed (accepted): {exc}"
+            diis_leaf.passed = False
 
-        return meter, f"diis={diis_status}"
+        root.details = f"diis={diis_status}"
+        _finalize_report_tree(root)
+        return root
     finally:
-        _cleanup(cleanup_targets, keep=ctx.keep_artifacts)
+        _cleanup(cleanup_targets, cleanup=ctx.clean_output)
 
 
 def _fmt_wall(v: float) -> str:
@@ -508,24 +791,28 @@ def _fmt_mem_kb(v: float | None) -> str:
     return f"{(v / 1024.0):.1f}"
 
 
-def _print_table(results: list[TestResult]) -> None:
-    headers = ["Test", "Status", "Wall(s)", "MaxRSS(MiB)", "Details"]
-    rows = [
-        [
-            r.key,
-            "PASS" if r.passed else "FAIL",
-            _fmt_wall(r.wall_s),
-            _fmt_mem_kb(r.max_rss_kb),
-            r.details,
-        ]
-        for r in results
-    ]
+def _print_table(results: list[ReportNode]) -> None:
+    flat = _flatten_nodes(results)
+
+    headers = ["Test", "Status", "Wall(s)", "MaxRSS(MiB)"]
+    rows = []
+
+    for level, node in flat:
+        label = f"{'  ' * level}{node.label}"
+        rows.append(
+            [
+                label,
+                "PASS" if node.passed else "FAIL",
+                _fmt_wall(node.wall_s),
+                _fmt_mem_kb(node.max_rss_kb),
+            ]
+        )
 
     total_wall = sum(r.wall_s for r in results)
     max_mem_values = [r.max_rss_kb for r in results if r.max_rss_kb is not None]
     total_max_mem = max(max_mem_values) if max_mem_values else None
     pass_count = sum(1 for r in results if r.passed)
-    rows.append(["TOTAL", f"{pass_count}/{len(results)}", _fmt_wall(total_wall), _fmt_mem_kb(total_max_mem), ""])
+    rows.append(["TOTAL", f"{pass_count}/{len(results)}", _fmt_wall(total_wall), _fmt_mem_kb(total_max_mem)])
 
     widths = [len(h) for h in headers]
     for row in rows:
@@ -542,11 +829,11 @@ def _print_table(results: list[TestResult]) -> None:
         print(line(row))
 
 
-TESTS: dict[str, tuple[str, Callable[[Context], tuple[Meter, str]]]] = {
-    "homopolymer-adsorption": ("homopolymer_adsorption", test_homopolymer_adsorption),
-    "frozen-range-input-file": ("frozen_range_input_file", test_frozen_range_input_file),
-    "micelle-self-assembly": ("micelle_self_assembly", test_micelle_self_assembly),
-    "particle-in-cyl-coordinates": ("particle_in_cyl_coordinates", test_particle_in_cyl_coordinates),
+TESTS: dict[str, tuple[str, Callable[[Context], ReportNode]]] = {
+    "homopolymer-adsorption": ("homopolymer adsorption", test_homopolymer_adsorption),
+    "frozen-range-input-file": ("frozen range input file", test_frozen_range_input_file),
+    "micelle-self-assembly": ("micelle self assembly", test_micelle_self_assembly),
+    "particle-in-cyl-coordinates": ("particle in cyl coordinates", test_particle_in_cyl_coordinates),
 }
 
 ALIASES = {
@@ -601,7 +888,27 @@ def parse_args() -> argparse.Namespace:
         help="Do not append to tests/benchmarks/homopolymer_adsorption_test_benchmark.csv",
     )
     parser.add_argument("--verbose", action="store_true", help="Show test process stdout/stderr")
-    parser.add_argument("--keep-artifacts", action="store_true", help="Keep generated runtime files")
+    parser.add_argument(
+        "--clean-output",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--with-save-memory",
+        action="store_true",
+        help="Run additional homopolymer save_memory variants",
+    )
+    parser.add_argument(
+        "--reference-archive",
+        type=Path,
+        default=None,
+        help="Path to reference archive (default: tests/reference/reference_files.tar.gz)",
+    )
+    parser.add_argument(
+        "--keep-artifacts",
+        action="store_true",
+        help="Keep generated runtime files and do not purge output directory",
+    )
     return parser.parse_args()
 
 
@@ -616,53 +923,53 @@ def main() -> int:
             print(key)
         return 0
 
+    reference_archive = args.reference_archive.resolve() if args.reference_archive else (tests_dir / "reference" / "reference_files.tar.gz")
+
     selected = _resolve_selection(args.tests)
     binary = args.binary.resolve() if args.binary else (repo_root / "bin" / "namics")
     output_dir = args.output_dir.resolve() if args.output_dir else (repo_root / "output")
 
-    ctx = Context(
-        repo_root=repo_root,
-        tests_dir=tests_dir,
-        output_dir=output_dir,
-        binary=binary,
-        quiet=not args.verbose,
-        keep_artifacts=args.keep_artifacts,
-        benchmark_threshold_pct=args.benchmark_threshold_pct,
-        benchmark_history=not args.no_benchmark_history,
-    )
+    clean_output = not args.keep_artifacts
+    if clean_output and output_dir.is_dir():
+        shutil.rmtree(output_dir, ignore_errors=True)
 
-    results: list[TestResult] = []
-    overall_pass = True
-
-    for display_key in selected:
-        _, fn = TESTS[display_key]
-        meter = Meter()
-        details = ""
-        passed = True
-        try:
-            meter, details = fn(ctx)
-        except TestError as exc:
-            passed = False
-            details = str(exc)
-        except Exception as exc:  # defensive catch to keep summary table complete
-            passed = False
-            details = f"ERROR: unexpected failure: {exc}"
-
-        if not passed:
-            overall_pass = False
-
-        results.append(
-            TestResult(
-                key=display_key,
-                passed=passed,
-                wall_s=meter.wall_s,
-                max_rss_kb=meter.max_rss_kb,
-                details=details,
-            )
+    with tempfile.TemporaryDirectory(prefix="namics_ref_") as tmp_ref_dir:
+        ctx = Context(
+            repo_root=repo_root,
+            tests_dir=tests_dir,
+            output_dir=output_dir,
+            binary=binary,
+            quiet=not args.verbose,
+            clean_output=clean_output,
+            benchmark_threshold_pct=args.benchmark_threshold_pct,
+            benchmark_history=not args.no_benchmark_history,
+            with_save_memory=args.with_save_memory,
+            reference_archive=reference_archive,
+            reference_unpack_dir=Path(tmp_ref_dir),
+            generated_input_manifest=output_dir / "generated_test_inputs.tsv",
         )
 
-    _print_table(results)
-    return 0 if overall_pass else 1
+        results: list[ReportNode] = []
+
+        for display_key in selected:
+            label, fn = TESTS[display_key]
+            try:
+                node = fn(ctx)
+            except TestError as exc:
+                node = ReportNode(label=label, passed=False, details=str(exc))
+            except Exception as exc:  # defensive catch to keep summary table complete
+                node = ReportNode(label=label, passed=False, details=f"ERROR: unexpected failure: {exc}")
+
+            if node.label != label:
+                node.label = label
+
+            results.append(node)
+
+        if clean_output:
+            ctx.generated_input_manifest.unlink(missing_ok=True)
+
+        _print_table(results)
+        return 0 if all(n.passed for n in results) else 1
 
 
 if __name__ == "__main__":

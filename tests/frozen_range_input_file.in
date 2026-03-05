@@ -1,6 +1,3 @@
-// This input file was automatically generated.
-// Task 1
-//----------------------------------------------------
 lat:flat:geometry:flat
 lat:flat:gradients:2
 lat:flat:lattice_type:simple_cubic

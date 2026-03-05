@@ -143,18 +143,18 @@ $(BUILDDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
 
 #Non-File Targets
 test-homopolymer-adsorption:
-	@./tests/homopolymer_adsorption_test.sh
+	@python3 ./tests/run_tests.py homopolymer-adsorption
 
 test-frozen-range-input-file:
-	@./tests/test_frozen_range_input_file.sh
+	@python3 ./tests/run_tests.py frozen-range-input-file
 
 test-micelle-self-assembly:
-	@./tests/test_micelle_self_assembly.sh
+	@python3 ./tests/run_tests.py micelle-self-assembly
 
 test-particle-in-cyl-coordinates:
-	@./tests/test_particle_in_cyl_coordinates.sh
+	@python3 ./tests/run_tests.py particle-in-cyl-coordinates
 
 test-all:
-	@./tests/test_all.sh
+	@python3 ./tests/run_tests.py
 
 .PHONY: all remake clean cleaner resources test-homopolymer-adsorption test-frozen-range-input-file test-micelle-self-assembly test-particle-in-cyl-coordinates test-all

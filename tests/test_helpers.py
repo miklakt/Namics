@@ -8,15 +8,14 @@ import os
 import re
 import subprocess
 import sys
+import tarfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-_METHOD_LINE_RE = re.compile(
-    r"^[ \t]*newton[ \t]*:[ \t]*isaac[ \t]*:[ \t]*method[ \t]*:", re.IGNORECASE
-)
 _START_RE = re.compile(r"^[ \t]*start[ \t]*$", re.IGNORECASE)
+_LINE_COMMENT_RE = re.compile(r"^[ \t]*//[ \t]*")
 
 
 class TestError(RuntimeError):
@@ -30,33 +29,102 @@ class CommandMetrics:
     max_rss_kb: float | None
 
 
-def ensure_solver_method_line(input_file: Path, output_file: Path, method: str) -> None:
-    """Render INPUT to OUTPUT while forcing 'newton : isaac : method : METHOD'."""
-    lines = input_file.read_text(encoding="utf-8").splitlines()
-    has_method = any(_METHOD_LINE_RE.match(line) for line in lines)
+def _normalize_key(key: str) -> str:
+    return ":".join(part.strip().lower() for part in key.split(":"))
 
-    first_start: int | None = None
+
+def _split_key_value(line: str) -> tuple[str, str] | None:
+    raw = line.strip()
+    if not raw:
+        return None
+    uncommented = _LINE_COMMENT_RE.sub("", raw, count=1)
+    if ":" not in uncommented:
+        return None
+    parts = [part.strip() for part in uncommented.split(":")]
+    if len(parts) < 2:
+        return None
+    key = ":".join(part.lower() for part in parts[:-1])
+    value = parts[-1]
+    return key, value
+
+
+def _find_first_start(lines: list[str]) -> int | None:
     for idx, line in enumerate(lines):
         if _START_RE.match(line):
-            first_start = idx
-            break
+            return idx
+    return None
+
+
+def set_setting_line(input_file: Path, output_file: Path, setting_key: str, value: str) -> None:
+    """Render INPUT to OUTPUT while forcing 'SETTING_KEY : VALUE'."""
+    lines = input_file.read_text(encoding="utf-8").splitlines()
+    target_key = _normalize_key(setting_key)
+    rendered = f"{setting_key} : {value}"
 
     out_lines: list[str] = []
-    inserted = False
+    replaced = False
+    first_start = _find_first_start(lines)
 
     for idx, line in enumerate(lines):
-        if _METHOD_LINE_RE.match(line):
-            out_lines.append(f"newton : isaac : method : {method}")
+        split = _split_key_value(line)
+        if split is not None and split[0] == target_key:
+            if not replaced:
+                out_lines.append(rendered)
+                replaced = True
             continue
-        if not has_method and not inserted and first_start is not None and idx == first_start:
-            out_lines.append(f"newton : isaac : method : {method}")
-            inserted = True
+
+        if not replaced and first_start is not None and idx == first_start:
+            out_lines.append(rendered)
+            replaced = True
+
         out_lines.append(line)
 
-    if not has_method and first_start is None:
-        out_lines.append(f"newton : isaac : method : {method}")
+    if not replaced:
+        out_lines.append(rendered)
 
     output_file.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+
+
+def set_commented_setting(
+    input_file: Path,
+    output_file: Path,
+    setting_key: str,
+    value: str,
+    enabled: bool,
+) -> None:
+    """Toggle a commented setting line while preserving runnable output files."""
+    lines = input_file.read_text(encoding="utf-8").splitlines()
+    target_key = _normalize_key(setting_key)
+    active_line = f"{setting_key} : {value}"
+    rendered = active_line if enabled else f"//{active_line}"
+
+    out_lines: list[str] = []
+    replaced = False
+    first_start = _find_first_start(lines)
+
+    for idx, line in enumerate(lines):
+        split = _split_key_value(line)
+        if split is not None and split[0] == target_key:
+            if not replaced:
+                out_lines.append(rendered)
+                replaced = True
+            continue
+
+        if not replaced and first_start is not None and idx == first_start:
+            out_lines.append(rendered)
+            replaced = True
+
+        out_lines.append(line)
+
+    if not replaced:
+        out_lines.append(rendered)
+
+    output_file.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+
+
+def ensure_solver_method_line(input_file: Path, output_file: Path, method: str) -> None:
+    """Backward-compatible helper for forcing the solver method line."""
+    set_setting_line(input_file, output_file, "newton : isaac : method", method)
 
 
 def _read_json(path: Path) -> Any:
@@ -165,6 +233,32 @@ def require_file(path: Path, executable: bool = False) -> None:
         return
     if not path.is_file():
         raise TestError(f"ERROR: required file not found: {path}")
+
+
+def ensure_file_from_archive(archive_file: Path, member_name: str, destination_file: Path) -> bool:
+    """Extract MEMBER from ARCHIVE into DESTINATION, returning True on success."""
+    if destination_file.is_file():
+        return True
+    if not archive_file.is_file():
+        return False
+
+    destination_file.parent.mkdir(parents=True, exist_ok=True)
+    target_member = member_name.replace("\\", "/")
+
+    with tarfile.open(archive_file, mode="r:gz") as tf:
+        candidate = None
+        for info in tf.getmembers():
+            if info.name.replace("\\", "/") == target_member:
+                candidate = info
+                break
+        if candidate is None:
+            return False
+        extracted = tf.extractfile(candidate)
+        if extracted is None:
+            return False
+        destination_file.write_bytes(extracted.read())
+
+    return destination_file.is_file()
 
 
 def replace_in_file(path: Path, replacements: list[tuple[str, str]]) -> None:
