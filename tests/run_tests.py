@@ -271,8 +271,8 @@ def _check_json_output(path: Path, label: str) -> tuple[bool, str]:
     return True, ""
 
 
-def test_homopolymer_adsorption(ctx: Context) -> ReportNode:
-    root = ReportNode(label="homopolymer adsorption")
+def _run_homopolymer_adsorption(ctx: Context, *, enable_benchmark: bool) -> ReportNode:
+    root = ReportNode(label="homopolymer adsorption benchmark" if enable_benchmark else "homopolymer adsorption")
 
     output_dir = ctx.output_dir
     tests_dir = ctx.tests_dir
@@ -285,22 +285,25 @@ def test_homopolymer_adsorption(ctx: Context) -> ReportNode:
     require_file(template_file)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    benchmark_dir.mkdir(parents=True, exist_ok=True)
+    run_id = utc_run_id() if enable_benchmark else ""
+    run_log = benchmark_dir / f"homopolymer_adsorption_test_{run_id}.log" if enable_benchmark else None
 
-    run_id = utc_run_id()
-    run_log = benchmark_dir / f"homopolymer_adsorption_test_{run_id}.log"
+    if enable_benchmark:
+        benchmark_dir.mkdir(parents=True, exist_ok=True)
 
-    cleanup_targets: list[Path] = [run_log]
+    cleanup_targets: list[Path] = [run_log] if run_log is not None else []
     solver_runtime_ms = 0
     diis_notes: list[str] = []
 
-    log_lines = [
-        f"run_id={run_id}",
-        f"timestamp_utc={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}",
-        f"threshold_pct={ctx.benchmark_threshold_pct:g}",
-        "cases=chi_Si(0,-2,-4,-6)",
-        f"save_memory={'on' if ctx.with_save_memory else 'off'}",
-    ]
+    log_lines: list[str] = []
+    if enable_benchmark:
+        log_lines = [
+            f"run_id={run_id}",
+            f"timestamp_utc={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}",
+            f"threshold_pct={ctx.benchmark_threshold_pct:g}",
+            "cases=chi_Si(0,-2,-4,-6)",
+            f"save_memory={'on' if ctx.with_save_memory else 'off'}",
+        ]
     bench_start = time.perf_counter()
 
     try:
@@ -328,8 +331,10 @@ def test_homopolymer_adsorption(ctx: Context) -> ReportNode:
                 )
                 pseudohessian_output.unlink(missing_ok=True)
                 run_m = _run_binary(ctx, pseudo_leaf, pseudohessian_input)
-                solver_runtime_ms += int(round(run_m.wall_s * 1000.0))
-                log_lines.append(f"chi_Si={chi},mode=pseudohessian,elapsed_ms={int(round(run_m.wall_s * 1000.0))}")
+                elapsed_ms = int(round(run_m.wall_s * 1000.0))
+                solver_runtime_ms += elapsed_ms
+                if enable_benchmark:
+                    log_lines.append(f"chi_Si={chi},mode=pseudohessian,elapsed_ms={elapsed_ms}")
 
                 if run_m.returncode != 0:
                     raise TestError(
@@ -365,8 +370,10 @@ def test_homopolymer_adsorption(ctx: Context) -> ReportNode:
                     )
                     save_output.unlink(missing_ok=True)
                     run_m = _run_binary(ctx, save_leaf, save_input)
-                    solver_runtime_ms += int(round(run_m.wall_s * 1000.0))
-                    log_lines.append(f"chi_Si={chi},mode=save_memory,elapsed_ms={int(round(run_m.wall_s * 1000.0))}")
+                    elapsed_ms = int(round(run_m.wall_s * 1000.0))
+                    solver_runtime_ms += elapsed_ms
+                    if enable_benchmark:
+                        log_lines.append(f"chi_Si={chi},mode=save_memory,elapsed_ms={elapsed_ms}")
 
                     if run_m.returncode != 0:
                         raise TestError(f"ERROR: execution failed ({run_m.returncode}) for input: {save_input}")
@@ -384,86 +391,98 @@ def test_homopolymer_adsorption(ctx: Context) -> ReportNode:
                     save_leaf.passed = False
                     save_leaf.details = str(exc)
 
-            diis_input = output_dir / f"homopolymer_adsorption.chi_{chi}.diis.in"
-            diis_output = output_dir / f"{_runtime_output_basename(diis_input)}.json"
-            cleanup_targets.extend([diis_input, diis_output])
+            if not enable_benchmark:
+                diis_input = output_dir / f"homopolymer_adsorption.chi_{chi}.diis.in"
+                diis_output = output_dir / f"{_runtime_output_basename(diis_input)}.json"
+                cleanup_targets.extend([diis_input, diis_output])
 
-            diis_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
-            chi_node.children.append(diis_leaf)
+                diis_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
+                chi_node.children.append(diis_leaf)
 
-            diis_status = "failed (accepted)"
-            try:
-                _prepare_runtime_input(
-                    ctx,
-                    template_file,
-                    diis_input,
-                    solver_method="DIIS",
-                    settings={"mon : A : chi_Si": str(chi)},
-                )
-                diis_output.unlink(missing_ok=True)
-                run_diis = _run_binary(ctx, diis_leaf, diis_input)
+                diis_status = "failed (accepted)"
+                try:
+                    _prepare_runtime_input(
+                        ctx,
+                        template_file,
+                        diis_input,
+                        solver_method="DIIS",
+                        settings={"mon : A : chi_Si": str(chi)},
+                    )
+                    diis_output.unlink(missing_ok=True)
+                    run_diis = _run_binary(ctx, diis_leaf, diis_input)
 
-                if run_diis.returncode == 0:
-                    if diis_output.is_file() and diis_output.stat().st_size > 0:
-                        if pseudohessian_output.is_file() and pseudohessian_output.stat().st_size > 0:
-                            try:
-                                compare_json_profiles(
-                                    pseudohessian_output,
-                                    diis_output,
-                                    coord_tol=1e-12,
-                                    value_tol=1e-6,
-                                )
-                                diis_status = "passed and matched pseudohessian"
-                            except TestError:
-                                diis_status = "completed but differs from pseudohessian (accepted)"
+                    if run_diis.returncode == 0:
+                        if diis_output.is_file() and diis_output.stat().st_size > 0:
+                            if pseudohessian_output.is_file() and pseudohessian_output.stat().st_size > 0:
+                                try:
+                                    compare_json_profiles(
+                                        pseudohessian_output,
+                                        diis_output,
+                                        coord_tol=1e-12,
+                                        value_tol=1e-6,
+                                    )
+                                    diis_status = "passed and matched pseudohessian"
+                                except TestError:
+                                    diis_status = "completed but differs from pseudohessian (accepted)"
+                            else:
+                                diis_status = "completed but no pseudohessian baseline was available (accepted)"
                         else:
-                            diis_status = "completed but no pseudohessian baseline was available (accepted)"
-                    else:
-                        diis_status = "completed but JSON output file is missing (accepted)"
+                            diis_status = "completed but JSON output file is missing (accepted)"
 
-                diis_leaf.details = diis_status
-                diis_leaf.passed = diis_status == "passed and matched pseudohessian"
-                log_lines.append(f"chi_Si={chi},mode=DIIS,status={diis_status}")
-            except Exception as exc:
-                # DIIS failures are accepted for these cases.
-                diis_leaf.details = f"failed (accepted): {exc}"
-                diis_leaf.passed = False
+                    diis_leaf.details = diis_status
+                    diis_leaf.passed = diis_status == "passed and matched pseudohessian"
+                except Exception as exc:
+                    # DIIS failures are accepted for these cases.
+                    diis_leaf.details = f"failed (accepted): {exc}"
+                    diis_leaf.passed = False
 
-            diis_notes.append(f"chi={chi}:{diis_status}")
+                diis_notes.append(f"chi={chi}:{diis_status}")
 
-        wall_runtime_ms = int(round((time.perf_counter() - bench_start) * 1000.0))
+        if enable_benchmark:
+            wall_runtime_ms = int(round((time.perf_counter() - bench_start) * 1000.0))
 
-        if ctx.benchmark_history:
-            previous, delta_pct, perf_state = _homopolymer_benchmark_update(
-                benchmark_history=benchmark_history,
-                run_id=run_id,
-                solver_runtime_ms=solver_runtime_ms,
-                wall_runtime_ms=wall_runtime_ms,
-                threshold_pct=ctx.benchmark_threshold_pct,
-            )
-            log_lines.extend(
-                [
-                    f"solver_runtime_ms={solver_runtime_ms}",
-                    f"wall_runtime_ms={wall_runtime_ms}",
-                    f"previous_solver_runtime_ms={previous}",
-                    f"delta_pct={delta_pct}",
-                    f"performance_state={perf_state}",
-                    f"history_file={benchmark_history}",
-                ]
-            )
-            benchmark_note = (
-                f"bench:{perf_state},solver_ms={solver_runtime_ms},delta={delta_pct}%,history={benchmark_history.name}"
-            )
+            if ctx.benchmark_history:
+                previous, delta_pct, perf_state = _homopolymer_benchmark_update(
+                    benchmark_history=benchmark_history,
+                    run_id=run_id,
+                    solver_runtime_ms=solver_runtime_ms,
+                    wall_runtime_ms=wall_runtime_ms,
+                    threshold_pct=ctx.benchmark_threshold_pct,
+                )
+                log_lines.extend(
+                    [
+                        f"solver_runtime_ms={solver_runtime_ms}",
+                        f"wall_runtime_ms={wall_runtime_ms}",
+                        f"previous_solver_runtime_ms={previous}",
+                        f"delta_pct={delta_pct}",
+                        f"performance_state={perf_state}",
+                        f"history_file={benchmark_history}",
+                    ]
+                )
+                benchmark_note = (
+                    f"bench:{perf_state},solver_ms={solver_runtime_ms},delta={delta_pct}%,history={benchmark_history.name}"
+                )
+            else:
+                benchmark_note = f"bench:disabled,solver_ms={solver_runtime_ms}"
+
+            assert run_log is not None  # guarded by enable_benchmark
+            run_log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+            root.details = f"{benchmark_note};log={run_log.name}"
         else:
-            benchmark_note = f"bench:disabled,solver_ms={solver_runtime_ms}"
-
-        run_log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
-        root.details = f"{benchmark_note};diis={';'.join(diis_notes)};log={run_log.name}"
+            root.details = f"diis={';'.join(diis_notes)}"
 
         _finalize_report_tree(root)
         return root
     finally:
         _cleanup(cleanup_targets, cleanup=ctx.clean_output)
+
+
+def test_homopolymer_adsorption(ctx: Context) -> ReportNode:
+    return _run_homopolymer_adsorption(ctx, enable_benchmark=False)
+
+
+def benchmark_homopolymer_adsorption(ctx: Context) -> ReportNode:
+    return _run_homopolymer_adsorption(ctx, enable_benchmark=True)
 
 
 def test_frozen_range_input_file(ctx: Context) -> ReportNode:
@@ -831,6 +850,7 @@ def _print_table(results: list[ReportNode]) -> None:
 
 TESTS: dict[str, tuple[str, Callable[[Context], ReportNode]]] = {
     "homopolymer-adsorption": ("homopolymer adsorption", test_homopolymer_adsorption),
+    "homopolymer-adsorption-benchmark": ("homopolymer adsorption benchmark", benchmark_homopolymer_adsorption),
     "frozen-range-input-file": ("frozen range input file", test_frozen_range_input_file),
     "micelle-self-assembly": ("micelle self assembly", test_micelle_self_assembly),
     "particle-in-cyl-coordinates": ("particle in cyl coordinates", test_particle_in_cyl_coordinates),
@@ -838,15 +858,18 @@ TESTS: dict[str, tuple[str, Callable[[Context], ReportNode]]] = {
 
 ALIASES = {
     "homopolymer_adsorption": "homopolymer-adsorption",
+    "homopolymer_adsorption_benchmark": "homopolymer-adsorption-benchmark",
     "frozen_range_input_file": "frozen-range-input-file",
     "micelle_self_assembly": "micelle-self-assembly",
     "particle_in_cyl_coordinates": "particle-in-cyl-coordinates",
 }
 
+BENCHMARK_TESTS = {"homopolymer-adsorption-benchmark"}
+
 
 def _resolve_selection(items: list[str]) -> list[str]:
     if not items:
-        return list(TESTS.keys())
+        return [key for key in TESTS.keys() if key not in BENCHMARK_TESTS]
     resolved: list[str] = []
     for raw in items:
         key = raw.strip()

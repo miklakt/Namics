@@ -20,11 +20,13 @@ make
 ```bash
 make test-all
 make test-homopolymer-adsorption
+make benchmark-homopolymer-adsorption
 make test-frozen-range-input-file
 make test-micelle-self-assembly
 make test-particle-in-cyl-coordinates
 
 # optional variants / maintenance
+python3 tests/run_tests.py homopolymer-adsorption-benchmark
 python3 tests/run_tests.py homopolymer-adsorption --with-save-memory
 python3 tests/run_tests.py --keep-artifacts
 ```
