@@ -35,7 +35,7 @@ OBJEXT      := o
 #flat DOUBLE
 
 #Flags, Libraries and Includes
-CFLAGS      := -Wall -O3 -ffast-math -std=$(CXX_STD) -march=native
+CFLAGS      := -Wall -O3 -std=$(CXX_STD) -march=native
 LIB         := -lm -lpthread
 INC         := -I$(SRCDIR) -Iexternal/LBFGSpp/include -I/usr/include/eigen3 -I/usr/local/include/eigen3 -I/usr/local/include -I/usr/include
 
@@ -145,6 +145,9 @@ $(BUILDDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
 test-homopolymer-adsorption:
 	@python3 ./tests/run_tests.py homopolymer-adsorption
 
+benchmark-homopolymer-adsorption:
+	@python3 ./tests/run_tests.py homopolymer-adsorption-benchmark
+
 test-frozen-range-input-file:
 	@python3 ./tests/run_tests.py frozen-range-input-file
 
@@ -157,4 +160,4 @@ test-particle-in-cyl-coordinates:
 test-all:
 	@python3 ./tests/run_tests.py
 
-.PHONY: all remake clean cleaner resources test-homopolymer-adsorption test-frozen-range-input-file test-micelle-self-assembly test-particle-in-cyl-coordinates test-all
+.PHONY: all remake clean cleaner resources test-homopolymer-adsorption benchmark-homopolymer-adsorption test-frozen-range-input-file test-micelle-self-assembly test-particle-in-cyl-coordinates test-all
