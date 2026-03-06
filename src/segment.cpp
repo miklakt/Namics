@@ -806,7 +806,6 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	state_nr_of_copy=-1;
 	ns=1;
 	vector<string>options;
-	guess_u=0;
 	n_pos=0;
 
 	fixedPsi0=false;
@@ -1012,97 +1011,6 @@ Real Segment::Get_g(int ii) {
 void Segment::Put_beta(int ii, Real BETA) {
 	constraint_beta[ii]=BETA; //just to enable it to be outputted.
 	u[constraint_z[ii]] +=BETA;
-}
-
-bool Segment::PutAdsorptionGuess(Real chi,Real* Mask) {
-NAMICS_DBG("PutAdsorptionGuess" + name << endl);
-	bool success=true;
-	Real lambda;
-	if (lat->lattice_type==hexagonal) lambda=0.25; else lambda=1.0/6.0;
-	int gradients=lat->gradients;
-	int M=lat->M;
-	int MX=lat->MX;
-	int MY=lat->MY;
-	int MZ=lat->MZ;
-	int JX=lat->JX;
-	int JY=lat->JY;
-	switch(gradients) {
-		case 1:
-			for (int x=1; x<MX+1; x++)
-				if (Mask[x-1]==1 ||Mask[x+1]==1)
-					u[x]=-lambda*chi;
-			break;
-		case 2:
-			for (int x=1; x<MX+1; x++) for (int y=1; y<MY+1; y++)
-				if (Mask[(x-1)*JX+y]==1 ||Mask[(x+1)*JX+y]==1 || Mask[x*JX+y-1]==1 || Mask[x*JX+y+1]==1)
-					u[x*JX+y]=-lambda*chi;
-			break;
-		case 3:
-			for (int x=1; x<MX+1; x++) for (int y=1;y<MY+1; y++) for (int z=1; z<MZ+1; z++)
-				if (Mask[(x-1)*JX+y*JY+z]==1 ||Mask[(x+1)*JX+y*JY+z]==1 || Mask[x*JX+(y-1)*JY+z]==1 || Mask[x*JX+(y+1)*JY+z]==1 || Mask[x*JX+y*JY+z-1]==1 || Mask[x*JX+y*JY+z+1]==1)
-					u[x*JX+y*JY+z]=-lambda*chi;
-			break;
-		default:
-			break;
-	}
-	for (int __i = 0; __i < (M); ++__i) (G1)[__i] = exp(-(u)[__i]);
-	return success;
-}
-
-bool Segment::PutTorusPotential(int sign) {
-NAMICS_DBG("PutTorusPotential " + name << endl);
-	bool success=true;
-	Real distance=0;
-	int count=0;
-	Real L=0;
-	int M=lat->M;
-	int MX=lat->MX;
-	int MY=lat->MY;
-	int JX=lat->JX;
-	int R_offset=lat->offset_first_layer;
-	Real R_center = R_offset + MX/2.0;
-	Real R=R_center/sqrt(2.0);
-	if (R<MX/2.0) {
-		for (int x=1; x<MX+1; x++) for (int y=1; y<MY+1; y++) {
-	 		distance = sqrt((MX/2.0 -x)*(MX/2.0-x) + y*y);
-			if ((distance-R)*(distance-R)<8) {
-				u[x*JX+y]=-log(1.8)*sign; count++;
-			}
-		}
-		int ylast=0;
-		int xlow=0,xhigh=0;
-		for (int y=1; y<MY+1; y++) {
-			bool neg_found=false;
-			bool pos_found=false;
-			for (int x=1; x<MX+1; x++) {
-				distance = sqrt((MX/2.0 -x)*(MX/2.0-x) + y*y);
-				if (!neg_found && (distance-R<0)) {
-					xlow = x; ylast=y;
-					neg_found=true; L+=lat->L[x*JX+y];
-				}
-				if (neg_found && !pos_found && (distance-R)>0) {
-					xhigh=x; ylast=y;
-					pos_found=true; L+=lat->L[x*JX+y];
-				}
-			}
-		}
-		for (int x=xlow+1; x<xhigh; x++) L+=lat->L[x*JX+ylast];
-		if (sign>0) cout << "Measured area is " << L << endl;
-		cout << "For segment " << name << ", 'torus potentials' set at " << count << "coordinates" << endl;
-		for (int __i = 0; __i < (M); ++__i) (G1)[__i] = exp(-(u)[__i]);
-	} else {
-		success=false; cout <<" Probably the 'offset_first_layer' is too large so that the torus does not fit into the system.... Inital guess for torus is failing...."<<endl;
-	}
-	return success;
-}
-
-bool Segment::PutMembranePotential(int sign) {
-NAMICS_DBG("PutMembranePotential " + name << endl);
-	bool success=true;
-	int fjc=lat->fjc;
-	for (int x=1; x<4*fjc; x++) u[x]=-log(1.8)*sign;
-	for (int __i = 0; __i < (lat->M); ++__i) (G1)[__i] = exp(-(u)[__i]);
-	return success;
 }
 
 void Segment::SetPhiSide(){

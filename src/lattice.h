@@ -117,9 +117,6 @@ public:
 	void DistributeG1(std::span<const Real>, std::span<Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
 	void CollectPhi(std::span<Real>, std::span<const Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
 	void ComputeGN(std::span<Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, int, int);
-	bool GuessVar(Real*, Real, string, Real, Real);
-	bool GenerateGuess(Real*, string, string, Real, Real);
-
 	virtual void ComputeLambdas(void)=0;
 	virtual Real WeightedSum(Real*)=0;
 	virtual Real Moment(Real*,Real,int) =0;

@@ -440,35 +440,30 @@ bool Solve_scf::Guess(Real *X, string METHOD, vector<string> MONLIST, vector<str
 	NAMICS_DBG( "Guess in Solve" << endl);
 	int M=lat->M;
 	bool success=true;
-	if (start ==1 && Sys->GuessType != "")  {
-		cout <<"guessing " << endl;
-		lat->GenerateGuess(xx,Sys->CalculationType,Sys->GuessType,Seg[Sys->MonA]->guess_u,Seg[Sys->MonB]->guess_u);
-	} else {
-		int m;
-		if (MZ>0) {m=(MX+2)*(MY+2)*(MZ+2); } else { if (MY>0) { m=(MX+2*fjc_old)*(MY+2*fjc_old); } else {  m=(MX+2*fjc_old);}}
+	int m;
+	if (MZ>0) {m=(MX+2)*(MY+2)*(MZ+2); } else { if (MY>0) { m=(MX+2*fjc_old)*(MY+2*fjc_old); } else {  m=(MX+2*fjc_old);}}
 
-		int length_old_mon=MONLIST.size();
-		int length_old_state=STATELIST.size();
-		int length_new_mon=Sys->ItMonList.size();
-		int length_new_state=Sys->ItStateList.size();
-		for (int i = 0; i<length_old_mon; i++) {
-			for (int j=0; j<length_new_mon; j++) {
-				if (MONLIST[i]==Seg[Sys->ItMonList[j]]->name) {
-					Copy(xx+M*j,X+i*m,MX,MY,MZ,fjc_old);
-				}
+	int length_old_mon=MONLIST.size();
+	int length_old_state=STATELIST.size();
+	int length_new_mon=Sys->ItMonList.size();
+	int length_new_state=Sys->ItStateList.size();
+	for (int i = 0; i<length_old_mon; i++) {
+		for (int j=0; j<length_new_mon; j++) {
+			if (MONLIST[i]==Seg[Sys->ItMonList[j]]->name) {
+				Copy(xx+M*j,X+i*m,MX,MY,MZ,fjc_old);
 			}
 		}
-		for (int i = 0; i<length_old_state; i++) {
-			for (int j=0; j<length_new_state; j++) {
-				if (STATELIST[i]==Sta[Sys->ItStateList[j]]->name) {
-					Copy(xx+M*(j+length_new_mon),X+(i+length_old_mon)*m,MX,MY,MZ,fjc_old);
-				}
+	}
+	for (int i = 0; i<length_old_state; i++) {
+		for (int j=0; j<length_new_state; j++) {
+			if (STATELIST[i]==Sta[Sys->ItStateList[j]]->name) {
+				Copy(xx+M*(j+length_new_mon),X+(i+length_old_mon)*m,MX,MY,MZ,fjc_old);
 			}
 		}
+	}
 
-		if (CHARGED && Sys->charged) {
-			Copy(xx+(length_new_mon+length_new_state)*M,X+(length_old_mon+length_old_state)*m,MX,MY,MZ,fjc_old);
-		}
+	if (CHARGED && Sys->charged) {
+		Copy(xx+(length_new_mon+length_new_state)*M,X+(length_old_mon+length_old_state)*m,MX,MY,MZ,fjc_old);
 	}
 	return success;
 }

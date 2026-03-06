@@ -46,7 +46,6 @@ public:
 	bool fixedPsi0;
 	Real phibulk;
 	string freedom;
-	Real guess_u;
 	vector<int>state_change;
 	vector<Real>state_valence;
 	vector<int>state_id;
@@ -158,9 +157,6 @@ public:
 	void AllocateMemory();
 	bool PrepareForCalculations(Real*,bool);
 	bool ParseFreedoms(bool&);
-	bool PutAdsorptionGuess(Real,Real*);
-	bool PutTorusPotential(int);
-	bool PutMembranePotential(int);
 	void UpdateValence(Real*,Real*,Real*,Real*,bool);
 	bool PutVarInfo(string,string,Real);
 	int PutVarScan(Real,Real,int,string);

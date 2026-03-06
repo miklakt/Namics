@@ -113,8 +113,6 @@ public:
 	bool prepared;
 	bool Filling;
 
-	int MonA,MonB;
-
 	vector<string> ints;
 	vector<string> Reals;
 	vector<string> bools;
@@ -132,7 +130,6 @@ public:
 	int* GetPointerInt(string,int&);
 	int GetValue(string,int&,Real&,string&);
 	string CalculationType; // {micro_emulsion,micro_phasesegregation};
-	string GuessType; // {lamellae,Im3m,FCC,BCC,HEX,gyroid,Real_gyroid,Real_diamond,perforated_lamellae};
 
 	std::vector<string> KEYS;
 	ParameterStore PARAMETERS;
