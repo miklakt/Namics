@@ -1642,20 +1642,6 @@ bool LGrad3:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R
 	return success;
 }
 
-
-Real LGrad3::DphiDt(Real* g, Real* B_phitot, Real* phiA, Real* phiB, Real* alphaA, Real* alphaB, Real B_A, Real B_B) {
-	(void)B_B;
-	(void)B_A;
-	(void)alphaB;
-	(void)alphaA;
-	(void)phiB;
-	(void)phiA;
-	(void)B_phitot;
-	(void)g;
-	cout <<"Grad3 DphiDt not implemented yet " << endl;
-	return 0;
-}
-
 Real LGrad3::MomentPlanar(Real* X,int n,Real Z0){
 	(void)Z0;
 	(void)n;

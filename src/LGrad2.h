@@ -42,6 +42,5 @@ class LGrad2 : public Lattice
 	void set_bounds_x(Real*,int);
 	void set_bounds_y(Real*,int);
 	bool PutMask(Real* ,vector<int>,vector<int>,vector<int>,int);
-	Real DphiDt(Real*,Real*,Real*,Real*,Real*,Real*,Real,Real);
 };
 #endif

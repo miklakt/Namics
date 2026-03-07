@@ -15,6 +15,5 @@ class LG2Planar : public LGrad2
 	void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool);
 	void UpdateQ(Real*,Real*,Real*,Real*,Real*,bool);
 	bool PutMask(Real* ,vector<int>,vector<int>,vector<int>,int);
-	Real DphiDt(Real*,Real*,Real*,Real*,Real*,Real*,Real,Real);
 };
 #endif
