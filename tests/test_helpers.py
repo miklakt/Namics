@@ -122,11 +122,6 @@ def set_commented_setting(
     output_file.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
 
 
-def ensure_solver_method_line(input_file: Path, output_file: Path, method: str) -> None:
-    """Backward-compatible helper for forcing the solver method line."""
-    set_setting_line(input_file, output_file, "newton : isaac : method", method)
-
-
 def _read_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -259,14 +254,6 @@ def ensure_file_from_archive(archive_file: Path, member_name: str, destination_f
         destination_file.write_bytes(extracted.read())
 
     return destination_file.is_file()
-
-
-def replace_in_file(path: Path, replacements: list[tuple[str, str]]) -> None:
-    text = path.read_text(encoding="utf-8")
-    for old, new in replacements:
-        text = text.replace(old, new)
-    path.write_text(text, encoding="utf-8")
-
 
 def utc_run_id() -> str:
     ns = time.time_ns()
