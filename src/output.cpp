@@ -596,7 +596,7 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 		std::ostringstream problem;
 		problem << "    {\n";
 		problem << "      \"problem\": " << start << ",\n";
-		problem << "      \"name\": \"" << JsonEscape(name) << "\"";
+		problem << "      \"name\": \"" << JsonEscape(base_name) << "\"";
 
 		for (size_t i = 0; i < scalar_values.size(); ++i) {
 			problem << ",\n";
