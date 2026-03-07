@@ -1,4 +1,5 @@
 #include "lattice.h"
+
 Lattice::Lattice(const Input& In_,const string& name_) :
 	BC(6) // boundary condition slots: lower/upper for x, y, z
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
@@ -892,47 +893,4 @@ void Lattice::ComputeGN(std::span<Real> GN, std::span<const Real> Gg_f, std::spa
 	int k=sub_box_on;
 	for (int p=0; p<n_box; p++) std::copy_n(Gg_f.data()+n_box*m[k]*N +p*m[k]+ jx[k]*(H_Px2[p]-H_Bx[p])+jy[k]*(H_Py2[p]-H_By[p])+(H_Pz2[p]-H_Bz[p]), 1, GN.data()+p);
 
-}
-
-
-bool Lattice::ReadGuess(string filename, Real *x ,string &method, vector<string> &monlist, vector<string> &statelist, bool &charged, int &mx, int &my, int &mz, int &fjc, int readx) {
-NAMICS_DBG("ReadGuess in output" << endl); return io::ReadInitialGuess(filename, x, method, monlist, statelist, charged, mx, my, mz, fjc, readx);
-}
-
-bool Lattice::StoreGuess(string Filename,Real *x,string method, vector<string> monlist,vector<string>statelist, bool charged, int start) {
-NAMICS_DBG("StoreGuess in output" << endl);	bool success=true;
-	int mon_length = monlist.size();
-	int state_length = statelist.size();
-	string filename;
-	string outfilename;
-	vector<string> sub;
-	if (Filename == "") {
-		outfilename=In->name;
-		In->split(outfilename,'.',sub);
-		char numc[4];
-        	sprintf(numc,"%d",start);
-		char numcc[4];
-		sprintf(numcc,"%d",subl);
-		if (subl>0)
-			filename=sub[0].append("_").append(numc).append("_").append(numcc).append(".").append("outiv");
-		else	filename=sub[0].append("_").append(numc).append(".").append("outiv");
-	} else {
-		outfilename = Filename;
-		In->split(outfilename,'.',sub);
-		char numc[4];
-       	sprintf(numc,"%d",start);
-		char numcc[4];
-		sprintf(numcc,"%d",subl);
-		if (subl>0)
-			filename=sub[0].append("_").append(numc).append("_").append(numcc).append(".").append(sub[1]);
-		else 	filename=sub[0].append("_").append(numc).append(".").append(sub[1]);
-	}
-	filename=In->output_info.getOutputPath()+filename;
-	int iv=(mon_length+state_length)*M;
-	if (charged) iv +=M;
-	success = io::WriteInitialGuess(filename, method, MX, MY, MZ, fjc, charged, monlist, statelist, x, iv);
-	if (!success) {
-		cout << "Failed to write initial guess file " << filename << endl;
-	}
-	return success;
 }

@@ -101,8 +101,6 @@ public:
 	int GetValue(string,int&,Real&,string&);
 	Real GetValue(Real*,string);
 
-	bool ReadGuess(string, Real* ,string&, vector<string>&, vector<string>&, bool&, int&, int&, int&, int&, int);
-	bool StoreGuess(string,Real*,string, vector<string>,vector<string>, bool,int);
 	bool PutVarInfo(string,string,Real);
 	bool UpdateVarInfo(int);
 	bool ResetInitValue();
@@ -148,7 +146,5 @@ public:
 	virtual void AddPhiS(Real*,Real*,Real*,Real,int,int) =0;
 	virtual void Initiate(Real*,Real*,int,int) =0;
 	virtual void Terminate(Real*,Real*,int,int) =0;
-	virtual Real DphiDt(Real*,Real*,Real*,Real*,Real*,Real*,Real,Real)=0;
-
 };
 #endif

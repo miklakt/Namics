@@ -271,6 +271,16 @@ def _check_json_output(path: Path, label: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _check_json_contains_initial_guess(path: Path, label: str) -> tuple[bool, str]:
+    try:
+        payload = path.read_text(encoding="utf-8")
+    except Exception as exc:
+        return False, f"ERROR: cannot read JSON output for {label}: {path} ({exc})"
+    if "\"initial_guess\"" not in payload:
+        return False, f"ERROR: JSON output does not contain embedded initial_guess for {label}: {path}"
+    return True, ""
+
+
 def _run_homopolymer_adsorption(ctx: Context, *, enable_benchmark: bool) -> ReportNode:
     root = ReportNode(label="homopolymer adsorption benchmark" if enable_benchmark else "homopolymer adsorption")
 
@@ -591,8 +601,6 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
     use_input = tests_dir / "micelle_guess_use.in"
     reference_file = _resolve_reference_file(ctx, tests_dir / "reference" / "micelle_guess_use.json.ref")
 
-    guess_file = output_dir / "micelle_2.outi"
-
     require_file(ctx.binary, executable=True)
     require_file(generate_input)
     require_file(use_input)
@@ -609,7 +617,6 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
     diis_use_output = output_dir / f"{_runtime_output_basename(diis_use_input)}.json"
 
     cleanup_targets: list[Path] = [
-        guess_file,
         pseudo_generate_input,
         pseudo_generate_output,
         pseudo_use_input,
@@ -621,7 +628,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
     ]
 
     try:
-        for p in (guess_file, pseudo_generate_output, pseudo_use_output, diis_generate_output, diis_use_output):
+        for p in (pseudo_generate_output, pseudo_use_output, diis_generate_output, diis_use_output):
             p.unlink(missing_ok=True)
 
         pseudo_gen_leaf = ReportNode(label="pseudohessian")
@@ -632,15 +639,27 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
         pseudo_use_ready = False
 
         try:
-            _prepare_runtime_input(ctx, generate_input, pseudo_generate_input, solver_method="pseudohessian")
+            _prepare_runtime_input(
+                ctx,
+                generate_input,
+                pseudo_generate_input,
+                solver_method="pseudohessian",
+                settings={"sys : noname : write_initial_guess": "true"},
+            )
             run_gen = _run_binary(ctx, pseudo_gen_leaf, pseudo_generate_input)
             if run_gen.returncode != 0:
                 raise TestError(f"ERROR: execution failed ({run_gen.returncode}) for input: {pseudo_generate_input}")
 
-            if not guess_file.is_file() or guess_file.stat().st_size == 0:
-                raise TestError(f"ERROR: expected guess file was not created: {guess_file}")
+            ok, msg = _check_json_output(pseudo_generate_output, "micelle guess generate, mode=pseudohessian")
+            if not ok:
+                raise TestError(msg)
+            ok, msg = _check_json_contains_initial_guess(
+                pseudo_generate_output, "micelle guess generate, mode=pseudohessian"
+            )
+            if not ok:
+                raise TestError(msg)
 
-            pseudo_gen_leaf.details = "guess file generated"
+            pseudo_gen_leaf.details = "embedded initial_guess generated in output JSON"
             pseudo_use_ready = True
         except Exception as exc:
             pseudo_gen_leaf.passed = False
@@ -650,7 +669,13 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
             if not pseudo_use_ready:
                 raise TestError("ERROR: skipped because pseudohessian guess generation failed")
 
-            _prepare_runtime_input(ctx, use_input, pseudo_use_input, solver_method="pseudohessian")
+            _prepare_runtime_input(
+                ctx,
+                use_input,
+                pseudo_use_input,
+                solver_method="pseudohessian",
+                settings={"sys : noname : guess_inputfile": str(pseudo_generate_output.relative_to(ctx.repo_root))},
+            )
             run_use = _run_binary(ctx, pseudo_use_leaf, pseudo_use_input)
             if run_use.returncode != 0:
                 raise TestError(f"ERROR: execution failed ({run_use.returncode}) for input: {pseudo_use_input}")
@@ -665,8 +690,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
             pseudo_use_leaf.passed = False
             pseudo_use_leaf.details = str(exc)
 
-        # Re-run DIIS path from a clean guess/output state.
-        guess_file.unlink(missing_ok=True)
+        # Re-run DIIS path from a clean output state.
         diis_generate_output.unlink(missing_ok=True)
         diis_use_output.unlink(missing_ok=True)
 
@@ -679,13 +703,24 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
         diis_use_ready = False
 
         try:
-            _prepare_runtime_input(ctx, generate_input, diis_generate_input, solver_method="DIIS")
+            _prepare_runtime_input(
+                ctx,
+                generate_input,
+                diis_generate_input,
+                solver_method="DIIS",
+                settings={"sys : noname : write_initial_guess": "true"},
+            )
             run_gen_diis = _run_binary(ctx, diis_gen_leaf, diis_generate_input)
-            if run_gen_diis.returncode == 0 and guess_file.is_file() and guess_file.stat().st_size > 0:
-                diis_status = "guess generated"
-                diis_use_ready = True
+            if run_gen_diis.returncode == 0:
+                ok, _ = _check_json_output(diis_generate_output, "micelle guess generate, mode=DIIS")
+                ok_guess, _ = _check_json_contains_initial_guess(
+                    diis_generate_output, "micelle guess generate, mode=DIIS"
+                )
+                if ok and ok_guess:
+                    diis_status = "embedded initial_guess generated in output JSON"
+                    diis_use_ready = True
             diis_gen_leaf.details = diis_status
-            diis_gen_leaf.passed = diis_status == "guess generated"
+            diis_gen_leaf.passed = diis_status == "embedded initial_guess generated in output JSON"
         except Exception as exc:
             diis_gen_leaf.details = f"failed (accepted): {exc}"
             diis_gen_leaf.passed = False
@@ -695,7 +730,13 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 diis_use_leaf.details = "failed (accepted): skipped because DIIS guess generation failed"
                 diis_use_leaf.passed = False
             else:
-                _prepare_runtime_input(ctx, use_input, diis_use_input, solver_method="DIIS")
+                _prepare_runtime_input(
+                    ctx,
+                    use_input,
+                    diis_use_input,
+                    solver_method="DIIS",
+                    settings={"sys : noname : guess_inputfile": str(diis_generate_output.relative_to(ctx.repo_root))},
+                )
                 run_use_diis = _run_binary(ctx, diis_use_leaf, diis_use_input)
                 if run_use_diis.returncode == 0:
                     if diis_use_output.is_file() and diis_use_output.stat().st_size > 0:

@@ -23,7 +23,7 @@ newton : isaac : tolerance : 1e-08
 newton : isaac : method : DIIS
 
 sys : noname : initial_guess : file
-sys : noname : guess_inputfile : output/micelle_2.outi
+sys : noname : guess_inputfile : output/micelle_guess_generate.json
 
 output : json : append : false
 json : mon : A : phi

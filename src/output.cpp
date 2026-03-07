@@ -34,6 +34,87 @@ bool IsJsonBoolString(const std::string& value) {
 	return value == "true" || value == "false";
 }
 
+int GuessProfileSize(int mx, int my, int mz, int fjc) {
+	if (my == 0) return (mx + 2 * fjc);
+	if (mz == 0) return (mx + 2 * fjc) * (my + 2 * fjc);
+	return (mx + 2 * fjc) * (my + 2 * fjc) * (mz + 2 * fjc);
+}
+
+std::string BuildInitialGuessObject(const std::string& method,
+                                    int problem,
+                                    int mx,
+                                    int my,
+                                    int mz,
+                                    int fjc,
+                                    bool charged,
+                                    const std::vector<std::string>& monlist,
+                                    const std::vector<std::string>& statelist,
+                                    const Real* values,
+                                    int value_count) {
+	const int m = GuessProfileSize(mx, my, mz, fjc);
+	const int expected = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0)) * m;
+	if (values == nullptr || value_count != expected) return "";
+
+	std::ostringstream out;
+	auto write_string_array = [&](const std::vector<std::string>& names) {
+		out << "[";
+		for (size_t i = 0; i < names.size(); ++i) {
+			if (i > 0) out << ", ";
+			out << "\"" << JsonEscape(names[i]) << "\"";
+		}
+		out << "]";
+	};
+	auto write_profile = [&](const std::string& key, const Real* data, bool trailing_comma) {
+		out << "          \"" << JsonEscape(key) << "\": [";
+		for (int i = 0; i < m; ++i) {
+			if (i > 0) out << ", ";
+			out << JsonNumber(data[i]);
+		}
+		out << "]";
+		if (trailing_comma) out << ",";
+		out << "\n";
+	};
+
+	out << "{\n";
+	out << "        \"metadata\": {\n";
+	out << "          \"problem\": " << problem << ",\n";
+	out << "          \"method\": \"" << JsonEscape(method) << "\",\n";
+	out << "          \"mx\": " << mx << ",\n";
+	out << "          \"my\": " << my << ",\n";
+	out << "          \"mz\": " << mz << ",\n";
+	out << "          \"fjc\": " << fjc << ",\n";
+	out << "          \"charged\": " << (charged ? "true" : "false") << "\n";
+	out << "        },\n";
+	out << "        \"monlist\": ";
+	write_string_array(monlist);
+	out << ",\n";
+	out << "        \"statelist\": ";
+	write_string_array(statelist);
+	out << ",\n";
+	out << "        \"profiles\": {\n";
+
+	int offset = 0;
+	const int total_profiles = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
+	int profile_index = 0;
+	for (const std::string& mon_name : monlist) {
+		++profile_index;
+		write_profile("mon:" + mon_name, values + offset * m, profile_index < total_profiles);
+		++offset;
+	}
+	for (const std::string& state_name : statelist) {
+		++profile_index;
+		write_profile("state:" + state_name, values + offset * m, profile_index < total_profiles);
+		++offset;
+	}
+	if (charged) {
+		++profile_index;
+		write_profile("psi", values + offset * m, profile_index < total_profiles);
+	}
+	out << "        }\n";
+	out << "      }";
+	return out.str();
+}
+
 } // namespace
 
 Output::Output(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_) {
@@ -485,10 +566,36 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 			}
 		}
 
+		std::string initial_guess_object;
+		if (Sys->write_initial_guess) {
+			std::vector<std::string> guess_monlist;
+			std::vector<std::string> guess_statelist;
+			const int mon_length = Sys->ItMonList.size();
+			const int state_length = Sys->ItStateList.size();
+			guess_monlist.reserve(mon_length);
+			guess_statelist.reserve(state_length);
+			for (int i = 0; i < mon_length; ++i) guess_monlist.push_back(Seg[Sys->ItMonList[i]]->name);
+			for (int i = 0; i < state_length; ++i) guess_statelist.push_back(Sta[Sys->ItStateList[i]]->name);
+
+			initial_guess_object = BuildInitialGuessObject(New->SCF_method,
+			                                               start,
+			                                               lat->MX,
+			                                               lat->MY,
+			                                               lat->MZ,
+			                                               lat->fjc,
+			                                               Sys->charged,
+			                                               guess_monlist,
+			                                               guess_statelist,
+			                                               New->xx,
+			                                               New->iv);
+			if (initial_guess_object.empty()) {
+				cout << "Warning: unable to serialize embedded initial guess for problem " << start << endl;
+			}
+		}
+
 		std::ostringstream problem;
 		problem << "    {\n";
 		problem << "      \"problem\": " << start << ",\n";
-		// TODO(variate): reintroduce subloop metadata when the variate module is restored.
 		problem << "      \"name\": \"" << JsonEscape(name) << "\"";
 
 		for (size_t i = 0; i < scalar_values.size(); ++i) {
@@ -504,6 +611,10 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 				problem << JsonNumber(column_values[i][j]);
 			}
 			problem << "]";
+		}
+		if (!initial_guess_object.empty()) {
+			problem << ",\n";
+			problem << "      \"initial_guess\": " << initial_guess_object;
 		}
 		problem << "\n";
 		problem << "    }";

@@ -33,5 +33,4 @@ start
 
 mon : A : freedom : free
 
-sys : noname : final_guess : file
-sys : noname : guess_outputfile : micelle.outi
+sys : noname : write_initial_guess : true

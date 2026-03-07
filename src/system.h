@@ -26,15 +26,10 @@ public:
 	vector<int> SysMonList;
 	vector<int> ItMonList;
 	vector<int> ItStateList;
-	vector<int> StatelessMonList;
-	vector<int> SysMolMonList;
 	vector<int> FrozenList;
 	vector<int> SysTagList;
 	vector<int> SysClampList;
 	vector<int> FillList;
-	vector<int> EmonList;
-	vector<int> EmonList_1;
-	vector<int> EmonList_2;
 	vector<int> XmolList;
 	vector<int> XstateList_1;
 	vector<int> XstateList_2;
@@ -47,10 +42,7 @@ public:
 	Real GrandPotential;
 	Real pos_interface;
 
-	Real KJ0;
-	Real Kbar;
 	Real* phitot;
-	Real* B_phitot;
 	Real* KSAM;
 	Real* FILL;
 	Real* eps;
@@ -82,17 +74,13 @@ public:
 	int neutralizer;
 	int tag_segment;
 	Real volume;
-	int boundaryless_volume;
-	bool input_error;
 	bool charged;
-	bool internal_states;
 	bool local_solution;
 	bool do_blocks;
 	int split;
 	string initial_guess;
 	string guess_inputfile;
-	string final_guess;
-	string guess_outputfile;
+	bool write_initial_guess;
 	string ConstraintType;
 	string delta_inputfile;
 	int Var_target;
@@ -151,7 +139,6 @@ public:
 	bool Put_U(Real*);
 	bool PutU(Real*);
 	void Classical_residual(Real* ,Real*,Real,int,int);
-	void Steady_residual(Real* ,Real*,Real,int,int);
 
 	void DoElectrostatics(Real*,Real*);
 	bool CheckResults(bool);

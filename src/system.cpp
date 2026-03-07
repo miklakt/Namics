@@ -23,8 +23,7 @@ System::System(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<St
 	KEYS.push_back("phi_ratio");
 	KEYS.push_back("initial_guess");
 	KEYS.push_back("guess_inputfile");
-	KEYS.push_back("final_guess");
-	KEYS.push_back("guess_outputfile");
+	KEYS.push_back("write_initial_guess");
 	KEYS.push_back("overflow_protection");
 	KEYS.push_back("find_local_solution");
 	KEYS.push_back("split");
@@ -36,7 +35,6 @@ System::System(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<St
 	//  KEYS.push_back("guess-" + In->MonList[i]);
 	charged=false;
 	constraintfields=false;
-  	boundaryless_volume=0;
 	grad_epsilon = false;
 	all_system=false;
 	extra_constraints=0;
@@ -70,7 +68,6 @@ void System:: DeAllocateMemory(void){
 		free(H_BETA);
 	}
   free(phitot);
-  if (CalculationType=="steady_state") free(B_phitot);
   free(TEMP);
   free(KSAM);
   free(FILL);
@@ -111,7 +108,6 @@ void System::AllocateMemory()
 	}
 
   phitot = (Real*)malloc(M * sizeof(Real));
-  if (CalculationType=="steady_state") B_phitot = (Real*)malloc(M * sizeof(Real));
   alpha = H_alpha;
   if (charged) {
     psi = H_psi;
@@ -217,10 +213,6 @@ bool System::generate_mask()
 	{
 		for (int __i = 0; __i < (M); ++__i) (volume) += (KSAM)[__i];
 	}
-
-	// Boundary-free volume used by dynamic workflows.
-	// This formula works across 1D/2D/3D lattices.
-	this->boundaryless_volume = this->volume - ((2 * lat->gradients - 4) * lat->MX * lat->MY + 2 * lat->MX * lat->MZ + 2 * lat->MY * lat->MZ + (-2 + 2 * lat->gradients) * (lat->MX + lat->MY + lat->MZ) + pow(2, lat->gradients));
 
 	lat->Accesible_volume=volume;
 
@@ -343,8 +335,6 @@ bool System::PrepareForCalculations(bool first_time)
 bool System::MakeItsLists(void) {
 	bool changed=false;
 	int length = In->MonList.size();
-	StatelessMonList.clear();
-	SysMolMonList.clear();
 	SysMonList.clear();
 	int ItMonListLength=ItMonList.size();
 	ItMonList.clear();
@@ -353,9 +343,6 @@ bool System::MakeItsLists(void) {
 	int ItStateListLength=ItStateList.size();
 	ItStateList.clear();
 
-	for (int i = 0; i < length; i++)
-		if (Seg[i]->state_name.size() == 0)
-			StatelessMonList.push_back(i);
 	length = In->MolList.size();
 	int statelength = In->StateList.size();
 	int i = 0;
@@ -365,7 +352,6 @@ bool System::MakeItsLists(void) {
 		int LENGTH = Mol[i]->MolMonList.size();
 		while (j < LENGTH)
 		{
-			SysMolMonList.push_back(Mol[i]->MolMonList[j]);
 			if (!In->InSet(SysMonList, Mol[i]->MolMonList[j]))
 			{
 				if (Seg[Mol[i]->MolMonList[j]]->freedom != "tagged" && Seg[Mol[i]->MolMonList[j]]->freedom != "clamp")
@@ -741,46 +727,6 @@ bool System::CheckInput(int start_)
 				return false;
 			}
 
-			if (CalculationType=="steady_state") {
-				cout << "Calculation type 'steady_state' is not supported in this minimal build." << endl;
-				return false;
-			}
-
-			if (false && CalculationType=="steady_state") {
-				//Steady state is in development. For the time being this option is quite limited. In time some of these constraints will be lifted.
-				if (lat->gradients>2) {
-					cout <<"For 'calculation_type : steady_state' is currently limited to 1 gradient and 2 gradients calculations " << endl;
-				return false;
-			}
-			if (lat->fjc != 1) {
-				cout <<"For 'calculation_type : steady_state' the value for FJC_choices is limited to 3 " << endl;
-				return false;
-			}
-			if (lat->BC[0] != "mirror") {
-				cout <<"For 'calculation_type : steady_state' the setting for both 'lowerbound' and 'upperbound' must be 'mirror'. " << endl;
-				return false;
-			}
-			for (int i=0; i<num_of_mol; i++) {
-				int length=Mol[i]->MolMonList.size();
-				for (int j=0; j<length; j++) {
-					if (Seg[Mol[i]->MolMonList[j]]->used_in_mol_nr==-2) {
-						Seg[Mol[i]->MolMonList[j]]->used_in_mol_nr=i;
-						Seg[Mol[i]->MolMonList[j]]->B=Mol[i]->B;
-						if (Mol[i]->phi_LB_X > 0) {
-							Seg[Mol[i]->MolMonList[j]]->phi_LB_X=Mol[i]->phi_LB_X*Mol[i]->fraction(Mol[i]->MolMonList[j]);
-							Seg[Mol[i]->MolMonList[j]]->phi_UB_X=Mol[i]->phi_UB_X*Mol[i]->fraction(Mol[i]->MolMonList[j]);
-							Seg[Mol[i]->MolMonList[j]]->phi_LB_Y=Mol[i]->phi_LB_Y*Mol[i]->fraction(Mol[i]->MolMonList[j]);
-							Seg[Mol[i]->MolMonList[j]]->phi_UB_Y=Mol[i]->phi_UB_Y*Mol[i]->fraction(Mol[i]->MolMonList[j]);
-						}
-					} else {
-						cout <<"Multiple usage of seg " + Seg[Mol[i]->MolMonList[j]]->name + " in steady state system forbidden: each monomer may be used in only one molecule; it can not be used in multiple molecules. " << endl;
-						return false;
-					}
-				}
-			}
-		}
-
-
 		initial_guess = "previous_result";
 		if (GetValue("initial_guess").size() > 0)
 		{
@@ -802,36 +748,16 @@ bool System::CheckInput(int start_)
 				}
 			}
 		}
-		final_guess = "next_problem";
-		if (GetValue("final_guess").size() > 0)
-		{
-			options.clear();
-			options.push_back("next_problem");
-			options.push_back("file");
-			if (!ParseString(GetValue("final_guess"), final_guess, options, " Info about 'final_guess' rejected; default: 'next_problem' used."))
-			{
-				final_guess = "next_problem";
-			}
-			if (final_guess == "file")
-			{
-				if (GetValue("guess_outputfile").size() > 0)
-				{
-					guess_outputfile = GetValue("guess_outputfile");
-				}
-				else
-				{
-					guess_outputfile = "";
-					cout << "Filename not found for 'output_guess'. Default with inputfilename and extention '.outiv' is used. " << endl;
-				}
-			}
+		write_initial_guess = false;
+		if (GetValue("write_initial_guess").size() > 0) {
+			ParseBool(GetValue("write_initial_guess"),
+			          write_initial_guess,
+			          " Info about 'write_initial_guess' rejected; default: 'false' used.");
 		}
 	}
 
-	internal_states = false;
-
 	if (In->StateList.size() > 1)
 	{
-		internal_states = true;
 		int num_of_Seg_with_states = 0;
 		int num_of_Eqns = In->ReactionList.size();
 		int num_of_alphabulk_fixed = 0;
@@ -1009,7 +935,6 @@ bool System::CheckInput(int start_)
 bool System::IsUnique(int Segnr_, int Statenr_)
 {
 	NAMICS_DBG( "System::IsUnique: Segnr = " << Segnr_ << " Statenr = " << Statenr_ << endl);
-	if (CalculationType=="steady_state") return true;
 	bool is_unique = true;
 	bool is_equal = true;
 	int Segnr = Segnr_, Statenr = Statenr_;
@@ -1932,135 +1857,6 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << endl);
 }
 
 
-void System::Steady_residual(Real* x,Real*g,Real residual, int iterations, int iv){
-NAMICS_DBG("steady_residuals in scf mode in system " << endl);
-	int M=lat->M;
-	Real chi;
-	int mon_length = In->MonList.size(); //also frozen segments
-	int i,k;
-	//dphidt*=(Real*) malloc(iv*sizeof(Real);
-
-	int itmonlistlength=ItMonList.size();
-	int state_length = In->StateList.size();
-	int itstatelistlength=ItStateList.size();
-
-	if (itstatelistlength>0) cout <<"currently, internal states of segments incompatible with steady state " << endl;
-	std::copy_n(x, iv, g);
-	ComputePhis(x,iterations==0,residual);
-
-	//	Seg[ItMonList[i]]->SetPhiSide();
-	//}
-	for (i=0; i<itmonlistlength; i++) {
-		for (int __i = 0; __i < (M); ++__i) (g+i*M)[__i] += (Seg[ItMonList[i]]->u_ext)[__i];
-		for (k=0; k<mon_length; k++) {
-			if (Seg[k]->ns<2) {
-				chi =Seg[ItMonList[i]]->chi[k];
-				if (chi!=0) {
-					for (int __i = 0; __i < (M); ++__i) if ((phitot)[__i] > 0) (g+i*M)[__i] = (g+i*M)[__i] - (chi) * (((Seg[k]->phi_side)[__i] / (phitot)[__i]) - (Seg[k]->phibulk));
-				}
-			}
-		}
-		for (k=0; k<state_length; k++) {
-			chi =Seg[ItMonList[i]]->chi[mon_length+k];
-			if (chi!=0) {
-				for (int __i = 0; __i < (M); ++__i) if ((phitot)[__i] > 0) (g+i*M)[__i] = (g+i*M)[__i] - (chi) * (((Seg[Sta[k]->mon_nr]->phi_side + Sta[k]->state_nr*M)[__i] / (phitot)[__i]) - (Seg[Sta[k]->mon_nr]->state_phibulk[Sta[k]->state_nr]));
-			}
-		}
-	}
-
-	for (i=0; i<itstatelistlength; i++) {
-		for (k=0; k<mon_length; k++) {
-			if (Seg[k]->ns<2) {
-				chi =Sta[ItStateList[i]]->chi[k];
-				if (chi!=0) {
-					for (int __i = 0; __i < (M); ++__i) if ((phitot)[__i] > 0) (g+(itmonlistlength+i)*M)[__i] = (g+(itmonlistlength+i)*M)[__i] - (chi) * (((Seg[k]->phi_side)[__i] / (phitot)[__i]) - (Seg[k]->phibulk));
-				}
-			}
-		}
-
-
-		for (k=0; k<state_length; k++) {
-			chi =Sta[ItStateList[i]]->chi[mon_length+k];
-			if (chi!=0) {
-				for (int __i = 0; __i < (M); ++__i) if ((phitot)[__i] > 0) (g+(itmonlistlength+i)*M)[__i] = (g+(itmonlistlength+i)*M)[__i] - (chi) * (((Seg[Sta[k]->mon_nr]->phi_side + Sta[k]->state_nr*M)[__i] / (phitot)[__i]) - (Seg[Sta[k]->mon_nr]->state_phibulk[Sta[k]->state_nr]));
-			}
-		}
-	}
-	for (i=0; i<itmonlistlength; i++) std::copy_n(g+i*M, M, Seg[ItMonList[i]]->ALPHA);
-
-	std::fill_n(g, iv, 0);
-	Real Jtot=0;
-	Segment* Seg0=Seg[ItMonList[0]];
-
-
-
-	int gradients=lat->gradients;
-	int MX=lat->MX;
-	int MY=lat->MY;
-	int JX=lat->JX;
-	for (int z=1; z<M-1; z++) g[z]=1.0/phitot[z]-1.0;
-
-	switch (gradients) {
-		case 1:
-			g[1]=Seg0->phi[0]/Seg0->phi[1]-1.0;
-			//g[M-2]=Seg0->phi[M-1]/Seg0->phi[M-2]-1.0;
-			g[MX]=Seg0->phi[MX+1]/Seg0->phi[MX]-1.0;
-			break;
-		case 2:
-			for (int x=1; x<MX+1; x++) {
-				g[x*JX+1]=Seg0->phi[x*JX+0]/Seg0->phi[x*JX+1]-1.0;
-				g[x*JX+MY]=Seg0->phi[x*JX+MY+1]/Seg0->phi[x*JX+MY]-1.0;
-			}
-			for (int y=1; y<MY+1; y++) {
-				g[JX+y]=Seg0->phi[0+y]/Seg0->phi[JX+y]-1.0;
-				g[MX*JX+y]=Seg0->phi[(MX+1)*JX+y]/Seg0->phi[MX*JX+y]-1.0;
-			}
-			break;
-		default:
-			break;
-	}
-	for (int i =1 ; i<itmonlistlength; i++) {
-		Segment* Segi=Seg[ItMonList[i]];
-		Segi->J=0;
-		for (int k =0; k<itmonlistlength; k++) {
-			Segment* Segk=Seg[ItMonList[k]];
-			if (i !=k) Segi->J += lat->DphiDt(g+i*M,B_phitot,Segi->phi,Segk->phi,Segi->ALPHA,Segk->ALPHA,Segi->B,Segk->B);
-		}
-		Jtot +=Segi->J;
-	}
-	Seg[ItMonList[0]]->J=-Jtot;
-	int itpos=(itmonlistlength+itstatelistlength)*M;
-
-	if (charged) {
-		std::copy_n(x+itpos, M, g+itpos);
-		DoElectrostatics(g+itpos,x+itpos);
-		lat->set_M_bounds(psi);
-		if (M > 1) psi[0] = psi[1];
-		lat->UpdatePsi(g+itpos,psi,q,eps,psiMask,grad_epsilon,fixedPsi0);
-		lat->remove_bounds(g+itpos);
-		itpos+=M;
-	}
-	if (constraintfields) {
-		std::copy_n(Mol[DeltaMolList[1]]->phitot, M, g+itpos);
-		for (int __i = 0; __i < (M); ++__i) (g+itpos)[__i] = (g+itpos)[__i] - (Mol[DeltaMolList[0]]->phitot)[__i];
-		Real R = (phi_ratio-1)/(phi_ratio+1);
-		for (int __i = 0; __i < (M); ++__i) (g+itpos)[__i] = (g+itpos)[__i] + (R);
-		for (int __i = 0; __i < (M); ++__i) (g+itpos)[__i] = (g+itpos)[__i] * (beta)[__i];
-		itpos+=M;
-	}
-	if (extra_constraints>0) {
-		int length = In->MonList.size();
-		for (int i = 0; i < length; i++)
-		{
-			int constraint_size=Seg[i]->constraint_z.size();
-			for (int k=0; k<constraint_size; k++) {
-				itpos++;
-				g[itpos-1]=Seg[i]->Get_g(k);
-			}
-		}
-	}
-}
-
 bool System::ComputePhis(Real residual){
 NAMICS_DBG("ComputePhis in system" << endl);
 	bool prepare_for_blocks=false;
@@ -2171,15 +1967,16 @@ NAMICS_DBG("ComputePhis in system" << endl);
 				Real *phi = Mol[i]->phi + k * M;
 				Real *G1 = Seg[Mol[i]->MolMonList[k]]->G1;
 				for (int __i = 0; __i < (M); ++__i) (phi)[__i] = ((G1)[__i] != 0) ? ((phi)[__i] / (G1)[__i]) : 0;
-				if (norm > 0)
+				if (norm > 0) {
 					for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (norm);
+				}
 
-					if (debug)
-					{
-						Real sum;
-						(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
-						NAMICS_DBG("Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl);
-					}
+				if (debug)
+				{
+					Real sum;
+					(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
+					NAMICS_DBG("Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl);
+				}
 			}
 			k++;
 		}
@@ -2213,11 +2010,11 @@ NAMICS_DBG("ComputePhis in system" << endl);
 			{
 				Real *phi = Mol[i]->phi + k * M;
 				for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (norm);
-					if (debug)
-					{
-						Real sum = lat->ComputeTheta(phi);
-						NAMICS_DBG("Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl);
-					}
+				if (debug)
+				{
+					Real sum = lat->ComputeTheta(phi);
+					NAMICS_DBG("Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl);
+				}
 				k++;
 			}
 		}
@@ -2277,14 +2074,15 @@ for (int j=0; j<n_mol; j++) {
 			length = Mol[solvent]->MolMonList.size();
 			while (k < length) {
 				Real *phi = Mol[solvent]->phi + k * M;
-				if (norm > 0)
+				if (norm > 0) {
 					for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (norm);
-					if (debug)
-					{
-						Real sum;
-						(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
-						NAMICS_DBG("Sumphi in mol " << solvent << "for mon " << k << ":" << sum << endl);
-					}
+				}
+				if (debug)
+				{
+					Real sum;
+					(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
+					NAMICS_DBG("Sumphi in mol " << solvent << "for mon " << k << ":" << sum << endl);
+				}
 				k++;
 			}
 		}
@@ -2296,14 +2094,15 @@ for (int j=0; j<n_mol; j++) {
 		while (k < length)
 		{
 			Real *phi = Mol[neutralizer]->phi + k * M;
-			if (Mol[neutralizer]->norm > 0)
+			if (Mol[neutralizer]->norm > 0) {
 				for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (Mol[neutralizer]->norm);
-				if (debug)
-				{
-					Real sum;
-					(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
-					NAMICS_DBG("Sumphi in mol " << neutralizer << "for mon " << k << ":" << sum << endl);
-				}
+			}
+			if (debug)
+			{
+				Real sum;
+				(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (phi)[__i];
+				NAMICS_DBG("Sumphi in mol " << neutralizer << "for mon " << k << ":" << sum << endl);
+			}
 			k++;
 		}
 	}
@@ -2367,136 +2166,6 @@ for (int j=0; j<n_mol; j++) {
 	}
 //(result) = 0; for (int __i = 0; __i < (M); ++__i) (result) += (phitot)[__i];
 
-	if (CalculationType=="steady_state") {
-		Real PhiTot0=0;
-		Real PhiTotM=0;
-		Real Qtot0=0;
-		Real QtotM=0;
-		int MX=lat->MX;
-		int MY=lat->MY;
-		int JX=lat->JX;
-		int gradients=lat->gradients;
-
-		for (int i = 0; i < n_seg; i++) Seg[i]->PutContraintBC();
-					//make sure that both bounds have sumphi=1 and are neutral.
-
-		switch (gradients) {
-			case 1:
-				for (int i = 0; i < n_seg; i++) {
-					if (!(Seg[i]->used_in_mol_nr==solvent || Seg[i]->used_in_mol_nr==neutralizer)) {
-						PhiTot0+=Seg[i]->phi[0];
-						Qtot0+=Seg[i]->phi[0]*Seg[i]->valence;
-						PhiTotM+=Seg[i]->phi[M-1];
-						QtotM+=Seg[i]->phi[M-1]*Seg[i]->valence;
-					}
-				}
-
-				if (Qtot0!=0 && neutralizer==-1) cout <<"Error: neutralizer needed, but was not found. Outcome uncertain" << endl;
-				if (Qtot0!=0) {
-					Mol[neutralizer]->phitot[0]=-Qtot0/Mol[neutralizer]->Charge(); PhiTot0 +=Mol[neutralizer]->phitot[0];
-					Mol[neutralizer]->phitot[M-1]=-QtotM/Mol[neutralizer]->Charge(); PhiTotM +=Mol[neutralizer]->phitot[M-1];
-				}
-
-				Mol[solvent]->phitot[0]=1.0-PhiTot0;
-				Mol[solvent]->phitot[M-1]=1.0-PhiTotM;
-
-				for (int i=0; i<n_seg; i++) {
-
-					if (Seg[i]->used_in_mol_nr==solvent) {
-						Seg[i]->phi[0]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[0];
-						Seg[i]->phi[M-1]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[M-1];
-					}
-					if (Seg[i]->used_in_mol_nr==neutralizer) {
-						Seg[i]->phi[0]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[0];
-						Seg[i]->phi[M-1]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[M-1];
-					}
-
-				}
-				break;
-			case 2:
-
-					for (int x=1; x<MX+1; x++) {
-						PhiTot0=0;
-						PhiTotM=0;
-						Qtot0=0;
-						QtotM=0;
-						for (int i = 0; i < n_seg; i++) {
-							if (!(Seg[i]->used_in_mol_nr==solvent || Seg[i]->used_in_mol_nr==neutralizer)) {
-								PhiTot0+=Seg[i]->phi[x*JX+0];
-								Qtot0+=Seg[i]->phi[x*JX+0]*Seg[i]->valence;
-								PhiTotM+=Seg[i]->phi[x*JX+MY+1];
-								QtotM+=Seg[i]->phi[x*JX+MY+1]*Seg[i]->valence;
-							}
-						}
-
-						if (Qtot0!=0) {
-							Mol[neutralizer]->phitot[x*JX+0]=-Qtot0/Mol[neutralizer]->Charge(); PhiTot0 +=Mol[neutralizer]->phitot[x*JX+0];
-							Mol[neutralizer]->phitot[x*JX+MY+1]=-QtotM/Mol[neutralizer]->Charge(); PhiTotM +=Mol[neutralizer]->phitot[x*JX+MY+1];
-						}
-
-						Mol[solvent]->phitot[x*JX+0]=1.0-PhiTot0;
-						Mol[solvent]->phitot[x*JX+MY+1]=1.0-PhiTotM;
-
-						for (int i=0; i<n_seg; i++) {
-
-							if (Seg[i]->used_in_mol_nr==solvent) {
-								Seg[i]->phi[x*JX+0]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[x*JX+0];
-								Seg[i]->phi[x*JX+MY+1]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[x*JX+MY+1];
-							}
-							if (Seg[i]->used_in_mol_nr==neutralizer) {
-								Seg[i]->phi[x*JX+0]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[x*JX+0];
-								Seg[i]->phi[x*JX+MY+1]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[x*JX+MY+1];
-							}
-
-						}
-					}
-					for (int y=1; y<MY+1; y++) {
-						PhiTot0=0;
-						PhiTotM=0;
-						Qtot0=0;
-						QtotM=0;
-						for (int i = 0; i < n_seg; i++) {
-							if (!(Seg[i]->used_in_mol_nr==solvent || Seg[i]->used_in_mol_nr==neutralizer)) {
-								PhiTot0+=Seg[i]->phi[0+y];
-								Qtot0+=Seg[i]->phi[0+y]*Seg[i]->valence;
-								PhiTotM+=Seg[i]->phi[(MX+1)*JX+y];
-								QtotM+=Seg[i]->phi[(MX+1)*JX+y]*Seg[i]->valence;
-							}
-						}
-
-						if (Qtot0!=0) {
-							Mol[neutralizer]->phitot[0+y]=-Qtot0/Mol[neutralizer]->Charge(); PhiTot0 +=Mol[neutralizer]->phitot[0+y];
-							Mol[neutralizer]->phitot[(MX+1)*JX+y]=-QtotM/Mol[neutralizer]->Charge(); PhiTotM +=Mol[neutralizer]->phitot[(MX+1)*JX+y];
-						}
-
-						Mol[solvent]->phitot[0+y]=1.0-PhiTot0;
-						Mol[solvent]->phitot[(MX+1)*JX+y]=1.0-PhiTotM;
-
-						for (int i=0; i<n_seg; i++) {
-
-							if (Seg[i]->used_in_mol_nr==solvent) {
-								Seg[i]->phi[0+y]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[0+y];
-								Seg[i]->phi[(MX+1)*JX+y]=Mol[solvent]->fraction(i)*Mol[solvent]->phitot[(MX+1)*JX+y];
-							} //else
-							if (Seg[i]->used_in_mol_nr==neutralizer) {
-								Seg[i]->phi[0+y]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[0+y];
-								Seg[i]->phi[(MX+1)*JX+y]=Mol[neutralizer]->fraction(i)*Mol[neutralizer]->phitot[(MX+1)*JX+y];
-							}
-
-						}
-					}
-				break;
-			default:
-				break;
-		}
-
-
-		int it_mon_length=ItMonList.size();
-		std::fill_n(B_phitot, M, 0);
-		for (int i=0; i<it_mon_length; i++)
-			for (int __i = 0; __i < (M); ++__i) (B_phitot)[__i] += (Seg[ItMonList[i]]->B) * (Seg[ItMonList[i]]->phi)[__i];
-	}
-
 	for (int i = 0; i < n_seg; i++) {
 		Seg[i]->SetPhiSide();
 	}
@@ -2523,27 +2192,12 @@ bool System::CheckResults(bool e_info_)
 
 	FreeEnergy = GetFreeEnergy();
 	GrandPotential = GetGrandPotential();
-	if (CalculationType=="steady_state") {
-		CreateMu(lat->M-2); //assuming 1 gradient systems....
-		for (int i=0; i<n_mol; i++) {
-			Mol[i]->Delta_MU=Mol[i]->Mu;
-		}
-		CreateMu(1);
-		for (int i=0; i<n_mol; i++) {
-			Mol[i]->Delta_MU-=Mol[i]->Mu;
-
-		}
-
-	}
 	CreateMu(lat->M);
 
-	if ((e_info&& first_pass && CalculationType!="steady_state"))
+	if (e_info && first_pass)
 	{
 		cout << "free energy                 = " << FreeEnergy << endl;
 		cout << "grand potential             = " << GrandPotential << endl;
-	} else {
-		if (CalculationType=="steady_state")
-		cout << "free energy                 = " << FreeEnergy << endl;
 	}
 	Real n_times_mu = 0;
 	for (int i = 0; i < n_mol; i++)
@@ -2554,7 +2208,7 @@ bool System::CheckResults(bool e_info_)
 			n = Mol[i]->n_box;
 		n_times_mu += n * Mu;
 	}
-	if ((e_info && first_pass && CalculationType!="steady_state"))
+	if (e_info && first_pass)
 	{
 		cout << "free energy     (GP + n*mu) = " << GrandPotential + n_times_mu << endl;
 		cout << "grand potential (F - n*mu)  = " << FreeEnergy - n_times_mu << endl<<endl;;
@@ -3105,7 +2759,7 @@ bool System::CreateMu(int pos)
 					}
 				}
 				for (int l = 0; l < statelistlength; l++)
-				{     //adjust for steady_state
+				{     //include state contributions
 					phibulkB = Seg[Sta[l]->mon_nr]->state_phibulk[Sta[l]->state_nr];
 					FB = Mol[i]->fraction(Sta[l]->mon_nr) * Seg[Sta[l]->mon_nr]->state_alphabulk[Sta[l]->state_nr];
 					if (Mol[i]->IsTagged())

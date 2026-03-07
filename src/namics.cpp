@@ -82,7 +82,6 @@ int main(int argc, char *argv[])
 	int start = 0;
 	int n_starts = 0;
 
-	string final_guess;
 	string METHOD = "";
 	Real *X = NULL;
 	int MX = 0, MY = 0, MZ = 0;
@@ -275,10 +274,10 @@ int main(int argc, char *argv[])
 		{
 			MONLIST.clear();
 			STATELIST.clear();
-			if (!Lat->ReadGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 0))
+			if (!io::ReadInitialGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 0))
 			{
 				// last argument 0 is to first checkout sizes of system.
-				return 0;
+				return 1;
 			}
 			int nummon = MONLIST.size();
 			int numstate = STATELIST.size();
@@ -301,7 +300,9 @@ int main(int argc, char *argv[])
 			}
 			MONLIST.clear();
 			STATELIST.clear();
-			Lat->ReadGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 1);
+			if (!io::ReadInitialGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 1)) {
+				return 1;
+			}
 			// last argument 1 is to read guess in X.
 		}
 
@@ -363,22 +364,6 @@ int main(int argc, char *argv[])
 				New->PushOutput();
 
 				if (Out) Out->WriteOutput(subloop);
-				if (Sys->final_guess == "file")
-				{
-					MONLIST.clear();
-					STATELIST.clear();
-					int mon_length = Sys->ItMonList.size();
-					int state_length = Sys->ItStateList.size();
-					for (int i = 0; i < mon_length; i++)
-					{
-						MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
-					}
-					for (int i = 0; i < state_length; i++)
-					{
-						STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
-					}
-					Lat->StoreGuess(Sys->guess_outputfile, New->xx, New->SCF_method, MONLIST, STATELIST, Sys->charged, start);
-				}
 
 
 				subloop++;
@@ -413,23 +398,6 @@ int main(int argc, char *argv[])
 				STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
 			}
 		}
-		if (Sys->final_guess == "file")
-		{
-			MONLIST.clear();
-			STATELIST.clear();
-			int mon_length = Sys->ItMonList.size();
-			int state_length = Sys->ItStateList.size();
-			for (int i = 0; i < mon_length; i++)
-			{
-				MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
-			}
-			for (int i = 0; i < state_length; i++)
-			{
-				STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
-			}
-			Lat->StoreGuess(Sys->guess_outputfile, New->xx, New->SCF_method, MONLIST, STATELIST, Sys->charged, start);
-		}
-
 		/******** Clear all class instances ********/
 
 		lat_p.reset();
