@@ -241,14 +241,16 @@ NAMICS_DBG("GetValue in output " << endl); auto it = PARAMETERS.find(parameter);
 int* Output::GetPointerInt(string key, string name, string prop, int &Size) {
 NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
+	int statelistlength=In->StateList.size();
 	int listlength;
 	int choice;
 	int i,j;
 	if  (key=="sys") choice=1;
 	if  (key=="mol") choice=2;
 	if  (key=="mon") choice=3;
-	if (key=="lat") choice=4;
-	if (key=="output") choice = 5;
+	if (key=="state") choice=4;
+	if (key=="lat") choice=5;
+	if (key=="output") choice = 6;
 
 	switch(choice) {
 		case 1:
@@ -288,6 +290,20 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 			}
 			break;
 		case 4:
+			i=0;
+			while (i<statelistlength){
+				if (name==In->StateList[i]) {
+					listlength= Sta[i]->strings.size();
+					j=0;
+					while (j<listlength) {
+						if (prop==Sta[i]->strings[j]) return Sta[i]->GetPointerInt(Sta[i]->strings_value[j],Size);
+						j++;
+					}
+				}
+				i++;
+			}
+			break;
+		case 5:
 			listlength= lat->strings.size();
 			j=0;
 			while (j<listlength) {
@@ -295,7 +311,7 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 				j++;
 			}
 			break;
-		case 5:
+		case 6:
 			listlength=PointerVectorInt.size();
 			j=0;
 			while (j<listlength) {
@@ -311,14 +327,16 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 Real* Output::GetPointer(string key, string name, string prop, int &Size) {
 NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
+	int statelistlength=In->StateList.size();
 	int listlength;
 	int choice;
 	int i,j;
 	if  (key=="sys") choice=1;
 	if  (key=="mol") choice=2;
 	if  (key=="mon") choice=3;
-	if (key=="lat") choice=4;
-	if (key=="output") choice = 5;
+	if (key=="state") choice=4;
+	if (key=="lat") choice=5;
+	if (key=="output") choice = 6;
 
 	switch(choice) {
 		case 1:
@@ -358,6 +376,24 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 			}
 			break;
 		case 4:
+			i=0;
+			while (i<statelistlength){
+				if (name==In->StateList[i]) {
+					if (prop=="phi") {
+						Size = lat->M;
+						return Seg[Sta[i]->mon_nr]->phi_state + Sta[i]->state_nr * Size;
+					}
+					listlength= Sta[i]->strings.size();
+					j=0;
+					while (j<listlength) {
+						if (prop==Sta[i]->strings[j]) return Sta[i]->GetPointer(Sta[i]->strings_value[j],Size);
+						j++;
+					}
+				}
+				i++;
+			}
+			break;
+		case 5:
 			listlength= lat->strings.size();
 			j=0;
 			while (j<listlength) {
@@ -365,7 +401,7 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 				j++;
 			}
 			break;
-		case 5:
+		case 6:
 			listlength=PointerVectorReal.size();
 			j=0;
 			while (j<listlength) {
@@ -381,14 +417,16 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 int Output::GetValue(string key, string name, string prop, int &int_result, Real &Real_result, string &string_result) {
 NAMICS_DBG("GetValue (long) in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
+	int statelistlength=In->StateList.size();
 	int choice=0;
 	int i;
 	if  (key=="sys") choice=1;
 	if  (key=="mol") choice=2;
 	if  (key=="mon") choice=3;
-	if  (key=="newton") choice=4;
-	if  (key=="lat") choice=5;
-	if  (key=="output") choice=6;
+	if  (key=="state") choice=4;
+	if  (key=="newton") choice=5;
+	if  (key=="lat") choice=6;
+	if  (key=="output") choice=7;
 	switch(choice) {
 		case 1:
 			return Sys->GetValue(prop,int_result,Real_result,string_result);
@@ -408,12 +446,19 @@ NAMICS_DBG("GetValue (long) in output " << endl); int monlistlength=In->MonList.
 			}
 			break;
 		case 4:
-			return New->GetValue(prop,int_result,Real_result,string_result);
+			i=0;
+			while (i<statelistlength){
+				if (name==In->StateList[i]) return Sta[i]->GetValue(prop,int_result,Real_result,string_result);
+				i++;
+			}
 			break;
 		case 5:
-			return lat->GetValue(prop,int_result,Real_result,string_result);
+			return New->GetValue(prop,int_result,Real_result,string_result);
 			break;
 		case 6:
+			return lat->GetValue(prop,int_result,Real_result,string_result);
+			break;
+		case 7:
 			return GetValue(prop,name,int_result,Real_result,string_result);
 			break;
 		default:
