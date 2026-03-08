@@ -8,7 +8,6 @@ import os
 import re
 import subprocess
 import sys
-import tarfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -103,8 +102,12 @@ def set_commented_setting(
     first_start = _find_first_start(lines)
 
     for idx, line in enumerate(lines):
+        raw = line.strip()
+        uncommented = _LINE_COMMENT_RE.sub("", raw, count=1).strip()
         split = _split_key_value(line)
-        if split is not None and split[0] == target_key:
+        if (split is not None and split[0] == target_key) or (
+            uncommented and _normalize_key(uncommented) == target_key
+        ):
             if not replaced:
                 out_lines.append(rendered)
                 replaced = True
@@ -229,31 +232,6 @@ def require_file(path: Path, executable: bool = False) -> None:
     if not path.is_file():
         raise TestError(f"ERROR: required file not found: {path}")
 
-
-def ensure_file_from_archive(archive_file: Path, member_name: str, destination_file: Path) -> bool:
-    """Extract MEMBER from ARCHIVE into DESTINATION, returning True on success."""
-    if destination_file.is_file():
-        return True
-    if not archive_file.is_file():
-        return False
-
-    destination_file.parent.mkdir(parents=True, exist_ok=True)
-    target_member = member_name.replace("\\", "/")
-
-    with tarfile.open(archive_file, mode="r:gz") as tf:
-        candidate = None
-        for info in tf.getmembers():
-            if info.name.replace("\\", "/") == target_member:
-                candidate = info
-                break
-        if candidate is None:
-            return False
-        extracted = tf.extractfile(candidate)
-        if extracted is None:
-            return False
-        destination_file.write_bytes(extracted.read())
-
-    return destination_file.is_file()
 
 def utc_run_id() -> str:
     ns = time.time_ns()
