@@ -216,7 +216,9 @@ NAMICS_DBG("weighted sum in LGrad1 " << endl);	Real sum{0};
 	remove_bounds(X);
 	if (geometry=="planar") {
 		(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i]; sum/=fjc;
-	} else (sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i] * (L)[__i];
+	} else {
+		(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i] * (L)[__i];
+	}
 	return sum;
 }
 
