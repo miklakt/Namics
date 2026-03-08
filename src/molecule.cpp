@@ -109,15 +109,6 @@ int M=lat->M;
 	std::copy_n(KSAM, M, UNITY);
 	bool success=true;
 	std::fill_n(phitot, M, 0);
-
-
-		//lat->set_bounds(u+i*M);
-
-		//lat->set_bounds(u+i*M);
-
-
-		//lat->set_bounds(G1+i*M);
-	//}
 	std::fill_n(phi, M*MolMonList.size(), 0);
 
 
@@ -194,90 +185,79 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 					}
 				}
 			}
-		} else
-		if (GetValue("freedom").size()==0 && !IsTagged() ) {
-			cout <<"For mol " + name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' 'range_restricted' 'tagged' . Problem terminated " << endl; success = false;
-			} else {
+		} else if (GetValue("freedom").size()==0) {
+			cout <<"For mol " + name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' 'range_restricted' . Problem terminated " << endl;
+			success = false;
+		} else {
+			vector<string> free_list;
+			if (!IsPinned()) {
+				free_list.push_back("free");
+				free_list.push_back("solvent");
+				free_list.push_back("neutralizer");
+				free_list.push_back("range_restricted");
+			}
+			free_list.push_back("restricted");
+			if (!ParseString(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) success=false;
+			if (freedom == "solvent") {
+				if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the solvent" << endl; }
+			}
+			if (freedom == "neutralizer") {
+				if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the neutralizer" << endl; }
+				if (!IsCharged()) {success=false; cout << "Mol '" + name + "' is not 'charged' and therefore this molecule can not be the neutralizer" << endl; }
+			}
+			if (freedom == "free") {
+				if (GetValue("phibulk").size() ==0) {
+					cout <<"In mol " + name + ", the setting 'freedom = free' should be combined with a value for 'phibulk'. "<<endl; return false;
+				} else {
+					phibulk=ParseReal(GetValue("phibulk"),-1);
+					if (phibulk < 0 || phibulk >1) {
+						cout << "In mol " + name + ", the value of 'phibulk' is out of range 0 .. 1." << endl; return false;
+					}
+				}
+			}
 
-				if (!IsTagged()) {
-				vector<string> free_list;
-				if (!IsPinned()) {
-					free_list.push_back("free");
-					free_list.push_back("solvent");
-					free_list.push_back("neutralizer");
-					free_list.push_back("range_restricted");
+			B=1;
+			if (GetValue("B").size()>0){
+				B=ParseReal(GetValue("B"),B);
+				if (B<1e-9) {
+					cout <<"for Mol" + name + " mobility B should have a posititve value. Default value B=1 is chosen. " << endl;
+					B=1;
 				}
-				free_list.push_back("restricted");
-				if (!ParseString(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) success=false;
-				if (freedom == "solvent") {
-					if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the solvent" << endl; }
-				}
-				if (freedom == "neutralizer") {
-					if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the neutralizer" << endl; }
-					if (!IsCharged()) {success=false; cout << "Mol '" + name + "' is not 'charged' and therefore this molecule can not be the neutralizer" << endl; }
-				}
-				if (freedom == "free") {
-					if (GetValue("phibulk").size() ==0) {
-						cout <<"In mol " + name + ", the setting 'freedom = free' should be combined with a value for 'phibulk'. "<<endl; return false;
+			}
+
+			if (freedom == "restricted" || freedom=="range_restricted") {
+				if (GetValue("theta").size() ==0 && GetValue("n").size()==0) {
+					cout <<"In mol " + name + ", the setting 'freedom = restricted' or 'freedom = range_restricted',should be combined with a value for 'theta' or 'n'; do not use both settings! "<<endl; success=false;
+				} else {
+					if (GetValue("theta").size() >0 && GetValue("n").size()>0) {
+						cout <<"In mol " + name + ", the setting 'freedom = restricted' of 'freedom = range_restricted' do not specify both 'n' and 'theta' "<<endl; success=false;
 					} else {
-						phibulk=ParseReal(GetValue("phibulk"),-1);
-						if (phibulk < 0 || phibulk >1) {
-							cout << "In mol " + name + ", the value of 'phibulk' is out of range 0 .. 1." << endl; return false;
+						if (GetValue("n").size()>0) {n=ParseReal(GetValue("n"),10*lat->volume);theta=n*chainlength;}
+						if (GetValue("theta").size()>0) {theta = ParseReal(GetValue("theta"),10*lat->volume);n=theta/chainlength;}
+						if (theta < 0 || theta > lat->volume) {
+							cout << "In mol " + name + ", the value of 'n' or 'theta' is out of range 0 .. 'volume', cq 'volume'/N." << endl; success=false;
 						}
 					}
 				}
-
-				B=1;
-				if (GetValue("B").size()>0){
-					B=ParseReal(GetValue("B"),B);
-					if (B<1e-9) {
-						cout <<"for Mol" + name + " mobility B should have a posititve value. Default value B=1 is chosen. " << endl;
-						B=1;
-					}
+			}
+			if (freedom =="range_restricted" ) {
+				if (GetValue("restricted_range").size() ==0) {
+					success=false;
+					cout<<"In mol '" + name + "', freedom is set to 'range_restricted'. In this case we expect the setting for 'restricted_range'. This setting was not found. Problem terminated. " << endl;
+				} else { //read range;
+					int *HP=NULL;
+					int M=lat->M;
+					int npos=0;
+					bool block;
+					R_mask=(Real*)malloc(M*sizeof(Real));
+					string s="restricted_range";
+					int *r=(int*) malloc(6*sizeof(int));
+					success=lat->ReadRange(r,HP,npos,block,GetValue("restricted_range"),0,name,s);
+					lat->CreateMASK(R_mask,r,HP,npos,block);
+					theta_range = theta;
+					n_range = theta_range/chainlength;
+					free(r);
 				}
-
-				if (freedom == "restricted" || freedom=="range_restricted") {
-					//} else {
-						if (GetValue("theta").size() ==0 && GetValue("n").size()==0) {
-							cout <<"In mol " + name + ", the setting 'freedom = restricted' or 'freedom = range_restricted',should be combined with a value for 'theta' or 'n'; do not use both settings! "<<endl; success=false;
-						} else {
-							if (GetValue("theta").size() >0 && GetValue("n").size()>0) {
-							cout <<"In mol " + name + ", the setting 'freedom = restricted' of 'freedom = range_restricted' do not specify both 'n' and 'theta' "<<endl; success=false;
-							} else {
-
-								if (GetValue("n").size()>0) {n=ParseReal(GetValue("n"),10*lat->volume);theta=n*chainlength;}
-								if (GetValue("theta").size()>0) {theta = ParseReal(GetValue("theta"),10*lat->volume);n=theta/chainlength;}
-								if (theta < 0 || theta > lat->volume) {
-									cout << "In mol " + name + ", the value of 'n' or 'theta' is out of range 0 .. 'volume', cq 'volume'/N." << endl; success=false;
-
-								}
-							}
-						}
-					//}
-				}
-				if (freedom =="range_restricted" ) {
-					if (GetValue("restricted_range").size() ==0) {
-						success=false;
-						cout<<"In mol '" + name + "', freedom is set to 'range_restricted'. In this case we expect the setting for 'restricted_range'. This setting was not found. Problem terminated. " << endl;
-					} else { //read range;
-						int *HP=NULL;
-						int M=lat->M;
-						int npos=0;
-						bool block;
-						R_mask=(Real*)malloc(M*sizeof(Real));
-						string s="restricted_range";
-						int *r=(int*) malloc(6*sizeof(int));
-						success=lat->ReadRange(r,HP,npos,block,GetValue("restricted_range"),0,name,s);
-						lat->CreateMASK(R_mask,r,HP,npos,block);
-						theta_range = theta;
-						n_range = theta_range/chainlength;
-						free(r);
-					}
-
-				}
-
-			} else {
-				if (GetValue("theta").size() >0 || GetValue("n").size() > 0 || GetValue("phibulk").size() >0 || GetValue("freedom").size() > 0) cout <<"Warning. In mol " + name + " tagged segment(s) were detected. In this case no value for 'freedom' is needed, and also 'theta', 'n' and 'phibulk' values are ignored. " << endl;
 			}
 		}
 
@@ -548,8 +528,6 @@ NAMICS_DBG("Molecule:: GenerateTree" << endl);
 	return success;
 }
 
-//}
-
 bool Molecule::Decomposition(string s){
 NAMICS_DBG("Decomposition for Mol " + name << endl);
 	bool success = true;
@@ -613,10 +591,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 			xxx=n_mon[i]; n_mon[i]=n_mon[length-1-i]; n_mon[length-1-i]=xxx;
 			xxx=mon_nr[i]; mon_nr[i]=mon_nr[length-1-i]; mon_nr[length-1-i]=xxx;
 		}
-		//		}
-		//}
-
-	}
+		}
 
 	success=MakeMonList();
 	if (chainlength==1) MolType=monomer;
@@ -679,18 +654,6 @@ NAMICS_DBG("GetPinnedSeg for Mol " + name << endl);
 		i++;
 	}
 	return segnr;
-}
-
-bool Molecule::IsTagged() {
-NAMICS_DBG("IsTagged for Mol " + name << endl);
-	bool success=false;
-	int length=MolMonList.size();
-	int i=0;
-	while (i<length) {
-		if (Seg[MolMonList[i]]->freedom=="tagged") {success = true; tag_segment=MolMonList[i]; }
-		i++;
-	}
-	return success;
 }
 
 Real Molecule::Charge() {
@@ -771,7 +734,7 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 	ints.clear();
 	ints_value.clear();
 	push("composition",GetValue("composition"));
-	if (IsTagged()) {string s="tagged"; push("freedom",s);} else {push("freedom",freedom);}
+	push("freedom",freedom);
 	if (freedom=="free") theta = lat->WeightedSum(phitot);
 	push("Markov",Markov);
 	push("k_stiff",k_stiff);
@@ -818,11 +781,6 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 			if (k==4) push("P[4]",P[4]);
 		}
 	}
-	//	    lat->remove_bounds(phitot);
-	//	    (theta) = 0; for (int __i = 0; __i < (lat->M); ++__i) (theta) += (phitot)[__i];
-	//  }
-	//}
-
 	push("Rg",pow((lat->Moment(phitot,0.0,2)/chainlength),0.5));
 	lat->remove_bounds(phitot);
 	theta=lat->WeightedSum(phitot);
@@ -1228,7 +1186,6 @@ NAMICS_DBG("1. propagate_forward for Mol " + name << endl);
 		if (s==first_s[generation]) {
 
 			lat->Initiate(Gs+size*M,G1,Markov,M);
-			//lat->Initiate(Gs,G1,Markov,M); //not necessary.
 		} else {
 			lat->propagateF(Gs,G1,P,0,1,M); //assuming Gs contains previous end-point distribution on pos zero;
 

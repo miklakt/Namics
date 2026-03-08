@@ -466,23 +466,35 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 	if (!write) return;
 	int Size=0;
 	string filename;
-	const string configured_filename = GetValue("filename");
-	const string infilename = configured_filename.size() > 0 ? configured_filename : In->name;
-	std::filesystem::path out_path(infilename);
-	out_path = out_path.filename();
-
 	string base_name;
-	if (out_path.has_stem()) {
-		base_name = out_path.stem().string();
+	const string configured_filename = GetValue("filename");
+	if (configured_filename.size() > 0) {
+		std::filesystem::path configured_path(In->ResolvePath(configured_filename));
+		if (configured_path.extension() != ".json") {
+			configured_path.replace_extension(".json");
+		}
+		filename = configured_path.string();
+		if (configured_path.has_stem()) {
+			base_name = configured_path.stem().string();
+		} else {
+			base_name = configured_path.filename().string();
+		}
 	} else {
-		base_name = out_path.filename().string();
-	}
-	if (base_name.empty()) {
-		base_name = "output";
-	}
+		std::filesystem::path out_path(In->name);
+		out_path = out_path.filename();
 
-	filename = base_name + ".json";
-	filename = In->GetOutputPath() + filename;
+		if (out_path.has_stem()) {
+			base_name = out_path.stem().string();
+		} else {
+			base_name = out_path.filename().string();
+		}
+		if (base_name.empty()) {
+			base_name = "output";
+		}
+
+		filename = base_name + ".json";
+		filename = In->GetOutputPath() + filename;
+	}
 
 	vector<Real*> profile_pointer;
 	vector<string> profile_header;

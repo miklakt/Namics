@@ -396,6 +396,61 @@ inline bool ReadSanitizedFile(const std::string& filename, std::string& buffer) 
 }
 
 template <typename RealT>
+inline bool ReadExternalPotentialJson(const std::string& filename,
+                                      std::vector<RealT>& values) {
+	std::string content;
+	if (!detail::ReadWholeFile(filename, content)) {
+		std::cout << "Inputfile " << filename << " is not found. " << std::endl;
+		return false;
+	}
+
+	const auto try_object = [&](const std::string& object_text) {
+		if (detail::ExtractNumberArrayForKey(object_text, "external_potential", values)) return true;
+		std::string profiles_object;
+		if (detail::ExtractEnclosedForKey(object_text, "profiles", '{', '}', profiles_object) &&
+		    detail::ExtractNumberArrayForKey(profiles_object, "external_potential", values)) {
+			return true;
+		}
+		return false;
+	};
+
+	const std::string key = "\"problems\"";
+	const size_t key_pos = content.find(key);
+	if (key_pos != std::string::npos) {
+		const size_t colon = content.find(':', key_pos + key.size());
+		if (colon != std::string::npos) {
+			const size_t value_pos = detail::SkipWs(content, colon + 1);
+			if (value_pos < content.size() && content[value_pos] == '[') {
+				const size_t array_end = detail::FindMatchingDelimiter(content, value_pos, '[', ']');
+				if (array_end != std::string::npos) {
+					size_t pos = value_pos + 1;
+					std::string object_text;
+					while (pos < array_end) {
+						pos = detail::SkipWs(content, pos);
+						if (pos >= array_end) break;
+						if (content[pos] == ',') {
+							++pos;
+							continue;
+						}
+						if (content[pos] != '{') break;
+						const size_t object_end = detail::FindMatchingDelimiter(content, pos, '{', '}');
+						if (object_end == std::string::npos || object_end > array_end) break;
+						object_text = content.substr(pos, object_end - pos + 1);
+						pos = object_end + 1;
+					}
+					if (!object_text.empty() && try_object(object_text)) return true;
+				}
+			}
+		}
+	}
+
+	if (try_object(content)) return true;
+
+	std::cout << "Unable to find json array 'external_potential' in " << filename << std::endl;
+	return false;
+}
+
+template <typename RealT>
 inline bool ReadInitialGuess(const std::string& filename,
                              RealT* x,
                              std::string& method,

@@ -709,13 +709,7 @@ NAMICS_DBG("ReadRangeFile in LGrad2 " << endl);	if (fjc>1) {
 	string content;
 	vector<string> lines;
 	vector<string> xyz;
-	string input_stem = In->name;
-	const size_t slash_pos = input_stem.find_last_of("/\\");
-	const size_t dot_pos = input_stem.find_last_of('.');
-	if (dot_pos != string::npos && (slash_pos == string::npos || dot_pos > slash_pos)) {
-		input_stem.erase(dot_pos);
-	}
-	const string resolved_range_file = input_stem + "." + filename;
+	const string resolved_range_file = In->ResolvePath(filename);
 
 	int length;
 	int length_xyz;
@@ -782,7 +776,7 @@ bool LGrad2::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, s
 	if (px.size()==0) {
 		readfile=true;
 		string content;
-		success=io::ReadSanitizedFile(filename,content);
+		success=io::ReadSanitizedFile(In->ResolvePath(filename),content);
 		if (success) {
 			In->split(content,'#',lines);
 			length = lines.size();

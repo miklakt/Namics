@@ -54,9 +54,6 @@ public:
 
 	int n_pos;
 	int* r;
-	Real Amplitude;
-	int labda;
-	int seed;
 	int start;
 	int var_pos;
 	int frozen_at_bound;
@@ -82,7 +79,7 @@ public:
 	Real* GetPointer(string,int&);
 	int* GetPointerInt(string,int&);
 	int GetValue(string,int&,Real&,string&);
-	bool SetExternalPotentials();
+	bool LoadExternalPotential();
 	Real Get_g(int ) ;
 	void Put_beta(int, Real );
 	void PutContraintBC ();
@@ -125,7 +122,6 @@ public:
 	bool IsFree();
 	bool IsPinned();
 	bool IsFrozen();
-	bool IsTagged();
 	Real* GetMASK();
 	Real* GetPhi();
 	void DeAllocateMemory();

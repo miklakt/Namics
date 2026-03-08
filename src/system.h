@@ -27,7 +27,6 @@ public:
 	vector<int> ItMonList;
 	vector<int> ItStateList;
 	vector<int> FrozenList;
-	vector<int> SysTagList;
 	vector<int> FillList;
 	vector<int> XmolList;
 	vector<int> XstateList_1;
@@ -71,7 +70,6 @@ public:
 	int n_mol;
 	int solvent;
 	int neutralizer;
-	int tag_segment;
 	Real volume;
 	bool charged;
 	bool local_solution;
@@ -107,7 +105,6 @@ public:
 	Real* GetPointer(string,int&);
 	int* GetPointerInt(string,int&);
 	int GetValue(string,int&,Real&,string&);
-	string CalculationType; // {micro_emulsion,micro_phasesegregation};
 
 	std::vector<string> KEYS;
 	ParameterStore PARAMETERS;

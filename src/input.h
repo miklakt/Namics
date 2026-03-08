@@ -172,6 +172,7 @@ public:
 	bool EvenSquareBrackets(const string&, vector<int>&, vector<int>&) const;
 	bool MakeLists(int);
 	const std::string& GetOutputPath() const;
+	std::string ResolvePath(const std::string&) const;
 
 private:
 	void parseOutputInfo();

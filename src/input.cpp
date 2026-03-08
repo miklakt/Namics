@@ -34,6 +34,12 @@ string NormalizeOutputPath(string path) {
 	return path;
 }
 
+std::filesystem::path InputDirectoryFromName(const string& input_name) {
+	std::filesystem::path input_path(input_name);
+	const std::filesystem::path parent = input_path.parent_path();
+	return parent.empty() ? std::filesystem::path(".") : parent;
+}
+
 bool HasBalancedBrackets(
 	const string& expression,
 	char open_bracket,
@@ -88,6 +94,7 @@ Input::Input(const string& name_) {
 				const string include_spec = In_line.substr(8);
 				if (EndsWith(include_spec, "::")) filename_inc = include_spec.substr(0, include_spec.size() - 2);
 				else filename_inc = include_spec;
+				filename_inc = ResolvePath(filename_inc);
 				inc_file.open(filename_inc);
 				if (inc_file.is_open()) {
 					int line_nr_inc=0;
@@ -136,7 +143,8 @@ bool Input::EvenBrackets(const string& exp,vector<int> &open, vector<int> &close
 bool Input::ReadFile(const string& fname, string &In_buffer) const {
 	ifstream this_file;
 	bool success=true;
-	this_file.open(fname.c_str());
+	const string resolved = ResolvePath(fname);
+	this_file.open(resolved.c_str());
 	std:: string In_line;
 	if (this_file.is_open()) {
 		while (this_file) {
@@ -147,8 +155,8 @@ bool Input::ReadFile(const string& fname, string &In_buffer) const {
 			In_buffer.append(In_line).append("#");
 		}
 		this_file.close();
-		if (In_buffer.size()==0) {cout << "File " + fname + " is empty " << endl; success=false; }
-	} else {cout <<  "Inputfile " << fname << " is not found. " << endl; success=false; }
+		if (In_buffer.size()==0) {cout << "File " + resolved + " is empty " << endl; success=false; }
+	} else {cout <<  "Inputfile " << resolved << " is not found. " << endl; success=false; }
 	return success;
 }
 
@@ -482,13 +490,20 @@ void Input::parseOutputInfo() {
 			continue;
 		}
 		if (param[2] == "folder" && param[3] == "path") {
-			output_path = NormalizeOutputPath(param[4]);
+			output_path = NormalizeOutputPath(ResolvePath(param[4]));
 		}
 	}
 }
 
 const std::string& Input::GetOutputPath() const {
 	return output_path;
+}
+
+std::string Input::ResolvePath(const std::string& path) const {
+	if (path.empty()) return path;
+	const std::filesystem::path candidate(path);
+	if (candidate.is_absolute()) return candidate.lexically_normal().string();
+	return (InputDirectoryFromName(name) / candidate).lexically_normal().string();
 }
 
 bool Input::OutputPathExists() const {

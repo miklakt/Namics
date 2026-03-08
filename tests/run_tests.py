@@ -385,6 +385,14 @@ def _run_optional_diis_leaf(
     return status
 
 
+def _merge_settings(*parts: dict[str, str] | None) -> dict[str, str] | None:
+    merged: dict[str, str] = {}
+    for part in parts:
+        if part:
+            merged.update(part)
+    return merged or None
+
+
 def _run_method_group_regression(
     ctx: Context,
     *,
@@ -396,6 +404,8 @@ def _run_method_group_regression(
     label_stem: str | None = None,
     method_group_label: str = "solver method",
     settings: dict[str, str] | None = None,
+    pseudohessian_settings: dict[str, str] | None = None,
+    diis_settings: dict[str, str] | None = None,
     comment_toggles: list[tuple[str, str, bool]] | None = None,
     required_files: list[Path] | None = None,
     derived_runtime_files: list[tuple[Path, str]] | None = None,
@@ -446,7 +456,7 @@ def _run_method_group_regression(
                 reference_file=reference_file,
                 label=f"{label_base}, mode=pseudohessian",
                 value_tol=value_tol,
-                settings=settings,
+                settings=_merge_settings(settings, pseudohessian_settings),
                 comment_toggles=comment_toggles,
             )
         except Exception as exc:
@@ -464,7 +474,7 @@ def _run_method_group_regression(
             baseline_output=pseudo_output if pseudo_leaf.passed else None,
             label=f"{label_base}, mode=DIIS",
             value_tol=value_tol,
-            settings=settings,
+            settings=_merge_settings(settings, diis_settings),
             comment_toggles=comment_toggles,
         )
 
@@ -654,6 +664,8 @@ def test_frozen_range_input_file(ctx: Context) -> ReportNode:
         runtime_stem="frozen_range_input_file",
         value_tol=1e-6,
         required_files=[source_frozen_file],
+        pseudohessian_settings={"mon : W : frozen_filename": "frozen_range_input_file.pseudohessian.frozen"},
+        diis_settings={"mon : W : frozen_filename": "frozen_range_input_file.diis.frozen"},
         derived_runtime_files=[(source_frozen_file, "frozen")],
     )
 
@@ -737,7 +749,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 reference_file=reference_file,
                 label="micelle guess use, mode=pseudohessian",
                 value_tol=1e-9,
-                settings={"sys : noname : guess_inputfile": str(pseudo_generate_output.relative_to(ctx.repo_root))},
+                settings={"sys : noname : guess_inputfile": pseudo_generate_output.name},
             )
         except Exception as exc:
             pseudo_use_leaf.passed = False
@@ -787,7 +799,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                     baseline_output=pseudo_use_output if pseudo_use_leaf.passed else None,
                     label="micelle guess use, mode=DIIS",
                     value_tol=1e-9,
-                    settings={"sys : noname : guess_inputfile": str(diis_generate_output.relative_to(ctx.repo_root))},
+                    settings={"sys : noname : guess_inputfile": diis_generate_output.name},
                 )
         except Exception as exc:
             diis_use_leaf.details = f"failed (accepted): {exc}"
