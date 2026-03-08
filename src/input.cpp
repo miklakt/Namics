@@ -1,7 +1,11 @@
 #include "input.h"
 #include <cctype>
+#include <filesystem>
 
 namespace {
+constexpr const char* OUTPUT_INFO_KEY = "out_info";
+constexpr const char* DEFAULT_OUTPUT_PATH = "./output/";
+
 void NormalizeLine(string& line, bool strip_tabs = true) {
 	line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
 	if (strip_tabs) {
@@ -20,6 +24,14 @@ bool EndsWith(const string& value, const string& suffix) {
 
 bool IsEmptyOrComment(const string& line) {
 	return line.empty() || (line.size() >= 2 && StartsWith(line, "//"));
+}
+
+string NormalizeOutputPath(string path) {
+	if (path.empty()) return DEFAULT_OUTPUT_PATH;
+	if (path.back() != '/') {
+		path.push_back('/');
+	}
+	return path;
 }
 
 bool HasBalancedBrackets(
@@ -45,6 +57,7 @@ bool HasBalancedBrackets(
 
 Input::Input(const string& name_) {
 	name=name_;
+	output_path = DEFAULT_OUTPUT_PATH;
 	KEYS = {
 		"start",
 		"sys",
@@ -53,7 +66,7 @@ Input::Input(const string& name_) {
 		"lat",
 		"newton",
 		"output",
-		OutputInfo::IN_CLASS_NAME,
+		OUTPUT_INFO_KEY,
 		"state",
 		"reaction"
 	};
@@ -422,8 +435,8 @@ bool Input:: CheckInput(void) {
 		}
 	}
 	if (success) success=MakeLists(1);
-	if (!output_info.isOutputExists()) {
-		cout << "Cannot access output folder '" << output_info.getOutputPath() << "'" << endl;
+	if (!OutputPathExists()) {
+		cout << "Cannot access output folder '" << output_path << "'" << endl;
 		success = false;
 	}
 	return success;
@@ -465,9 +478,19 @@ void Input::parseOutputInfo() {
 	for (const string &line : elems) {
 		vector<string> param;
 		split(line, ':', param);
-		if (param[1] != OutputInfo::IN_CLASS_NAME) {
+		if (param[1] != OUTPUT_INFO_KEY) {
 			continue;
 		}
-		output_info.addProperty(param[2], param[3], param[4]);
+		if (param[2] == "folder" && param[3] == "path") {
+			output_path = NormalizeOutputPath(param[4]);
+		}
 	}
+}
+
+const std::string& Input::GetOutputPath() const {
+	return output_path;
+}
+
+bool Input::OutputPathExists() const {
+	return std::filesystem::is_directory(output_path);
 }

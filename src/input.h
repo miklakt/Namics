@@ -1,7 +1,6 @@
 #ifndef INPUTxH
 #define INPUTxH
 #include "namics.h"
-#include "output_info.h"
 #include <functional>
 #include <cctype>
 
@@ -143,7 +142,7 @@ public:
 	string string_value;
 	bool Input_error;
 	string filename;
-	OutputInfo output_info;
+	std::string output_path;
 
 	std::vector<string> KEYS;
 	std::vector<string> SysList;
@@ -172,9 +171,11 @@ public:
 	bool EvenBrackets(const string&, vector<int>&, vector<int>&) const;
 	bool EvenSquareBrackets(const string&, vector<int>&, vector<int>&) const;
 	bool MakeLists(int);
+	const std::string& GetOutputPath() const;
 
 private:
 	void parseOutputInfo();
+	bool OutputPathExists() const;
 };
 
 #endif

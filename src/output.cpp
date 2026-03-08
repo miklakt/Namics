@@ -490,7 +490,7 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 	}
 
 	filename = base_name + ".json";
-	filename = In->output_info.getOutputPath() + filename;
+	filename = In->GetOutputPath() + filename;
 
 	vector<Real*> profile_pointer;
 	vector<string> profile_header;
