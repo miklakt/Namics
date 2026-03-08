@@ -16,12 +16,8 @@ NAMICS_DBG("Lattice constructor" << endl);	In=&In_; name=name_;
 	KEYS.push_back("fcc_site_fraction");
   	KEYS.push_back("lattice_type");
 	KEYS.push_back("stencil_full");
-	//KEYS.push_back("lambda");
-	//KEYS.push_back("Z");
 	KEYS.push_back("FJC_choices");
 	KEYS.push_back("b/l");
-	//KEYS.push_back("Markov");
-	//KEYS.push_back("k_stiff");
 	sub_box_on = 0;
 	all_lattice = false;
 	ignore_sites=false;
@@ -574,6 +570,8 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 		if (gradients ==2 && fjc>3) {success = false; cout <<" When gradients is 2, FJC-choices are limited to 7 " << endl; }
 		if (gradients ==3 && fjc>2) {success = false; cout <<" When gradients is 3, FJC-choices are limited to 5 " << endl; }
 
+		// TODO: investigate whether this should parse "ignore_site_fraction"
+		// instead of "ignore_sites". Current key lookup and parse key differ.
 		if (GetValue("ignore_site_fraction").length()>0) {
 			ignore_sites=ParseBool(GetValue("ignore_sites"),false);
 			if (!ignore_sites) cout <<"ignore_site_fraction is set to false. Full site fractions computed. " << endl;
@@ -592,120 +590,10 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 			stencil_full=ParseBool(GetValue("stencil_full"),true);
 			if (gradients<3 && stencil_full) cout << "untested territory for 'stencil_full' " << endl;
 		}
-		//Initialize system size and indexing
+		// Initialize system size and indexing.
 		PutM();
-		//} else {
-		//}
-	Markov=1;
-	//}
-	//	}
-//		}
-//	}
+		Markov=1;
 
-	return success;
-}
-
-bool Lattice::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
-	(void)Var_target_value_;
-	bool success=true;
-	Var_target = -1;
-	Var_type=Var_type_;
-	if (Var_type !="scan") {success=false; cout <<"Var type is not 'scan' and therefore var info rejected " << endl; }
-	if (Var_target_=="n_layers") {
-		Var_target=0;VarInitValue=MX/fjc;
-		if (gradients>1) {success=false; cout <<"Var target 'n_layers' rejected because the number of gradients >1 " << endl; }
-	}
-	if (Var_target_=="n_layers_x") {
-		Var_target=1; VarInitValue=MX/fjc;
-		if (gradients==0) {success=false; cout <<"Var target 'n_layers_x' rejected because the number of gradients =1 " << endl; }
-	}
-	if (Var_target_=="n_layers_y") {
-		Var_target=2; VarInitValue=MY/fjc;
-		if (gradients==0) {success=false; cout <<"Var target 'n_layers_y' rejected because the number of gradients =1 " << endl; }
-	}
-	if (Var_target_=="n_layers_z") {
-		Var_target=3; VarInitValue=MZ/fjc;
-		if (gradients==0) {success=false; cout <<"Var target 'n_layers_z' rejected because the number of gradients =1 " << endl; }
-	}
-	if (Var_target_=="offset_firstlayer") {
-		Var_target=4;VarInitValue=offset_first_layer;
-		if (gradients>1) {success=false; cout <<"Var target 'offset_firstlayer' rejected because the number of gradients >1 " << endl; }
-		if (geometry == "planar") {success=false; cout <<"Var target 'offset_firstlayer' rejected because 'geometry' is 'planar' " << endl; }
-	}
-	if (Var_target_=="offset_firstlayer_x") {
-		Var_target=5; VarInitValue=offset_first_layer;
-		if (gradients!=2) {success=false; cout <<"Var target 'offset_firstlayer_x' rejected because the number of gradients !=2 " << endl; }
-		if (geometry != "cylindrical") {success=false; cout <<"Var target 'offset_firstlayer_x' rejected because 'geometry' not 'cylindrical' " << endl; }
-	}
-	return success;
-}
-
-bool Lattice::UpdateVarInfo(int step_nr) {
-	bool success=true;
-	switch(Var_target) {
-		case 0:
-			MX=(VarInitValue+step_nr*Var_step)*fjc;
-			break;
-		case 1:
-			MX=(VarInitValue+step_nr*Var_step)*fjc;
-			break;
-		case 2:
-			MY=(VarInitValue+step_nr*Var_step)*fjc;
-			break;
-		case 3:
-			MZ=(VarInitValue+step_nr*Var_step)*fjc;
-			break;
-		case 4:
-			offset_first_layer=VarInitValue+step_nr*Var_step;
-			break;
-		case 5:
-			offset_first_layer=VarInitValue+step_nr*Var_step;
-			break;
-		default:
-			cout <<"program error in UpdateVarInfo "<<endl;
-			break;
-	}
-	return success;
-}
-
-int Lattice::PutVarScan(int step, int end_value) {
-
-	int num_of_steps=-1;
-	Var_step=step; if (step>0) cout <<"In var scan : of lattice variable, the value of step can not be positive" << endl;
-	Var_end_value=end_value;
-	if (Var_end_value <0) cout <<"In var: scan : of lattice variable, it is impossible to have a negative value for the end_value" << endl;
-	if (step!=0) {
-		num_of_steps = (end_value-VarInitValue)/step;
-		if (num_of_steps<0) cout <<"in var : scan : of lattice variable, end_value and step are not consistent, try changing sign of step " << endl;
-	}
-	return num_of_steps;
-}
-
-bool Lattice::ResetInitValue() {
-	bool success=true;
-	switch(Var_target) {
-		case 0:
-			MX=VarInitValue;
-			break;
-		case 1:
-			MX=VarInitValue;
-			break;
-		case 2:
-			MY=VarInitValue;
-			break;
-		case 3:
-			MZ=VarInitValue;
-			break;
-		case 4:
-			offset_first_layer=VarInitValue;
-			break;
-		case 5:
-			offset_first_layer=VarInitValue;
-			break;
-		default:
-			cout <<"program error in ResetInitValue "<<endl;
-			break;
-	}
 	return success;
 }
 

@@ -67,11 +67,6 @@ public:
 	Real *LABDA_1;
 	int fjc, FJC;
 	Real *X;
-	int VarInitValue;
-	string Var_type;
-	int Var_target;
-	int Var_step;
-	int Var_end_value;
 
 	std::vector<string> KEYS;
 	ParameterStore PARAMETERS;
@@ -100,17 +95,12 @@ public:
 
 	int GetValue(string,int&,Real&,string&);
 	Real GetValue(Real*,string);
-
-	bool PutVarInfo(string,string,Real);
-	bool UpdateVarInfo(int);
-	bool ResetInitValue();
 	bool CheckInput(int,bool);
 
 	bool PutSub_box(int,int,int,int);
 
 	void PutParameter(string);
 	string GetValue(string);
-	int PutVarScan(int, int);
 	bool PrepareForCalculations(void);
 	void DistributeG1(std::span<const Real>, std::span<Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
 	void CollectPhi(std::span<Real>, std::span<const Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
@@ -142,7 +132,6 @@ public:
 	virtual void set_M_bounds(Real*)=0;
 	virtual Real ComputeGN(Real*,int, int)=0;
 	virtual void AddPhiS(Real*,Real*,Real*,int,int) =0;
-	virtual void AddPhiS(Real*,Real*,Real*,Real*,Real,int,int) =0;
 	virtual void AddPhiS(Real*,Real*,Real*,Real,int,int) =0;
 	virtual void Initiate(Real*,Real*,int,int) =0;
 	virtual void Terminate(Real*,Real*,int,int) =0;

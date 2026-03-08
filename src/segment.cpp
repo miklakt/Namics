@@ -16,9 +16,6 @@ NAMICS_DBG("Segment constructor" + name << endl);
 	KEYS.push_back("pinned_filename");
 	KEYS.push_back("frozen_filename");
 	KEYS.push_back("tagged_filename");
-	KEYS.push_back("clamp_filename");
-	KEYS.push_back("sub_box_size");
-	KEYS.push_back("clamp_info");
 	KEYS.push_back("fluctuation_potentials");
 	KEYS.push_back("fluctuation_amplitude");
 	KEYS.push_back("fluctuation_wavelength");
@@ -95,29 +92,9 @@ NAMICS_DBG("Allocate Memory in Segment " + name << endl);
 
 
 	if (freedom!="free"&& !HMaskDone) {
-		if (freedom=="clamp") {
-			int JX=lat->JX;
-			int JY=lat->JY;
-			int MX=lat->MX;
-			int MY=lat->MY;
-			int MZ=lat->MZ;
-			for (int i=0; i<n_box; i++) {
-				if (bx[i]<1) {bx[i] +=MX; px1[i] +=MX; px2[i] +=MX;}
-				if (by[i]<1) {by[i] +=MY; py1[i] +=MY; py2[i] +=MY;}
-				if (bz[i]<1) {bz[i] +=MZ; pz1[i] +=MZ; pz2[i] +=MZ;}
-				if (bx[i]<1 || bx[i]>MX) {success=false; cout <<"For clamped particle nr " << i << " the coordinate 'x' of the subbox origin is out of bounds. " << endl; }
-				if (by[i]<1 || by[i]>MY) {success=false; cout <<"For clamped particle nr " << i << " the coordinate 'y' of the subbox origin is out of bounds. " << endl; }
-				if (bz[i]<1 || bz[i]>MZ) {success=false; cout <<"For clamped particle nr " << i << " the coordinate 'z' of the subbox origin is out of bounds. " << endl; }
-				H_MASK[((px1[i]-1)%MX+1)*JX + ((py1[i]-1)%MY+1)*JY + (pz1[i]-1)%MZ+1]=1;
-				H_MASK[((px2[i]-1)%MX+1)*JX + ((py2[i]-1)%MY+1)*JY + (pz2[i]-1)%MZ+1]=1;
-			}
-
-		} else {
-			r[0]*=lat->fjc; r[1]*=lat->fjc; r[2]*=lat->fjc;
-			r[3]=(r[3]+1)*lat->fjc-1;r[4]=(r[4]+1)*lat->fjc-1;r[5]=(r[5]+1)*lat->fjc-1;
-			lat->CreateMASK(H_MASK,r,H_P,n_pos,block);
-		}
-
+		r[0]*=lat->fjc; r[1]*=lat->fjc; r[2]*=lat->fjc;
+		r[3]=(r[3]+1)*lat->fjc-1;r[4]=(r[4]+1)*lat->fjc-1;r[5]=(r[5]+1)*lat->fjc-1;
+		lat->CreateMASK(H_MASK,r,H_P,n_pos,block);
 	}
 	if (!success) cout <<"errors occurred.... progress uncertain...." << endl;
 
@@ -127,95 +104,6 @@ NAMICS_DBG("Allocate Memory in Segment " + name << endl);
 bool Segment::ParseFreedoms(bool& HMaskDone) {
 NAMICS_DBG("ParseFreedoms " << endl);
 	bool success=true;
-	if (freedom =="clamp" ) {
-		n_box=0; mx=0;
-		int m_x;
-		int MX=lat->MX;
-		if (GetValue("sub_box_size").size()>0) {
-			m_x=ParseInt(GetValue("sub_box_size"),-1);
-			if (m_x <1 || m_x > MX) {success=false; cout <<"Value of sub_box_size is out of bounds: 1 ... " << MX << endl; }
-			if (mx>0) {
-				if (m_x!=mx) {
-					cout <<"values for sub_box_size of input " << m_x << " not consistent with value found in clamp_filename " << mx << " input file data is taken " << endl;
-					mx=m_x; my=m_x; mz=m_x;
-				}
-			} else { mx=m_x; my=m_x; mz=m_x; }
-		}
-		lat->PutSub_box(mx,my,mz,n_box);
-		clamp_nr = lat->m.size()-1;
-
-		if (GetValue("clamp_filename").size()>0) {
-			if (!GetClamp(GetValue("clamp_filename"))) {
-				success=false; cout <<"Failed to read 'clamp_filename'. Problem terminated" << endl;
-				cout <<"Example of structure of clamp_filename is the following:" << endl;
-				cout <<"N : 20 : subbox0 : 15 15 15 pcb:[0. 0. 0.] " << endl;					cout <<"-1 -6 -6 " << endl;
-				cout <<"1 1 1 "  << endl;
-				cout <<"11 1 1 " << endl;
-				cout <<" explanation: 1st line: length of chain fragment (should coinside with the composition) " << endl;
-				cout <<"              followed by subboxnr, Mx, My , Mz (sizes of subbox)" << endl;
-				cout <<" 	      followed by pcb info. Note that the spaces beween numbers is essential info " << endl ;
-				cout <<"              2nd line: lower coordinate of subbox " << endl;
-				cout <<"              3rd line: coordinates of clamp point 1 " << endl;
-				cout <<"              4th line: coordinates of clamp point 2 " << endl;
-				cout <<" repeat these 4 lines for every sub-box " << endl;
-				cout <<" note that currently all subboxes should be equal in size " << endl;
-				cout <<" note as well that the chain lengths should also be the same.(redundent information because inputfile overrules this setting" << endl;
-			}
-		} else {
-			string s;
-			if (GetValue("clamp_info").size() >0) {
-				s=GetValue("clamp_info");
-				vector<string> sub;
-				vector<string> set;
-				vector<string> coor;
-				In->split(s,';',sub);
-				n_box=sub.size();
-				px1.clear();
-				py1.clear();
-				pz1.clear();
-				px2.clear();
-				py2.clear();
-				pz2.clear();
-				bx.clear();
-				by.clear();
-				bz.clear();
-				for (int i=0; i<n_box; i++) {
-					set.clear();
-					In->split(sub[i],'(',set);
-					int length = set.size();
-					if (length!=3) {
-						success=false; cout <<" In 'clamp_info' for segment '"+name+"', for box number " << i << " the expected format (px1,py1,pz1)(px2,py2,pz2) was not found" << endl;
-					} else {
-						coor.clear();
-						In->split(set[1],',',coor);
-						if (coor.size()!=3) {
-							success=false; cout <<" In 'clamp_info' for segment '"+name+"' for box number "<< i <<" the coordinates for the p1 position (px1,py1,pz1) not correct format: found " << set[1] << endl;
-						} else {
-							px1.push_back(ParseInt(coor[0],-10000));
-							py1.push_back(ParseInt(coor[1],-10000));
-							pz1.push_back(ParseInt(coor[2],-10000));
-						}
-						coor.clear();
-						In->split(set[2],',',coor);
-						if (coor.size()!=3) {
-							success=false; cout <<" In 'clamp_info' for segment '"+name+"' for box number "<< i <<" the coordinates for the box position (px2,py2,pz2) not correct format. " << endl;
-						} else {
-							px2.push_back(ParseInt(coor[0],-10000));
-							py2.push_back(ParseInt(coor[1],-10000));
-							pz2.push_back(ParseInt(coor[2],-10000));
-						}
-						bx.push_back((px2[i]+px1[i]-mx)/2);
-						by.push_back((py2[i]+py1[i]-mx)/2);
-						bz.push_back((pz2[i]+pz1[i]-mx)/2);//box is equal in size in x y and z.
-					}
-				}
-			} else {
-				success=false;
-				cout<<"Segment " + name + " with 'freedom: clamp' expects input from 'clamp_filename' or 'clamp_info' " << endl;
-			}
-		}
-	}
-
 	if (freedom == "pinned") {
 		int fjc = lat->fjc;
 		int n_layers_x=(lat->MX)/fjc;
@@ -631,7 +519,7 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 		std::copy_n(MASK, M, phi);
 	} else std::fill_n(phi, M, 0);
 
-	if (freedom=="tagged" || freedom=="clamp" ) std::fill_n(u, M, 0); //no internal states for these segments.
+	if (freedom=="tagged") std::fill_n(u, M, 0); //no internal states for tagged segments.
 
 	if (ns==1) {
 		lat->set_bounds(u);
@@ -800,8 +688,6 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	start=start_;
 	block=false;
 	unique=true;
-	chi_var_seg=-1;
-	chi_var_state=-1;
 	seg_nr_of_copy=-1;
 	state_nr_of_copy=-1;
 	ns=1;
@@ -885,9 +771,9 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	//}
 
 	int length = state_name.size();
-	if (length >0 && (freedom == "frozen"||freedom=="tagged"||freedom=="clamp")) {
+	if (length >0 && (freedom == "frozen"||freedom=="tagged")) {
 		success=false;
-		cout <<" When freedom = {frozen,tagged,clamp} a 'mon' can not have multiple internal states; status violated for mon " << name << endl;
+		cout <<" When freedom = {frozen,tagged} a 'mon' can not have multiple internal states; status violated for mon " << name << endl;
 	}
 
 	length=chi_name.size();
@@ -1032,313 +918,6 @@ NAMICS_DBG("SetPhiSide in Segment " + name << endl);
 
 }
 
-bool Segment::PutVarInfo(string Var_type_, string Var_target_, Real Var_target_value_){
-	(void)Var_target_value_;
-NAMICS_DBG( "Segment::PutVarInfo " << endl);
-	bool success=true;
-
-	int length_mon,length_state;
-	int i;
-
-	Var_target=-1;
-	chi_var_seg=-1;
-	chi_var_state=-1;
-	Var_type="";
-	if (Var_type_=="scan"){
-		Var_type="scan";
-		if (Var_target_=="valence") {Var_target=0; Var_start_value=valence;}
-		if (Var_target_=="ePsi0/kT") {Var_target=1; Var_start_value=PSI0;}
-		if (Var_target_ =="fluctuation_amplitude") {Var_target=3; Var_start_value=Amplitude;}
-		if (Var_target_=="var_pos") {Var_target=4; Var_start_value=var_pos;}
-		if (Var_target ==-1) {
-			vector<string>sub;
-			In->split(Var_target_,'_',sub);
-			if (sub.size()==2) {
-				if (sub[0]=="chi") {
-					length_mon=In->MonList.size();
-					for (i=0; i<length_mon; i++) {
-						if (sub[1]==In->MonList[i]) {
-							Var_target=2; Var_start_value=chi[i];
-							chi_var_seg=i;
-						}
-					}
-					if (Var_target!=2) {
-						length_state=In->StateList.size();
-						for (i=0; i<length_state; i++) {
-							if (sub[1]==In->StateList[i]) {
-								Var_target = 2; Var_start_value=chi[i+length_mon];
-								chi_var_state=i;
-							}
-						}
-					}
-					if (Var_target !=2) cout <<"In var: trying to read " + Var_target_ + " failed, because neither Seg " + sub[1] + " nor State " + sub[1] + " were found" << endl;
-				}
-			}
-		}
-	}
-	if (Var_target<0) {success=false; cout <<"In var: for segment you can 'scan' {valence, ePsi0/kT, amplitude, or a chi-value 'chi_X' with 'X' valid mon/state : name} "<<endl; }
-	return success;
-}
-
-int Segment::PutVarScan(Real step, Real end_value, int steps, string scale_) {
-NAMICS_DBG( "Segment::PutVarScan " << endl);
-	num_of_steps=-1;
-	scale=scale_;
-	Var_end_value=end_value;
-	if (scale=="exponential") {
-		Var_steps=steps; Var_step = 0;
-		if (steps==0) {
-			cout <<"In var scan: the value of 'steps' is zero, this is not allowed" << endl;
-			return -1;
-		}
-		if (Var_end_value*Var_start_value <0) {
-			cout <<"In var scan: the product end_value*start_value < 0. This is not allowed. " << endl;
-			return -1;
-		}
-		if (Var_end_value > Var_start_value)
-			num_of_steps= steps* log10 (Var_end_value/Var_start_value);
-		else
-			num_of_steps= steps* log10 (Var_start_value/Var_end_value);
-
-	} else {
-		Var_steps=0; Var_step=step;
-		if (step==0) {
-			cout <<"In var scan : of segment variable, the value of step can not be zero" << endl;
-			return -1;
-		}
-		num_of_steps=(Var_end_value-Var_start_value)/step;
-
-		if (num_of_steps<0) {
-			cout<<"In var scan : (end_value-start_value)/step is negative. This is not allowed. Try changing the sign of the 'step'." << endl;
-			return -1;
-		}
-	}
-
-
-	return num_of_steps;
-}
-
-bool Segment::UpdateVarInfo(int step_nr) {
-NAMICS_DBG( "Segment::UpdateVarInfo() " << endl);
-	bool success=true;
-	int length;
-	switch(Var_target) {
-		case 0:
-			if (scale=="exponential") {
-				if (valence <0)	{
-					valence=-pow(10,(1-1.0*step_nr/num_of_steps)*log10(-Var_start_value)+ (1.0*step_nr/num_of_steps)*log10(-Var_end_value));
-				} else {
-					valence= pow(10,(1-1.0*step_nr/num_of_steps)*log10( Var_start_value)+ (1.0*step_nr/num_of_steps)*log10( Var_end_value));
-				}
-			} else {
-				valence=Var_start_value+step_nr*Var_step;
-			}
-			break;
-		case 1:
-			if (scale=="exponential") {
-				if (PSI0 <0)	{
-					PSI0=-pow(10,(1-1.0*step_nr/num_of_steps)*log10(-Var_start_value)+ (1.0*step_nr/num_of_steps)*log10(-Var_end_value));
-				} else {
-					PSI0= pow(10,(1-1.0*step_nr/num_of_steps)*log10( Var_start_value)+ (1.0*step_nr/num_of_steps)*log10( Var_end_value));
-				}
-			} else {
-				PSI0=Var_start_value+step_nr*Var_step;
-			}
-			break;
-		case 2:
-			if (scale=="exponential") {
-				cout <<"In var of chi-parameter, only linear scale is implemented" << endl; success=false;
-			} else {
-				length = In->MonList.size();
-				if (chi_var_seg>-1) {
-					chi[chi_var_seg]= Var_start_value+step_nr*Var_step;
-				}
-				if (chi_var_state>-1) {
-					chi[length+chi_var_state] =Var_start_value+step_nr*Var_step;
-				}
-			}
-			break;
-		case 3:
-			if (scale=="exponential") {
-				Amplitude= pow(10,(1-1.0*step_nr/num_of_steps)*log10(Var_start_value)+(1.0*step_nr/num_of_steps)*log10(Var_end_value));
-			} else {
-				Amplitude=Var_start_value+step_nr*Var_step;
-			}
-			break;
-		case 4:
-			if (scale=="exponential") {
-				var_pos=   pow(10,(1-1.0*step_nr/num_of_steps)*log10(Var_start_value)+(1.0*step_nr/num_of_steps)*log10(Var_end_value));
-			} else {
-				var_pos=Var_start_value+step_nr*Var_step;
-			}
-			break;
-		default:
-			break;
-	}
-	return success;
-}
-
-bool Segment::ResetInitValue() {
-NAMICS_DBG( "Segment::ResetInitValue() " << endl);
-	bool success=true;
-	int length;
-	switch(Var_target) {
-		case 0:
-			valence=Var_start_value;
-			break;
-		case 1:
-			PSI0=Var_start_value;
-			break;
-		case 2:
-			length = In->MonList.size();
-			if (chi_var_seg>-1) {
-				chi[chi_var_seg]= Var_start_value;
-			}
-			if (chi_var_state>-1) {
-				chi[length+chi_var_state] =Var_start_value;
-			}
-			break;
-		case 3:
-			Amplitude=Var_start_value;
-			break;
-		case 4:
-			var_pos=Var_start_value;
-			break;
-		default:
-			cout <<"program error in Seg:ResetInitValue "<<endl;
-			break;
-	}
-	return success;
-}
-
-void Segment::PutValue(Real X) {
-NAMICS_DBG( "Segment::PutValue() " << endl);
-	int length;
-	switch(Var_target) {
-		case 0:
-			valence=X;
-			break;
-		case 1:
-			PSI0=X;
-			break;
-		case 2:
-			length = In->MonList.size();
-			if (chi_var_seg>-1) {
-				chi[chi_var_seg]= X;
-			}
-			if (chi_var_state>-1) {
-				chi[length+chi_var_state] =X;
-			}
-			break;
-		case 3:
-			Amplitude=X;
-			break;
-		case 4:
-			var_pos=X;
-			break;
-		default:
-			cout <<"program error in Segment:PutValue "<<endl;
-			break;
-	}
-}
-
-Real Segment::GetValue() {
-NAMICS_DBG( "Segment::GetValue() " << endl);
-	Real X=0;
-	int length;
-	switch(Var_target) {
-		case 0:
-			X=valence;
-			break;
-		case 1:
-			X=PSI0;
-			break;
-		case 2:
-			length = In->MonList.size();
-			if (chi_var_seg>-1) {
-				X=chi[chi_var_seg];
-			}
-			if (chi_var_state>-1) {
-				X=chi[length+chi_var_state];
-			}
-
-			break;
-		case 3:
-			X=Amplitude;
-			break;
-		case 4:
-			X=var_pos;
-			break;
-		default:
-			cout <<"program error in Segment:GetValue "<<endl;
-			break;
-	}
-	return X;
-}
-
-
-bool Segment::GetClamp(string filename) {
-	bool success=true;
-	string line_;
-	string NN,X,Y,Z;
-	int pos;
-	int N=0;
-	mx=my=mz=0;
-	n_box=-1;
-	int i=0;
-	ifstream in_file;
-	in_file.open(filename.c_str());
-	if (in_file.is_open()) {
-		while (in_file) {
-			i++;
-			if (i==1) {
-				n_box++;
-				NN.clear();
-				in_file >> line_ >> NN >> line_ >> X >> Y >> Z >> line_ >> line_ >> line_ >> line_;
-				if (NN.size()>0) {
-				if (!ParseInt(NN,pos,"")) { success=false; cout<<" length of 'fragment' not an integer " << endl; }
-				else {if (N>0) {if (N!=pos) {cout <<"lengths of fregment are not equal " << endl; success=false;}} else N = pos;}
-				if (!ParseInt(X,pos,"")) {success=false; cout <<"X-value for sub_box size is not integer " << endl;  }
-				else {if (mx>0) {if (mx !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else mx=pos; }
-				if (!ParseInt(Y,pos,"")) {success=false; cout <<"Y-value for sub_box size is not integer " << endl;  }
-				else {if (my>0) {if (my !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else my=pos; }
-				if (!ParseInt(Z,pos,"")) {success=false; cout <<"Z-value for sub_box size is not integer " << endl;  }
-				else {if (mz>0) {if (mz !=pos) {success=false; cout <<"We can deal with only one sub-box size" << endl;}} else mz=pos; }
-				}
-			}
-			if (i==2) {in_file>>X>>Y>>Z;
-				if (!ParseInt(X,pos,"")) {success =false; cout << " X-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
-				else bx.push_back(pos);
-				if (!ParseInt(Y,pos,"")) {success =false; cout << " Y-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
-				else by.push_back(pos);
-				if (!ParseInt(Z,pos,"")) {success =false; cout << " Z-pos of particle sub_box nr " << n_box << " not integer"  << endl; }
-				else bz.push_back(pos);
-			}
-			if (i==3) {in_file>>X>>Y>>Z;
-				if (!ParseInt(X,pos,"")) {success =false; cout << " X-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
-				else px1.push_back(pos);
-				if (!ParseInt(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
-				else py1.push_back(pos);
-				if (!ParseInt(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 1 of sub_box nr " << n_box << " not integer"  << endl; }
-				else pz1.push_back(pos);
-			}
-			if (i==4) {i=0;in_file>>X>>Y>>Z;
-				if (!ParseInt(X,pos,"")) {success =false; cout << " X-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
-				else px2.push_back(pos);
-				if (!ParseInt(Y,pos,"")) {success =false; cout << " Y-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
-				else py2.push_back(pos);
-				if (!ParseInt(Z,pos,"")) {success =false; cout << " Z-pos of particle pos 2 of sub_box nr " << n_box << " not integer"  << endl; }
-				else pz2.push_back(pos);
-			}
-		}
-
-	} else {
-		success=false;
-		cout <<"To read 'clamp_file', the file " << filename << " is not available." << endl;
-	}
-	in_file.close();
-	return success;
-}
 
 Real* Segment::GetMASK() {
 NAMICS_DBG("Get Mask for segment" + name << endl);
@@ -1356,10 +935,6 @@ NAMICS_DBG("GetPhi in segment " + name << endl);
 string Segment::GetFreedom(void){
 NAMICS_DBG("GetFreedom for segment " + name << endl);
 	return freedom;
-}
-bool Segment::IsClamp(void) {
-NAMICS_DBG("Is free for " + name << endl);
-	return freedom == "clamp";
 }
 bool Segment::IsFree(void) {
 NAMICS_DBG("Is free for " + name << endl);

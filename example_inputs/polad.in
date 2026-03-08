@@ -29,7 +29,7 @@ pro : mol : water : phi
 output : ana : append : true
 
 newton : isaac : deltamax : 0.01
-newton : isaac : method : conjugate_gradient
+newton : isaac : method : pseudohessian
 newton : isaac : m : 5
 newton : isaac : iterationlimit : 100000
 newton : isaac : i_info : 1
@@ -58,4 +58,3 @@ start
 mol : pol : composition : (A)50000000
 mol : pol : phibulk : 0.00000002
 start
-

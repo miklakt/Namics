@@ -11,7 +11,6 @@
 #include "molecule.h"
 #include "tools_host.h"
 #include "sfnewton.h"
-#include <functional>
 #include <Eigen/Core>
 #include <LBFGS.h>
 typedef Eigen::Matrix<Real,Eigen::Dynamic,1> Vector;
@@ -49,23 +48,17 @@ public:
 
 	int start;
 	string SCF_method;
-	string gradients;
 	string StoreFileGuess;
 	string ReadFileGuess;
 	string stop_criterion;
 	int iv;
 	int m, restart_DIIS;
-	SolverType SolType;
 	bool all;
 
 	Real tolerance;
 	Real deltamax,deltamin;
 
 	int iterationlimit;
-	bool value_e_info;
-	bool value_s_info;
-	int value_i_info;
-	Real* temp_alpha;
 
 	vector<string> ints;
 	vector<string> Reals;
@@ -81,9 +74,9 @@ public:
 	void push(string,string);
 	void PushOutput();
 	int GetValue(string,int&,Real&,string&);
-	enum iteration_method {HESSIAN,PSEUDOHESSIAN,PICARD,diis,conjugate_gradient,LBFGS,BRR};
+	enum iteration_method {HESSIAN,PSEUDOHESSIAN,diis,LBFGS};
 	enum inner_iteration_method {super,proceed};
-	enum gradient_method {classical, Picard, WEAK};
+	enum gradient_method {classical, WEAK};
 	iteration_method solver;
 	gradient_method gradient;
 	inner_iteration_method control;
@@ -92,7 +85,6 @@ public:
 	Real *xx;
 	Real *yy;
 	int *SIGN;
-	Real* alpha;
 
 	std::vector<string> KEYS;
 	ParameterStore PARAMETERS;
@@ -106,15 +98,10 @@ public:
 
 	void DeAllocateMemory();
 	void AllocateMemory();
-	bool PrepareForCalculations(void);
 	void ComputePhis(bool);
 	bool PutU();
 	bool Put_U();
 	void residuals(Real*,Real*);
-	void gradient_log(Real*, int, int, int, int);
-	void gradient_quotient(Real*, int, int, int, int);
-	void gradient_minus(Real*, int, int, int, int);
-	function<void(Real*, int, int, int, int)> target_function;
 
 	void inneriteration(Real*,Real*,Real*,Real,Real&,Real,int);
 

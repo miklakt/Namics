@@ -1,143 +1,5 @@
 #include "molecule.h"
 
-class Alias {
-public:
-	Alias(const Input* In_, Lattice* Lat_, string name_)
-		: Lat(Lat_), lat(Lat_), value(0), composition(""), active(false), H_phi(NULL), phi(NULL), rho(NULL),
-		  clamp(false), name(name_), In(In_) {
-		KEYS.push_back("value");
-	}
-
-	~Alias() {
-		if (H_phi != NULL) {
-			free(H_phi);
-			H_phi = NULL;
-			phi = NULL;
-			rho = NULL;
-		}
-	}
-
-	void AllocateMemory(int Clamp_nr, int n_box) {
-		(void)Clamp_nr;
-		(void)n_box;
-		if (H_phi != NULL) {
-			free(H_phi);
-		}
-		const int M = lat->M;
-		H_phi = (Real*)malloc(M * sizeof(Real));
-		phi = H_phi;
-		rho = H_phi;
-			std::fill_n(H_phi, M, 0);
-	}
-
-	void PrepareForCalculations() {
-		if (phi != NULL) std::fill_n(phi, lat->M, 0);
-	}
-
-	bool CheckInput(int start) {
-		(void)start;
-		cout << "Alias '" << name << "' is not supported in this minimal build." << endl;
-		return false;
-	}
-
-	void push(string s, Real X) {
-		Reals.push_back(s);
-		Reals_value.push_back(X);
-	}
-
-	void push(string s, int X) {
-		ints.push_back(s);
-		ints_value.push_back(X);
-	}
-
-	void push(string s, bool X) {
-		bools.push_back(s);
-		bools_value.push_back(X);
-	}
-
-	void push(string s, string X) {
-		strings.push_back(s);
-		strings_value.push_back(X);
-	}
-
-	void PushOutput() {
-		strings.clear();
-		strings_value.clear();
-		bools.clear();
-		bools_value.clear();
-		Reals.clear();
-		Reals_value.clear();
-		ints.clear();
-		ints_value.clear();
-		push("value", value);
-	}
-
-	int GetValue(string prop, int& int_result, Real& Real_result, string& string_result) {
-		int i=0;
-		int length = ints.size();
-		while (i<length) {
-			if (prop==ints[i]) {
-				int_result=ints_value[i];
-				return 1;
-			}
-			i++;
-		}
-		i=0;
-		length = Reals.size();
-		while (i<length) {
-			if (prop==Reals[i]) {
-				Real_result=Reals_value[i];
-				return 2;
-			}
-			i++;
-		}
-		i=0;
-		length = bools.size();
-		while (i<length) {
-			if (prop==bools[i]) {
-				string_result = bools_value[i] ? "true" : "false";
-				return 3;
-			}
-			i++;
-		}
-		i=0;
-		length = strings.size();
-		while (i<length) {
-			if (prop==strings[i]) {
-				string_result=strings_value[i];
-				return 3;
-			}
-			i++;
-		}
-		return 0;
-	}
-
-	Lattice* Lat;
-	Lattice* lat;
-	int value;
-	string composition;
-	bool active;
-	vector<int> frag;
-	Real* H_phi;
-	Real* phi;
-	Real* rho;
-	bool clamp;
-	string name;
-	const Input* In;
-
-	vector<string> ints;
-	vector<string> Reals;
-	vector<string> bools;
-	vector<string> strings;
-	vector<Real> Reals_value;
-	vector<int> ints_value;
-	vector<bool> bools_value;
-	vector<string> strings_value;
-	std::vector<string> KEYS;
-	ParameterStore PARAMETERS;
-};
-
-
 Molecule::Molecule(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) {
 	In=In_; Seg=Seg_; name=name_;  Lat=Lat_;
 NAMICS_DBG("Constructor for Mol " + name << endl);
@@ -151,20 +13,11 @@ NAMICS_DBG("Constructor for Mol " + name << endl);
 	KEYS.push_back("save_memory");
 	KEYS.push_back("restricted_range");
 	KEYS.push_back("compute_width_interface");
-	KEYS.push_back("Kw");
 	KEYS.push_back("Markov");
 	KEYS.push_back("k_stiff");
-	KEYS.push_back("phi_LB_x");
-	KEYS.push_back("phi_UB_x");
-	KEYS.push_back("phi_LB_y");
-	KEYS.push_back("phi_UB_y");
 	KEYS.push_back("B");
 
 	width=0;
-	phi_LB_X=0.0;
-	phi_UB_X=0.0;
-	phi_LB_Y=0.0;
-	phi_UB_Y=0.0;
 	phi1=0;
 	phiM=0;
 	Dphi=0;
@@ -172,9 +25,6 @@ NAMICS_DBG("Constructor for Mol " + name << endl);
 	ring=false;
 	all_molecule=false;
 	Markov =1;
-	Var_scan_value=-1;
-	Var_search_value=-1;
-	Var_target=-1;
 	FillRangesList.clear();
 	Filling=false;
 	save_memory=false;
@@ -192,24 +42,6 @@ NAMICS_DBG("DeallocateMemory for Mol " + name << endl);
 	free(H_phi);
 	free(H_phitot);
 	if (Markov==2) { free(P);}
-	if (freedom=="clamped") {
-		free(H_Bx);
-		free(H_By);
-		free(H_Bz);
-		free(H_Px1);
-		free(H_Py1);
-		free(H_Pz1);
-		free(H_Px2);
-		free(H_Py2);
-		free(H_Pz2);
-		free(H_mask1);
-		free(H_mask2);
-		free(H_gn);
-	}
-	if (freedom=="clamped"){
-		free(rho);
-		free(g1);
-	}
 	free(Gg_f);
 	free(Gg_b);
 	if (save_memory) free(Gs);
@@ -218,33 +50,10 @@ NAMICS_DBG("DeallocateMemory for Mol " + name << endl);
 	all_molecule=false;
 }
 
-bool Molecule::DeleteAl() {
-	bool success = true;
-	int length_al = MolAlList.size();
-	if (length_al>0) {
-		for (int k=0; k<length_al; k++) delete Al[k];
-		Al.clear();
-	}
-	Gnr.clear();
-	first_s.clear();
-	last_s.clear();
-	first_b.clear();
-	last_b.clear();
-	mon_nr.clear();
-	n_mon.clear();
-	molmon_nr.clear();
-	memory.clear();
-	last_stored.clear();
-	MolAlList.clear();
-	MolMonList.clear();
-	return success;
-}
-
 void Molecule:: AllocateMemory() {
 NAMICS_DBG("AllocateMemory in Mol " + name << endl);
 	DeAllocateMemory();
 	int M=lat->M;
-	int m=0;
 	if (Markov==2){// && lat->lattice_type == simple_cubic) {
 		int FJC = lat->FJC;
 		P = (Real*) malloc(FJC*sizeof(Real));
@@ -261,13 +70,6 @@ NAMICS_DBG("AllocateMemory in Mol " + name << endl);
 		for (int k=0; k<FJC; k++) { P[k]/=Q;
 			cout << "P["<<k<<"] = " << P[k] << endl;
 		}
-	}
-
-
-
-	if (freedom=="clamped") {
-		m=lat->m[Seg[mon_nr[0]]->clamp_nr];
-		n_box = Seg[mon_nr[0]]->n_box;
 	}
 
 	if (save_memory) {
@@ -289,79 +91,22 @@ NAMICS_DBG("AllocateMemory in Mol " + name << endl);
 
 	H_phi = (Real*) malloc(M*MolMonList.size()*sizeof(Real)); std::fill_n(H_phi, M * MolMonList.size(), 0);
 	H_phitot = (Real*) malloc(M*sizeof(Real)); std::fill_n(H_phitot, M, 0);
-	if (freedom=="clamped") {
-		H_Bx=(int*) malloc(n_box*sizeof(int));
-		H_By=(int*) malloc(n_box*sizeof(int));
-		H_Bz=(int*) malloc(n_box*sizeof(int));
-		H_Px1=(int*) malloc(n_box*sizeof(int));
-		H_Py1=(int*) malloc(n_box*sizeof(int));
-		H_Pz1=(int*) malloc(n_box*sizeof(int));
-		H_Px2=(int*) malloc(n_box*sizeof(int));
-		H_Py2=(int*) malloc(n_box*sizeof(int));
-		H_Pz2=(int*) malloc(n_box*sizeof(int));
-		H_mask1=(Real*) malloc(n_box*m*sizeof(Real)); std::fill_n(H_mask1, m * n_box, 0);
-		H_mask2=(Real*) malloc(n_box*m*sizeof(Real)); std::fill_n(H_mask2, m * n_box, 0);
-		H_gn = (Real*) malloc(n_box*sizeof(Real));
-	}
-	if (freedom=="clamped") {
-		gn=H_gn;
-		mask1=H_mask1; mask2=H_mask2;
-		Bx=H_Bx; By=H_By; Bz=H_Bz;
-		Px1=H_Px1; Py1=H_Py1; Pz1=H_Pz1;
-		Px2=H_Px2; Py2=H_Py2; Pz2=H_Pz2;
-		Gg_f = (Real*) malloc(m*N*n_box*sizeof(Real)); std::fill_n(Gg_f, m*N*n_box, 0);
-		Gg_b = (Real*) malloc(m*2*n_box*sizeof(Real)); std::fill_n(Gg_b, m*2*n_box, 0);
-
-		g1=(Real*) malloc(m*n_box*sizeof(Real)); std::fill_n(g1, m*n_box, 0);
-			rho=(Real*)malloc(m*n_box*MolMonList.size()*sizeof(Real)); std::fill_n(rho, m*n_box*MolMonList.size(), 0);
-		if (save_memory) {Gs=(Real*) malloc(m*n_box*2*sizeof(Real));std::fill_n(Gs, m*n_box*2, 0);}
-		phi=H_phi;
-	} else {
-		Gg_f = (Real*) malloc(M*N*sizeof(Real)*size);
-		Gg_b = (Real*) malloc(M*2*sizeof(Real)*size);
-		std::fill_n(Gg_f, M*N*size, 0);
-		std::fill_n(Gg_b, 2*M*size, 0);
-		phi=H_phi;
-		rho=phi;
-		if (save_memory) {Gs=(Real*) malloc(2*M*sizeof(Real)*size); std::fill_n(Gs, 2*M*size, 0);}
-	}
+	Gg_f = (Real*) malloc(M*N*sizeof(Real)*size);
+	Gg_b = (Real*) malloc(M*2*sizeof(Real)*size);
+	std::fill_n(Gg_f, M*N*size, 0);
+	std::fill_n(Gg_b, 2*M*size, 0);
+	phi=H_phi;
+	rho=phi;
+	if (save_memory) {Gs=(Real*) malloc(2*M*sizeof(Real)*size); std::fill_n(Gs, 2*M*size, 0);}
 	phitot = H_phitot;
 	UNITY = (Real*) malloc(M*sizeof(Real)*size); std::fill_n(UNITY, M*size, 0);
-
-	int length =MolAlList.size();
-	if (freedom!="clamped") Seg[mon_nr[0]]->clamp_nr=0;
-	for (int i=0; i<length; i++) Al[i]->AllocateMemory(Seg[mon_nr[0]]->clamp_nr,n_box);
 	all_molecule=true;
 }
 
 bool Molecule:: PrepareForCalculations(Real *KSAM) {
 NAMICS_DBG("PrepareForCalculations in Mol " + name << endl);
-int m=0;
-if (freedom=="clamped") m=lat->m[Seg[mon_nr[0]]->clamp_nr];
 int M=lat->M;
-	if (freedom=="clamped") {
-		std::fill(H_mask1,H_mask1+n_box*m,0);
-		std::fill(H_mask2,H_mask2+n_box*m,0);
-		int jx=lat->jx[Seg[mon_nr[0]]->clamp_nr];
-		int jy=lat->jy[Seg[mon_nr[0]]->clamp_nr];
-		int m=lat->m[Seg[mon_nr[0]]->clamp_nr];
-		for (int i=0; i<n_box; i++) {
-			H_Bx[i]=Seg[mon_nr[0]]->bx[i];
-			H_By[i]=Seg[mon_nr[0]]->by[i];
-			H_Bz[i]=Seg[mon_nr[0]]->bz[i];
-			H_Px1[i]=Seg[mon_nr[0]]->px1[i];
-			H_Py1[i]=Seg[mon_nr[0]]->py1[i];
-			H_Pz1[i]=Seg[mon_nr[0]]->pz1[i];
-			H_Px2[i]=Seg[mon_nr[0]]->px2[i];
-			H_Py2[i]=Seg[mon_nr[0]]->py2[i];
-			H_Pz2[i]=Seg[mon_nr[0]]->pz2[i];
-			H_mask1[i*m + jx*(H_Px1[i]-H_Bx[i])+jy*(H_Py1[i]-H_By[i])+(H_Pz1[i]-H_Bz[i])]=1;
-			H_mask2[i*m + jx*(H_Px2[i]-H_Bx[i])+jy*(H_Py2[i]-H_By[i])+(H_Pz2[i]-H_Bz[i])]=1;
-		}
-	}
 	std::copy_n(KSAM, M, UNITY);
-	int length_al=MolAlList.size();
-	for (int i=0; i<length_al; i++) Al[i]->PrepareForCalculations();
 	bool success=true;
 	std::fill_n(phitot, M, 0);
 
@@ -373,20 +118,7 @@ int M=lat->M;
 
 		//lat->set_bounds(G1+i*M);
 	//}
-		std::fill_n(phi, M*MolMonList.size(), 0);
-	compute_phi_alias=false;
-	if (freedom=="clamped") {
-		int chainlength_even=chainlength%2;
-		int pathlength_even;
-		for (int i=0; i<n_box; i++) {
-			pathlength_even=0;
-			pathlength_even=(H_Px2[i]-H_Px1[i]+H_Py2[i]-H_Py1[i]+H_Pz2[i]-H_Pz1[i])%2;
-			if (chainlength_even == pathlength_even)
-			cout <<" Warning, for chain part " << i << " the paths between clamps is not commensurate with the length of the chain fragment. Consider moving one of the calmp point by one (more) site!" << endl;
-		}
-		n = n_box;
-		theta=n_box*chainlength;
-	}
+	std::fill_n(phi, M*MolMonList.size(), 0);
 
 
 	return success;
@@ -399,7 +131,6 @@ phibulk=0;
 n=0;
 theta=0;
 norm=0;
-var_al_nr=-1;
 NAMICS_DBG("CheckInput for Mol " + name << endl);
 	bool success=true;
 	if (!In->CheckParameters("mol",name,start, KEYS, PARAMETERS)) {
@@ -412,13 +143,10 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 		if (GetValue("composition").size()==0) {cout << "For mol '" + name + "' the definition of 'composition' is required" << endl; success = false;
 		} else {
 			try {
-				// The chain of success bools seems to be broken and handled incorrectly..
-				// This is the result of calling the same function (interpret(), probably) multiple times with different results,
-				// causing only the last success to transfer correctly.
-				// Throw - catch for safety. Thrown by Interpret() and Decomposition() itself;
-			if (!Decomposition(GetValue("composition")))
-				// This error message is not even displayed.
-				{cout << "For mol '" + name + "' the composition is rejected. " << endl; success=false;}
+				if (!Decomposition(GetValue("composition"))) {
+					cout << "For mol '" + name + "' the composition is rejected. " << endl;
+					success=false;
+				}
 			} catch (const char* error) {
 				cerr << error << endl;
 				success = false;
@@ -467,10 +195,6 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 				}
 			}
 		} else
-		if ( IsClamped() ){
-			cout << "For mol '" << name << "' freedom 'clamped' is not supported in this minimal build." << endl;
-			success=false;
-		} else
 		if (GetValue("freedom").size()==0 && !IsTagged() ) {
 			cout <<"For mol " + name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' 'range_restricted' 'tagged' . Problem terminated " << endl; success = false;
 			} else {
@@ -482,36 +206,15 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 					free_list.push_back("solvent");
 					free_list.push_back("neutralizer");
 					free_list.push_back("range_restricted");
-					//free_list.push_back("gradient");
 				}
 				free_list.push_back("restricted");
 				if (!ParseString(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) success=false;
 				if (freedom == "solvent") {
 					if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the solvent" << endl; }
 				}
-				if (MolType == water && freedom!="solvent" ) {
-					cout <<"MolType 'water' can only be used for the component with freedom 'solvent'. Job terminated." << endl; success=false;
-				}
-				if (MolType == water && freedom=="solvent" ) {
-					Kw=50;
-					if (GetValue("Kw").size()>0) {
-						Kw=ParseReal(GetValue("Kw"),-1);
-						if (Kw < 0) {
-								cout << "Value for assosication constant Kw (used in the water model) should be positive." << endl;
-								cout << "In mol " + name + ", the value of 'Kw' serves in the 'association' water model. " << endl;
-								cout << "A value of  K~50 is advised " << endl;
-								cout << "X + X --Kw--> X_2; X_2 + X --Kw--> X_3; etc." << endl;
-								cout << "See Phys REv E 67, 011910 (2003) for more information. " << endl;
-								success=false;
-							}
-					} else {
-						cout << "A default value for the value of 'Kw = 50' is used, because I failed to find an input for this quantity " << endl;
-					}
-				}
 				if (freedom == "neutralizer") {
 					if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the neutralizer" << endl; }
 					if (!IsCharged()) {success=false; cout << "Mol '" + name + "' is not 'charged' and therefore this molecule can not be the neutralizer" << endl; }
-					if (IsClamped()) {success=false; cout <<"Mol '" + name + "' is 'clamped' and therefore this molecule can not be the neutralizer" << endl;}
 				}
 				if (freedom == "free") {
 					if (GetValue("phibulk").size() ==0) {
@@ -530,45 +233,6 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 					if (B<1e-9) {
 						cout <<"for Mol" + name + " mobility B should have a posititve value. Default value B=1 is chosen. " << endl;
 						B=1;
-					}
-				}
-
-				if (freedom == "gradient") { //for the time being only in one-gradient systems; this is tested in system.
-					if (GetValue("phibulk").size() >0) {
-						cout <<"Warning: In mol " + name + ", the setting 'freedom : gradient' should not be combined with a value for 'phibulk' but with values for 'phi_LB_x' and 'phi_UP_x' "<<endl;
-						cout <<"Your inputvalue for phibulk is ignored and replaced by the value given in phi_UB_x (1 gradient) or phi_UB_y (2 gradients) " << endl;
-					}
-					int gradients=lat->gradients;
-					switch (gradients) {
-						case 1:
-							if (GetValue("phi_LB_x").size()==0 || GetValue("phi_UB_x").size()==0) {
-								cout <<"in mol " + name + "the setting 'freedom : gradient' should be combined with values of 'phi_LB_x' and 'phi_UB_x'=phibulk " << endl; return false;
-							} else {
-								phi_UB_X=ParseReal(GetValue("phi_UB_x"),-1); phibulk=phi_UB_X;
-								phi_LB_X=ParseReal(GetValue("phi_LB_x"),-1);
-								if (phi_UB_X < 0 || phi_UB_X >1 || phi_LB_X <0 || phi_UB_X > 1 ) {
-									cout << "In mol " + name + ", the value of 'phi_UB_x' or 'phi_LB_x' is out of range 0 .. 1." << endl; return false;
-								}
-							}
-							break;
-						case 2:
-							if (GetValue("phi_LB_x").size()==0 || GetValue("phi_UB_x").size()==0 || GetValue("phi_LB_y").size()==0 || GetValue("phi_UB_y").size()==0) {
-								cout <<"in mol " + name + "the setting 'freedom : gradient' should be combined with values of 'phi_LB_x', 'phi_UB_x', 'phi_LB_y' and 'phi_UB_y'=phibulk values."  << endl; return false;
-							} else {
-								phi_UB_X=ParseReal(GetValue("phi_UB_x"),-1);
-								phi_LB_X=ParseReal(GetValue("phi_LB_x"),-1);
-								phi_UB_Y=ParseReal(GetValue("phi_UB_y"),-1); phibulk=phi_UB_Y;
-								phi_LB_Y=ParseReal(GetValue("phi_LB_y"),-1);
-								if (phi_UB_X < 0 || phi_UB_X >1 || phi_LB_X <0 || phi_UB_X > 1 ) {
-									cout << "In mol " + name + ", the value of 'phi_UB_x' or 'phi_LB_x' is out of range 0 .. 1." << endl; return false;
-								}
-								if (phi_UB_Y < 0 || phi_UB_Y >1 || phi_LB_Y <0 || phi_UB_Y > 1 ) {
-									cout << "In mol " + name + ", the value of 'phi_UB_y' or 'phi_LB_y' is out of range 0 .. 1." << endl; return false;
-								}
-							}
-							break;
-						default:
-							cout <<" Freedom gradient only implemented for 1 and 2 gradient systems " << endl; return false;
 					}
 				}
 
@@ -620,22 +284,16 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 
 		ring=false;
 		if (GetValue("ring").size() > 0) {
-			ParseBool(GetValue("ring"),ring,"Input for ring is either 'true' or 'false'. Moreover, first and last segments of the backbone will be put on top of each other (chain length gets shorter by one). ");
-			if (ring) {
-				int length;
-				switch (MolType) {
-					case dendrimer:
-					case asym_dendrimer:
-						cout << "Do not know how to connect ends for dendrimer or asym_dendrimers; ring option is ignored " << endl;
-						ring=false;
-					break;
+				ParseBool(GetValue("ring"),ring,"Input for ring is either 'true' or 'false'. Moreover, first and last segments of the backbone will be put on top of each other (chain length gets shorter by one). ");
+				if (ring) {
+					int length;
+					switch (MolType) {
 					case monomer:
 						cout << "Can not make a ring from a molecule type monomer; ring option is ignored" << endl;
 						ring=false;
-					break;
+						break;
 					case linear:
 					case branched:
-					case comb:
 						length=mon_nr.size();
 						if (mon_nr[0]==mon_nr[length-1]) {
 							if (n_mon[0] !=1 || n_mon[length-1] !=1) {
@@ -712,355 +370,6 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 	return success;
 }
 
-bool Molecule::PutVarInfo(string Var_type_,string Var_target_,Real Var_target_value_){
-NAMICS_DBG("Molecule:: PutVarInfo in mol "+ name << endl);
-
-	bool success=true;
-	vector<string>sub;
-	Var_type="";
-	if (Var_type_=="scan") {
-		var_al_nr=-1;
-		Var_type="scan";
-		In->split(Var_target_,'-',sub);
-		if (sub.size()==1) {
-			if (Var_target_=="theta") {Var_scan_value=0; Var_start_value=theta; }
-			if (Var_target_=="n") {Var_scan_value=1; Var_start_value = n;}
-			if (Var_target_=="phibulk") {Var_scan_value=2; Var_start_value = phibulk;}
-			if (Var_scan_value==-1) {
-				cout <<"In var: scanning value for molecule is not recognized. Choose from {theta, n, phibulk}. You can also ask for 'aliasname-value'. " << endl;
-				return false;
-			}
-		} else {
-			Var_scan_value=3;
-			int length=MolAlList.size();
-			for (int k=0; k<length; k++) {
-				if (Al[k]->name==sub[0] && "value" ==sub[1]) {
-					if (Al[k]->value >0) {
-						var_al_nr=k;
-						Var_start_value=Al[k]->value;
-					}
-				}
-			}
-			if (var_al_nr==-1) {
-				cout <<"In var: scanning value for molecule, the scanning value 'aliasname-value' was not recognised. The first element should contain a valid aliasname; the second element must contain the keyword 'value' " << endl;
-			}
-		}
-
-	}
-	if (Var_type_=="search") {
-		Var_type="search";
-		if (Var_target_=="theta") {Var_search_value=0; Var_start_search_value=theta;  }
-		if (Var_target_=="n") {Var_search_value=1; Var_start_search_value=n; }
-		if (Var_target_=="phibulk") {Var_search_value=2; Var_start_search_value=phibulk; }
-		if (Var_target_=="equate_to_solvent") {
-			Var_search_value=3; Var_start_search_value=theta;
-			if (freedom=="solvent") {
-				cout <<"in var: searching for theta to equate to solvent can not be done for a molecule with 'freedom' solvent " << endl;
-				success=false;
-			}
-			if (freedom!="restricted") {
-				success=false;
-				cout <<"In var: searching for theta to equate to solvent can only be done for a molecule with 'freedom' restricted" << endl;
-			}
-		}
-		if (Var_target_=="balance_membrane") {
-			Var_search_value=4; Var_start_search_value=theta;
-			if (freedom=="solvent") {
-				cout <<"in var: searching for theta to balance membrane can not be done for a molecule with 'freedom' solvent " << endl;
-				success=false;
-			}
-			if (freedom!="restricted") {
-				success=false;
-				cout <<"In var: searching for theta to balance membrane can only be done for a molecule with 'freedom' restricted" << endl;
-			}
-		}
-
-		if (Var_search_value == -1) {
-			cout <<"In var: searching value for molecule was not recognized. Choose from {theta, n, phibulk, equate_to_solvent}. " << endl;
-			return false;
-		}
-	}
-	if (Var_type_=="target") {
-		Var_type="target";
-		Var_target_value=Var_target_value_;
-		if (Var_target_=="theta") {
-			Var_target=0;
-			if (Var_target_value <0 || Var_target_value>lat->volume){
-				cout <<"In var: target value 'theta' out of range" << endl;
-				return false;
-			}
-		}
-		if (Var_target_=="n") {
-			Var_target=1;
-			if (Var_target_value <0 || Var_target_value*chainlength>lat->volume){
-				cout <<"In var: target value 'n' out of range" << endl;
-				return false;
-			}
-
-		}
-		if (Var_target_=="phibulk") {
-			Var_target=2;
-			if (Var_target_value <0 || Var_target_value>1) {
-				cout <<"in var: target value 'phibulk' out of range" << endl;
-				return false;
-			}
-		}
-		if (Var_target_=="mu") {Var_target=3; if (Var_target_value==12345.0) Var_target_value=0;}
-		if (Var_target==-1) {
-			cout <<"In var: molecule target should be selected from {theta, n, phibulk, mu}. " << endl;
-			success = false;
-		}
-	}
-	return success;
-
-}
-
-int Molecule::PutVarScan(Real step, Real end_value, int steps, string scale_) {
-NAMICS_DBG("Molecule:: PutVarScan" << endl);
-	num_of_steps = -1;
-	scale=scale_;
-	Var_end_value=end_value;
-	if (scale=="exponential") {
-		Var_steps=steps; Var_step=0;
-		if (steps==0) {
-			cout <<"In var scan: the value of 'steps' is zero, this is not allowed" << endl; return -1;
-		}
-		if (Var_end_value*Var_start_value<0) {
-			cout <<"In var scan: the product end_value*start_value <0. This is not allowed. " << endl; return -1;
-		}
-		if (Var_end_value > Var_start_value)
-			num_of_steps=steps*log10(Var_end_value/Var_start_value);
-		else
-			num_of_steps=steps*log10(Var_start_value/Var_end_value);
-	} else {
-		Var_steps=0; Var_step=step;
-		if (step==0) {
-			cout <<"In var san: of molecule variable, the value of step can not be zero" << endl; return -1;
-		}
-		num_of_steps=(Var_end_value-Var_start_value)/step;
-
-		if (num_of_steps<0) {
-			cout <<"In var scan : (end_value-start_value)/step is negative. This is not allowed. Try changing the sign of 'step'. " << endl;
-			return -1;
-		}
-
-	}
-	return num_of_steps;
-}
-
-bool Molecule::ResetInitValue() {
-NAMICS_DBG("Molecule:: ResetInitValue" << endl);
-	bool success=true;
-	cout <<"reset: ";
-	switch (Var_scan_value) {
-		case 0:
-			theta=Var_start_value;
-			n=theta/chainlength;
-			cout <<"mol : " + name + " : theta : " << theta << endl;
-			break;
-		case 1:
-			n=Var_start_value;
-			theta=n*chainlength;
-			cout <<"mol : " + name + " : n : " << n << endl;
-			break;
-		case 2:
-			phibulk=Var_start_value;
-			cout <<"mol : " + name + " : phibulk " << phibulk << endl;
-			break;
-		case 3:
-			Gnr.clear();
-			first_s.clear();
-			last_s.clear();
-			first_b.clear();
-			last_b.clear();
-			mon_nr.clear();
-			n_mon.clear();
-			molmon_nr.clear();
-			memory.clear();
-			last_stored.clear();
-			//MolAlList.clear();
-			MolMonList.clear();
-			Al[var_al_nr]->value=Var_start_value;
-			Decomposition(GetValue("composition"));
-			cout <<"alias : " + Al[var_al_nr]->name + " : value : " << Al[var_al_nr]->value << endl;
-			break;
-		default:
-			break;
-	}
-
-	switch (Var_search_value) {
-		case 0:
-			theta=Var_start_search_value;
-			n=theta/chainlength;
-			cout <<"mol : " + name + " : theta : " << theta << endl;
-			break;
-		case 1:
-			n=Var_start_search_value;
-			theta=n*chainlength;
-			cout <<"mol : " + name + " : n : " << n << endl;
-			break;
-		case 2:
-			phibulk=Var_start_search_value;
-			cout <<"mol : " + name + " : phibulk " << phibulk << endl;
-			break;
-			case 3: theta=Var_start_search_value;
-				cout <<"mol : " + name + " : theta " << theta << endl;
-				[[fallthrough]];
-			case 4: theta=Var_start_search_value;
-				cout <<"mol : " + name + " : theta " << theta << endl;
-		default:
-			break;
-	}
-
-	return success;
-}
-
-bool Molecule::UpdateVarInfo(int step_nr) {
-NAMICS_DBG("Molecule:: UpdateVarInfo" << endl);
-	bool success=true;
-	switch(Var_scan_value) {
-		case 0:
-			if (scale=="exponential") {
-				theta=pow(10,(1-1.0*step_nr/num_of_steps)*log10(Var_start_value)+(1.0*step_nr/num_of_steps)*log10(Var_end_value));
-			} else {
-				theta=Var_start_value+step_nr*Var_step;
-			}
-			n=theta/chainlength;
-			cout <<"mol : " + name + " : theta : " << theta << endl;
-			break;
-		case 1:
-			if (scale=="exponential") {
-				n=pow(10,(1-1.0*step_nr/num_of_steps)*log10(Var_start_value)+(1.0*step_nr/num_of_steps)*log10(Var_end_value));
-			} else {
-				n=Var_start_value+step_nr*Var_step;
-			}
-			cout <<"mol : " + name + " : n : " << n << endl;
-			theta=n*chainlength;
-			break;
-		case 2:
-			if (scale=="exponential") {
-				phibulk=pow(10,(1-1.0*step_nr/num_of_steps)*log10(Var_start_value)+(1.0*step_nr/num_of_steps)*log10(Var_end_value));
-			} else {
-				phibulk=Var_start_value+step_nr*Var_step;
-			}
-			cout <<"mol : " + name + " : phibulk " << phibulk << endl;
-			break;
-		case 3:
-			if (scale=="exponential") {
-				Al[var_al_nr]->value =(int)pow(10,(1-1.0*step_nr/num_of_steps)*log10(Var_start_value) + (1.0*step_nr/num_of_steps)*log10(Var_end_value));
-			} else {
-				Gnr.clear();
-				first_s.clear();
-				last_s.clear();
-				first_b.clear();
-				last_b.clear();
-				mon_nr.clear();
-				n_mon.clear();
-				molmon_nr.clear();
-				memory.clear();
-				last_stored.clear();
-				//MolAlList.clear();
-				MolMonList.clear();
-				Al[var_al_nr]->value =(int) (Var_start_value+step_nr*Var_step);
-				Decomposition(GetValue("composition"));
-			}
-			cout <<"alias : " + Al[var_al_nr]->name + " : value : " << Al[var_al_nr]->value << endl;
-			break;
-		default:
-			cout <<"program error in Molecule::UpdateInfo " << endl;
-			break;
-	}
-	return success;
-}
-
-Real Molecule::GetError() {
-NAMICS_DBG("Molecule:: GetError" << endl);
-	Real Error=0;
-	switch (Var_target) {
-		case 0:
-			if (Var_target_value!=0) Error=theta/Var_target_value-1.0; else Error = theta;
-			break;
-		case 1:
-			if (Var_target_value!=0) Error=n/Var_target_value-1.0; else Error = n;
-			break;
-		case 2:
-			if (Var_target_value!=0) Error=phibulk/Var_target_value-1.0; else Error = phibulk;
-			Error *=-1;
-			break;
-		case 3:
-			if (Var_target_value!=0) Error=Mu/Var_target_value-1.0; else Error = Mu;
-			break;
-		default:
-			cout <<"program error in Molecule::GetError" << endl;
-			break;
-	}
-
-	if (Var_search_value==3||Var_search_value==4) {
-		Error=theta;
-		cout<<"Get Error in mol " + name + "unexpectedly called. Shouldn't sys[0]->GetError be called? Returning the value for theta " << endl;
-	}
-	return Error;
-}
-
-Real Molecule::GetValue(){
-NAMICS_DBG("Molecule:: GetValue" << endl);
-	Real X=0;
-	switch (Var_search_value) {
-		case 0:
-			X=theta;
-			break;
-		case 1:
-			X=n;
-			break;
-		case 2:
-			X=phibulk;
-			break;
-		case 3:
-			X=theta;
-			break;
-		case 4:
-			X=theta;
-			break;
-		default:
-			cout <<"program error in Molecule::GetValue" << endl;
-	}
-	return X;
-}
-void Molecule::PutValue(Real X){
-NAMICS_DBG("Molecule:: PutValue" << endl);
-	switch (Var_search_value) {
-		case 0:
-			theta=X; n=theta/chainlength;
-			break;
-		case 1:
-			n=X; theta=n*chainlength;
-			break;
-		case 2:
-			phibulk=X;
-			break;
-		case 3:
-			theta=X;
-			break;
-		case 4:
-			theta=X;
-			break;
-		default:
-			cout <<"program error in Molecule::GetValue" << endl;
-	}
-}
-
-int Molecule::GetAlNr(string s){
-NAMICS_DBG("GetAlNr for Mol " + name << endl);
-	int n_als=MolAlList.size();
-	int found=-1;
-	int i=0;
-	while(i<n_als) {
-		if (Al[i]->name ==s) found=i;
-		i++;
-	}
-	return found;
-}
-
 int Molecule::GetMonNr(string s){
 NAMICS_DBG("GetMonNr for Mon " + name << endl);
 	int n_segments=In->MonList.size();
@@ -1071,56 +380,6 @@ NAMICS_DBG("GetMonNr for Mon " + name << endl);
 		i++;
 	}
 	return found;
-}
-
-bool Molecule::ExpandAlias(vector<string> sub, string &s) {
-NAMICS_DBG("Molecule:: ExpandAlias" << endl);
-	bool success=true;
-	vector<int> open;
-	vector<int> close;
-	int length_al=sub.size();
-	int i=0;
-	while (i<length_al-1) {
-		string sA;
-		sA=sub[i+1];
-		if (!In->InSet(In->AliasList,sA)) {
-			cout <<"In composition of mol '" + name + "' Alias '" + sA + "' was not found"<<endl; success=false; return success;
-		} else {
-			int Alnr =GetAlNr(sA);
-			if (Alnr<0) {
-				Al.push_back(new Alias(In,Lat,sA));
-				Alnr=Al.size();
-				if (!Al[Alnr-1]->CheckInput(start)) {cout <<"Alias '" + sA + "' in composition not recognised " << endl; return false;}
-				MolAlList.push_back(Alnr);
-			}
-			Alnr =GetAlNr(sA);
-			int iv = Al[Alnr]->value;
-			string al_comp=Al[Alnr]->composition;
-			if (iv < 0) {
-				string si;
-				stringstream sstm;
-				sstm << Alnr;
-				si = sstm.str();
-				string ssub="";
-				sub[i+1]=":"+si+":"+al_comp+":"+si+":";
-
-			} else {
-				string sss;
-				stringstream sstm;
-				sstm << iv;
-				sss = sstm.str();
-				sub[i+1]=sss;
-			}
-		}
-		i+=2;
-	}
-
-	string ss;
-	for (int i=0; i<length_al; i++) {
-		ss=ss.append(sub[i]);
-	}
-	s=ss;
-	return success;
 }
 
 bool Molecule::ExpandBrackets(string &s) {
@@ -1157,9 +416,9 @@ NAMICS_DBG("Molecule:: ExpandBrackets" << endl);
 					done=false;
 
 					int x=ParseInt(s.substr(pos_close+1),-1);
-					if (x<1) {
-							cout <<"Number of 'repeats' smaller or equal to zero (or '# repeats' is missing) in composition at pos : " << pos_close+1 << " for: " << s << endl; return false;
-					}
+						if (x<1) {
+								cout <<"Number of repeats must be a positive integer in composition at pos : " << pos_close+1 << " for: " << s << endl; return false;
+						}
 					string sA,sB,sC;
 					if (s.substr(pos_open-1,1)=="]") {pos_open --;  }
 					sA=s.substr(0,pos_low);
@@ -1189,64 +448,47 @@ bool Molecule::Interpret(string s,int generation){
 NAMICS_DBG("Molecule:: Interpret" << endl);
 	if (s=="[") return true;
 	bool success=true;
-	vector<string>sub;
 	vector<int>open;
 	vector<int>close;
-	In->split(s,':',sub);
-	int length_sub =sub.size();
-	int AlListLength=MolAlList.size();
-	int i=0;
-
-	while (i<length_sub) {
-		open.clear(); close.clear();
-		In->EvenBrackets(sub[i],open,close);
-		if (open.size()==0) {
-			int a=ParseInt(sub[i],0);
-			if (Al[a]->active) Al[a]->active=false; else Al[a]->active=true;
+	In->EvenBrackets(s,open,close);
+	if (open.empty()) {
+		cout << "In composition of mol '" + name + "' an invalid token was found: " << s << endl;
+		return false;
+	}
+	int k=0;
+	int length=open.size();
+	while (k<length) {
+		string segname=s.substr(open[k]+1,close[k]-open[k]-1);
+		int mnr=GetMonNr(segname);
+		if (mnr <0)  {cerr <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised"  << endl; success = false;
+		throw "Composition Error";
 		} else {
-			int k=0;
-			int length=open.size();
 
-			while (k<length) {
-				string segname=sub[i].substr(open[k]+1,close[k]-open[k]-1);
-				int mnr=GetMonNr(segname);
-				if (mnr <0)  {cerr <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised"  << endl; success = false;
-				// The entire chain of successes seems to be broken, as they are not transferred to or handled correctly by functions down the stack.
-				// This function is called multiple times with different results, causing the success handling to break by only transferring the last success result.
-				// Throwing to prevent segfaults and other undefined behavior. Caught by CheckInput.
-				throw "Composition Error";
-				} else {
-
-					int length=Gnr.size();
-					if (length>0) {//fragments at branchpoint need to be just 1 segment long.
-						if (Gnr[length-1]<generation) {
-							if (n_mon[length-1]>1) {
-								n_mon[length-1]--;
-								n_mon.push_back(1);
-								mon_nr.push_back(mon_nr[length-1]);
-								Gnr.push_back(Gnr[length-1]);
-							 	last_b[Gnr[length-1]]++;
-							}
-						}
+			int stored=Gnr.size();
+			if (stored>0) {//fragments at branchpoint need to be just 1 segment long.
+				if (Gnr[stored-1]<generation) {
+					if (n_mon[stored-1]>1) {
+						n_mon[stored-1]--;
+						n_mon.push_back(1);
+						mon_nr.push_back(mon_nr[stored-1]);
+						Gnr.push_back(Gnr[stored-1]);
+					 	last_b[Gnr[stored-1]]++;
 					}
-					mon_nr.push_back(mnr);
-					Gnr.push_back(generation);
-					if (first_s[generation] < 0) first_s[generation]=chainlength;
-					if (first_b[generation] < 0) first_b[generation]=mon_nr.size()-1;
-					last_b[generation]=mon_nr.size()-1;
-					for (int i=0; i<AlListLength; i++) {if (Al[i]->active) Al[i]->frag.push_back(1); else Al[i]->frag.push_back(0);}
 				}
-				int nn = ParseInt(sub[i].substr(close[k]+1,s.size()-close[k]-1),0);
-				if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity " << endl; success=false; return success;
-				//throw "Composition error";
-				} else {
-					n_mon.push_back(nn);
-				}
-				chainlength +=nn; last_s[generation]=chainlength;
-				k++;
 			}
+			mon_nr.push_back(mnr);
+			Gnr.push_back(generation);
+			if (first_s[generation] < 0) first_s[generation]=chainlength;
+			if (first_b[generation] < 0) first_b[generation]=mon_nr.size()-1;
+			last_b[generation]=mon_nr.size()-1;
 		}
-		i++;
+		int nn = ParseInt(s.substr(close[k]+1,s.size()-close[k]-1),0);
+		if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity " << endl; success=false; return success;
+		} else {
+			n_mon.push_back(nn);
+		}
+		chainlength +=nn; last_s[generation]=chainlength;
+		k++;
 	}
 	return success;
 }
@@ -1311,443 +553,45 @@ NAMICS_DBG("Molecule:: GenerateTree" << endl);
 bool Molecule::Decomposition(string s){
 NAMICS_DBG("Decomposition for Mol " + name << endl);
 	bool success = true;
-	bool aliases = true;
-	MolType=linear;//default;
+	MolType=linear;
 	chainlength=0;
-	int loopnr=0;
 	vector<int> open;
 	vector<int> close;
-	vector<string>sub;
 
-	sub.clear();
-	In->split(s,'@',sub);
-
-	if (s!=sub[0]) {
-		bool keyfound=false;
-		vector<string>SUB;
-		In->split(sub[1],'(',SUB);
-		if (SUB[0]=="water"){
-			MolType=water; keyfound=true;
-			s=s.substr(7,s.length()-8);
-			int mnr=GetMonNr(s);
-			if (mnr<0) {
-				cout <<"Language for MolType 'water' is as follows: @water(mon_name) wherein mon_name is a valid monomer name with freedom free" << endl;
-				success=false; return success;
-			} else {
-				mon_nr.push_back(mnr);
-				n_mon.push_back(1);
-			}
-		}
-
-		if (SUB[0]=="dend") {
-			cout << "Molecule architecture '@dend' is not supported in this minimal build." << endl;
-			return false;
-		}
-		if (SUB[0]=="comb") {
-			cout << "Molecule architecture '@comb' is not supported in this minimal build." << endl;
-			return false;
-		}
-		if (!keyfound) { success=false; cout << "Keyword specifying Moltype not recognised: select from @dend, @comb. @water Problem terminated "<< endl ;
-			return success;
-		 }
-	}
-
-	if (s.find('#') != string::npos) {
-		cout << "Aliases in molecule composition are not supported in this minimal build." << endl;
-		return false;
-	}
-
-	while (aliases && success) {
-		loopnr++;
-		sub.clear();
-
-		In->split(s,'#',sub);
-		if (sub.size()%2!=1) {
-			if (s.back()!='#') {
-				cout << " Alias in composition should be bracketed on both sides by '#'. For example, (A)10#alias_name#(B)3, when e.g., 'alias : alias_name : value : (X)5' is defined, so that you oubtain (A)10(X)5(B)3 " << endl; success=false;
-			}
-		}
-		aliases=(s!=sub[0]);
-		if (aliases) {if (!ExpandAlias(sub,s)) {cout << "expand alias failed. " << endl; success=false; return success; }}
-		if (loopnr == 20) {
-			cout << "Nesting nr 20 reached in aliases for mol " + name + " -composition. It is decided that this is too deep to continue; Possible, you have defined an alias-A inside alias-B which itself refers to alias-A. This is not allowed. Problem terminated. " << endl;
-			success=false; return success;
-		}
-	}
-	sub.clear();
-	In->split(s,',',sub);
-	int length=sub.size();
-	int length_open;
-	int j,k,a,f,dd;
-	string ss;
-	switch(MolType) {
-		case water:
-
-			break;
-		case dendrimer:
-			for (int i=0; i<length; i++) {
-				open.clear(); close.clear();
-				In->EvenBrackets(sub[i],open,close);
-				length_open=open.size();
-				if (length_open>0) {
-					if (!ExpandBrackets(sub[i])) {
-						cout <<"brackets '(' ')' not well positioned in "+sub[i] << endl;
-          				success=false; return success;
-					}
-				}
-			}
-			for (int i=0; i<length; i++) {
-				ss.append(sub[i]);
-				if (i<length-1) ss.append(",");
-			}
-			s=ss;
-		break;
-		case comb:
-		break;
-		default:
-			if (!ExpandBrackets(s)) {success=false; return success;}
-		break;
-	}
+	if (!ExpandBrackets(s)) {success=false; return success;}
 	if (!In->EvenSquareBrackets(s,open,close)) {
 		cout << "Error in composition of mol '" + name + "'; the square brackets are not balanced in " << s << endl;
 		success=false; return success;
 	}
 	if (open.size()>0) {
-		if (MolType==linear) { //overwrite default.
-			MolType=branched;
-		} else {
-			success=false;
-			cout <<" In 'composition' you can not combine special keywords such as 'dend, or comb' with branched compositions. This implies that square brackets are not allowed. " <<endl ;
-			return success;
-		}
+		MolType=branched;
 	}
 	int generation=0;
 	int pos=0;
 	MolMonList.clear();
-	int AlListLength=MolAlList.size();
-	for (int i=0;i<AlListLength; i++) Al[i]->active=false;
-	vector<string>sub_gen;
-	vector<string>sub_dd;
-	int length_g,length_dd,mnr,nn,arm=-1,degeneracy=1,arms=0;
-	string segname;
-	int N=0;
 	int lopen;
-	int chainlength_backbone,chainlength_arm;
-	switch(MolType) {
-		case water:
-			break;
-		case linear:
-			first_s.clear();
-			last_s.clear();
-			first_b.clear();
-			last_b.clear();
-			first_s.push_back(-1);
-			last_s.push_back(-1);
-			first_b.push_back(-1);
-			last_b.push_back(-1);
-			success = GenerateTree(s,generation,pos,open,close);
-			if (!success) {cout << " GenerateTree failed " << endl; return success; }
-			break;
-		case branched:
-			first_s.clear();
-			last_s.clear();
-			first_b.clear();
-			last_b.clear();
-			first_s.push_back(-1);
-			last_s.push_back(-1);
-			first_b.push_back(-1);
-			last_b.push_back(-1);
-			lopen=open.size();
-			for (int i=1; i<lopen; i++) {
-				if ((open[i]-open[i-1])==1 || (close[i]-close[i-1])==1) {cout <<"In molecule " + name + " in 'composition', two similar square brackets in a row '[[' or ']]' is not allowed" << endl; success=false; return success;  }
-			}
-			success = GenerateTree(s,generation,pos,open,close);
-			if (!success) {cout <<"GenerateTree failed" << endl; return success;}
-			break;
-		case dendrimer:
-			first_a.clear();
-			last_a.clear();
-			first_b.clear();
-			last_b.clear();
-			first_s.clear();
-			last_s.clear();
-			n_arm.clear();
-			mon_nr.clear();
-			n_mon.clear();
-			In->split(s,';',sub_gen);
-			n_generations=sub_gen.size();
-			sym_dend=true; //default.
-			if (save_memory) {
-				success = false;
-				cout <<"In dendrimer the use of 'save_memory' is not allowed (yet). " << endl; return success;
-			}
-
-
-			chainlength=0; N=-1;
-			for (int i=0; i<n_generations; i++) {
-				sub.clear();	arms=0;
-				In->split(sub_gen[i],',',sub);
-				int sublength=sub.size();
-				if ((sublength-1)%2 >0) {success=false; cout << "In composition of dend for generation " << i << " that is, in " + sub_gen[i] + " the number of arguments is not a multiple of (1+ multiple of 2); use @dend(?) for help. " << endl; }
-				if (sublength>3) MolType=asym_dendrimer;
-				if (sublength<2) { success=false;
-
-					cout<<" ------Dendrimer language:------ " << endl;
-					cout<<" example 1: consider segment name 'A' for the branch points and spacers (B)2 with functionality 3 and 4 generations: " << endl;
-					cout<<" @dend(A,(B)2,3; A,(B)2,3; A,(B)2,3; A,(B)2,3)  " << endl;
-					cout<<" hence generations are seperated by ';', branch points are 'monomer_names' without '(', ')'. Each generation can have unique numbers and structures. " << endl;
-					cout<<" expample 2: asymmetric dendrimers, with asymmetry in branches of first generation:" << endl;
-					cout <<" @dend(A,(B)2,3,(B)4,1; A,(B)2,3,(B)2,2; A,(B)2,3; A,(B)2,3)  " << endl;
-					cout <<" example 2: star with 10 arms " << endl;
-					cout <<" @dend(A,(B)100,10) " << endl;
-					cout <<" Note that in the 'standard' dendrimer the branches are symmetric -all are equal- " << endl;
-					cout <<" example 4: 10 arm star end-grafted by one arm to a surface by way of segment 'X' " << endl;
-					cout <<" @dend(A,(B)100,9,(B)99(X)1,1)" << endl;
-					cout<<" ------Dendrimer language:------ " << endl;
-					return success;
-				}
-
-				length_g = sub.size();
-				sub_dd.clear();
-				In->split(sub[0],':',sub_dd);
-				length_dd =sub_dd.size();
-				if (sub_dd.size()>1) {
-					cout <<"In dendrimer alias not yet implemented" << endl; success=false; return success;
-				}
-
-
-				if (length_dd==4) {
-					mnr=GetMonNr(sub_dd[2]);
-					a=ParseInt(sub_dd[2],0);
-					if (Al[a]->active) Al[a]->active=false; else Al[a]->active=true;
-
-				} else mnr=GetMonNr(sub[0]);
-				if (mnr <0)  {success=false; cout <<"In composition of mol '" + name + "', segment name '" + sub_dd[0] + "' is not recognised"  << endl; }
-				for (a=0; a<AlListLength; a++) {if (Al[a]->active) Al[a]->frag.push_back(1); else Al[a]->frag.push_back(0);}
-
-				n_mon.push_back(1);
-				mon_nr.push_back(mnr);
-				d_mon.push_back(degeneracy);
-				first_a.push_back(-1);
-				last_a.push_back(-1);
-				k=1; chainlength+=degeneracy; N++;
-
-				while (k<length_g-1) {
-					arm++;
-					first_s.push_back(N+1);
-          last_s.push_back(-1);
-          first_b.push_back(-1);
-          last_b.push_back(-1);
-					if (first_a[first_a.size()-1]==-1) first_a[first_a.size()-1]=arm;
-					last_a[last_a.size()-1]=arm;
-
-					f=ParseInt(sub[k+1],0); //should not contain double dots....
-					if (f<1) {
-						success=false; cout <<"In dendrimer-composition, in generation "<<i << " an integer number is expected at argument " << k+1 << " problem terminated" << endl;
-					}
-					n_arm.push_back(f); arms+=f;
-
-					sub_dd.clear();
-					In->split(sub[k],':',sub_dd);
-					dd=0; length_dd=sub_dd.size();
-					while (dd<length_dd) {
-						open.clear(); close.clear();
-            In->EvenBrackets(sub_dd[dd],open,close);
-						if (open.size()==0) {
-							a=ParseInt(sub_dd[dd],-1);
-							if (a==-1) {
-								cout <<"No integer found. Possibly you have a segment name in composition that is not surrounded by brackets " << endl; success=false;
-							} else {if (Al[a]->active) Al[a]->active=false; else Al[a]->active=true;}
-						} else {
-							j=0; length=open.size();
-							while (j<length) {
-								segname=sub_dd[dd].substr(open[j]+1,close[j]-open[j]-1);
-								mnr=GetMonNr(segname);
-								if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; this occurs at generation " <<i << " arm " << k << "."  << endl; success=false;}
-								mon_nr.push_back(mnr);
-								nn=ParseInt(sub_dd[dd].substr(close[j]+1,s.size()-close[j]-1),0);
-								if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity; this occurs at generation " <<i << " arm " <<k <<"."<< endl; success=false;}
-								n_mon.push_back(nn); N+=nn;
-								d_mon.push_back(degeneracy*f);
-								chainlength +=degeneracy*nn*f;
-                if (first_b[first_b.size()-1] < 0) first_b[first_b.size()-1]=mon_nr.size()-1;
-                last_b[first_b.size()-1]=mon_nr.size()-1;
-								last_s[last_s.size()-1]=N;
-								for (a=0; a<AlListLength; a++) {if (Al[a]->active) Al[a]->frag.push_back(1); else Al[a]->frag.push_back(0);}
-								j++;
-							}
-						}
-						dd++;
-					}
-					k=k+2;
-				}
-				degeneracy*=arms;
-			}
-   //anticipated that asymmetric dendrimers will be of interest in the future
-
-			break;
-		case comb:
-			first_a.clear();
-			last_a.clear();
-			first_b.clear();
-			last_b.clear();
-			first_s.clear();
-			last_s.clear();
-			n_arm.clear();
-			mon_nr.clear();
-			n_mon.clear();
-			In->split(s,';',sub_gen);
-			n_generations=sub_gen.size();
-			int j;
-			int mnr;
-			int nn;
-
-			sub_dd.clear();
-			In->split(s,':',sub_dd);
-			length_dd=sub_dd.size();
-			if (length_dd>1) {
-				success = false;
-				cout <<"In comb the use of 'aliases' is not allowed (yet). " << endl; return success;
-			}
-			if (save_memory) {
-				success = false;
-				cout <<"In comb the use of 'save_memory' is not allowed (yet). " << endl; return success;
-			}
-
-			if (n_generations != 3) {
+	first_s.clear();
+	last_s.clear();
+	first_b.clear();
+	last_b.clear();
+	first_s.push_back(-1);
+	last_s.push_back(-1);
+	first_b.push_back(-1);
+	last_b.push_back(-1);
+	if (MolType==branched) {
+		lopen=open.size();
+		for (int i=1; i<lopen; i++) {
+			if ((open[i]-open[i-1])==1 || (close[i]-close[i-1])==1) {
+				cout <<"In molecule " + name + " in 'composition', two similar square brackets in a row '[[' or ']]' is not allowed" << endl;
 				success=false;
-				cout<<" ------Comb language:------ " << endl;
-				cout<<" generic example: @comb((A)5; A,(B)3,(A)6,4; (A)7 )" << endl;
-				cout<<" Backbnone has a first part of 5 A-segments, then spacers with 6 A units and a trailing of 7 A-segments. " << endl;
-				cout<<" Teeth are composed of 3 B-segments " << endl;
-				cout<<" Number of repeats (inbetween the two ';') is eqaul to 4. " << endl;
-				cout<<" Number of segments in molelecule is 5+(1+3+6)x4+7 = 52 segments" << endl;
-				cout<<" Backbone length is 5+(1+6)x4+7 = 40 segments " << endl;
-				cout<<" ------Comb language:------ " << endl;
 				return success;
 			}
-			chainlength=0; N=-1;
-
-			first_s.push_back(N+1);
-			last_s.push_back(-1);
-			first_b.push_back(-1);
-			last_b.push_back(-1);
-			open.clear(); close.clear();
-			In->EvenBrackets(sub_gen[0],open,close);
-			j=0; length=open.size();
-			while (j<length) {
-				segname=sub_gen[0].substr(open[j]+1,close[j]-open[j]-1);
-				mnr=GetMonNr(segname);
-				if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; this occurs at generation " << endl; success=false;}
-				mon_nr.push_back(mnr); d_mon.push_back(1);
-				nn=ParseInt(sub_gen[0].substr(close[j]+1,s.size()-close[j]-1),0);
-				if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity; this occurs at generation " << endl; success=false;}
-				n_mon.push_back(nn); N+=nn;
-				chainlength +=nn;
-				if (first_b[first_b.size()-1] < 0) first_b[first_b.size()-1]=mon_nr.size()-1;
-				last_b[first_b.size()-1]=mon_nr.size()-1;
-				last_s[last_s.size()-1]=N;
-				j++;
-			}
-
-			chainlength_backbone=chainlength;
-			sub.clear();
-			In->split(sub_gen[1],',',sub);
-			if (sub.size() != 4) {
-				cout << "Central part in comb definition should contain four arguments and three ',' to separare them. Use comb(? ) for details."  << endl;
-				success=false; return success;
-			}
-
-			n_arm.push_back(ParseInt(sub[3],0));
-			first_s.push_back(N+1);
-			last_s.push_back(-1);
-			first_b.push_back(-1);
-			last_b.push_back(-1);
-			open.clear(); close.clear();
-			In->EvenBrackets(sub[1],open,close);
-			j=0; length=open.size();
-			while (j<length) {
-				segname=sub[1].substr(open[j]+1,close[j]-open[j]-1);
-				mnr=GetMonNr(segname);
-				if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; this occurs at generation " << endl; success=false; return success; }
-				mon_nr.push_back(mnr); d_mon.push_back(n_arm[0]);
-				nn=ParseInt(sub[1].substr(close[j]+1,s.size()-close[j]-1),0);
-				if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity; this occurs at generation " << endl; success=false; return success; }
-				n_mon.push_back(nn); N+=nn;
-				chainlength +=nn;
-				if (first_b[first_b.size()-1] < 0) first_b[first_b.size()-1]=mon_nr.size()-1;
-				last_b[first_b.size()-1]=mon_nr.size()-1;
-				last_s[last_s.size()-1]=N;
-				j++;
-			}
-
-			chainlength_arm=chainlength-chainlength_backbone;
-			chainlength=chainlength_backbone;
-
-			if (n_arm[0] <1) {
-				success=false; cout <<" Error in composition of mol "+ name + " number of arms is less than unity. Use comb(? ) for details. " << endl; return success;
-			}
-			n_generations=3;
-			for (int a=1; a<=n_arm[0]; a++) {
-				mnr=GetMonNr(sub[0]);
-				if (mnr <0)  {success=false; cout <<"In composition of mol '" + name + "', segment name '" + sub_dd[0] + "' is not recognised. For the branching point the ( ) are not needed."  << endl; return success;}
-
-
-				n_mon.push_back(1); d_mon.push_back(1);
-				mon_nr.push_back(mnr); N++;
-				chainlength +=chainlength_arm+1;
-				n_generations++;
-
-				first_s.push_back(N+1);
-				last_s.push_back(-1);
-				first_b.push_back(-1);
-				last_b.push_back(-1);
-				open.clear(); close.clear();
-				In->EvenBrackets(sub[2],open,close);
-				j=0; length=open.size();
-				while (j<length) {
-					segname=sub[2].substr(open[j]+1,close[j]-open[j]-1);
-					mnr=GetMonNr(segname);
-					if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; Use ring(?) for details." << endl; success=false; return success; }
-					mon_nr.push_back(mnr); d_mon.push_back(1);
-					nn=ParseInt(sub[2].substr(close[j]+1,s.size()-close[j]-1),0);
-					if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity; Use ring(? ) for details. "<< endl; success=false; return success; }
-					n_mon.push_back(nn); N+=nn;
-					chainlength +=nn;
-					if (first_b[first_b.size()-1] < 0) first_b[first_b.size()-1]=mon_nr.size()-1;
-					last_b[first_b.size()-1]=mon_nr.size()-1;
-					last_s[last_s.size()-1]=N;
-					j++;
-				}
-
-			}
-			n_generations++;
-
-			first_s.push_back(N+1);
-			last_s.push_back(-1);
-			first_b.push_back(-1);
-			last_b.push_back(-1);
-			open.clear(); close.clear();
-			In->EvenBrackets(sub_gen[2],open,close);
-			j=0; length=open.size();
-			while (j<length) {
-				segname=sub_gen[2].substr(open[j]+1,close[j]-open[j]-1);
-				mnr=GetMonNr(segname);
-				if (mnr<0)  {cout <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised; " << endl; success=false; return success; }
-				mon_nr.push_back(mnr); d_mon.push_back(1);
-				nn=ParseInt(sub_gen[2].substr(close[j]+1,s.size()-close[j]-1),0);
-				if (nn<1) {cout <<"In composition of mol '" + name + "' the number of repeats should have values larger than unity;  " << endl; success=false; return success; }
-				n_mon.push_back(nn); N+=nn;
-				chainlength +=nn;
-				if (first_b[first_b.size()-1] < 0) first_b[first_b.size()-1]=mon_nr.size()-1;
-				last_b[first_b.size()-1]=mon_nr.size()-1;
-				last_s[last_s.size()-1]=N;
-				j++;
-			}
-
-			break;
-					default:
-			break;
+		}
+	}
+	success = GenerateTree(s,generation,pos,open,close);
+	if (!success) {
+		cout << "GenerateTree failed" << endl;
+		return success;
 	}
 	if (MolType==branched) { //invert numbers;
 		int g_length=first_s.size();
@@ -1768,7 +612,6 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 			xxx=Gnr[i]; Gnr[i]=Gnr[length-1-i]; Gnr[length-1-i]=xxx;
 			xxx=n_mon[i]; n_mon[i]=n_mon[length-1-i]; n_mon[length-1-i]=xxx;
 			xxx=mon_nr[i]; mon_nr[i]=mon_nr[length-1-i]; mon_nr[length-1-i]=xxx;
-			//} //dit geeft problemen in valgrind. Als alias verbetert is dan moet dit ook weer aangepakt.
 		}
 		//		}
 		//}
@@ -1776,7 +619,7 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 	}
 
 	success=MakeMonList();
-	if (chainlength==1 && MolType!=water) MolType=monomer;
+	if (chainlength==1) MolType=monomer;
 	return success;
 }
 
@@ -1808,21 +651,6 @@ NAMICS_DBG("Molecule:: MakeMonList" << endl);
 		if (In->InSet(MolMonList,pos,mon_nr[i])) {molmon_nr.push_back(pos);
 		} else {cout <<"program error in mol PrepareForCalcualations" << endl; }
 		i++;
-	}
-	return success;
-}
-
-bool Molecule::IsClamped() {
-NAMICS_DBG("IsClamped for Mol " + name << endl);
-	bool success=false;
-	int length=mon_nr.size();
-	// In case of failed composition reading, mon_nr will be empty and mon_nr[0] will segfault, hence the empty check.
-	if (not mon_nr.empty() and mon_nr[0] == mon_nr[length-1]) {
-		if (Seg[mon_nr[0]]->freedom == "clamp") success=true;
-	}
-	if (success && MolType!=linear) {
-		success=false;
-		cout <<"Sorry, currently clamped molecules should be linear" << endl;
 	}
 	return success;
 }
@@ -1934,8 +762,6 @@ NAMICS_DBG("push (string) for Mol " + name << endl);
 
 void Molecule::PushOutput() {
 NAMICS_DBG("PushOutput for Mol " + name << endl);
-	int length_al=MolAlList.size();
-	for (int i=0; i<length_al; i++) Al[i]->PushOutput();
 	strings.clear();
 	strings_value.clear();
 	bools.clear();
@@ -2011,10 +837,6 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 	push("n",n);
 	push("chainlength",chainlength);
 	push("phibulk",phibulk);
-	if (MolType == water) {
-		push("phib1",phib1);
-		push("Kw",Kw);
-	}
 	push("Mu",Mu);
 	push("mu",Mu); push("MU",Mu);
 	if (lat->gradients==3) {
@@ -2068,8 +890,6 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 
 	push("GN",GN);
 	push("norm",norm);
-	push("phi_LB_x",phi_LB_X);
-	push("phi_UB_x",phi_UB_X);
 	J=0;
 
 	int molmonlength=MolMonList.size();
@@ -2084,13 +904,6 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 		stringstream ss; ss<<i+1; string str=ss.str();
 		s= "profile;"+str; push("phi_"+Seg[MolMonList[i]]->name,s);
 	}
-	for (int i=0; i<length_al; i++) {
-		push(Al[i]->name+"_value",Al[i]->value);
-		push(Al[i]->name+"_composition",Al[i]->composition);
-		stringstream ss; ss<<i+length; string str=ss.str();
-		s="profile;"+str; push(Al[i]->name+"phi",s);
-	}
-	s="vector;0"; push("gn",s);
 }
 
 Real* Molecule::GetPointer(string s, int &SIZE) {
@@ -2116,17 +929,6 @@ NAMICS_DBG("GetPointer for Mol " + name << endl);
 			}
 			i++;
 		}
-		int length_al=MolAlList.size();
-		i=0;
-		while (i<length_al) {
-			stringstream ss; ss<<i+length; string str=ss.str();
-			if (sub[i]==str)  {
-				lat->set_bounds(Al[i]->H_phi);
-				return Al[i]->H_phi;
-			}
-		}
-	} else { //sub[0]=="vector";
-		if (sub[1]=="0") {SIZE=n_box; return gn;}
 	}
 	return NULL;
 }
@@ -2396,15 +1198,6 @@ NAMICS_DBG("propagate_backward for Mol " + name << endl);
 				t = n;
 			}
 			lat->AddPhiS(rho+molmon_nr[block]*M,Gg_f+(n0+t-1)*M,Gg_b+(k%2)*M,Markov,M);
-
-			if (compute_phi_alias) {
-				int length = MolAlList.size();
-				for (int i=0; i<length; i++) {
-					if (Al[i]->frag[k]==1) {
-						lat->AddPhiS(Al[i]->rho,Gg_f+(n0+t-1)*M,Gg_b+(k%2)*M,G1,norm,Markov,M);
-					}
-				}
-			}
 			s--;
 		}
 		std::copy_n(Gg_b+M, M, Gg_b);
@@ -2417,15 +1210,6 @@ NAMICS_DBG("propagate_backward for Mol " + name << endl);
 			}
 
 			lat->AddPhiS(rho+molmon_nr[block]*M, Gg_f+(s*M), Gg_b+(s%2)*M,Markov, M);
-
-			if (compute_phi_alias) {
-				int length = MolAlList.size();
-				for (int i=0; i<length; i++) {
-					if (Al[i]->frag[k]==1) {
-						lat->AddPhiS(Al[i]->rho,Gg_f+s*M,Gg_b+(s%2)*M,G1,norm,Markov,M);
-					}
-				}
-			}
 			s--;
 		}
 	}
@@ -2472,7 +1256,7 @@ NAMICS_DBG("1. propagate_forward for Mol " + name << endl);
 			}
 		}
 		if ((N)%2!=0) {
-			std::copy_n(Gs+M*size, M*size, Gs); //FL
+			std::copy_n(Gs+M*size, M*size, Gs);
 		}
 	} else {
 		for (int k=0; k<N; k++) {
@@ -2516,11 +1300,11 @@ NAMICS_DBG("propagate_backward for Mol " + name << endl);
 						lat->Initiate(Gg_b+(k%2)*M*size,GB+M,Markov,M);
 						free(GB);
 					} else {
-						lat->propagateB(Gg_b,G1,P,(k+1)%2,k%2,M); //FL
+						lat->propagateB(Gg_b,G1,P,(k+1)%2,k%2,M);
 					}
 				}
 			} else {
-				lat->propagateB(Gg_b,G1,P,(k+1)%2,k%2,M); //FL
+				lat->propagateB(Gg_b,G1,P,(k+1)%2,k%2,M);
 			}
 			t = k - k0;
 			if (t == t0) {
@@ -2532,12 +1316,12 @@ NAMICS_DBG("propagate_backward for Mol " + name << endl);
 				if (t0 < v0) {
 					v0 = t0;
 				}
-				std::copy_n(Gg_f+(n0+t-1)*M*size, M*size, Gs+(t%2)*M*size); //FL
+				std::copy_n(Gg_f+(n0+t-1)*M*size, M*size, Gs+(t%2)*M*size);
 				for (rk1=k0+t0+2; rk1<=k; rk1++) {
 					t++;
 					lat->propagateF(Gs,G1,P,(t-1)%2,t%2,M);
 					if (t == t0+1 || k0+n == k) {
-						std::copy_n(Gs+(t%2)*M*size, M*size, Gg_f+(n0+t-1)*M*size); //FL
+						std::copy_n(Gs+(t%2)*M*size, M*size, Gg_f+(n0+t-1)*M*size);
 					}
 					if (t == n && k0+n < k) {
 						t  = ++t0;
@@ -2548,18 +1332,9 @@ NAMICS_DBG("propagate_backward for Mol " + name << endl);
 			}
 
 			lat->AddPhiS(rho+molmon_nr[block]*M,Gg_f+(n0+t-1)*M*size,Gg_b+(k%2)*M*size,Markov,M);
-
-			if (compute_phi_alias) {
-				int length = MolAlList.size();
-				for (int i=0; i<length; i++) {
-					if (Al[i]->frag[k]==1) {
-						lat->AddPhiS(Al[i]->rho,Gg_f+(n0+t-1)*M*size,Gg_b+(k%2)*M*size,G1,norm,Markov,M);
-					}
-				}
-			}
 			s--;
 		}
-		std::copy_n(Gg_b+M*size, size*M, Gg_b);//FL
+		std::copy_n(Gg_b+M*size, size*M, Gg_b);
 	} else {
 		for (int k=0; k<N; k++) {
 			if (s<chainlength-1) {
@@ -2571,23 +1346,13 @@ NAMICS_DBG("propagate_backward for Mol " + name << endl);
 					lat->Initiate(Gg_b+(s%2)*M*size,GB+M,Markov,M);
 					free(GB);
 				} else {
-					lat->propagateB(Gg_b,G1,P,(s+1)%2,s%2,M); //FL
+					lat->propagateB(Gg_b,G1,P,(s+1)%2,s%2,M);
 				}
 			} else {
-				lat->Initiate(Gg_b+(s%2)*M*size,G1,Markov,M); //FL
+				lat->Initiate(Gg_b+(s%2)*M*size,G1,Markov,M);
 			}
 
 			lat->AddPhiS(rho+molmon_nr[block]*M, Gg_f+s*M*size, Gg_b+(s%2)*M*size, Markov, M);
-
-
-			if (compute_phi_alias) {
-				int length = MolAlList.size();
-				for (int i=0; i<length; i++) {
-					if (Al[i]->frag[k]==1) {
-						lat->AddPhiS(Al[i]->rho,Gg_f+s*M*size,Gg_b+(s%2)*M*size,G1,norm,Markov, M);
-					}
-				}
-			}
 			s--;
 		}
 	}
@@ -2597,7 +1362,6 @@ bool Molecule::ComputePhi(Real* BETA,int id){
 NAMICS_DBG("ComputePhi for Mol " + name << endl);
 	bool success=true;
 	int M=lat->M;
-	lat->sub_box_on=0;//selecting 'standard' boundary condition
 	if (id !=0) {
 		int molmonlistlength= MolMonList.size();
 		for (int i=0; i<molmonlistlength; i++)
@@ -2607,14 +1371,7 @@ NAMICS_DBG("ComputePhi for Mol " + name << endl);
 			for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = ((BETA)[__i] != 0) ? ((Seg[MolMonList[i]]->G1)[__i] / (BETA)[__i]) : 0;
 		}
 	}
-	if (MolType==water) phib1=0;
-	if (freedom == "clamped") {
-		lat->sub_box_on=Seg[mon_nr[0]]->clamp_nr; //slecting sub_box boundary conditions.
-		success=ComputePhi();
-		lat->sub_box_on=0;//selecting 'standard' boundary condition
-	} else {
-		success=ComputePhi();
-	}
+	success=ComputePhi();
 
 
 	if (id !=0) {
@@ -2633,60 +1390,12 @@ NAMICS_DBG("ComputePhi for Mol " + name << endl);
 	return success;
 }
 
-Real Molecule::GetPhib1() {
-	if (MolType != water) return 0;
-	NAMICS_DBG("GetPhib1 in Molecule (water mode)" << endl);
-	if (phibulk <0) {
-		cout <<"problem in computation of phib1 for MolType water." << endl;
-		return 0;
-	}
-	phib1=1/Kw +(1-sqrt(4*Kw*phibulk+1))/(2*Kw*Kw*phibulk);
-	return phib1;
-}
-
-void Molecule::AddToGP(Real* GP) {
-	if (MolType != water) return;
-	NAMICS_DBG("AddToGP in Molecule (water mode)" << endl);
-	int M=lat->M;
-	Real* G=Seg[MolMonList[0]]->G1;
-	for (int i=0; i<M; i++) {
-		GP[i]+=(phi[i]-phibulk)-phib1*G[i]/(1-Kw*phib1*G[i]) + phib1/(1-Kw*phib1);
-	}
-}
-
-void Molecule::AddToF(Real* F) {
-	if (MolType != water) return;
-	NAMICS_DBG("AddToF in Molecule (water mode)" << endl);
-	int M=lat->M;
-	Real* G=Seg[MolMonList[0]]->G1;
-	for (int i=0; i<M; i++) {
-		F[i]-=(phi[i])-phib1*G[i]/(1-Kw*phib1*G[i]);
-	}
-}
-
-
 bool Molecule::ComputePhi(){
 NAMICS_DBG("ComputePhi for Molecule " + name << endl); //default computation for monomer only....
 	int M=lat->M;
 	bool success=true;
-	if (MolType == water) {
-		if (phib1>0) {
-			Real* G=Seg[MolMonList[0]]->G1;
-			for (int i=0; i<=M; i++) {
-				rho[i]=phib1*G[i]/pow((1-Kw*phib1*G[i]),2);
-			}
-			GN=lat->ComputeGN(rho,Markov,M)/phib1;
-		}
-		return success;
-	}
 	std::copy_n(Seg[mon_nr[0]]->G1, M, phi);
 	GN=lat->WeightedSum(phi);
-	if (compute_phi_alias)
-		for (auto& alias : Al) //For every alias in the Al vector (same as Al[i])
-			if (alias->frag[0]==1) {
-				std::copy_n(phi, M, alias->phi);
-				for (int __i = 0; __i < (M); ++__i) (alias->phi)[__i] *= (norm);
-			}
 	for (int __i = 0; __i < (M); ++__i) (phi)[__i] = (phi)[__i] * (Seg[mon_nr[0]]->G1)[__i];
 	return success;
 }

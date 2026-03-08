@@ -14,15 +14,6 @@ public:
 	const Input* In;
 	Lattice* Lat;
 	Lattice* lat;
-	vector<int> px1;
-	vector<int> px2;
-	vector<int> py1;
-	vector<int> py2;
-	vector<int> pz1;
-	vector<int> pz2;
-	vector<int> bx;
-	vector<int> by;
-	vector<int> bz;
 	vector<int> constraint_z;
 	vector<Real> constraint_phi;
 	vector<Real> constraint_beta;
@@ -30,7 +21,6 @@ public:
 
 	vector<string> chi_name;
 	vector<Real> chi;
-	int clamp_nr;
 	int n_seg;
 	int seg_nr;
 	bool unique;
@@ -63,20 +53,7 @@ public:
 	int ns;
 
 	int n_pos;
-	int n_box;
 	int* r;
-	int mx,my,mz,m;
-	string scale;
-	int Var_steps;
-	Real Var_step;
-	Real Var_end_value;
-	Real Var_start_value;
-	int num_of_steps;
-	int Var_target;
-	string Var_type;
-	int chi_var_seg;
-	int chi_var_state;
-	Real chi_value;
 	Real Amplitude;
 	int labda;
 	int seed;
@@ -144,13 +121,11 @@ public:
 	void PutChiKEY(string);
 	string GetValue(string);
 	string GetFreedom();
-	bool GetClamp(string);
 	Real PinnedVolume();
 	bool IsFree();
 	bool IsPinned();
 	bool IsFrozen();
 	bool IsTagged();
-	bool IsClamp();
 	Real* GetMASK();
 	Real* GetPhi();
 	void DeAllocateMemory();
@@ -158,12 +133,6 @@ public:
 	bool PrepareForCalculations(Real*,bool);
 	bool ParseFreedoms(bool&);
 	void UpdateValence(Real*,Real*,Real*,Real*,bool);
-	bool PutVarInfo(string,string,Real);
-	int PutVarScan(Real,Real,int,string);
-	bool ResetInitValue() ;
-	bool UpdateVarInfo(int);
-	void PutValue(Real);
-	Real GetValue();
 	int AddState(int,Real,Real,bool);
 	void SetPhiSide();
 	bool PutAlpha(Real);

@@ -28,7 +28,6 @@ public:
 	vector<int> ItStateList;
 	vector<int> FrozenList;
 	vector<int> SysTagList;
-	vector<int> SysClampList;
 	vector<int> FillList;
 	vector<int> XmolList;
 	vector<int> XstateList_1;
@@ -83,15 +82,6 @@ public:
 	bool write_initial_guess;
 	string ConstraintType;
 	string delta_inputfile;
-	int Var_target;
-	Real Var_target_value;
-	Real Var_start_value;
-	int Var_scan_value;
-	int Var_steps;
-	Real Var_step;
-	Real Var_end_value;
-	int num_of_steps;
-	string scale;
 	int start;
 	int extra_constraints;
 	Real old_residual;
@@ -148,10 +138,5 @@ public:
 	Real GetSpontaneousCurvature();
 	Real GetKBar();
 	bool CreateMu(int);
-	bool PutVarInfo(string,string,Real);
-	bool ResetInitValue();
-	int PutVarScan(Real, Real, int, string );
-	bool UpdateVarInfo(int );
-	Real GetError();
 };
 #endif

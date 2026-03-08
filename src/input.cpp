@@ -50,11 +50,9 @@ Input::Input(const string& name_) {
 		"sys",
 		"mol",
 		"mon",
-		"alias",
 		"lat",
 		"newton",
 		"output",
-		"var",
 		OutputInfo::IN_CLASS_NAME,
 		"state",
 		"reaction"
@@ -292,7 +290,6 @@ NAMICS_DBG("LoadItems in Input " << endl); Out_key.clear();
 			bool name_found=false;
 			bool wild_monlist=false;
 			bool wild_mollist=false;
-			bool wild_aliaslist=false;
 
 			auto report_unknown_name = [&](const std::vector<std::string>& shown) {
 				cout << "In line " << set[0] << " name '" << set[3] << "' not recognised. Select from: "<< endl;
@@ -336,27 +333,21 @@ NAMICS_DBG("LoadItems in Input " << endl); Out_key.clear();
 							name_found = validate_name_or_wildcard(MonList, wild_monlist);
 							break;
 						case 3:
-							name_found = validate_name_or_wildcard(AliasList, wild_aliaslist);
-							break;
-						case 4:
 							name_found = validate_singleton_name(LatList);
 							break;
-						case 5:
+						case 4:
 							name_found = validate_singleton_name(NewtonList);
 							break;
-						case 6:
+						case 5:
 							name_found = validate_name(OutputList);
 							break;
-						case 7:
-							name_found = validate_name(VarList, &MonList);
-							break;
-						case 8:
+						case 6:
 							name_found=true;
 							break;
-						case 9:
+						case 7:
 							name_found = ContainsValue(StateList, set[3]);
 							break;
-						case 10:
+						case 8:
 							name_found = ContainsValue(ReactionList, set[3]);
 							break;
 						default:
@@ -371,16 +362,13 @@ NAMICS_DBG("LoadItems in Input " << endl); Out_key.clear();
 				return false;
 			}
 			if (!name_found) {return false;}
-			if (wild_aliaslist) {
-				append_entries(AliasList);
-			}
 			if (wild_mollist) {
 				append_entries(MolList);
 			}
 			if (wild_monlist) {
 				append_entries(MonList);
 			}
-			if (!(wild_monlist || wild_mollist ||wild_aliaslist)) {Out_key.push_back(set[2]); Out_name.push_back(set[3]); Out_prop.push_back(set[4]);}
+			if (!(wild_monlist || wild_mollist)) {Out_key.push_back(set[2]); Out_name.push_back(set[3]); Out_prop.push_back(set[4]);}
 
 		} //end temp
 	} //end i;
@@ -427,11 +415,6 @@ bool Input:: CheckInput(void) {
 		vector<std::string> set;
 		split(elems[i],':',set);
 		const string& word=set[1];
-		if (word=="alias" || word=="var") {
-			cout << "Keyword '" << word << "' is not supported in this minimal build." << endl;
-			success=false;
-			continue;
-		}
 		if (!InSet(KEYS, word)) {cout << word << " is not valid keyword in line " << set[0] << endl;
 			cout << "select one of the following:" << endl;
 			for( int k=0; k<key_length; k++) cout << KEYS[k] << endl;
@@ -454,7 +437,6 @@ bool Input::MakeLists(int start) {
 	MonList.clear();
 	MolList.clear();
 	OutputList.clear();
-	VarList.clear();
 	StateList.clear();
 	ReactionList.clear();
 
@@ -474,12 +456,8 @@ bool Input::MakeLists(int start) {
 	test_count(MonList,"mon",1,1000,"There must be at least one 'mon name' in input");
 	test_count(StateList,"state",0,1000,"There can not be more than 1000 'state name's in input");
 	test_count(ReactionList,"reaction",0,1000,"There can not be more than 1000 reaction name's in input");
-	test_count(AliasList,"alias",0,1000,"", false);
-	if (AliasList.size()==0) AliasList.push_back("NN");
 	test_count(MolList,"mol",1,1000,"There must be at least one 'mol name' in input");
 	test_count(OutputList,"output",1,1000,"No output defined! ", false);
-	const bool var_ok = TestNum(VarList,"var",0,10,start);
-	if (!var_ok && VarList.size()==0) VarList.push_back("NN");
 	return success;
 }
 

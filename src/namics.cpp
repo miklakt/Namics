@@ -29,7 +29,6 @@ string version = "2.2.2.2.2.1.1";
 // lattice version number =2
 // molecule version number =2
 // segment version number =2
-// alias version number =1
 // output version number =1
 Real check = 0.4534345;
 Real e = 1.60217e-19;
@@ -105,7 +104,6 @@ int main(int argc, char *argv[])
 	vector<State *> Sta;
 	vector<Reaction *> Rea;
 
-	// Create input class instance and handle errors(reference above)
 	In = make_unique<Input>(filename.str());
 	if (In->Input_error)
 	{
@@ -127,10 +125,7 @@ int main(int argc, char *argv[])
 
 		/******** Class creation starts here ********/
 
-		// Create lattice class instance and check inputs (reference above)
 		lat_p = make_unique<LGrad1>(*In, In->LatList[0]);
-
-		//Lat->outputtest();
 		if (!lat_p->CheckInput(start,true)) //-1 means that checkinput will stop when gradients and geometry are known.
 		{
 			return 0;
@@ -158,16 +153,12 @@ int main(int argc, char *argv[])
 				case 3:
 					Lat = make_unique<LGrad3>(*In,In->LatList[0]);
 					break;
-				default :
-					break;
-
 			}
 			success=Lat->CheckInput(start,false);
 
 			if (!success) return 0;
 		}
 
-		// Create segment class instance and check inputs (reference above)
 		int n_seg = In->MonList.size();
 		for (int i = 0; i < n_seg; i++) {
 			Seg.push_back(new Segment(In.get(), Lat.get(), In->MonList[i], i, n_seg));
@@ -213,7 +204,6 @@ int main(int argc, char *argv[])
 				return 0;
 		}
 
-		// Create segment class instance and check inputs (reference above)
 		int n_mol = In->MolList.size();
 		for (int i = 0; i < n_mol; i++)
 		{
@@ -222,48 +212,23 @@ int main(int argc, char *argv[])
 			{
 				return 0;
 			} else {
-				switch (mol_p->MolType) {
-
-				 	case monomer:
-						Mol.push_back(new Molecule(In.get(), Lat.get(), Seg, In->MolList[i]));
-						break;
-						case water:
-							Mol.push_back(new Molecule(In.get(), Lat.get(), Seg, In->MolList[i]));
-							break;
-					case linear:
-						if (mol_p->freedom=="clamped") {
-							cout << "Unsupported molecule freedom 'clamped' for mol '" << In->MolList[i] << "'." << endl;
-							return 0;
-						}
-						Mol.push_back(new mol_linear(In.get(), Lat.get(), Seg, In->MolList[i]));
-						break;
-					case branched:
-						Mol.push_back(new mol_branched(In.get(), Lat.get(), Seg, In->MolList[i]));
-						break;
-					case dendrimer:
-					case asym_dendrimer:
-					case comb:
-						cout << "Unsupported molecule architecture for mol '" << In->MolList[i]
-						     << "'. Only monomer, linear, branched and water are supported." << endl;
-						return 0;
-						break;
-					default:
-						cout <<"Unknown MolType " << endl;
-						break;
-
+				if (mol_p->MolType == monomer) {
+					Mol.push_back(new Molecule(In.get(), Lat.get(), Seg, In->MolList[i]));
+				} else if (mol_p->MolType == linear) {
+					Mol.push_back(new mol_linear(In.get(), Lat.get(), Seg, In->MolList[i]));
+				} else {
+					Mol.push_back(new mol_branched(In.get(), Lat.get(), Seg, In->MolList[i]));
 				}
 				mol_p.reset();
 				if (!Mol[i]->CheckInput(start,false)) return 0;
 			}
 		}
 
-		// Create system class instance and check inputs (reference above)
 		Sys = make_unique<System>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, In->SysList[0]);
 		if (!Sys->CheckInput(start)) return 0;
 		if (!Sys->CheckChi_values(n_seg))return 0;
 
 
-		// Create newton class instance and check inputs (reference above)
 		New = make_unique<Solve_scf>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), In->NewtonList[0]);
 		if (!New->CheckInput(start)) return 0;
 
@@ -276,7 +241,6 @@ int main(int argc, char *argv[])
 			STATELIST.clear();
 			if (!io::ReadInitialGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 0))
 			{
-				// last argument 0 is to first checkout sizes of system.
 				return 1;
 			}
 			int nummon = MONLIST.size();
@@ -303,7 +267,6 @@ int main(int argc, char *argv[])
 			if (!io::ReadInitialGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 1)) {
 				return 1;
 			}
-			// last argument 1 is to read guess in X.
 		}
 
 		int IV_new=0;
@@ -328,7 +291,6 @@ int main(int argc, char *argv[])
 			Sys->MakeItsLists();
 
 				New->AllocateMemory();
-				//} else
 
 				if (Sys->initial_guess != "none")
 				New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);

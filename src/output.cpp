@@ -173,7 +173,7 @@ NAMICS_DBG("Load in output " << endl);	bool success=true;
 							OUT_prop.push_back(s);
 						}
 					} else {
-						cout << "Alias-based wildcard output is not supported in this minimal build." << endl;
+						cout << "Mol wildcard output requires an explicit monomer prefix before '*'." << endl;
 						return false;
 					}
 					OUT_key.erase(OUT_key.begin()+i);

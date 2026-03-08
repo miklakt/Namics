@@ -1405,19 +1405,6 @@ void LGrad2::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real degeneracy, int Markov, in
 		}
 	} else for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy) * (Gf)[__i] * (Gb)[__i];
 }
-
-
-void LGrad2::AddPhiS(Real* phi,Real* Gf,Real* Gb, Real* G1, Real norm, int Markov, int M){
-	(void)M;
-	(void)Markov;
-	(void)norm;
-	(void)G1;
-	(void)Gb;
-	(void)Gf;
-	(void)phi;
-	cout << "composition not (yet) implemented for alias in LGrad2 " << endl;
-}
-
 void LGrad2::Initiate(Real* G,Real* Gz,int Markov, int M){
 	if (Markov==2) {
 		if (lattice_type == hexagonal&& !stencil_full) {

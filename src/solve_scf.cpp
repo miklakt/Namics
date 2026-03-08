@@ -6,7 +6,6 @@ Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vecto
 {
 NAMICS_DBG("Constructor in Solve_scf " << endl);
 	lat=Lat;
-	KEYS.push_back("gradient_type");
 	KEYS.push_back("method");
 	KEYS.push_back("x_info");
 	KEYS.push_back("e_info"); KEYS.push_back("s_info");KEYS.push_back("i_info");KEYS.push_back("t_info");KEYS.push_back("hs_info");
@@ -14,11 +13,9 @@ NAMICS_DBG("Constructor in Solve_scf " << endl);
 	KEYS.push_back("stop_criterion");
 	KEYS.push_back("deltamin");KEYS.push_back("deltamax");
 	KEYS.push_back("linesearchlimit");
-	//KEYS.push_back("samehessian");
 	KEYS.push_back("max_accuracy_for_hessian_scaling");
 	KEYS.push_back("n_iterations_for_hessian");
 	KEYS.push_back("small_alpha");
-	//KEYS.push_back("target_function");
 	KEYS.push_back("max_n_small_alpha");
 	KEYS.push_back("min_accuracy_for_hessian");
 	KEYS.push_back("max_fr_reverse_direction");
@@ -58,7 +55,6 @@ NAMICS_DBG("AllocateMemeory in Solve " << endl);
 	int M=lat->M;
 	iv = (Sys->ItMonList.size() + Sys->ItStateList.size())* M;
 	if (Sys->charged) iv += M;
-	if (SCF_method=="Picard") iv += M;
 	if (Sys->constraintfields) iv +=M;
 	int length = In->MonList.size();
 	for (int i = 0; i < length; i++) iv+=Seg[i]->constraint_z.size();
@@ -74,12 +70,6 @@ NAMICS_DBG("AllocateMemeory in Solve " << endl);
 	Sys->AllocateMemory();
 }
 
-bool Solve_scf::PrepareForCalculations() {
-NAMICS_DBG("PrepareForCalculations in Solve " << endl);
-	bool success=true;
-	return success;
-}
-
 bool Solve_scf::CheckInput(int start_) { start=start_;
 NAMICS_DBG("CheckInput in Solve " << endl);
 	pseudohessian =false;
@@ -92,7 +82,6 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 	hessian =false;
 	bool success=true;
 	control=proceed;
-	string value;
 	solver=PSEUDOHESSIAN;
 	SCF_method="pseudohessian";
 	gradient=classical;
@@ -103,9 +92,9 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 		iterationlimit=ParseInt(GetValue("iterationlimit"),1000);
 		if (iterationlimit < 0 || iterationlimit>1e6) {iterationlimit = 1000;}
 
-		e_info=ParseBool(GetValue("e_info"),true); value_e_info=e_info;
+		e_info=ParseBool(GetValue("e_info"),true);
 		hs_info=ParseBool(GetValue("hs_info"),true);
-		s_info=ParseBool(GetValue("s_info"),false); value_s_info =s_info;
+		s_info=ParseBool(GetValue("s_info"),false);
 		t_info=ParseBool(GetValue("t_info"),false);
 		i_info=ParseInt(GetValue("i_info"),1);
 		if (i_info == 0) {
@@ -113,23 +102,6 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 		cerr << "WARNING: i_info cannot be zero ! Defaulting to iterationlimit + 1."<< endl;
 		i_info = iterationlimit+1;
 		}
-		value_i_info=i_info;
-
-		if (GetValue("target_function").size() > 0) {
-			string target;
-      			target = ParseString(GetValue("target_function"), target);
-			using namespace std::placeholders;
-			if ( target.find("log") != string::npos  ) target_function = bind(&Solve_scf::gradient_log, this, _1, _2, _3, _4, _5);
-			else if ( target.find("quotient") != string::npos  ) target_function = bind(&Solve_scf::gradient_quotient, this, _1, _2, _3, _4, _5);
-			else if ( target.find("minus") != string::npos  ) target_function = bind(&Solve_scf::gradient_minus, this, _1, _2, _3, _4, _5);
-			else {
-				cerr << "Target function not found, please choose from log, quotient or minus. Defaulting to minus." << endl;
-			}
-		} else {
-			using namespace std::placeholders;
-			target_function = bind(&Solve_scf::gradient_minus, this, _1, _2, _3, _4, _5);
-		}
-
 		deltamax=ParseReal(GetValue("deltamax"),0.1);
 		if (deltamax < 0 || deltamax>100) {deltamax = 0.1;  cout << "Value of deltamax out of range 0..100, and value set to default value 0.1" <<endl; }
 		deltamin=0;
@@ -141,17 +113,14 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 			if (GetValue("method").size()==0) {SCF_method="pseudohessian";} else {
 				vector<string>method_options;
 				method_options.push_back("DIIS");
-				//method_options.push_back("Picard"); //can be included again when adjusted for charges and guess
 				method_options.push_back("pseudohessian");
 				method_options.push_back("hessian");
-				//method_options.push_back("conjugate_gradient");
 				method_options.push_back("LBFGS");
-				method_options.push_back("BRR");
 				if (!ParseString(GetValue("method"),SCF_method,method_options,"In 'solve_scf' the entry for 'method' not recognized: choose from:")) success=false;
 			}
 		if (SCF_method=="hessian" || SCF_method=="pseudohessian") {
 			if (SCF_method=="hessian") {pseudohessian=false; hessian=true; solver=HESSIAN;} else { pseudohessian=true; hessian=false; solver=PSEUDOHESSIAN;}
-			samehessian=false; //ParseBool(GetValue("samehessian"),false);
+			samehessian=false;
 			max_accuracy_for_hessian_scaling=ParseReal(GetValue("max_accuracy_for_hessian_scaling"),0.1);
 			if (max_accuracy_for_hessian_scaling<1e-7 || max_accuracy_for_hessian_scaling>1) {
 				cout <<"max_accuracy_for_hessian_scaling is out of range: 1e-7...1; default value 0.1 is used instead" << endl;
@@ -179,6 +148,8 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 				maxNumSmallAlpha=50;
 			}
 
+			// TODO: investigate the configuration key mismatch here.
+			// CheckInput declares "deltamin" but Hessian mode reads "delta_min".
 			deltamin=ParseReal(GetValue("delta_min"),0);
 			if (deltamin <0 || deltamin>deltamax) {
 				cout <<"delta_min is out of range; 0, ..., " << deltamax << "; delta_min value set to 0 " << endl;
@@ -201,35 +172,11 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 			}
 			restart_DIIS -=restart_DIIS%m; cout <<"Restart DIIS set to " << restart_DIIS << endl;
 		}
-		if (SCF_method=="Picard") {
-			solver= PICARD;
-			gradient=Picard;
+		if (SCF_method=="LBFGS") {
+			solver=LBFGS;
+			m=ParseInt(GetValue("m"),6);
+			if (m < 0 ||m>1000) {m=6;  cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<endl; }
 		}
-		if (SCF_method=="conjugate_gradient") {
-			solver= conjugate_gradient;
-			linesearchlimit=ParseInt(GetValue("linesearchlimit"),linesearchlimit);
-		}
-
-			if (SCF_method=="LBFGS") {
-				solver=LBFGS;
-				m=ParseInt(GetValue("m"),6);
-				if (m < 0 ||m>1000) {m=6;  cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<endl; }
-			}
-
-		if (SCF_method=="BRR") {
-			solver=BRR;
-			m=ParseInt(GetValue("m"),10);
-			if (m < 0 ||m>1000) {m=10;  cout << "In method 'BRR', value of 'm' out of range 0..1000, value set to default value 10" <<endl; }
-		}
-
-			if (GetValue("gradient_type").size()==0) {gradient=classical;} else {
-				vector<string>gradient_options;
-				gradient_options.push_back("classical");
-				//gradient_options.push_back("Picard");
-				if (!ParseString(GetValue("gradient_type"),gradients,gradient_options,"In 'solve_scf' the entry for 'gradient_type' not recognized: choose from:")) success=false;
-				if (gradients=="classical") gradient=classical;
-				if (gradients=="Picard")  gradient=Picard;
-			}
 
 		StoreFileGuess=ParseString(GetValue("store_guess"),"");
 		ReadFileGuess=ParseString(GetValue("read_guess"),"");
@@ -297,7 +244,6 @@ NAMICS_DBG("PushOutput in  Solve " << endl);
 	push("iterationlimit",iterationlimit);
 	push("stop_criterion",stop_criterion);
 	if (pseudohessian || hessian) {
-		//push("same_hessian",samehessian);
 		push("linesearchlimit",linesearchlimit);
 		push("max_accuracy_for_hessian_scaling",max_accuracy_for_hessian_scaling);
 		push("n_iteratons_for_hessian",n_iterations_for_hessian);
@@ -498,7 +444,7 @@ public:
 
 bool Solve_scf::Solve(bool report_errors_) { //going SCF here
 NAMICS_DBG("Solve in  Solve_scf " << endl);
-	bool success=true;
+	bool success=false;
 	bool report_errors=report_errors_;
 	int niv = In->ReactionList.size();
 	if (niv>0) {
@@ -506,8 +452,7 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 		if (solver==HESSIAN) i_solver=1;
 			if (solver==PSEUDOHESSIAN) i_solver=2;
 			if (solver==diis) i_solver=3;
-			if (solver==BRR) i_solver=4;
-			if (solver==LBFGS) i_solver=5;
+			if (solver==LBFGS) i_solver=4;
 		bool ee_info, ss_info;
 		if (e_info) ee_info=true; else ee_info=false; e_info=false;
 		if (s_info) ss_info=true; else ss_info=false; s_info=false;
@@ -523,8 +468,7 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 		if (i_solver==1) solver=HESSIAN;
 			if (i_solver==2) {solver=PSEUDOHESSIAN; pseudohessian=true;}
 			if (i_solver==3) solver=diis;
-			if (i_solver==4) solver=BRR;
-			if (i_solver==5) solver=LBFGS;
+			if (i_solver==4) solver=LBFGS;
 			gradient = classical;
 			control = proceed;
 		}
@@ -536,17 +480,8 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 		case PSEUDOHESSIAN:
 			success=iterate(xx,iv,iterationlimit,tolerance,deltamax,deltamin,true);
 		break;
-		case PICARD:
-			success=iterate_Picard(xx,iv,iterationlimit,tolerance,deltamax);
-		break;
 		case diis:
 			success=iterate_DIIS(xx,iv,m,iterationlimit,tolerance,deltamax,restart_DIIS);
-		break;
-		case BRR:
-			success=iterate_BRR(xx,iv,m,iterationlimit,tolerance,deltamax);
-		break;
-		case conjugate_gradient:
-			success =iterate_conjugate_gradient(xx,iv,iterationlimit,tolerance,deltamax);
 		break;
 		case LBFGS:
 			success=true;
@@ -568,9 +503,6 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 			cout <<endl <<"Problem solved: " << iterations << " iterations,  |g|: " << res <<  endl;
 			}
 		break;
-		default:
-			cout <<"Solve is lost" << endl; success=false;
-		break;
 	}
 	success=Sys->CheckResults(report_errors);
 	return success;
@@ -579,11 +511,6 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 
 void Solve_scf::residuals(Real* x, Real* g){
  NAMICS_DBG("residuals in Solve_scf " << endl);
-	int M=lat->M;
-	Real chi;
-	int sysmon_length = Sys->SysMonList.size();
-	int mon_length = In->MonList.size(); //also frozen segments
-
 	switch(gradient) {
 		case WEAK:
 			NAMICS_DBG("Residuals for weak iteration " << endl);
@@ -601,71 +528,14 @@ void Solve_scf::residuals(Real* x, Real* g){
 			std::fill_n(g, In->ReactionList.size(), 0);
 
 			for (size_t i = 0; i<In->ReactionList.size(); i++) {
-
 				g[i]=SIGN[i]*Rea[i]->Residual_value();
-				//g[i]=Rea[i]->Residual_value();
-
-			}
-
-		break;
-		case Picard:
-		{
-			NAMICS_DBG("Residuals in Picard mode in Solve_scf " << endl);
-			int jump=sysmon_length;
-			if (Sys->charged) jump++;
-			std::copy_n(xx+jump*M, M, alpha);
-			Sys->ComputePhis(x,iterations==0,residual);
-			if (Sys->charged) {
-				Sys->DoElectrostatics(g+sysmon_length*M,xx+sysmon_length*M);
-				lat->UpdateEE(Sys->EE,Sys->psi,Sys->E);
-				lat->set_bounds(Sys->psi);
-				lat->UpdatePsi(g+sysmon_length*M,Sys->psi,Sys->q,Sys->eps,Sys->psiMask,Sys->grad_epsilon,Sys->fixedPsi0);
-				lat->remove_bounds(g+sysmon_length*M);
-			}
-			Real one=1.0;
-			for (int __i = 0; __i < (M); ++__i) (g+jump*M)[__i] = (Sys->phitot)[__i] + (-1.0*one);
-			for (int i=0; i<sysmon_length; i++) {
-				std::copy_n(xx+i*M, M, g+i*M);
-				for (int k=0; k<mon_length; k++) {
-                       		chi= -1.0*Sys->CHI[Sys->SysMonList[i]*mon_length+k];  //The minus sign here is to change the sign of x! just a trick due to properties of PutAlpha where a minus sing is implemented....
-					if (chi!=0) for (int __i = 0; __i < (M); ++__i) if ((Sys->phitot)[__i] > 0) (g+i*M)[__i] = (g+i*M)[__i] - (chi) * (((Seg[k]->phi_side)[__i] / (Sys->phitot)[__i]) - (Seg[k]->phibulk));
-				}
-				if (Sys->charged){
-					for (int __i = 0; __i < (M); ++__i) (g+i*M)[__i] += (Seg[Sys->SysMonList[i]]->epsilon) * (Sys->EE)[__i];
-					if (Seg[Sys->SysMonList[i]]->valence !=0)
-					for (int __i = 0; __i < (M); ++__i) (g+i*M)[__i] += (-1.0*Seg[Sys->SysMonList[i]]->valence) * (Sys->psi)[__i];
-				}
-				lat->remove_bounds(g+i*M);
-				for (int __i = 0; __i < (M); ++__i) (g+i*M)[__i] = (g+i*M)[__i] * (Sys->KSAM)[__i];
 			}
 		break;
-		}
 		default:
 			NAMICS_DBG("Residuals in scf mode in Solve_scf " << endl);
 			Sys->Classical_residual(x,g,residual,iterations, iv);
 		break;
 	}
-}
-
-void Solve_scf::gradient_log(Real* g, int k, int M, int i, int j) {
-	//Target function: ln(g/phi) < tolerance
-	for (int z = 0 ; z < M ; ++z) {
-		Real frac = (g+k*M)[z]/(Mol[i]->phi+j*M)[z];
-		(g+k*M)[z] = log( frac );
-	}
-}
-
-void Solve_scf::gradient_quotient(Real* g, int k, int M, int i, int j) {
-	//Target function: g/phi-1 < tolerance
-	for (int z = 0 ; z < M ; ++z) {
-		Real frac = (g+k*M)[z]/(Mol[i]->phi+j*M)[z];
-		(g+k*M)[z] = frac - 1;
-	}
-}
-
-void Solve_scf::gradient_minus(Real* g, int k, int M, int i, int j) {
-	//Target function: g - phi < tolerance
-		for (int __i = 0; __i < (M); ++__i) (g+k*M)[__i] -= (Mol[i]->phi+j*M)[__i];
 }
 
 void Solve_scf::inneriteration(Real* x, Real* g, Real* h, Real accuracy, Real& deltamax, Real ALPHA, int nvar) {

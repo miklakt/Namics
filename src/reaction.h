@@ -23,19 +23,6 @@ public:
 	Real K;
 	Real pK;
 	string equation;
-
-	int Var_steps;
-	Real Var_step;
-	Real Var_end_value;
-	Real Var_start_value;
-	Real Var_start_search_value;
-	int num_of_steps;
-	int Var_target;
-	int Var_scan_value;
-	int Var_search_value;
-	string Var_type;
-	string scale;
-	Real Var_target_value;
 	
 	string name; 
 	const Input* In;
@@ -67,13 +54,5 @@ public:
 	Real Residual_value();
 	bool GuessAlpha();
 	bool PutAlpha(Real);
-
-	bool PutVarInfo(string,string,Real);
-	int PutVarScan(Real,Real,int,string);
-	bool ResetInitValue();
-	bool UpdateVarInfo(int);
-	Real GetError();
-	Real GetValue();
-	void PutValue(Real);
 };
 #endif

@@ -44,10 +44,9 @@ extern Real eps0;
 extern bool debug;
 #endif
 
-enum MoleculeType {monomer, linear, branched, dendrimer, asym_dendrimer, comb, water};
+enum MoleculeType {monomer, linear, branched};
 enum transfer {to_segment, to_bm, reset};
 enum EngineType {SCF};
 enum LatticeType {simple_cubic, hexagonal};
-enum SolverType {Pseudohessian,Lbfgs};
 enum CP{co_solvent_theta,co_solvent_phibulk,chi_C_D};
 #endif

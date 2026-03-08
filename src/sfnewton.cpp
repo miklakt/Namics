@@ -725,41 +725,6 @@ NAMICS_DBG("iterate in SFNewton" << endl);
 	return success;
 }
 
-
-bool SFNewton::iterate_Picard(Real* x,int nvar, int iterationlimit, Real tolerance, Real delta_max) {
-NAMICS_DBG("Iterate_Picard in  SFNewton " << endl);
-
-Real* h  = (Real*) malloc(sizeof(Real));
-Real* g = (Real*) malloc(nvar*sizeof(Real));
-
-	bool success=true;
-	int it;
-	Real residual;
-
-	it=0;
-	if (e_info) {cout <<"Picard has been notified" << endl;
-		cout << "Your guess:";
-	}
-	residuals(x,g);
-	residual=computeresidual(g,nvar);
-	while (residual > tolerance && it < iterationlimit) {
-		if(it%i_info == 0){
-#ifdef LongReal
-			printf("it = %i g = %Le \n",it,residual);
-#else
-			printf("it = %i g = %e \n",it,residual);
-#endif
-		}
-		std::transform(x, x + nvar, g, x, [delta_max](Real xv, Real gv) { return xv + delta_max * gv; });
-		residual=computeresidual(g,nvar);
-		//inneriteration(x,g,h,residual,nvar);
-		it++;
-	}
-	success=Message(e_info,s_info,it,iterationlimit,residual,tolerance,"");
-free(h); free(g);
-	return success;
-}
-
 void SFNewton::Ax(Real* A, Real* X, int N){//From Ax_B; below B is not used: it is assumed to contain a row of unities.
 NAMICS_DBG("Ax in  SFNewton (own svdcmp) " << endl);
 	if (N <= 1) {
@@ -856,17 +821,6 @@ Real SFNewton::computeresidual(Real* array, int size) {
   return residual;
 }
 
-
-bool SFNewton::iterate_BRR(Real*x,int nvar_, int m, int iterationlimit,Real tolerance, Real delta_max) {
-	(void)x;
-	(void)nvar_;
-	(void)m;
-	(void)iterationlimit;
-	(void)tolerance;
-	(void)delta_max;
-	cout << "BRR method is disabled in this minimal build. Use DIIS or pseudohessian." << endl;
-	return false;
-}
 
 bool SFNewton::iterate_DIIS(Real*x,int nvar_, int m, int iterationlimit,Real tolerance, Real delta_max, int restart_DIIS) {
 NAMICS_DBG("Iterate_DIIS in SFNewton " << endl);
@@ -1005,109 +959,3 @@ NAMICS_DBG("Iterate_RF in SFNewton " << endl);
 	return success;
 }
 
-
-
-bool SFNewton::iterate_conjugate_gradient(Real *x, int nvar,int iterationlimit , Real tolerance, Real deltamax) {
-// Based on An Introduction to the Conjugate Gradient Method Without the Agonizing Pain Edition 1 1/4 - Jonathan Richard Shewchuk
-// CG with Newton-Raphson and Fletcher-Reeves
-	int  k=0, j=0, j_max =linesearchlimit;
-	bool success=true;
-
-	Real inner_err=0, delta_new=0, delta_old=0, delta_d=0, delta_mid = 0;
-
-	Real teller=0, noemer=0;
-  Real alpha=0, beta=0;
-	Real rd=0;
-	bool proceed;
-  int iterations=0;
-  Real* g = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(g, nvar, 0);
-  Real* dg = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(dg, nvar, 0);
-  Real* r = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(r, nvar, 0);
-  Real* r_old = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(r_old, nvar, 0);
-  Real* d = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(d, nvar, 0);
-  Real* x0 = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(x0, nvar, 0);
-  Real* H_d = (Real*) malloc(nvar*sizeof(Real)); std::fill_n(H_d, nvar, 0);
-
-	if ( e_info ) {
-		cout<<"Nonlinear conjugate gradients with Newton-Raphson and Fletcher-Reeves has been notified."<<endl;
-
-	}
-	residuals(x,g);
-
-	std::transform(g, g + nvar, r, [](Real value) { return -value; });
-	std::copy_n(r, nvar, d);
-	delta_new = std::inner_product(r, r + nvar, r, Real(0));
-
-	accuracy= pow(delta_new,0.5);
-
-	cout << "i = " << iterations << " |g| = "<< accuracy << endl;
-	while (tolerance < accuracy && iterations<iterationlimit) {
-		j=0;
-		delta_d = std::inner_product(d, d + nvar, d, Real(0));
-		inner_err = pow(delta_d,0.5);
-		proceed=true;
-    // line search
-		while (proceed) {
-			teller = -std::inner_product(g, g + nvar, d, Real(0));
-			std::copy_n(x, nvar, x0);
-			Hd(H_d,d,x,x0,g,dg,nvar);
-			noemer = std::inner_product(H_d, H_d + nvar, d, Real(0));
-			alpha=teller/noemer;
-
-			std::transform(x0, x0 + nvar, d, x, [deltamax, alpha](Real x0v, Real dv) {
-				return x0v + deltamax * alpha * dv;
-			});
-			residuals(x,g);
-			j++;
-			proceed =(j<j_max && alpha*inner_err> 1e-8);
-		}
-
-
-		std::copy_n(r, nvar, r_old);
-		std::transform(g, g + nvar, r, [](Real value) { return -value; });
-		delta_old=delta_new;
-		delta_mid += std::inner_product(r, r + nvar, r_old, Real(0));
-		delta_new = std::inner_product(r, r + nvar, r, Real(0));
-		beta =  (delta_new-delta_mid)/delta_old;
-		std::transform(r, r + nvar, d, d, [beta](Real rv, Real dv) { return rv + beta * dv; });
-		k++;
-		rd = std::inner_product(r, r + nvar, d, Real(0));
-
-		if (k == nvar || rd<=0) {
-			k=0; beta=0;
-
-			std::copy_n(r, nvar, d);
-		}
-		iterations++;
-		accuracy = pow(delta_new,0.5);
-		if ( e_info ) {
-			if (iterations%i_info == 0)
-			cout << "i = " << iterations << " |g| = "<< accuracy << "  alpha("<<j<<") = " << alpha << "  beta = " << beta << endl;
-		}
-	}
-	if (iterations==iterationlimit) success=false;
-	Message(e_info,true,iterations,iterationlimit,accuracy,tolerance,"");
-
-  free(H_d); free(g);free(dg);free(r);free(r_old);free(d);free(x0);
-  return success;
-}
-
-
-void SFNewton::Hd(Real *H_q, Real *q, Real *x, Real *x0, Real *g, Real* dg, Real nvar) {
-
-
-	Real epsilon = 2e-8; //double precision. Machine error =10^-16; epsilon = 2 sqrt(precision)
-	const int nvar_i = static_cast<int>(nvar);
-
-	Real normq = norm2(q,nvar_i);
-	Real normx = norm2(x0,nvar_i);
-	Real delta = epsilon* (1+normx)/normq;
-
-
-
-	std::transform(x0, x0 + nvar_i, q, x, [delta](Real x0v, Real qv) { return x0v + delta * qv; });
-
-	residuals(x,dg);
-  
-	std::transform(dg, dg + nvar_i, g, H_q, [delta](Real dgv, Real gv) { return (dgv - gv) / delta; });
-}

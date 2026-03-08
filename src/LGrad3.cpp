@@ -1576,19 +1576,6 @@ void LGrad3::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real degeneracy,int Markov, int
 	} else for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy) * (Gf)[__i] * (Gb)[__i];
 
 }
-
-
-void LGrad3::AddPhiS(Real* phi,Real* Gf,Real* Gb, Real* G1, Real norm, int Markov, int M){
-	(void)M;
-	(void)Markov;
-	(void)norm;
-	(void)G1;
-	(void)Gb;
-	(void)Gf;
-	(void)phi;
-	cout << "Composition phi Alias not implemented in LGrad3 " << endl;
-}
-
 void LGrad3::Initiate(Real* G,Real* Gz,int Markov, int M){
 	int size;
 	if (Markov==2){

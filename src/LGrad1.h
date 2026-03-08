@@ -34,7 +34,6 @@ class LGrad1 : public Lattice
 	virtual void propagateB(Real*,Real*,Real*, int, int,int);
 	virtual Real ComputeGN(Real*,int,int);
 	virtual void AddPhiS(Real*,Real*,Real*,int, int);
-	virtual void AddPhiS(Real*,Real*,Real*,Real*,Real,int, int);
 	virtual void AddPhiS(Real*,Real*,Real*,Real,int, int);
 	virtual void Initiate(Real*,Real*,int, int);
 	virtual void Terminate(Real*,Real*,int,int);

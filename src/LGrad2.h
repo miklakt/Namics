@@ -33,7 +33,6 @@ class LGrad2 : public Lattice
 	void set_bounds(int*);
 	Real ComputeGN(Real*,int, int);
 	void AddPhiS(Real*,Real*,Real*,int, int);
-	void AddPhiS(Real*,Real*,Real*,Real*, Real, int, int);
 	void AddPhiS(Real*,Real*,Real*, Real,int, int);
 	void Initiate(Real*,Real*,int,int);
 	void Terminate(Real*,Real*,int,int);

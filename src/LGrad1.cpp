@@ -882,23 +882,6 @@ NAMICS_DBG("AddPhiS_degeneracy markov " << endl);	if (Markov==2) {
 	}
 }
 
-void LGrad1::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real* G1, Real norm, int Markov, int M){
-NAMICS_DBG("AddPhiS_norm_markov " << endl);	if (Markov==2) {
-		if (lattice_type ==hexagonal) {
-			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm*0.5/(FJC-1.0)) * (Gf)[__i] * (Gb)[__i] / (G1)[__i];
-			for (int k=1; k<FJC-1; k++) for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm/(FJC-1.0)) * (Gf+k*M)[__i] * (Gb+k*M)[__i] / (G1)[__i];
-			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm*0.5/(FJC-1.0)) * (Gf+(FJC-1)*M)[__i] * (Gb+(FJC-1)*M)[__i] / (G1)[__i];
-		} else {
-			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm/6.0) * (Gf)[__i] * (Gb)[__i] / (G1)[__i];
-			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm*4.0/6.0) * (Gf+1*M)[__i] * (Gb+1*M)[__i] / (G1)[__i];
-			for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm/6.0) * (Gf+2*M)[__i] * (Gb+2*M)[__i] / (G1)[__i];
-		}
-	} else {
-		for (int __i = 0; __i < (M); ++__i) if ((G1)[__i] > 0) (phi)[__i] += (norm) * (Gf)[__i] * (Gb)[__i] / (G1)[__i];
-	}
-}
-
-
 void LGrad1::Initiate(Real* G,Real* Gz,int Markov, int M){
 	if (Markov==2) {
 		for (int k=0; k<FJC; k++) std::copy_n(Gz, M, G+k*M);
