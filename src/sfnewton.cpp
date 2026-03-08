@@ -419,7 +419,6 @@ NAMICS_DBG("numhessian in Newton" << endl);
 		xt = x[i];
 		di = (1/(dmax3*dmax3*fabs(h[i+nvar*i])+dmax3+fabs(g[i]))
 			+1/dmax2)*(1+fabs(x[i]));
-		//}
 		x[i] += di;
 		COMPUTEG(x,g1,nvar,filter);
 		x[i] = xt;
@@ -936,7 +935,6 @@ NAMICS_DBG("Iterate_RF in SFNewton " << endl);
 		x[0]=c*x_start;
 		residuals(x,g);
 		fc=g[0]; res=fc;
-		//it+=k;
 		k=0;
 
 		while((k<iterationlimit/10) && (abs(res)>tolerance)){
@@ -958,4 +956,3 @@ NAMICS_DBG("Iterate_RF in SFNewton " << endl);
 	free(x0);free(g);
 	return success;
 }
-

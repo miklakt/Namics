@@ -1,9 +1,6 @@
-#define MAINxH
 #include "tools_host.h"
 #include "input.h"
 #include "lattice.h"
-//#include "lat_preview.h"
-//#include "mol_preview.h"
 #include "LGrad1.h"
 #include "LGrad2.h"
 #include "LGrad3.h"
@@ -22,15 +19,6 @@
 #include "solve_scf.h"
 #include <memory>
 
-string version = "2.2.2.2.2.1.1";
-// meaning:
-// newton version number =2
-// system version number =2
-// lattice version number =2
-// molecule version number =2
-// segment version number =2
-// output version number =1
-Real check = 0.4534345;
 Real e = 1.60217e-19;
 Real T = 298.15;
 Real k_B = 1.38065e-23;
@@ -82,7 +70,7 @@ int main(int argc, char *argv[])
 	int n_starts = 0;
 
 	string METHOD = "";
-	Real *X = NULL;
+	Real *X = nullptr;
 	int MX = 0, MY = 0, MZ = 0;
 	int fjc_old = 0;
 	bool CHARGED = false;
@@ -336,12 +324,12 @@ int main(int argc, char *argv[])
 
 		if (Sys->initial_guess == "previous_result"|| Sys->initial_guess == "file")
 		{
-			METHOD = New->SCF_method; //check this..
+			METHOD = New->SCF_method;
 			MX = Lat->MX;
 			MY = Lat->MY;
 			MZ = Lat->MZ;
 			CHARGED = Sys->charged;
-			IV_new = New->iv; //check this
+			IV_new = New->iv;
 			if (start > 1 || (start == 1 && Sys->initial_guess == "file"))
 				free(X);
 			X = (Real *)malloc(IV_new * sizeof(Real));

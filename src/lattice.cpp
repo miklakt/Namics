@@ -570,10 +570,8 @@ NAMICS_DBG("CheckInput in lattice " << endl);	bool success=true;
 		if (gradients ==2 && fjc>3) {success = false; cout <<" When gradients is 2, FJC-choices are limited to 7 " << endl; }
 		if (gradients ==3 && fjc>2) {success = false; cout <<" When gradients is 3, FJC-choices are limited to 5 " << endl; }
 
-		// TODO: investigate whether this should parse "ignore_site_fraction"
-		// instead of "ignore_sites". Current key lookup and parse key differ.
 		if (GetValue("ignore_site_fraction").length()>0) {
-			ignore_sites=ParseBool(GetValue("ignore_sites"),false);
+			ignore_sites=ParseBool(GetValue("ignore_site_fraction"),false);
 			if (!ignore_sites) cout <<"ignore_site_fraction is set to false. Full site fractions computed. " << endl;
 		}
 

@@ -31,7 +31,6 @@ public:
 	bool write_bounds;
 	bool append;
 	bool write;
-	bool use_output_folder;
 	string sep;
 
   	vector<string> ints;

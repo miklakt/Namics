@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include "lattice.h"
 #include "LGrad1.h"
 
 //planar geometry is in LG1Planar.cpp
@@ -158,7 +157,7 @@ NAMICS_DBG("LGrad1 computeLambda's " << endl);
 				LAMBDA[i+(FJC/2)*M] += 1.0-LS;
 			}
 		}
-		if (Markov==2) { //planar gemaakt voor debugging....
+		if (Markov==2) {
 			for (int i = fjc; i < M - fjc; i++) {
 				LABDA[i]=LAMBDA[i]*8.0;
 				LABDA_1[i]=1.0-LABDA[i];
@@ -297,7 +296,6 @@ void LGrad1::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] += (l_11+1)[__i] * (gz2+1)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (gx0+1)[__i] += (P[0]) * (H)[__i];
 
-				//LReflect(H,gz1,gz1);
 			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] = (l_1 +1)[__i] * (gz1)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] += (l_11+1)[__i] * (gz1+1)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (gx0+1)[__i] += (4*P[1]) * (H)[__i];
@@ -306,11 +304,9 @@ void LGrad1::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (2*P[1]+P[0]) * (gz1)[__i];
 			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (P[1]) * (gz2)[__i];
 
-				//UReflect(H,gz1,gz1);
 			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] = (l1)[__i] * (gz1+1)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] += (l11)[__i] * (gz1)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (gx2)[__i] += (4*P[1]) * (H+1)[__i];
-				//UReflect(H,gz2,gz0);
 			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] = (l1)[__i] * (gz2+1)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] += (l11)[__i] * (gz0)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (gx2)[__i] += (P[0]) * (H+1)[__i];
@@ -453,7 +449,7 @@ NAMICS_DBG("ReadRange in LGrad1 " << endl);	bool success=true;
 
 bool LGrad1::ReadRangeFile(string filename,int* H_p, int &n_pos, string seg_name, string range_type) {
 NAMICS_DBG("ReadRangeFile in LGrad1 " << endl);	if (fjc>1) {
-		cout << "Rangefile is not implemented for FJC-choices >3; contact FL. " << endl;
+		cout << "Rangefile is not supported for FJC-choices >3." << endl;
 		return false;
 	}
 	bool success=true;
@@ -629,7 +625,6 @@ void LGrad1::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 	Real a,b,c,a_,b_,c_;
 	Real r;
 	Real epsXplus, epsXmin;
-	//set_M_bounds(eps);
 	Real C =e*e/(eps0*k_BT*bond_length);
 
    if (!fixedPsi0) {
@@ -642,7 +637,6 @@ void LGrad1::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 			r++;
 			epsXmin=epsXplus;
 			epsXplus=r*(eps[x]+eps[x+1]);
-			//X[x]=(epsXmin*a + C*q[x]*L[x] + epsXplus*c)/(epsXmin+epsXplus);
 			if (x==fjc) a=psi[fjc-1]; else a=X[x-1]; //upwind
 			X[x]=(epsXmin*a  +C*q[x]*L[x] + epsXplus*psi[x+1])/(epsXmin+epsXplus);
 		 }
@@ -657,7 +651,6 @@ void LGrad1::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 			r++;
 			epsXplus=r*r*(eps[x]+eps[x+1]);
 			a=b; b=c; c=psi[x+1];
-			X[x]=(epsXmin*a + C*q[x]*L[x] + epsXplus*c)/(epsXmin+epsXplus);
 		 }
 	}
 	for (int __i = 0; __i < (M); ++__i) (g)[__i] = (g)[__i] - (X)[__i];

@@ -1,5 +1,4 @@
 #include <iostream>
-#include "lattice.h"
 #include "LG1Planar.h"
 
 LG1Planar::LG1Planar(const Input& In_,const string& name_): LGrad1(In_,name_) {}
@@ -255,5 +254,4 @@ Real LG1Planar::MomentPlanar(Real* X, int n, Real Z0){
 	}
 	return result;
 }
-
 

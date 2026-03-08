@@ -1,5 +1,6 @@
 #ifndef LGRAD2_H
 #define LGRAD2_H
+#include "lattice.h"
 class LGrad2 : public Lattice
 {
 	public:	LGrad2(const Input& In_,const string& name_);

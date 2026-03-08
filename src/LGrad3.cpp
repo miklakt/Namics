@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include "lattice.h"
 #include "LGrad3.h"
 
 LGrad3::LGrad3(const Input& In_,const string& name_): Lattice(In_,name_) {}
@@ -184,7 +183,6 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			Real *g=G1;
 
 			std::fill_n(gs, 12*M, 0);
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0,0); set_bounds_x(gz1,gz10,0,0);set_bounds_x(gz2,gz9,0,0); set_bounds_x(gz3,gz8,0,0); set_bounds_x(gz4,gz7,0,0); set_bounds_x(gz5,gz6,0,0);
 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz0)[__i];
@@ -207,7 +205,6 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz10+JX)[__i];
 			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz11+JX)[__i];
 
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_y(gz2,gz9,0,0);  set_bounds_y(gz3,gz8,0,0); set_bounds_y(gz4,gz7,0,0); set_bounds_y(gz0,gz11,0,0); set_bounds_y(gz1,gz10,0,0); set_bounds_y(gz5,gz6,0,0);
 
 			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz0)[__i];
@@ -230,7 +227,6 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz10+JY)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz11+JY)[__i];
 
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_z(gz1,gz10,0,0); set_bounds_z(gz4,gz7,0,0); set_bounds_z(gz5,gz6,0,0); set_bounds_z(gz0,gz11,0,0); set_bounds_z(gz2,gz9,0,0); set_bounds_z(gz3,gz8,0,0);
 
 			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz0)[__i];
@@ -253,7 +249,6 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz10+JZ)[__i];
 			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz11+JZ)[__i];
 
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0,-1); set_bounds_x(gz1,gz10,0,-1);set_bounds_x(gz2,gz9,0,-1); set_bounds_x(gz3,gz8,0,-1); set_bounds_x(gz4,gz7,0,-1); set_bounds_x(gz5,gz6,0,-1);
 
 			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx1+JX)[__i] += (P[0]) * (gz0+JZ)[__i];
@@ -276,7 +271,6 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[0]) * (gz10+JX)[__i];
 			for (int __i = 0; __i < (M-JX-JZ); ++__i) (gx10+JZ)[__i] += (P[0]) * (gz11+JX)[__i];
 
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_y(gz2,gz9,-1,0);  set_bounds_y(gz3,gz8,-1,0); set_bounds_y(gz4,gz7,-1,0); set_bounds_y(gz0,gz11,-1,0); set_bounds_y(gz1,gz10,-1,0); set_bounds_y(gz5,gz6,-1,0);
 
 			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx2+JX)[__i] += (P[0]) * (gz0+JY)[__i];
@@ -299,7 +293,6 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz10+JX)[__i];
 			for (int __i = 0; __i < (M-JX-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz11+JX)[__i];
 
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_z(gz1,gz10,0,-1); set_bounds_z(gz4,gz7,0,-1); set_bounds_z(gz5,gz6,0,-1); set_bounds_z(gz0,gz11,0,-1); set_bounds_z(gz2,gz9,0,-1); set_bounds_z(gz3,gz8,0,-1);
 
 
@@ -396,8 +389,6 @@ void LGrad3::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 
 			std::fill_n(gs, 12*M, 0);
 			for (int k=0; k<12; k++) remove_bounds(gs_1+k*M);
-			//remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);
-			//remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0,0);
 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx3+JX)[__i] += (P[1]) * (gz11)[__i];
@@ -766,7 +757,7 @@ NAMICS_DBG("ReadRange in LGrad3 " << endl);	bool success=true;
 
 bool LGrad3::ReadRangeFile(string filename,int* H_p, int &n_pos, string seg_name, string range_type) {
 NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
-		cout << "Rangefile is not implemented for FJC-choices >3; contact FL. " << endl;
+		cout << "Rangefile is not supported for FJC-choices >3." << endl;
 		return false;
 	}
 
@@ -916,7 +907,6 @@ void LGrad3::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 	int x, y, z;
 
 	Real epsZplus, epsZmin, epsXplus, epsXmin, epsYplus, epsYmin;
-	//set_M_bounds(eps);
 	Real C =e*e/(eps0*k_BT*bond_length);
 
    if (!fixedPsi0) {
@@ -1346,7 +1336,6 @@ if (!debug) cout <<"set_bounds (M) in LGrad3 " << endl;
 			SetBoundaries(std::span<Real>(X+i*m[k], static_cast<size_t>(m[k])),jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
 	} else {
 		if (fjc==1) {
-			//SetBoundaries(X,JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ);
 			for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++){
 				X[x*JX+y*JY+0]     = X[x*JX+y*JY+1];
 				X[x*JX+y*JY+MZ+1]  = X[x*JX+y*JY+MZ];
@@ -1369,7 +1358,7 @@ if (!debug) cout <<"set_bounds (M) in LGrad3 " << endl;
 				for (k=0; k<fjc; k++) X[k*JX+y*JY+z*JZ] = X[(2*fjc-1-k)*JX+y*JY+z*JZ];
 				for (k=0; k<fjc; k++) X[(MX+fjc+k)*JX+y*JY+z*JZ] = X[(MX+fjc-k-1)*JX+y*JY+z*JZ];
 			}
-			for (z=fjc; z<MZ+fjc; z++) for (x=fjc; x<MX+fjc; x++){ //corners?
+				for (z=fjc; z<MZ+fjc; z++) for (x=fjc; x<MX+fjc; x++){
 				for (k=0; k<fjc; k++) X[x*JX+k*JY+z*JZ] = X[x*JX+(2*fjc-1-k)*JY+z*JZ];
 				for (k=0; k<fjc; k++) X[x*JX+(MY+fjc+k)*JY+z*JZ] = X[x*JX+(MY+fjc-k-1)*JY+z*JZ];
 			}
@@ -1395,7 +1384,7 @@ if (!debug) cout <<"remove_bounds (int) in LGrad3 " << endl;
 				for (k=0; k<fjc; k++) X[k*JX+y*JY+z*JZ] = 0;
 				for (k=0; k<fjc; k++) X[(MX+fjc+k)*JX+y*JY+z*JZ] = 0;
 			}
-			for (z=0; z<MZ+2*fjc; z++) for (x=0; x<MX+2*fjc; x++){//corners?
+				for (z=0; z<MZ+2*fjc; z++) for (x=0; x<MX+2*fjc; x++){
 				for (k=0; k<fjc; k++) X[x*JX+k*JY+z*JZ] = 0;
 				for (k=0; k<fjc; k++) X[x*JX+(MY+fjc+k)*JY+z*JZ] = 0;
 			}
@@ -1413,7 +1402,6 @@ if (!debug) cout <<"set_bounds (int) in LGrad3 " << endl;
 			SetBoundaries(std::span<int>(X+i*m[k], static_cast<size_t>(m[k])),jx[k],jy[k],1,mx[k],1,my[k],1,mz[k],mx[k],my[k],mz[k]);
 	} else {
 		if (fjc==1) {
-			//SetBoundaries(X,JX,JY,BX1,BXM,BY1,BYM,BZ1,BZM,MX,MY,MZ);
 
 			for (x=1; x<MX+1; x++) {
 				for (y=1; y<MY+1; y++){
@@ -1623,7 +1611,6 @@ bool LGrad3:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R
 				MASK[P(X,Y,Z)]=1;
 			}
 		}
-		//}
 	}
 
 	return success;

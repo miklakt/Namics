@@ -147,12 +147,9 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 				cout <<" max_n_small_alpha is out of range: 10, ..., 100;  max_n_small_alpha is set to default: 50 " << endl;
 				maxNumSmallAlpha=50;
 			}
-
-			// TODO: investigate the configuration key mismatch here.
-			// CheckInput declares "deltamin" but Hessian mode reads "delta_min".
-			deltamin=ParseReal(GetValue("delta_min"),0);
+			deltamin=ParseReal(GetValue("deltamin"),0);
 			if (deltamin <0 || deltamin>deltamax) {
-				cout <<"delta_min is out of range; 0, ..., " << deltamax << "; delta_min value set to 0 " << endl;
+				cout <<"deltamin is out of range; 0, ..., " << deltamax << "; deltamin value set to 0 " << endl;
 				deltamin=0;
 			}
 			smallAlpha=ParseReal(GetValue("small_alpha"),0.00001);
@@ -540,7 +537,7 @@ void Solve_scf::residuals(Real* x, Real* g){
 
 void Solve_scf::inneriteration(Real* x, Real* g, Real* h, Real accuracy, Real& deltamax, Real ALPHA, int nvar) {
 NAMICS_DBG("inneriteration in Solve_scf " << endl);
-	residual=accuracy; //hoping this is not creating problems with the use of residual...
+	residual=accuracy; // track the reported residual alongside the active solver accuracy.
 	switch(control) {
 		case super:
 			for (int i=0; i<nvar; i++) { //this is to control the sing in the WEAK iteration.

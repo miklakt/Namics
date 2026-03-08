@@ -123,11 +123,9 @@ NAMICS_DBG("constructor in Output "<< endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea
 	lat=Lat_;
 	KEYS.push_back("write_bounds");
 	KEYS.push_back("append");
-	KEYS.push_back("use_output_folder");
 	KEYS.push_back("write");
 	KEYS.push_back("header_separator");
 	KEYS.push_back("filename");
-	use_output_folder = true; // LINUX ONLY, when you remove this, add it as a default to its CheckInputs part.
 }
 Output::~Output() {
 NAMICS_DBG("destructor in output " << endl);}
@@ -218,13 +216,9 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 			sep = "_";
 		}
 
-		if (GetValue("use_output_folder").size()>0) {
-			use_output_folder = ParseBool(GetValue("use_output_folder"),use_output_folder);
-		} // default is set in the constructor
-
-		if (success) {
-			if (!Load()) {
-				cout <<"Error in Load() in output" << endl;
+			if (success) {
+				if (!Load()) {
+					cout <<"Error in Load() in output" << endl;
 				success=false;
 			}
 		}
@@ -243,7 +237,7 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 	int mollistlength=In->MolList.size();
 	int statelistlength=In->StateList.size();
 	int listlength;
-	int choice;
+	int choice=0;
 	int i,j;
 	if  (key=="sys") choice=1;
 	if  (key=="mol") choice=2;
@@ -329,7 +323,7 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 	int mollistlength=In->MolList.size();
 	int statelistlength=In->StateList.size();
 	int listlength;
-	int choice;
+	int choice=0;
 	int i,j;
 	if  (key=="sys") choice=1;
 	if  (key=="mol") choice=2;
@@ -475,9 +469,7 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 	const string configured_filename = GetValue("filename");
 	const string infilename = configured_filename.size() > 0 ? configured_filename : In->name;
 	std::filesystem::path out_path(infilename);
-	if (use_output_folder) {
-		out_path = out_path.filename();
-	}
+	out_path = out_path.filename();
 
 	string base_name;
 	if (out_path.has_stem()) {

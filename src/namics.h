@@ -32,18 +32,12 @@ typedef double Real;
 
 //I.V. Ionova, E.A. Carter, "Error vector choice in direct inversion in the iterative subspace method, J. Compt. Chem. 17, 1836-1847, 1996.
 
-#ifndef MAINxH //here define global variables.
-extern Real* BlasResult;
-extern string version;
 extern Real e;
 extern Real T;
 extern Real k_B;
 extern Real k_BT;
 extern Real PIE;
 extern Real eps0;
-extern bool debug;
-#endif
-
 enum MoleculeType {monomer, linear, branched};
 enum transfer {to_segment, to_bm, reset};
 enum EngineType {SCF};

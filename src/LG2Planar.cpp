@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include "lattice.h"
 #include "LG2Planar.h"
 
 LG2Planar::LG2Planar(const Input& In_,const string& name_): LGrad2(In_,name_) {
@@ -83,7 +82,6 @@ NAMICS_DBG(" Side in LG2Planar " << endl);	if (ignore_sites) {
 					for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (C3) * (X+JX+1)[__i];
 
 				} else {
-						//hexagonal //9 point stencil
 					Real Two=2.0;
 					Real C=1.0/16.0;
 					for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (Two) * (X)[__i];
@@ -133,9 +131,7 @@ void LG2Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 			Real *g=G1;
 
 			std::fill_n(gs, 12*M, 0);
-			//remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0); set_bounds_x(gz1,gz10,0);set_bounds_x(gz2,gz9,0);set_bounds_x(gz3,gz8,0); set_bounds_x(gz4,gz7,0); set_bounds_x(gz5,gz6,0);
-			set_bounds_y(gz2,gz9,0);  set_bounds_y(gz3,gz8,0); set_bounds_y(gz4,gz7,0); set_bounds_y(gz0,gz11,0); set_bounds_y(gz1,gz10,0); set_bounds_y(gz5,gz6,0);
 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz0)[__i]; //0 and 1 are equivalent
 			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz1)[__i]; //10 and 11 are equivalent
@@ -159,8 +155,6 @@ void LG2Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz11+JX)[__i];
 
 
-			//remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-			//set_bounds_y(gz2,gz9,0);  set_bounds_y(gz3,gz8,0); set_bounds_y(gz4,gz7,0); set_bounds_y(gz0,gz11,0); set_bounds_y(gz1,gz10,0); set_bounds_y(gz5,gz6,0);
 
 			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz0)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz1)[__i];
@@ -183,7 +177,6 @@ void LG2Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz10+JY)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz11+JY)[__i];
 
-			//remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 
 			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[1]) * (gz0)[__i];
 			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[1]) * (gz1)[__i];
@@ -205,8 +198,6 @@ void LG2Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[1]) * (gz10)[__i];
 			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[1]) * (gz11)[__i];
 
-			//remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-			//set_bounds_x(gz0,gz11,0); set_bounds_x(gz1,gz10,0);set_bounds_x(gz2,gz9,0); set_bounds_x(gz3,gz8,0); set_bounds_x(gz4,gz7,0); set_bounds_x(gz5,gz6,0);
 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[0]) * (gz0)[__i];
 			for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[0]) * (gz1)[__i];
@@ -228,7 +219,6 @@ void LG2Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[0]) * (gz10+JX)[__i];
 			for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[0]) * (gz11+JX)[__i];
 
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 
 			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz0)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz1)[__i];
@@ -277,7 +267,6 @@ void LG2Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 			for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz10)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz11)[__i];
 
-			//remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 
 		} else { //simple_cubic
@@ -324,29 +313,6 @@ void LG2Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 
 			} else { //fjc==2
 
-			/* geheugensteun
-			0   x   x
-			1   x   y
-			2   x  -y
-			3   x   0
-			4   y   x
-			5   y   y
-			6   y   -x
-			7   y  0
-			8   0   y
-			9   0   x
-			10  0   0
-			11  0  -x
-			12  0  -y
-			13 -y   0
-			14 -y  x
-			15 -y  -y
-			16 -y -x
-			17 -x   0
-			18 -x  -y
-			19 -x   y
-			20 -x  -x
-			*/
 				int size = 2*FJC-1;
 				Real *gs=G+M*size*s_to;
 				Real *gs_1=G+M*size*s_from;
@@ -658,7 +624,7 @@ void LG2Planar::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int 
 	} else {
 		if (lattice_type==simple_cubic) {
 			cout <<"simple_cubic, markov 2, planar, stencil_full, not implemented " << endl;
-		} else { //hexagonal //not finished and also not physically acceptable....there are three sub-lattices and there is no cross-over from one to the other.
+		} else { //hexagonal
 			Real *gs=G+M*12*s_to;
 			Real *gs_1=G+M*12*s_from;
 			Real *gz0=gs_1, *gz1=gs_1+M, *gz2=gs_1+2*M, *gz3=gs_1+3*M;
@@ -742,7 +708,7 @@ NAMICS_DBG(" propagate in LGrad2 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*
 				for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 
 
-			} else { //hexagonal Johan's method //kept for nostalgic reasons
+				} else { //hexagonal Johan's method
 
 				for (int __i = 0; __i < (M-JX); ++__i) (gs+JX)[__i] += (gs_1)[__i];
 				for (int __i = 0; __i < (M-JX); ++__i) (gs)[__i] += (gs_1+JX)[__i];
@@ -774,7 +740,6 @@ NAMICS_DBG(" propagate in LGrad2 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*
 				for (int __i = 0; __i < (M-JX); ++__i) (gs+1)[__i] += (C3) * (gs_1+JX)[__i];
 				for (int __i = 0; __i < (M-JX-1); ++__i) (gs)[__i] += (C3) * (gs_1+JX+1)[__i];
 				for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
-			} else { //hexagonal //9 point stencil
 
 				Real Two=2.0;
 				Real C=1.0/16.0;
@@ -845,7 +810,6 @@ void LG2Planar::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bo
 	int x,y,i;
 
 	Real epsXplus, epsXmin, epsYplus,epsYmin;
-	//set_M_bounds(eps);
 	Real C =e*e/(eps0*k_BT*bond_length);
 	Real ax,ay;
 
@@ -860,7 +824,6 @@ void LG2Planar::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bo
 				epsYplus=eps[i]+eps[i+1];
 				if (x==fjc) ax=psi[i-JX]; else ax=X[i-JX]; //upwind
 				if (y==fjc) ay=psi[i-1]; else ay=X[i-1]; //upwind
-				//X[i]= (C*q[i]+epsXmin*psi[i-JX]+epsXplus*psi[i+JX]+epsYmin*psi[i-1]+epsYplus*psi[i+1])/(epsXmin+epsXplus+epsYmin+epsYplus);
 				X[i]= (C*q[i]+epsXmin*ax+epsXplus*psi[i+JX]+epsYmin*ay+epsYplus*psi[i+1])/(epsXmin+epsXplus+epsYmin+epsYplus);
 			}
 		}

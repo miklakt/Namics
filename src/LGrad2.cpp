@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include "lattice.h"
 #include "LGrad2.h"
 
 LGrad2::LGrad2(const Input& In_,const string& name_): Lattice(In_,name_) {}
@@ -14,25 +13,15 @@ void LGrad2:: ComputeLambdas() {
 	Real rlow, rhigh;
 
 
-	//		L[P(x,y)]=PIE*(pow(r,2)-pow(r-1,2));
-	//		fcc_lambda1[P(x,y)]=2.0*PIE*r/L[P(x,y)]/3.0;
-	//		fcc_lambda_1[P(x,y)]=2.0*PIE*(r-1)/L[P(x,y)]/3.0;
-	//		fcc_lambda0[P(x,y)]=1.0-2.0/3.0;
 	//	}
-	//
-	//}
 	if (fjc==1) {
 		for (int x=1; x<MX+1; x++)
 		for (int y=1; y<MY+1; y++) {
 			r=offset_first_layer + 1.0*x;
-			L[P(x,y)]=PIE*(pow(r,2)-pow(r-1,2));
 			lambda1[P(x,y)]=2.0*PIE*r/L[P(x,y)]*lambda;
 			lambda_1[P(x,y)]=2.0*PIE*(r-1)/L[P(x,y)]*lambda;
 			lambda0[P(x,y)]=1.0-2.0*lambda;
 			if (fcc_sites) {
-				fcc_lambda1[P(x,y)]=2.0*PIE*r/L[P(x,y)]/3.0;
-				fcc_lambda_1[P(x,y)]=2.0*PIE*(r-1)/L[P(x,y)]/3.0;
-				fcc_lambda0[P(x,y)]=1.0-2.0/3.0;
 			}
 		}
 		if (Markov ==2) {
@@ -90,7 +79,6 @@ void LGrad2:: ComputeLambdas() {
 			}
 		}
 	}
-		//LAMBDA[P(x,y)+k*M]=LAMBDA[P(2*MX-x+1,y)+(FJC-k-1)*M];
 }
 
 bool LGrad2::PutM() {
@@ -242,41 +230,24 @@ void LGrad2::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0); set_bounds_x(gz1,gz10,0);set_bounds_x(gz2,gz9,0);set_bounds_x(gz3,gz8,0); set_bounds_x(gz4,gz7,0); set_bounds_x(gz5,gz6,0);
 
-			LReflect(H,gz0,gz11);for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (H)[__i]; //0 and 1 are equivalent
-			LReflect(H,gz1,gz10);for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (H)[__i]; //10 and 11 are equivalent
-			LReflect(H,gz2,gz9);for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (H)[__i]; //3 and 4 equivalent
 								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz3)[__i]; //7 and 8
 
 								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz4)[__i];
-			//LReflect(H,gz5,gz6);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz5)[__i];
-			//LReflect(H,gz6,gz5);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz6)[__i];
-			//LReflect(H,gz7,gz4);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz7)[__i];
-			//LReflect(H,gz8,gz3);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz8)[__i];
 
 
-			//UReflect(H,gz3,gz8);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz3+JX)[__i];
-			//UReflect(H,gz4,gz7);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz4+JX)[__i];
-			//UReflect(H,gz5,gz6);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz5+JX)[__i];
-			//UReflect(H,gz6,gz5);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz6+JX)[__i];
-			//UReflect(H,gz7,gz4);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz7+JX)[__i];
-			//UReflect(H,gz8,gz3);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz8+JX)[__i];
-			UReflect(H,gz9,gz2);for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (H+JX)[__i];
-			UReflect(H,gz10,gz1);for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (H+JX)[__i];
-			UReflect(H,gz11,gz0);for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (H+JX)[__i];
 
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-			set_bounds_y(gz2,gz9,0);  set_bounds_y(gz3,gz8,0); set_bounds_y(gz4,gz7,0); set_bounds_y(gz0,gz11,0); set_bounds_y(gz1,gz10,0); set_bounds_y(gz5,gz6,0);
 
 			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz0)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz1)[__i];
@@ -324,78 +295,41 @@ void LGrad2::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0); set_bounds_x(gz1,gz10,0);set_bounds_x(gz2,gz9,0); set_bounds_x(gz3,gz8,0); set_bounds_x(gz4,gz7,0); set_bounds_x(gz5,gz6,0);
 
-			LReflect(H,gz0,gz11);for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[0]) * (H)[__i];
-			LReflect(H,gz1,gz10);for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[0]) * (H)[__i];
-			LReflect(H,gz2,gz9);for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[0]) * (H)[__i];
-			//LReflect(H,gz3,gz8);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz3)[__i];
-			//LReflect(H,gz4,gz7);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz4)[__i];
-			//LReflect(H,gz5,gz6);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz5)[__i];
-			//LReflect(H,gz6,gz5);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz6)[__i];
-			//LReflect(H,gz7,gz4);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz7)[__i];
-			//LReflect(H,gz8,gz3);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz8)[__i];
 
-			//UReflect(H,gz3,gz8);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz3+JX)[__i];
-			//UReflect(H,gz4,gz7);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz4+JX)[__i];
-			//UReflect(H,gz5,gz6);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz5+JX)[__i];
-			//UReflect(H,gz6,gz5);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz6+JX)[__i];
-			//UReflect(H,gz7,gz4);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz7+JX)[__i];
-			//UReflect(H,gz8,gz3);
 								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz8+JX)[__i];
-			UReflect(H,gz9,gz2);for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[0]) * (H+JX)[__i];
-			UReflect(H,gz10,gz1);for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[0]) * (H+JX)[__i];
-			UReflect(H,gz11,gz0);for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[0]) * (H+JX)[__i];
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-			set_bounds_y(gz2,gz9,0);  set_bounds_y(gz3,gz8,0); set_bounds_y(gz4,gz7,0);
 			set_bounds_y(gz0,gz11,0); set_bounds_y(gz1,gz10,0); set_bounds_y(gz5,gz6,0);
 
-			//LReflect(H,gz0,gz11);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[0]) * (gz0+JY)[__i];
-			//LReflect(H,gz1,gz10);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[0]) * (gz1+JY)[__i];
-			//LReflect(H,gz2,gz9);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[0]) * (gz2+JY)[__i];
-			//LReflect(H,gz3,gz8);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz3+JY)[__i];
-			//LReflect(H,gz4,gz7);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz4+JY)[__i];
-			//LReflect(H,gz5,gz6);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz5+JY)[__i];
-			//LReflect(H,gz6,gz5);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz6+JY)[__i];
-			//LReflect(H,gz7,gz4);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz7+JY)[__i];
-			//LReflect(H,gz8,gz3);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz8+JY)[__i];
 
-			//UReflect(H,gz3,gz8);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz3)[__i];
-			//UReflect(H,gz4,gz7);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz4)[__i];
-			//UReflect(H,gz5,gz6);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz5)[__i];
-			//UReflect(H,gz6,gz5);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz6)[__i];
-			//UReflect(H,gz7,gz4);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz7)[__i];
-			//UReflect(H,gz8,gz3);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz8)[__i];
-			//UReflect(H,gz9,gz2);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz9)[__i];
-			//UReflect(H,gz10,gz1);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz10)[__i];
-			//UReflect(H,gz11,gz0);
 								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz11)[__i];
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
@@ -581,8 +515,6 @@ void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx8)[__i] += (P[1]) * (H+JX)[__i];
 
 			remove_bounds(gz1);remove_bounds(gz10);
-			//set_bounds_y(gz2,gz9,0);
-			//LReflect(H,gz9,gz2);
 			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[1]) * (H+JY)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[1]) * (H+JY)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx5)[__i] += (P[1]) * (H+JY)[__i];
@@ -593,7 +525,6 @@ void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JY); ++__i) (gx10)[__i] += (P[0]) * (H+JY)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx11)[__i] += (P[0]) * (H+JY)[__i];
 
-			//UReflect(H,gz2,gz9);
 			for (int __i = 0; __i < (M-JY); ++__i) (gx0+JY)[__i] += (P[0]) * (H)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[0]) * (H)[__i];
 			for (int __i = 0; __i < (M-JY); ++__i) (gx2+JY)[__i] += (P[0]) * (H)[__i];
@@ -770,7 +701,7 @@ NAMICS_DBG("ReadRange in LGrad2 " << endl);	bool success=true;
 
 bool LGrad2::ReadRangeFile(string filename,int* H_p, int &n_pos, string seg_name, string range_type) {
 NAMICS_DBG("ReadRangeFile in LGrad2 " << endl);	if (fjc>1) {
-		cout << "Rangefile is not implemented for FJC-choices >3; contact FL. " << endl;
+		cout << "Rangefile is not supported for FJC-choices >3." << endl;
 		return false;
 	}
 
@@ -1181,11 +1112,9 @@ NAMICS_DBG("set_bounds in LGrad2 " << endl);	int x,y;
 		//corners....
 			X[0] = X[BY1];
 			X[MY+1]=X[BYM];
-		//}
-			X[(MX+1)*JX+      0] = X[(MX+1)*JX+BY1];
-			X[(MX+1)*JX+   MY+1]  =X[(MX+1)*JX+BYM];
-		//}
-	} else {
+				X[(MX+1)*JX+      0] = X[(MX+1)*JX+BY1];
+				X[(MX+1)*JX+   MY+1]  =X[(MX+1)*JX+BYM];
+		} else {
 		for (x=fjc; x<MX+fjc; x++) {
 			for (k=0; k<fjc; k++) {
 				X[x*JX+           k]=X[x*JX+B_Y1[k]];
@@ -1207,9 +1136,8 @@ NAMICS_DBG("set_bounds in LGrad2 " << endl);	int x,y;
 			//X[(MX+fjc+k)*JX+m      ]=X[B_XM[k]*JX+B_Y1[m]];
 			//X[k*JX         +(MY+fjc+m)]=X[B_X1[k]*JX+B_YM[m]];
 			//X[(MX+fjc+k)*JX+(MY+fjc+m)]=X[B_XM[k]*JX+B_YM[m]];
-		//}
+		}
 	}
-}
 
 void LGrad2::set_M_bounds(Real* X){
 NAMICS_DBG("set_bounds in LGrad2 " << endl);	int x,y;
@@ -1292,11 +1220,9 @@ NAMICS_DBG("set_bounds in LGrad2 " << endl);	int x,y;
 		//corners
 			X[0] = X[BY1];
 			X[MY+1]=X[BYM];
-		//}
-			X[(MX+1)*JX+0] = X[(MX+1)*JX+BY1];
-			X[(MX+1)*JX+MY+1]=X[(MX+1)*JX+BYM];
-		//}
-	} else {
+				X[(MX+1)*JX+0] = X[(MX+1)*JX+BY1];
+				X[(MX+1)*JX+MY+1]=X[(MX+1)*JX+BYM];
+		} else {
 		for (x=fjc; x<MX+fjc; x++) {
 			for (k=0; k<fjc; k++) {
 				X[x*JX+k]=X[x*JX+B_Y1[k]];
@@ -1326,12 +1252,6 @@ Real LGrad2::ComputeGN(Real* G,int Markov, int M){
 				GN += WeightedSum(G+k*M);
 			}
 			GN /=12.0;
-			//		GN += 2*WeightedSum(G+k*M);
-			//	else
-			//		GN += WeightedSum(G+k*M);
-			//}
-			//GN /=12.0;
-
 		} else {
 			if (lattice_type==simple_cubic) {
 				for (int k=0; k<5; k++) {
@@ -1358,10 +1278,7 @@ void LGrad2::AddPhiS(Real* phi,Real* Gf,Real* Gb,int Markov, int M){
 			for (int k=0; k<12; k++) {
 				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
 			}
-			//	else
-			//}
-
-		} else {
+			} else {
 			if (lattice_type==simple_cubic) {
 				Real C1=1.0/3.0;
 				Real C2=1.0/6.0;
@@ -1386,11 +1303,7 @@ void LGrad2::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real degeneracy, int Markov, in
 			for (int k=0; k<12; k++) {
 				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/12.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
 			}
-			//	else {
-			//	}
-			//}
-
-		} else {
+			} else {
 			if (lattice_type==simple_cubic) {
 				for (int k=0; k<5; k++)
 				if (k==2)
