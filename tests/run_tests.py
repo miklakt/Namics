@@ -826,7 +826,8 @@ def test_particle_in_cyl_coordinates(ctx: Context) -> ReportNode:
 
 
 def test_polE_regression(ctx: Context) -> ReportNode:
-    input_file = ctx.repo_root / "data" / "polE" / "polE.in"
+    # Keep regression inputs in tests/ so the suite stays decoupled from data/.
+    input_file = ctx.tests_dir / "polE.in"
     runtime_settings = {"sys : noname : write_initial_guess": "false"}
     # Legacy DIIS differs from pseudohessian only in the last-layer Na/Cl tail by about 5.2e-6.
     # Keep the regression aligned with historical behavior instead of failing on that known drift.
