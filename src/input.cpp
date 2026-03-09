@@ -486,7 +486,7 @@ void Input::parseOutputInfo() {
 	for (const string &line : elems) {
 		vector<string> param;
 		split(line, ':', param);
-		if (param[1] != OUTPUT_INFO_KEY) {
+		if (param.size() != 5 || param[1] != OUTPUT_INFO_KEY) {
 			continue;
 		}
 		if (param[2] == "folder" && param[3] == "path") {

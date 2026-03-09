@@ -468,6 +468,18 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 		std::copy_n(MASK, M, phi);
 	} else std::fill_n(phi, M, 0);
 
+	if (GetValue("external_potential_filename").size()>0 && first_time) {
+		success=LoadExternalPotential();
+		if (!success) return false;
+		if (ns==1) {
+			for (int __i = 0; __i < (M); ++__i) (u)[__i] += (u_ext)[__i];
+		} else {
+			for (int i=0; i<ns; i++) {
+				for (int __i = 0; __i < (M); ++__i) (u+i*M)[__i] += (u_ext)[__i];
+			}
+		}
+	}
+
 	if (ns==1) {
 		lat->set_bounds(u);
 		for (int __i = 0; __i < (M); ++__i) (G1)[__i] = exp(-(u)[__i]);
@@ -484,10 +496,6 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 
 	if (freedom=="pinned") for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * (MASK)[__i];
 	if (freedom != "frozen") for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * (KSAM)[__i];
-	if (GetValue("external_potential_filename").size()>0 && first_time)
-	{
-		success=LoadExternalPotential();
-	}
 	return success;
 }
 
@@ -657,6 +665,11 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 			string sA=s.substr(open[k]+1,close[k]-open[k]-1);
 			sub.clear();
 			In->split(sA,',',sub);
+			if (sub.size()!=2) {
+				cout <<"In constraints for segment " + name + "failed to understand '" + sA + "' no valid '(z,phi)' pair found. For help use: 'mon : " +name + " : phi : ?' " << endl;
+				success=false;
+				break;
+			}
 				int zz=ParseInt(sub[0],0);
 				Real RHO=ParseReal(sub[1],-1);
 				if (zz<1 || zz>lat->MX) {

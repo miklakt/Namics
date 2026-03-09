@@ -135,7 +135,6 @@ NAMICS_DBG("PutParameter in Output " << endl); KEYS.push_back(new_param);
 
 bool Output::Load() {
 NAMICS_DBG("Load in output " << endl);	bool success=true;
-	int molnr=0;
 	OUT_key.clear();
 	OUT_name.clear();
 	OUT_prop.clear();
@@ -143,44 +142,41 @@ NAMICS_DBG("Load in output " << endl);	bool success=true;
 	success = In->LoadItems(name, OUT_key, OUT_name, OUT_prop);
 
 	if (success) {
-		int length=OUT_key.size();
-
-		for (int i=0; i<length; i++) {
+		for (size_t i = 0; i < OUT_key.size(); ) {
 			if (OUT_key[i]=="mol"){
-				vector<string> sub;
-				In->split(OUT_prop[i],'*',sub);
-
-
-				if (!(sub[0]==OUT_prop[i])){
-					bool wildmon;
-					if (sub[0] =="") wildmon=false; else wildmon=true;
-
-					int k=0; int mollength=In->MolList.size();
-					while (k<mollength) {
-						if (In->MolList[k]==OUT_name[i]) molnr=k;
-						k++;
-					}
-					if (wildmon) {
-						int monlength=Mol[molnr]->MolMonList.size();
-						for (int j=0; j<monlength; j++) {
-							OUT_key.push_back(OUT_key[i]);
-							OUT_name.push_back(OUT_name[i]);
-							string s=sub[0];
-							s=s.append(Seg[Mol[molnr]->MolMonList[j]]->name);
-							s=s.append(sub[1]);
-							OUT_prop.push_back(s);
-						}
-					} else {
-						cout << "Mol wildcard output requires an explicit monomer prefix before '*'." << endl;
-						return false;
-					}
-					OUT_key.erase(OUT_key.begin()+i);
-					OUT_name.erase(OUT_name.begin()+i);
-					OUT_prop.erase(OUT_prop.begin()+i);
-
+				const string& wildcard = OUT_prop[i];
+				const size_t star = wildcard.find('*');
+				if (star == string::npos) {
+					++i;
+					continue;
 				}
+				if (star == 0 || wildcard.find('*', star + 1) != string::npos) {
+					cout << "Mol wildcard output requires exactly one '*' and an explicit monomer prefix." << endl;
+					return false;
+				}
+				const string prefix = wildcard.substr(0, star);
+				const string suffix = wildcard.substr(star + 1);
 
+				int molnr = -1;
+				if (!ContainsValue(In->MolList, OUT_name[i], &molnr)) {
+					cout << "Program error: output references unknown molecule '" << OUT_name[i] << "'." << endl;
+					return false;
+				}
+				const int monlength = Mol[molnr]->MolMonList.size();
+				for (int j=0; j<monlength; j++) {
+					OUT_key.push_back(OUT_key[i]);
+					OUT_name.push_back(OUT_name[i]);
+					string s=prefix;
+					s=s.append(Seg[Mol[molnr]->MolMonList[j]]->name);
+					s=s.append(suffix);
+					OUT_prop.push_back(s);
+				}
+				OUT_key.erase(OUT_key.begin()+i);
+				OUT_name.erase(OUT_name.begin()+i);
+				OUT_prop.erase(OUT_prop.begin()+i);
+				continue;
 			}
+			++i;
 		}
 
 	}
