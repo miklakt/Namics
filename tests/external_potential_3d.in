@@ -1,0 +1,24 @@
+lat : flat : geometry : planar
+lat : flat : gradients : 3
+lat : flat : lattice_type : simple_cubic
+lat : flat : n_layers_x : 6
+lat : flat : n_layers_y : 6
+lat : flat : n_layers_z : 6
+
+mon : A : freedom : free
+mon : A : external_potential_filename : external_potential_3d_external_potential.json
+
+mon : W : freedom : free
+
+mol : gas : composition : (A)1
+mol : gas : freedom : free
+mol : gas : phibulk : 0.02
+
+mol : water : composition : (W)1
+mol : water : freedom : solvent
+
+output : json : append : false
+json : mon : A : phi
+
+newton : isaac : method : pseudohessian
+newton : isaac : tolerance : 1e-10

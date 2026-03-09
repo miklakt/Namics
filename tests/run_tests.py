@@ -853,6 +853,110 @@ def test_polE_regression(ctx: Context) -> ReportNode:
     )
 
 
+def test_external_potential(ctx: Context) -> ReportNode:
+    root = ReportNode(label="external potential")
+    output_dir = ctx.output_dir
+    tests_dir = ctx.tests_dir
+
+    cases = [
+        (
+            "1d",
+            tests_dir / "external_potential_1d.in",
+            tests_dir / "external_potential_1d_external_potential.json",
+            "external_potential_1d.json.ref",
+            "external_potential_1d",
+        ),
+        (
+            "2d",
+            tests_dir / "external_potential_2d.in",
+            tests_dir / "external_potential_2d_external_potential.json",
+            "external_potential_2d.json.ref",
+            "external_potential_2d",
+        ),
+        (
+            "3d",
+            tests_dir / "external_potential_3d.in",
+            tests_dir / "external_potential_3d_external_potential.json",
+            "external_potential_3d.json.ref",
+            "external_potential_3d",
+        ),
+    ]
+    cleanup_targets: list[Path] = []
+
+    require_file(ctx.binary, executable=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        for case_label, input_file, potential_file, reference_name, runtime_stem in cases:
+            require_file(input_file)
+            require_file(potential_file)
+            reference_file = _reference_file(ctx, reference_name)
+
+            case_node = ReportNode(label=case_label)
+            pseudo_leaf = ReportNode(label="pseudohessian")
+            diis_leaf = ReportNode(label="DIIS")
+            case_node.children.extend([pseudo_leaf, diis_leaf])
+            root.children.append(case_node)
+
+            pseudo_input = output_dir / f"{runtime_stem}.pseudohessian.in"
+            diis_input = output_dir / f"{runtime_stem}.diis.in"
+            pseudo_output = _runtime_output_path(pseudo_input)
+            diis_output = _runtime_output_path(diis_input)
+            pseudo_potential = _derived_runtime_path(pseudo_input, "external_potential.json")
+            diis_potential = _derived_runtime_path(diis_input, "external_potential.json")
+            cleanup_targets.extend(
+                [
+                    pseudo_input,
+                    pseudo_output,
+                    pseudo_potential,
+                    diis_input,
+                    diis_output,
+                    diis_potential,
+                ]
+            )
+
+            shutil.copy2(potential_file, pseudo_potential)
+            shutil.copy2(potential_file, diis_potential)
+
+            try:
+                _, pseudo_output = _run_reference_leaf(
+                    ctx,
+                    pseudo_leaf,
+                    source_input=input_file,
+                    runtime_input=pseudo_input,
+                    reference_file=reference_file,
+                    label=f"external potential {case_label}, mode=pseudohessian",
+                    value_tol=1e-6,
+                    settings={"mon : A : external_potential_filename": pseudo_potential.name},
+                )
+            except Exception as exc:
+                pseudo_leaf.passed = False
+                pseudo_leaf.details = str(exc)
+
+            try:
+                if not pseudo_leaf.passed:
+                    raise TestError("ERROR: skipped because pseudohessian failed")
+                _, diis_output = _run_solver(
+                    ctx,
+                    diis_leaf,
+                    source_input=input_file,
+                    runtime_input=diis_input,
+                    solver_method="DIIS",
+                    label=f"external potential {case_label}, mode=DIIS",
+                    settings={"mon : A : external_potential_filename": diis_potential.name},
+                )
+                compare_json_profiles(pseudo_output, diis_output, coord_tol=COORD_TOL, value_tol=1e-6)
+                diis_leaf.details = "matched pseudohessian"
+            except Exception as exc:
+                diis_leaf.passed = False
+                diis_leaf.details = str(exc)
+
+        _finalize_report_tree(root)
+        return root
+    finally:
+        _cleanup(cleanup_targets, cleanup=ctx.clean_output)
+
+
 def _fmt_wall(v: float) -> str:
     return f"{v:.3f}"
 
@@ -933,6 +1037,7 @@ def _print_table(results: list[ReportNode]) -> None:
 TESTS: dict[str, tuple[str, Callable[[Context], ReportNode]]] = {
     "homopolymer-adsorption": ("homopolymer adsorption", test_homopolymer_adsorption),
     "homopolymer-adsorption-benchmark": ("homopolymer adsorption benchmark", benchmark_homopolymer_adsorption),
+    "external-potential": ("external potential", test_external_potential),
     "frozen-range-input-file": ("frozen range input file", test_frozen_range_input_file),
     "micelle-self-assembly": ("micelle self assembly", test_micelle_self_assembly),
     "particle-in-cyl-coordinates": ("particle in cyl coordinates", test_particle_in_cyl_coordinates),
@@ -942,6 +1047,7 @@ TESTS: dict[str, tuple[str, Callable[[Context], ReportNode]]] = {
 ALIASES = {
     "homopolymer_adsorption": "homopolymer-adsorption",
     "homopolymer_adsorption_benchmark": "homopolymer-adsorption-benchmark",
+    "external_potential": "external-potential",
     "frozen_range_input_file": "frozen-range-input-file",
     "micelle_self_assembly": "micelle-self-assembly",
     "particle_in_cyl_coordinates": "particle-in-cyl-coordinates",
