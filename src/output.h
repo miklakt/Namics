@@ -36,12 +36,8 @@ public:
   	vector<string> ints;
  	vector<string> Reals;
  	vector<string> bools;
- 	vector<string> strings;
+	vector<string> strings;
   	vector<Real> Reals_value;
-	vector<int > SizeVectorReal;
-	vector<int > SizeVectorInt;
-	vector<Real*> PointerVectorReal;
-	vector<int*> PointerVectorInt;
   	vector<int> ints_value;
   	vector<bool> bools_value;
   	vector<string> strings_value;

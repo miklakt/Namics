@@ -1,7 +1,6 @@
 #ifndef INPUTxH
 #define INPUTxH
 #include "namics.h"
-#include <functional>
 #include <cctype>
 
 inline std::string ToLowerCopy(std::string value) {

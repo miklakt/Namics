@@ -1,6 +1,5 @@
 #ifndef SOLVE_SCFxH
 #define SOLVE_SCFxH
-#include <limits>
 #include "namics.h"
 #include "input.h"
 #include "system.h"

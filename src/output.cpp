@@ -1,7 +1,6 @@
 
 #include "output.h"
 
-#include <cctype>
 #include <filesystem>
 #include <limits>
 
@@ -232,6 +231,7 @@ int* Output::GetPointerInt(string key, string name, string prop, int &Size) {
 NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int statelistlength=In->StateList.size();
+	if (key=="output") return NULL;
 	int listlength;
 	int choice=0;
 	int i,j;
@@ -240,7 +240,6 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 	if  (key=="mon") choice=3;
 	if (key=="state") choice=4;
 	if (key=="lat") choice=5;
-	if (key=="output") choice = 6;
 
 	switch(choice) {
 		case 1:
@@ -301,14 +300,6 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 				j++;
 			}
 			break;
-		case 6:
-			listlength=PointerVectorInt.size();
-			j=0;
-			while (j<listlength) {
-				if (prop==strings[j]){ Size=SizeVectorInt[j];  return PointerVectorInt[j];}
-				j++;
-			}
-			break;
 		default:
 			cout << "Program error: in Output, GetPointerInt reaches default...." << endl;
 	}
@@ -318,6 +309,7 @@ Real* Output::GetPointer(string key, string name, string prop, int &Size) {
 NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int statelistlength=In->StateList.size();
+	if (key=="output") return NULL;
 	int listlength;
 	int choice=0;
 	int i,j;
@@ -326,7 +318,6 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 	if  (key=="mon") choice=3;
 	if (key=="state") choice=4;
 	if (key=="lat") choice=5;
-	if (key=="output") choice = 6;
 
 	switch(choice) {
 		case 1:
@@ -388,14 +379,6 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 			j=0;
 			while (j<listlength) {
 				if (prop==lat->strings[j]) return lat->GetPointer(lat->strings_value[j],Size);
-				j++;
-			}
-			break;
-		case 6:
-			listlength=PointerVectorReal.size();
-			j=0;
-			while (j<listlength) {
-				if (prop==strings[j]){ Size=SizeVectorReal[j];  return PointerVectorReal[j];}
 				j++;
 			}
 			break;
