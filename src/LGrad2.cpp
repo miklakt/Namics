@@ -755,7 +755,6 @@ NAMICS_DBG("ReadRangeFile in LGrad2 " << endl);	if (fjc>1) {
 					py=ParseInt(xyz[1],0);
 					if (py < 1 || py > MY) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MY << endl; success =false;}
 				}
-				cout <<"reading px " << px << " and py " << py << endl;
 				H_p[i]=P(px,py);
 				i++;
 			}

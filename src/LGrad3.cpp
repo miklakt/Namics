@@ -809,7 +809,7 @@ NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
 					py=ParseInt(xyz[1],0);
 					if (py < 1 || py > MY) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MY << endl; success =false;}
 					pz=ParseInt(xyz[2],0);
-					if (pz < 1 || pz > MZ) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MZ << endl; success =false;}
+					if (pz < 1 || pz > MZ) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the z-coordinate in "+range_type+"_filename out of bounds: 1.." << MZ << endl; success =false;}
 				}
 				H_p[i]=px*JX+py*JY+fjc-1+pz;
 				i++;
@@ -1321,7 +1321,6 @@ NAMICS_DBG("set_bounds in LGrad3 " << endl);	int x,y,z;
 }
 
 void LGrad3::set_M_bounds(Real* X){
-if (!debug) cout <<"set_bounds (M) in LGrad3 " << endl;
 	int x,y,z;
 	int k=0;
 	if (sub_box_on!=0) {
@@ -1361,7 +1360,6 @@ if (!debug) cout <<"set_bounds (M) in LGrad3 " << endl;
 }
 
 void LGrad3::remove_bounds(int *X){
-if (!debug) cout <<"remove_bounds (int) in LGrad3 " << endl;
 	int x,y,z;
 	int k;
 	if (sub_box_on!=0) {
@@ -1387,7 +1385,6 @@ if (!debug) cout <<"remove_bounds (int) in LGrad3 " << endl;
 }
 
 void LGrad3::set_bounds(int* X){
-if (!debug) cout <<"set_bounds (int) in LGrad3 " << endl;
 	int x,y,z;
 	int k=0;
 	if (sub_box_on!=0) {
