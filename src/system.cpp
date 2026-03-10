@@ -1,6 +1,7 @@
 #include "system.h"
 #include "tools_host.h"
 #include <algorithm>
+#include <cmath>
 
 System::System(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_, string name_)
 {
@@ -1911,6 +1912,31 @@ bool System::CheckResults(bool e_info_)
 	FreeEnergy = GetFreeEnergy();
 	GrandPotential = GetGrandPotential();
 	CreateMu(lat->M);
+	if (!std::isfinite(FreeEnergy) || !std::isfinite(GrandPotential)) {
+		cerr << "Detected invalid numbers in computed solver state." << endl;
+		return false;
+	}
+	int M = lat->M;
+	for (int i = 0; i < n_mol; ++i) {
+		if (!std::isfinite(Mol[i]->Mu) || !std::isfinite(Mol[i]->n) || !std::isfinite(Mol[i]->theta) ||
+		    !std::isfinite(Mol[i]->phibulk) || !std::isfinite(Mol[i]->GN)) {
+			cerr << "Detected invalid numbers in computed solver state." << endl;
+			return false;
+		}
+		for (int j = 0; j < M; ++j) {
+			if (!std::isfinite(Mol[i]->phitot[j])) {
+				cerr << "Detected invalid numbers in computed solver state." << endl;
+				return false;
+			}
+		}
+		const int n_molmon = Mol[i]->MolMonList.size();
+		for (int j = 0; j < n_molmon * M; ++j) {
+			if (!std::isfinite(Mol[i]->phi[j])) {
+				cerr << "Detected invalid numbers in computed solver state." << endl;
+				return false;
+			}
+		}
+	}
 
 	if (e_info && first_pass)
 	{
@@ -1928,7 +1954,6 @@ bool System::CheckResults(bool e_info_)
 	{
 		cout << "free energy     (GP + n*mu) = " << GrandPotential + n_times_mu << endl;
 		cout << "grand potential (F - n*mu)  = " << FreeEnergy - n_times_mu << endl<<endl;;
-		int M = lat->M;
 		for (int i = 0; i < n_mol; i++)
 		{
 			int n_molmon = Mol[i]->MolMonList.size();

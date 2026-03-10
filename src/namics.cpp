@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
 				if (Sys->initial_guess != "none")
 				New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
 
-				New->Solve(true);
+				if (!New->Solve(true)) return 1;
 
 				if (Sys->initial_guess == "previous_result" || Sys->initial_guess == "file") {
 					if (New->iv == IV_new) {

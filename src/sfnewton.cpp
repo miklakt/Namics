@@ -1,5 +1,7 @@
 #include <Eigen/Dense>
+#include <cmath>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include "sfnewton.h"
 #include "tools_host.h"
@@ -735,13 +737,14 @@ NAMICS_DBG("Ax in  SFNewton (own svdcmp) " << endl);
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			const Real value = A[i * N + j];
-			if (value != value) throw -2;
+			if (!std::isfinite(value)) throw -2;
 			M(i, j) = static_cast<double>(value);
 		}
 	}
 
 	Eigen::JacobiSVD<Eigen::MatrixXd> svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
 	Eigen::VectorXd s = svd.singularValues();
+	if (!svd.matrixU().allFinite() || !svd.matrixV().allFinite() || !s.allFinite()) throw -3;
 	const Eigen::VectorXd ones = Eigen::VectorXd::Ones(N);
 	Eigen::VectorXd u_proj = svd.matrixU().transpose() * ones;
 	Eigen::VectorXd coeff = Eigen::VectorXd::Zero(N);
@@ -750,6 +753,7 @@ NAMICS_DBG("Ax in  SFNewton (own svdcmp) " << endl);
 		if (std::abs(sigma) > 1e-14) coeff(i) = u_proj(i) / sigma;
 	}
 	Eigen::VectorXd result = svd.matrixV() * coeff;
+	if (!result.allFinite()) throw -3;
 	for (int i = 0; i < N; ++i) X[i] = static_cast<Real>(result(i));
 }
 
@@ -779,10 +783,14 @@ NAMICS_DBG("DIIS in  SFNewton " << endl);
 
 
 	Ax(Apij,Ci,k_diis);
+	for (int i = 0; i < k_diis; ++i) {
+		if (!std::isfinite(Ci[i])) throw -5;
+	}
 
 	Real normC=0;
 
 	normC = std::accumulate(Ci, Ci + k_diis, Real(0));
+	if (!std::isfinite(normC) || std::abs(normC) <= std::numeric_limits<Real>::epsilon()) throw -6;
 	std::transform(Ci, Ci + k_diis, Ci, [normC](Real value) { return value / normC; });
 	std::fill_n(x, nvar, 0);
 	posi = k-k_diis+1;
@@ -791,6 +799,9 @@ NAMICS_DBG("DIIS in  SFNewton " << endl);
     	posi +=m;
 
 	Xr_times_ci(posi, k_diis, k, m, nvar, x, xR, d_Ci);
+	for (int i = 0; i < nvar; ++i) {
+		if (!std::isfinite(x[i])) throw -5;
+	}
 }
 
 Real SFNewton::computeresidual(Real* array, int size) {
@@ -842,11 +853,18 @@ NAMICS_DBG("Iterate_DIIS in SFNewton " << endl);
 	try {
 
 		residuals(x,g);
+		for (int i = 0; i < nvar; ++i) {
+			if (!std::isfinite(g[i])) throw -5;
+		}
 
 		std::transform(x, x + nvar, g, x, [delta_max](Real xv, Real gv) { return xv - delta_max * gv; });
+		for (int i = 0; i < nvar; ++i) {
+			if (!std::isfinite(x[i])) throw -5;
+		}
 		std::transform(x, x + nvar, x0, x_x0, std::minus<Real>());
 		std::copy_n(x, nvar, xR);
   		residual = computeresidual(g, nvar);
+		if (!std::isfinite(residual)) throw -5;
 
 		if (e_info) printf("DIIS has been notified\n");
 #ifdef LongReal
@@ -862,12 +880,19 @@ NAMICS_DBG("Iterate_DIIS in SFNewton " << endl);
 
 			std::copy_n(x, nvar, x0);
 			residuals(x,g);
+			for (int i = 0; i < nvar; ++i) {
+				if (!std::isfinite(g[i])) throw -5;
+			}
 			k=iterations % m; k_diis++; //plek voor laatste opslag
 			std::transform(x, x + nvar, g, x, [delta_max](Real xv, Real gv) { return xv - delta_max * gv; });
+			for (int i = 0; i < nvar; ++i) {
+				if (!std::isfinite(x[i])) throw -5;
+			}
 			std::copy_n(x, nvar, xR+k*nvar);
 			std::transform(x, x + nvar, x0, x_x0 + k * nvar, std::minus<Real>());
 			DIIS(x,x_x0,xR,Aij,Apij,Ci,k,k_diis,m,nvar);
     			residual = computeresidual(g, nvar);
+			if (!std::isfinite(residual)) throw -5;
 			if(e_info && iterations%i_info == 0){
 #ifdef LongReal
 				printf("iterations = %i g = %Le \n",iterations,residual);
@@ -877,6 +902,12 @@ NAMICS_DBG("Iterate_DIIS in SFNewton " << endl);
 			}
 		}
 
+		residuals(x,g);
+		for (int i = 0; i < nvar; ++i) {
+			if (!std::isfinite(g[i])) throw -5;
+		}
+		residual = computeresidual(g, nvar);
+		if (!std::isfinite(residual)) throw -5;
 		success=Message(e_info,true,iterations,iterationlimit,residual,tolerance,"");
 
 	} catch (int error) {
@@ -884,15 +915,18 @@ NAMICS_DBG("Iterate_DIIS in SFNewton " << endl);
 		if (error == -1)
 			cerr << "Detected GN not larger than 0." << endl;
 		if (error == -2)
-			cerr << "Detected nan in U in Ax." << endl;
+			cerr << "Detected invalid numbers in DIIS matrix in Ax." << endl;
 		if (error == -3)
-			cerr << "Detected nan in svdcmp." << endl;
+			cerr << "Detected invalid numbers while solving DIIS coefficients." << endl;
 		if (error == -4)
 			cerr << "Detected negative phibulk." << endl;
+		if (error == -5)
+			cerr << "Detected invalid numbers in DIIS iterate." << endl;
+		if (error == -6)
+			cerr << "Detected invalid DIIS coefficient normalization." << endl;
 		free(Aij);free(Ci);free(Apij);
   		free(xR);free(x_x0);free(x0);free(g);
-
-		throw error;
+		exit(1);
 	}
   	free(Aij);
 	free(Apij);
