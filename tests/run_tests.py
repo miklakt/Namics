@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
+import signal
 import shutil
 import sys
 import tempfile
@@ -34,6 +36,7 @@ from test_helpers import (  # noqa: E402
 )
 
 COORD_TOL = 1e-12
+_EXECUTION_FAILED_RE = re.compile(r"execution failed \((-?\d+)\)")
 
 
 @dataclass
@@ -70,38 +73,10 @@ class ReportNode:
         else:
             self.max_rss_kb = max(self.max_rss_kb, metrics.max_rss_kb)
 
-
-def _run_binary(ctx: Context, node: ReportNode, input_file: Path) -> CommandMetrics:
-    metrics = run_command([str(ctx.binary), str(input_file)], cwd=ctx.repo_root, quiet=ctx.quiet)
-    node.add_metric(metrics)
-    return metrics
-
-
 def _runtime_output_basename(runtime_input: Path) -> str:
     stem = runtime_input.stem
     safe = "".join(ch if (ch.isalnum() or ch == "_") else "_" for ch in stem)
     return safe or "namics_test_output"
-
-
-def _runtime_output_path(runtime_input: Path) -> Path:
-    return runtime_input.parent / f"{_runtime_output_basename(runtime_input)}.json"
-
-
-def _derived_runtime_path(runtime_input: Path, suffix: str) -> Path:
-    return runtime_input.with_suffix(f".{suffix}")
-
-
-def _write_generated_input_record(ctx: Context, runtime_input: Path, source_input: Path, variants: dict[str, str]) -> None:
-    ctx.generated_input_manifest.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "runtime_input": str(runtime_input.relative_to(ctx.repo_root)),
-        "source_input": str(source_input.relative_to(ctx.repo_root)),
-        "variants": variants,
-        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    line = "\t".join([payload["timestamp_utc"], payload["source_input"], payload["runtime_input"], str(payload["variants"])])
-    with ctx.generated_input_manifest.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
 
 
 def _prepare_runtime_input(
@@ -137,7 +112,19 @@ def _prepare_runtime_input(
         for key, _, enabled in comment_toggles:
             variants[key] = "enabled" if enabled else "disabled"
 
-    _write_generated_input_record(ctx, runtime_input, source_input, variants)
+    ctx.generated_input_manifest.parent.mkdir(parents=True, exist_ok=True)
+    with ctx.generated_input_manifest.open("a", encoding="utf-8") as fh:
+        fh.write(
+            "\t".join(
+                [
+                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    str(source_input.relative_to(ctx.repo_root)),
+                    str(runtime_input.relative_to(ctx.repo_root)),
+                    str(variants),
+                ]
+            )
+            + "\n"
+        )
 
 
 def _cleanup(paths: list[Path], cleanup: bool) -> None:
@@ -229,16 +216,50 @@ def _finalize_report_tree(node: ReportNode) -> None:
     required_children = [child for child in node.children if child.required_for_parent]
     node.passed = all(child.passed for child in required_children) if required_children else True
     node.wall_s = sum(child.wall_s for child in node.children)
+    node.max_rss_kb = max((child.max_rss_kb for child in node.children if child.max_rss_kb is not None), default=None)
 
-    max_mem = None
-    for child in node.children:
-        if child.max_rss_kb is None:
-            continue
-        if max_mem is None:
-            max_mem = child.max_rss_kb
-        else:
-            max_mem = max(max_mem, child.max_rss_kb)
-    node.max_rss_kb = max_mem
+
+def _set_failure(node: ReportNode, detail: str | Exception, *, accepted: bool = False) -> str:
+    message = str(detail)
+    if accepted:
+        message = f"failed (accepted): {message}"
+    node.passed = False
+    node.details = message
+    return message
+
+
+def _failure_suffix_from_detail(detail: str) -> str | None:
+    match = _EXECUTION_FAILED_RE.search(detail)
+    if match:
+        returncode = int(match.group(1))
+        if returncode < 0:
+            signal_number = -returncode
+            if signal_number == signal.SIGSEGV:
+                return "segfault"
+            try:
+                return f"signal:{signal.Signals(signal_number).name}"
+            except ValueError:
+                return "signal"
+    cleaned = detail.strip()
+    for prefix in ("failed (accepted): ", "ERROR: "):
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):]
+    return cleaned or None
+
+
+def _failure_suffix(node: ReportNode) -> str:
+    if node.passed:
+        return ""
+    mode = _failure_suffix_from_detail(node.details)
+    if mode:
+        return mode
+    child_modes = sorted({_failure_suffix(child) for child in node.children if not child.passed})
+    child_modes = [mode for mode in child_modes if mode]
+    if len(child_modes) == 1:
+        return child_modes[0]
+    if len(child_modes) > 1:
+        return "mixed"
+    return "unexpected"
 
 
 def _flatten_nodes(nodes: list[ReportNode]) -> list[tuple[int, bool, str, ReportNode]]:
@@ -260,26 +281,6 @@ def _flatten_nodes(nodes: list[ReportNode]) -> list[tuple[int, bool, str, Report
     return out
 
 
-def _reference_file(ctx: Context, filename: str) -> Path:
-    reference_file = ctx.reference_dir / filename
-    require_file(reference_file)
-    return reference_file
-
-
-def _require_json_output(path: Path, label: str) -> None:
-    if not path.is_file() or path.stat().st_size == 0:
-        raise TestError(f"ERROR: expected JSON output file was not created for {label}: {path}")
-
-
-def _require_json_contains_initial_guess(path: Path, label: str) -> None:
-    try:
-        payload = path.read_text(encoding="utf-8")
-    except Exception as exc:
-        raise TestError(f"ERROR: cannot read JSON output for {label}: {path} ({exc})") from exc
-    if "\"initial_guess\"" not in payload:
-        raise TestError(f"ERROR: JSON output does not contain embedded initial_guess for {label}: {path}")
-
-
 def _run_solver(
     ctx: Context,
     node: ReportNode,
@@ -293,7 +294,7 @@ def _run_solver(
     require_output: bool = True,
     require_initial_guess: bool = False,
 ) -> tuple[CommandMetrics, Path]:
-    output_path = _runtime_output_path(runtime_input)
+    output_path = runtime_input.parent / f"{_runtime_output_basename(runtime_input)}.json"
     _prepare_runtime_input(
         ctx,
         source_input,
@@ -303,26 +304,25 @@ def _run_solver(
         comment_toggles=comment_toggles,
     )
     output_path.unlink(missing_ok=True)
-    metrics = _run_binary(ctx, node, runtime_input)
+    metrics = run_command([str(ctx.binary), str(runtime_input)], cwd=ctx.repo_root, quiet=ctx.quiet)
+    node.add_metric(metrics)
     if metrics.returncode != 0:
+        for line in reversed(metrics.output.splitlines()):
+            message = line.strip()
+            if message:
+                raise TestError(message)
         raise TestError(f"ERROR: execution failed ({metrics.returncode}) for input: {runtime_input}")
     if require_output or require_initial_guess:
-        _require_json_output(output_path, label)
+        if not output_path.is_file() or output_path.stat().st_size == 0:
+            raise TestError(f"ERROR: expected JSON output file was not created for {label}: {output_path}")
     if require_initial_guess:
-        _require_json_contains_initial_guess(output_path, label)
+        try:
+            payload = output_path.read_text(encoding="utf-8")
+        except Exception as exc:
+            raise TestError(f"ERROR: cannot read JSON output for {label}: {output_path} ({exc})") from exc
+        if "\"initial_guess\"" not in payload:
+            raise TestError(f"ERROR: JSON output does not contain embedded initial_guess for {label}: {output_path}")
     return metrics, output_path
-
-
-def _optional_match_status(candidate_output: Path, baseline_output: Path | None, *, value_tol: float) -> tuple[bool, str]:
-    if not candidate_output.is_file() or candidate_output.stat().st_size == 0:
-        return False, "completed but JSON output file is missing (accepted)"
-    if baseline_output is None or not baseline_output.is_file() or baseline_output.stat().st_size == 0:
-        return False, "completed but no pseudohessian baseline was available (accepted)"
-    try:
-        compare_json_profiles(baseline_output, candidate_output, coord_tol=COORD_TOL, value_tol=value_tol)
-    except TestError:
-        return False, "completed but differs from pseudohessian (accepted)"
-    return True, "passed and matched pseudohessian"
 
 
 def _run_reference_leaf(
@@ -376,21 +376,20 @@ def _run_optional_diis_leaf(
             comment_toggles=comment_toggles,
             require_output=False,
         )
-        leaf.passed, status = _optional_match_status(output_path, baseline_output, value_tol=value_tol)
+        if not output_path.is_file() or output_path.stat().st_size == 0:
+            leaf.passed = False
+            status = "completed but JSON output file is missing (accepted)"
+        elif baseline_output is None or not baseline_output.is_file() or baseline_output.stat().st_size == 0:
+            leaf.passed = False
+            status = "completed but no pseudohessian baseline was available (accepted)"
+        else:
+            compare_json_profiles(baseline_output, output_path, coord_tol=COORD_TOL, value_tol=value_tol)
+            leaf.passed = True
+            status = "passed and matched pseudohessian"
         leaf.details = status
     except Exception as exc:
-        status = f"failed (accepted): {exc}"
-        leaf.details = status
-        leaf.passed = False
+        status = _set_failure(leaf, exc, accepted=True)
     return status
-
-
-def _merge_settings(*parts: dict[str, str] | None) -> dict[str, str] | None:
-    merged: dict[str, str] = {}
-    for part in parts:
-        if part:
-            merged.update(part)
-    return merged or None
 
 
 def _run_method_group_regression(
@@ -402,7 +401,8 @@ def _run_method_group_regression(
     runtime_stem: str,
     value_tol: float,
     label_stem: str | None = None,
-    method_group_label: str = "solver method",
+    method_group_label: str | None = "solver method",
+    diis_optional: bool = True,
     settings: dict[str, str] | None = None,
     pseudohessian_settings: dict[str, str] | None = None,
     diis_settings: dict[str, str] | None = None,
@@ -411,19 +411,23 @@ def _run_method_group_regression(
     derived_runtime_files: list[tuple[Path, str]] | None = None,
 ) -> ReportNode:
     root = ReportNode(label=root_label)
-    method_group = ReportNode(label=method_group_label)
-    root.children.append(method_group)
+    method_group = root if method_group_label is None else ReportNode(label=method_group_label)
+    if method_group_label is not None:
+        root.children.append(method_group)
 
-    reference_file = _reference_file(ctx, reference_name)
+    reference_file = ctx.reference_dir / reference_name
+    require_file(reference_file)
     output_dir = ctx.output_dir
     pseudo_input = output_dir / f"{runtime_stem}.pseudohessian.in"
     diis_input = output_dir / f"{runtime_stem}.diis.in"
-    pseudo_output = _runtime_output_path(pseudo_input)
-    diis_output = _runtime_output_path(diis_input)
+    pseudo_output = pseudo_input.parent / f"{_runtime_output_basename(pseudo_input)}.json"
+    diis_output = diis_input.parent / f"{_runtime_output_basename(diis_input)}.json"
     cleanup_targets: list[Path] = [pseudo_input, pseudo_output, diis_input, diis_output]
     label_base = label_stem or root_label
     required_files = required_files or []
     derived_runtime_files = derived_runtime_files or []
+    pseudo_settings = None if not settings and not pseudohessian_settings else {**(settings or {}), **(pseudohessian_settings or {})}
+    merged_diis_settings = None if not settings and not diis_settings else {**(settings or {}), **(diis_settings or {})}
 
     require_file(ctx.binary, executable=True)
     require_file(input_file)
@@ -434,15 +438,15 @@ def _run_method_group_regression(
     for _, suffix in derived_runtime_files:
         cleanup_targets.extend(
             [
-                _derived_runtime_path(pseudo_input, suffix),
-                _derived_runtime_path(diis_input, suffix),
+                pseudo_input.with_suffix(f".{suffix}"),
+                diis_input.with_suffix(f".{suffix}"),
             ]
         )
 
     try:
         for source_file, suffix in derived_runtime_files:
-            shutil.copy2(source_file, _derived_runtime_path(pseudo_input, suffix))
-            shutil.copy2(source_file, _derived_runtime_path(diis_input, suffix))
+            shutil.copy2(source_file, pseudo_input.with_suffix(f".{suffix}"))
+            shutil.copy2(source_file, diis_input.with_suffix(f".{suffix}"))
 
         pseudo_leaf = ReportNode(label="pseudohessian")
         method_group.children.append(pseudo_leaf)
@@ -456,27 +460,46 @@ def _run_method_group_regression(
                 reference_file=reference_file,
                 label=f"{label_base}, mode=pseudohessian",
                 value_tol=value_tol,
-                settings=_merge_settings(settings, pseudohessian_settings),
+                settings=pseudo_settings,
                 comment_toggles=comment_toggles,
             )
         except Exception as exc:
-            pseudo_leaf.passed = False
-            pseudo_leaf.details = str(exc)
+            _set_failure(pseudo_leaf, exc)
 
-        diis_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
+        diis_leaf = ReportNode(label="DIIS", passed=not diis_optional, required_for_parent=not diis_optional)
         method_group.children.append(diis_leaf)
 
-        diis_status = _run_optional_diis_leaf(
-            ctx,
-            diis_leaf,
-            source_input=input_file,
-            runtime_input=diis_input,
-            baseline_output=pseudo_output if pseudo_leaf.passed else None,
-            label=f"{label_base}, mode=DIIS",
-            value_tol=value_tol,
-            settings=_merge_settings(settings, diis_settings),
-            comment_toggles=comment_toggles,
-        )
+        if diis_optional:
+            diis_status = _run_optional_diis_leaf(
+                ctx,
+                diis_leaf,
+                source_input=input_file,
+                runtime_input=diis_input,
+                baseline_output=pseudo_output if pseudo_leaf.passed else None,
+                label=f"{label_base}, mode=DIIS",
+                value_tol=value_tol,
+                settings=merged_diis_settings,
+                comment_toggles=comment_toggles,
+            )
+        else:
+            try:
+                if not pseudo_leaf.passed:
+                    raise TestError("ERROR: skipped because pseudohessian failed")
+                _, diis_output = _run_solver(
+                    ctx,
+                    diis_leaf,
+                    source_input=input_file,
+                    runtime_input=diis_input,
+                    solver_method="DIIS",
+                    label=f"{label_base}, mode=DIIS",
+                    settings=merged_diis_settings,
+                    comment_toggles=comment_toggles,
+                )
+                compare_json_profiles(pseudo_output, diis_output, coord_tol=COORD_TOL, value_tol=value_tol)
+                diis_status = "matched pseudohessian"
+                diis_leaf.details = diis_status
+            except Exception as exc:
+                diis_status = _set_failure(diis_leaf, exc)
 
         root.details = f"diis={diis_status}"
         _finalize_report_tree(root)
@@ -521,12 +544,13 @@ def _run_homopolymer_adsorption(ctx: Context, *, enable_benchmark: bool) -> Repo
 
     try:
         for chi in (0, -2, -4, -6):
-            reference_file = _reference_file(ctx, f"homopolymer_adsorption.chi_{chi}.json.ref")
+            reference_file = ctx.reference_dir / f"homopolymer_adsorption.chi_{chi}.json.ref"
+            require_file(reference_file)
             chi_node = ReportNode(label=f"chi_Si = {chi}")
             root.children.append(chi_node)
 
             pseudohessian_input = output_dir / f"homopolymer_adsorption.chi_{chi}.pseudohessian.in"
-            pseudohessian_output = _runtime_output_path(pseudohessian_input)
+            pseudohessian_output = pseudohessian_input.parent / f"{_runtime_output_basename(pseudohessian_input)}.json"
             cleanup_targets.extend([pseudohessian_input, pseudohessian_output])
 
             pseudo_leaf = ReportNode(label="pseudohessian")
@@ -548,12 +572,11 @@ def _run_homopolymer_adsorption(ctx: Context, *, enable_benchmark: bool) -> Repo
                 if enable_benchmark:
                     log_lines.append(f"chi_Si={chi},mode=pseudohessian,elapsed_ms={elapsed_ms}")
             except Exception as exc:
-                pseudo_leaf.passed = False
-                pseudo_leaf.details = str(exc)
+                _set_failure(pseudo_leaf, exc)
 
             if ctx.with_save_memory:
                 save_input = output_dir / f"homopolymer_adsorption.chi_{chi}.save_memory.in"
-                save_output = _runtime_output_path(save_input)
+                save_output = save_input.parent / f"{_runtime_output_basename(save_input)}.json"
                 cleanup_targets.extend([save_input, save_output])
 
                 save_leaf = ReportNode(label="save_memory + pseudohessian")
@@ -580,8 +603,7 @@ def _run_homopolymer_adsorption(ctx: Context, *, enable_benchmark: bool) -> Repo
                         compare_json_profiles(pseudohessian_output, save_output, coord_tol=COORD_TOL, value_tol=1e-6)
                         save_leaf.details = "matched reference and pseudohessian"
                 except Exception as exc:
-                    save_leaf.passed = False
-                    save_leaf.details = str(exc)
+                    _set_failure(save_leaf, exc)
 
             if not enable_benchmark:
                 diis_input = output_dir / f"homopolymer_adsorption.chi_{chi}.diis.in"
@@ -681,7 +703,8 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
 
     generate_input = tests_dir / "micelle_guess_generate.in"
     use_input = tests_dir / "micelle_guess_use.in"
-    reference_file = _reference_file(ctx, "micelle_guess_use.json.ref")
+    reference_file = ctx.reference_dir / "micelle_guess_use.json.ref"
+    require_file(reference_file)
 
     require_file(ctx.binary, executable=True)
     require_file(generate_input)
@@ -689,14 +712,14 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     pseudo_generate_input = output_dir / "micelle_guess_generate.pseudohessian.in"
-    pseudo_generate_output = _runtime_output_path(pseudo_generate_input)
+    pseudo_generate_output = pseudo_generate_input.parent / f"{_runtime_output_basename(pseudo_generate_input)}.json"
     pseudo_use_input = output_dir / "micelle_guess_use.pseudohessian.in"
-    pseudo_use_output = _runtime_output_path(pseudo_use_input)
+    pseudo_use_output = pseudo_use_input.parent / f"{_runtime_output_basename(pseudo_use_input)}.json"
 
     diis_generate_input = output_dir / "micelle_guess_generate.diis.in"
-    diis_generate_output = _runtime_output_path(diis_generate_input)
+    diis_generate_output = diis_generate_input.parent / f"{_runtime_output_basename(diis_generate_input)}.json"
     diis_use_input = output_dir / "micelle_guess_use.diis.in"
-    diis_use_output = _runtime_output_path(diis_use_input)
+    diis_use_output = diis_use_input.parent / f"{_runtime_output_basename(diis_use_input)}.json"
 
     cleanup_targets: list[Path] = [
         pseudo_generate_input,
@@ -734,8 +757,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
             pseudo_gen_leaf.details = "embedded initial_guess generated in output JSON"
             pseudo_use_ready = True
         except Exception as exc:
-            pseudo_gen_leaf.passed = False
-            pseudo_gen_leaf.details = str(exc)
+            _set_failure(pseudo_gen_leaf, exc)
 
         try:
             if not pseudo_use_ready:
@@ -752,8 +774,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 settings={"sys : noname : guess_inputfile": pseudo_generate_output.name},
             )
         except Exception as exc:
-            pseudo_use_leaf.passed = False
-            pseudo_use_leaf.details = str(exc)
+            _set_failure(pseudo_use_leaf, exc)
 
         # Re-run DIIS path from a clean output state.
         diis_generate_output.unlink(missing_ok=True)
@@ -783,13 +804,11 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
             diis_gen_leaf.details = diis_status
             diis_gen_leaf.passed = diis_status == "embedded initial_guess generated in output JSON"
         except Exception as exc:
-            diis_gen_leaf.details = f"failed (accepted): {exc}"
-            diis_gen_leaf.passed = False
+            _set_failure(diis_gen_leaf, exc, accepted=True)
 
         try:
             if not diis_use_ready:
-                diis_use_leaf.details = "failed (accepted): skipped because DIIS guess generation failed"
-                diis_use_leaf.passed = False
+                _set_failure(diis_use_leaf, "skipped because DIIS guess generation failed", accepted=True)
             else:
                 diis_status = _run_optional_diis_leaf(
                     ctx,
@@ -802,8 +821,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                     settings={"sys : noname : guess_inputfile": diis_generate_output.name},
                 )
         except Exception as exc:
-            diis_use_leaf.details = f"failed (accepted): {exc}"
-            diis_use_leaf.passed = False
+            _set_failure(diis_use_leaf, exc, accepted=True)
 
         root.details = f"diis={diis_status}"
         _finalize_report_tree(root)
@@ -855,123 +873,43 @@ def test_polE_regression(ctx: Context) -> ReportNode:
 
 def test_external_potential(ctx: Context) -> ReportNode:
     root = ReportNode(label="external potential")
-    output_dir = ctx.output_dir
     tests_dir = ctx.tests_dir
 
-    cases = [
-        (
-            "1d",
-            tests_dir / "external_potential_1d.in",
-            tests_dir / "external_potential_1d_external_potential.json",
-            "external_potential_1d.json.ref",
-            "external_potential_1d",
-        ),
-        (
-            "2d",
-            tests_dir / "external_potential_2d.in",
-            tests_dir / "external_potential_2d_external_potential.json",
-            "external_potential_2d.json.ref",
-            "external_potential_2d",
-        ),
-        (
-            "3d",
-            tests_dir / "external_potential_3d.in",
-            tests_dir / "external_potential_3d_external_potential.json",
-            "external_potential_3d.json.ref",
-            "external_potential_3d",
-        ),
-    ]
-    cleanup_targets: list[Path] = []
+    for case_label in ("1d", "2d", "3d"):
+        runtime_stem = f"external_potential_{case_label}"
+        input_file = tests_dir / f"{runtime_stem}.in"
+        potential_file = tests_dir / f"{runtime_stem}_external_potential.json"
+        reference_name = f"{runtime_stem}.json.ref"
 
-    require_file(ctx.binary, executable=True)
-    output_dir.mkdir(parents=True, exist_ok=True)
+        case_node = _run_method_group_regression(
+            ctx,
+            root_label=case_label,
+            label_stem=f"external potential {case_label}",
+            input_file=input_file,
+            reference_name=reference_name,
+            runtime_stem=runtime_stem,
+            value_tol=1e-6,
+            method_group_label=None,
+            diis_optional=False,
+            required_files=[potential_file],
+            pseudohessian_settings={
+                "mon : A : external_potential_filename": f"{runtime_stem}.pseudohessian.external_potential.json"
+            },
+            diis_settings={
+                "mon : A : external_potential_filename": f"{runtime_stem}.diis.external_potential.json"
+            },
+            derived_runtime_files=[(potential_file, "external_potential.json")],
+        )
+        root.children.append(case_node)
 
-    try:
-        for case_label, input_file, potential_file, reference_name, runtime_stem in cases:
-            require_file(input_file)
-            require_file(potential_file)
-            reference_file = _reference_file(ctx, reference_name)
-
-            case_node = ReportNode(label=case_label)
-            pseudo_leaf = ReportNode(label="pseudohessian")
-            diis_leaf = ReportNode(label="DIIS")
-            case_node.children.extend([pseudo_leaf, diis_leaf])
-            root.children.append(case_node)
-
-            pseudo_input = output_dir / f"{runtime_stem}.pseudohessian.in"
-            diis_input = output_dir / f"{runtime_stem}.diis.in"
-            pseudo_output = _runtime_output_path(pseudo_input)
-            diis_output = _runtime_output_path(diis_input)
-            pseudo_potential = _derived_runtime_path(pseudo_input, "external_potential.json")
-            diis_potential = _derived_runtime_path(diis_input, "external_potential.json")
-            cleanup_targets.extend(
-                [
-                    pseudo_input,
-                    pseudo_output,
-                    pseudo_potential,
-                    diis_input,
-                    diis_output,
-                    diis_potential,
-                ]
-            )
-
-            shutil.copy2(potential_file, pseudo_potential)
-            shutil.copy2(potential_file, diis_potential)
-
-            try:
-                _, pseudo_output = _run_reference_leaf(
-                    ctx,
-                    pseudo_leaf,
-                    source_input=input_file,
-                    runtime_input=pseudo_input,
-                    reference_file=reference_file,
-                    label=f"external potential {case_label}, mode=pseudohessian",
-                    value_tol=1e-6,
-                    settings={"mon : A : external_potential_filename": pseudo_potential.name},
-                )
-            except Exception as exc:
-                pseudo_leaf.passed = False
-                pseudo_leaf.details = str(exc)
-
-            try:
-                if not pseudo_leaf.passed:
-                    raise TestError("ERROR: skipped because pseudohessian failed")
-                _, diis_output = _run_solver(
-                    ctx,
-                    diis_leaf,
-                    source_input=input_file,
-                    runtime_input=diis_input,
-                    solver_method="DIIS",
-                    label=f"external potential {case_label}, mode=DIIS",
-                    settings={"mon : A : external_potential_filename": diis_potential.name},
-                )
-                compare_json_profiles(pseudo_output, diis_output, coord_tol=COORD_TOL, value_tol=1e-6)
-                diis_leaf.details = "matched pseudohessian"
-            except Exception as exc:
-                diis_leaf.passed = False
-                diis_leaf.details = str(exc)
-
-        _finalize_report_tree(root)
-        return root
-    finally:
-        _cleanup(cleanup_targets, cleanup=ctx.clean_output)
-
-
-def _fmt_wall(v: float) -> str:
-    return f"{v:.3f}"
-
-
-def _fmt_mem_kb(v: float | None) -> str:
-    if v is None:
-        return "NA"
-    return f"{(v / 1024.0):.1f}"
-
+    _finalize_report_tree(root)
+    return root
 
 def _print_table(results: list[ReportNode]) -> None:
     flat = _flatten_nodes(results)
 
     headers = ["#", "Test", "Status", "Wall\n(s)", "MaxRSS\n(MiB)"]
-    rows: list[tuple[int, list[str]]] = []
+    rows: list[tuple[int, list[str], str]] = []
 
     for root_index, is_root, label, node in flat:
         rows.append(
@@ -981,9 +919,10 @@ def _print_table(results: list[ReportNode]) -> None:
                     str(root_index) if is_root else "",
                     label,
                     "PASS" if node.passed else "FAIL",
-                    _fmt_wall(node.wall_s),
-                    _fmt_mem_kb(node.max_rss_kb),
+                    f"{node.wall_s:.3f}",
+                    "NA" if node.max_rss_kb is None else f"{(node.max_rss_kb / 1024.0):.1f}",
                 ],
+                _failure_suffix(node),
             )
         )
 
@@ -991,10 +930,16 @@ def _print_table(results: list[ReportNode]) -> None:
     max_mem_values = [r.max_rss_kb for r in results if r.max_rss_kb is not None]
     total_max_mem = max(max_mem_values) if max_mem_values else None
     pass_count = sum(1 for r in results if r.passed)
-    total_row = ["", "TOTAL", f"{pass_count}/{len(results)}", _fmt_wall(total_wall), _fmt_mem_kb(total_max_mem)]
+    total_row = [
+        "",
+        "TOTAL",
+        f"{pass_count}/{len(results)}",
+        f"{total_wall:.3f}",
+        "NA" if total_max_mem is None else f"{(total_max_mem / 1024.0):.1f}",
+    ]
 
     widths = [0] * len(headers)
-    for row in [headers] + [cells for _, cells in rows] + [total_row]:
+    for row in [headers] + [cells for _, cells, _ in rows] + [total_row]:
         for i, cell in enumerate(row):
             parts = cell.splitlines() or [""]
             widths[i] = max(widths[i], max(len(part) for part in parts))
@@ -1006,7 +951,7 @@ def _print_table(results: list[ReportNode]) -> None:
             return text.rjust(width)
         return text.ljust(width)
 
-    def print_row(parts: list[str], aligns: list[str]) -> None:
+    def print_row(parts: list[str], aligns: list[str], suffix: str = "") -> None:
         wrapped = [part.splitlines() for part in parts]
         height = max(len(cell_lines) for cell_lines in wrapped)
         for line_idx in range(height):
@@ -1014,7 +959,10 @@ def _print_table(results: list[ReportNode]) -> None:
             for col_idx, cell_lines in enumerate(wrapped):
                 text = cell_lines[line_idx] if line_idx < len(cell_lines) else ""
                 line_parts.append(format_cell(text, widths[col_idx], aligns[col_idx]))
-            print("│ " + " │ ".join(line_parts) + " │")
+            line = "│ " + " │ ".join(line_parts) + " │"
+            if suffix and line_idx == 0:
+                line += f"  {suffix}"
+            print(line)
 
     def border(left: str, mid: str, right: str) -> str:
         return left + mid.join("─" * (w + 2) for w in widths) + right
@@ -1025,10 +973,10 @@ def _print_table(results: list[ReportNode]) -> None:
     print(border("┌", "┬", "┐"))
     print_row(headers, header_aligns)
     print(border("├", "┼", "┤"))
-    for idx, (root_index, row) in enumerate(rows):
+    for idx, (root_index, row, mode) in enumerate(rows):
         if idx > 0 and root_index != rows[idx - 1][0]:
             print(border("├", "┼", "┤"))
-        print_row(row, body_aligns)
+        print_row(row, body_aligns, mode)
     print(border("├", "┼", "┤"))
     print_row(total_row, body_aligns)
     print(border("└", "┴", "┘"))

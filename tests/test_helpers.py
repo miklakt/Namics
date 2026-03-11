@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,7 @@ class CommandMetrics:
     returncode: int
     wall_s: float
     max_rss_kb: float | None
+    output: str = ""
 
 
 def _normalize_key(key: str) -> str:
@@ -47,13 +49,6 @@ def _split_key_value(line: str) -> tuple[str, str] | None:
     return key, value
 
 
-def _find_first_start(lines: list[str]) -> int | None:
-    for idx, line in enumerate(lines):
-        if _START_RE.match(line):
-            return idx
-    return None
-
-
 def set_setting_line(input_file: Path, output_file: Path, setting_key: str, value: str) -> None:
     """Render INPUT to OUTPUT while forcing 'SETTING_KEY : VALUE'."""
     lines = input_file.read_text(encoding="utf-8").splitlines()
@@ -62,7 +57,7 @@ def set_setting_line(input_file: Path, output_file: Path, setting_key: str, valu
 
     out_lines: list[str] = []
     replaced = False
-    first_start = _find_first_start(lines)
+    first_start = next((idx for idx, line in enumerate(lines) if _START_RE.match(line)), None)
 
     for idx, line in enumerate(lines):
         split = _split_key_value(line)
@@ -99,7 +94,7 @@ def set_commented_setting(
 
     out_lines: list[str] = []
     replaced = False
-    first_start = _find_first_start(lines)
+    first_start = next((idx for idx, line in enumerate(lines) if _START_RE.match(line)), None)
 
     for idx, line in enumerate(lines):
         raw = line.strip()
@@ -180,6 +175,8 @@ def compare_json_profiles(left_path: Path, right_path: Path, coord_tol: float, v
     left = _extract_numeric_arrays(left_data)
     right = _extract_numeric_arrays(right_data)
 
+    required_tol = 0.0
+
     for key, left_col in left.items():
         if key not in right:
             raise TestError(f"ERROR: output is missing column: {key}")
@@ -190,38 +187,43 @@ def compare_json_profiles(left_path: Path, right_path: Path, coord_tol: float, v
                 f"({left_path}: {len(left_col)}, {right_path}: {len(right_col)})"
             )
         tol = coord_tol if key in {"x", "y", "z"} else value_tol
-        for i, (lv, rv) in enumerate(zip(left_col, right_col), start=1):
-            if abs(lv - rv) > tol:
-                raise TestError(
-                    f"ERROR: mismatch at row {i}, column {key} "
-                    f"(tol={tol}) left={lv} right={rv}"
-                )
+        for lv, rv in zip(left_col, right_col):
+            diff = abs(lv - rv)
+            if diff > tol:
+                required_tol = max(required_tol, diff)
 
     for key in right:
         if key not in left:
             raise TestError(f"ERROR: reference is missing column: {key}")
 
+    if required_tol > 0:
+        raise TestError(f"numerical drift, failed at tol < {required_tol}")
+
 
 def run_command(cmd: list[str], cwd: Path, quiet: bool = True) -> CommandMetrics:
     """Run command and return wall time + max RSS (where available)."""
-    stdout = subprocess.DEVNULL if quiet else None
-    stderr = subprocess.DEVNULL if quiet else None
+    with tempfile.TemporaryFile() as stream:
+        start = time.perf_counter()
+        proc = subprocess.Popen(cmd, cwd=str(cwd), stdout=stream, stderr=stream)
 
-    start = time.perf_counter()
-    proc = subprocess.Popen(cmd, cwd=str(cwd), stdout=stdout, stderr=stderr)
+        if hasattr(os, "wait4"):
+            _, status, rusage = os.wait4(proc.pid, 0)
+            wall_s = time.perf_counter() - start
+            returncode = os.waitstatus_to_exitcode(status)
+            max_rss_kb = float(rusage.ru_maxrss)
+            if sys.platform == "darwin":
+                max_rss_kb /= 1024.0
+        else:
+            returncode = proc.wait()
+            wall_s = time.perf_counter() - start
+            max_rss_kb = None
 
-    if hasattr(os, "wait4"):
-        _, status, rusage = os.wait4(proc.pid, 0)
-        wall_s = time.perf_counter() - start
-        returncode = os.waitstatus_to_exitcode(status)
-        max_rss_kb = float(rusage.ru_maxrss)
-        if sys.platform == "darwin":
-            max_rss_kb /= 1024.0
-        return CommandMetrics(returncode=returncode, wall_s=wall_s, max_rss_kb=max_rss_kb)
+        stream.seek(0)
+        output = stream.read().decode("utf-8", errors="replace")
+        if not quiet and output:
+            print(output, end="")
 
-    returncode = proc.wait()
-    wall_s = time.perf_counter() - start
-    return CommandMetrics(returncode=returncode, wall_s=wall_s, max_rss_kb=None)
+    return CommandMetrics(returncode=returncode, wall_s=wall_s, max_rss_kb=max_rss_kb, output=output)
 
 
 def require_file(path: Path, executable: bool = False) -> None:
