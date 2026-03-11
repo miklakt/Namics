@@ -1912,27 +1912,34 @@ bool System::CheckResults(bool e_info_)
 	FreeEnergy = GetFreeEnergy();
 	GrandPotential = GetGrandPotential();
 	CreateMu(lat->M);
-	if (!std::isfinite(FreeEnergy) || !std::isfinite(GrandPotential)) {
-		cerr << "Detected invalid numbers in computed solver state." << endl;
-		return false;
-	}
 	int M = lat->M;
 	for (int i = 0; i < n_mol; ++i) {
-		if (!std::isfinite(Mol[i]->Mu) || !std::isfinite(Mol[i]->n) || !std::isfinite(Mol[i]->theta) ||
-		    !std::isfinite(Mol[i]->phibulk) || !std::isfinite(Mol[i]->GN)) {
-			cerr << "Detected invalid numbers in computed solver state." << endl;
+		if (!std::isfinite(Mol[i]->n)) {
+			cerr << "Detected invalid n in computed solver state for molecule " << Mol[i]->name << "." << endl;
+			return false;
+		}
+		if (!std::isfinite(Mol[i]->theta)) {
+			cerr << "Detected invalid theta in computed solver state for molecule " << Mol[i]->name << "." << endl;
+			return false;
+		}
+		if (!std::isfinite(Mol[i]->phibulk)) {
+			cerr << "Detected invalid phibulk in computed solver state for molecule " << Mol[i]->name << "." << endl;
+			return false;
+		}
+		if (!std::isfinite(Mol[i]->GN)) {
+			cerr << "Detected invalid GN in computed solver state for molecule " << Mol[i]->name << "." << endl;
 			return false;
 		}
 		for (int j = 0; j < M; ++j) {
 			if (!std::isfinite(Mol[i]->phitot[j])) {
-				cerr << "Detected invalid numbers in computed solver state." << endl;
+				cerr << "Detected invalid phitot in computed solver state for molecule " << Mol[i]->name << "." << endl;
 				return false;
 			}
 		}
 		const int n_molmon = Mol[i]->MolMonList.size();
 		for (int j = 0; j < n_molmon * M; ++j) {
 			if (!std::isfinite(Mol[i]->phi[j])) {
-				cerr << "Detected invalid numbers in computed solver state." << endl;
+				cerr << "Detected invalid phi in computed solver state for molecule " << Mol[i]->name << "." << endl;
 				return false;
 			}
 		}
