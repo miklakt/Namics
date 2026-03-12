@@ -1,0 +1,46 @@
+lat : flat : gradients : 1
+lat : flat : geometry : planar
+lat : flat : lattice_type : hexagonal
+lat : flat : FJC_choices : 5
+lat : flat : n_layers : 600
+lat : flat : lowerbound : surface
+
+mon : WALL : freedom : frozen
+mon : WALL : frozen_range : lowerbound
+
+mon : X : freedom : pinned
+mon : X : pinned_range : firstlayer
+
+mon : S : freedom : free
+mon : B : freedom : free
+mon : A : freedom : free
+mon : T : freedom : free
+mon : U : freedom : free
+mon : W : freedom : free
+
+mol : brush : composition : (X)1(S)298(B)1[(A)299(T)1][(A)299(T)1][(A)299(T)1](U)1
+mol : brush : freedom : restricted
+mol : brush : theta : 30
+
+mol : water : composition : (W)1
+mol : water : freedom : solvent
+
+newton : isaac : method : pseudohessian
+newton : isaac : i_info : 20
+newton : isaac : tolerance : 1e-6
+newton : isaac : iterationlimit : 600
+newton : isaac : deltamax : 0.1
+
+output : json : append : false
+output : json : filename : branched_brush_planar_1d
+json : mon : WALL : phi
+json : mon : X : phi
+json : mon : S : phi
+json : mon : B : phi
+json : mon : A : phi
+json : mon : T : phi
+json : mon : U : phi
+json : mol : brush : phi
+json : mol : water : phi
+
+start

@@ -843,6 +843,31 @@ def test_particle_in_cyl_coordinates(ctx: Context) -> ReportNode:
     )
 
 
+def test_branched_brush(ctx: Context) -> ReportNode:
+    root = ReportNode(label="branched brush")
+    tests_dir = ctx.tests_dir
+
+    for case_label, runtime_stem in (
+        ("2d cylindrical", "branched_brush_cyl2d"),
+        ("1d planar", "branched_brush_planar_1d"),
+    ):
+        input_file = tests_dir / f"{runtime_stem}.in"
+        case_node = _run_method_group_regression(
+            ctx,
+            root_label=case_label,
+            label_stem=f"branched brush {case_label}",
+            input_file=input_file,
+            reference_name=f"{runtime_stem}.json.ref",
+            runtime_stem=runtime_stem,
+            value_tol=1e-6,
+            method_group_label=None,
+        )
+        root.children.append(case_node)
+
+    _finalize_report_tree(root)
+    return root
+
+
 def test_polE_regression(ctx: Context) -> ReportNode:
     # Keep regression inputs in tests/ so the suite stays decoupled from data/.
     input_file = ctx.tests_dir / "polE.in"
@@ -989,6 +1014,7 @@ TESTS: dict[str, tuple[str, Callable[[Context], ReportNode]]] = {
     "frozen-range-input-file": ("frozen range input file", test_frozen_range_input_file),
     "micelle-self-assembly": ("micelle self assembly", test_micelle_self_assembly),
     "particle-in-cyl-coordinates": ("particle in cyl coordinates", test_particle_in_cyl_coordinates),
+    "branched-brush": ("branched brush", test_branched_brush),
     "polE-regression": ("polE regression", test_polE_regression),
 }
 
@@ -999,6 +1025,9 @@ ALIASES = {
     "frozen_range_input_file": "frozen-range-input-file",
     "micelle_self_assembly": "micelle-self-assembly",
     "particle_in_cyl_coordinates": "particle-in-cyl-coordinates",
+    "branched_brush": "branched-brush",
+    "branched_brush_cyl2d": "branched-brush",
+    "branched_brush_planar_1d": "branched-brush",
     "polE_regression": "polE-regression",
 }
 
