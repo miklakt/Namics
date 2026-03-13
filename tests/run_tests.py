@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import re
 import signal
 import shutil
@@ -830,6 +831,96 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
         _cleanup(cleanup_targets, cleanup=ctx.clean_output)
 
 
+def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
+    root = ReportNode(label="micelle grand canonical search")
+    tests_dir = ctx.tests_dir
+    output_dir = ctx.output_dir
+
+    seed_input = tests_dir / "micelle_guess_generate.in"
+    search_input = tests_dir / "micelle_gc_search.in"
+    utility = ctx.repo_root / "utils" / "micelle_gc_search.py"
+
+    require_file(ctx.binary, executable=True)
+    require_file(seed_input)
+    require_file(search_input)
+    require_file(utility)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    seed_runtime = output_dir / "micelle_gc_seed.pseudohessian.in"
+    seed_output = seed_runtime.parent / f"{_runtime_output_basename(seed_runtime)}.json"
+    search_workdir = output_dir / "micelle_gc_search"
+    summary_file = search_workdir / "summary.json"
+    result_json = search_workdir / "result.json"
+
+    cleanup_targets: list[Path] = [seed_runtime, seed_output, search_workdir]
+
+    try:
+        seed_output.unlink(missing_ok=True)
+        _, seed_output = _run_solver(
+            ctx,
+            root,
+            source_input=seed_input,
+            runtime_input=seed_runtime,
+            solver_method="pseudohessian",
+            label="micelle gc seed generation",
+            settings={"sys : noname : write_initial_guess": "true"},
+            require_initial_guess=True,
+        )
+
+        metrics = run_command(
+            [
+                sys.executable,
+                str(utility),
+                str(search_input),
+                "--binary",
+                str(ctx.binary),
+                "--molecule",
+                "surf",
+                "--seed-json",
+                str(seed_output),
+                "--step",
+                "5",
+                "--workers",
+                "2",
+                "--max-iter",
+                "6",
+                "--gp-tol",
+                "5e-2",
+            ],
+            cwd=ctx.repo_root,
+            quiet=ctx.quiet,
+        )
+        root.add_metric(metrics)
+        if metrics.returncode != 0:
+            raise TestError(metrics.output.strip() or "ERROR: external micelle GC search failed")
+        if not summary_file.is_file():
+            raise TestError(f"ERROR: missing micelle GC summary: {summary_file}")
+        if not result_json.is_file():
+            raise TestError(f"ERROR: missing micelle GC result JSON: {result_json}")
+
+        summary = json.loads(summary_file.read_text(encoding="utf-8"))
+        x = float(summary["x"])
+        gp = float(summary["grand_potential"])
+        converged = bool(summary["converged"])
+
+        if not converged:
+            raise TestError("ERROR: micelle GC search did not report convergence")
+        if abs(gp) > 0.25:
+            raise TestError(f"ERROR: micelle GC search residual too large: grand_potential={gp}")
+        if not (111.0 < x < 114.0):
+            raise TestError(f"ERROR: micelle GC search returned unexpected aggregation number: n={x}")
+
+        payload = result_json.read_text(encoding="utf-8")
+        if '"initial_guess"' not in payload:
+            raise TestError(f"ERROR: result JSON does not contain embedded initial_guess: {result_json}")
+
+        root.details = f"n={x:.6f}, gp={gp:.3e}"
+        return root
+    finally:
+        _cleanup(cleanup_targets, cleanup=ctx.clean_output)
+
+
 def test_particle_in_cyl_coordinates(ctx: Context) -> ReportNode:
     tests_dir = ctx.tests_dir
     input_file = tests_dir / "particle_in_cyl_coordinates.in"
@@ -1013,6 +1104,10 @@ TESTS: dict[str, tuple[str, Callable[[Context], ReportNode]]] = {
     "external-potential": ("external potential", test_external_potential),
     "frozen-range-input-file": ("frozen range input file", test_frozen_range_input_file),
     "micelle-self-assembly": ("micelle self assembly", test_micelle_self_assembly),
+    "micelle-grand-canonical-search": (
+        "micelle grand canonical search",
+        test_micelle_grand_canonical_search,
+    ),
     "particle-in-cyl-coordinates": ("particle in cyl coordinates", test_particle_in_cyl_coordinates),
     "branched-brush": ("branched brush", test_branched_brush),
     "polE-regression": ("polE regression", test_polE_regression),
@@ -1024,6 +1119,7 @@ ALIASES = {
     "external_potential": "external-potential",
     "frozen_range_input_file": "frozen-range-input-file",
     "micelle_self_assembly": "micelle-self-assembly",
+    "micelle_grand_canonical_search": "micelle-grand-canonical-search",
     "particle_in_cyl_coordinates": "particle-in-cyl-coordinates",
     "branched_brush": "branched-brush",
     "branched_brush_cyl2d": "branched-brush",

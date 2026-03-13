@@ -154,10 +154,13 @@ test-frozen-range-input-file:
 test-micelle-self-assembly:
 	@python3 ./tests/run_tests.py micelle-self-assembly
 
+test-micelle-grand-canonical-search:
+	@python3 ./tests/run_tests.py micelle-grand-canonical-search
+
 test-particle-in-cyl-coordinates:
 	@python3 ./tests/run_tests.py particle-in-cyl-coordinates
 
 test-all:
 	@python3 ./tests/run_tests.py
 
-.PHONY: all remake clean cleaner resources test-homopolymer-adsorption benchmark-homopolymer-adsorption test-frozen-range-input-file test-micelle-self-assembly test-particle-in-cyl-coordinates test-all
+.PHONY: all remake clean cleaner resources test-homopolymer-adsorption benchmark-homopolymer-adsorption test-frozen-range-input-file test-micelle-self-assembly test-micelle-grand-canonical-search test-particle-in-cyl-coordinates test-all
