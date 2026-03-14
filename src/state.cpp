@@ -1,6 +1,6 @@
 #include "state.h"
 
-State::State(const Input* In_,vector<Segment*> Seg_, string name_) {
+State::State(const Input* In_,std::span<const std::unique_ptr<Segment>> Seg_, std::string name_) {
 	In=In_; name=name_;  Seg=Seg_;
 	KEYS.push_back("alphabulk");
 	KEYS.push_back("valence");
@@ -9,12 +9,12 @@ State::State(const Input* In_,vector<Segment*> Seg_, string name_) {
 State::~State() = default;
 
 
-void State::PutParameter(string new_param) {
-NAMICS_DBG("PutParameter in State " + name << endl); KEYS.push_back(new_param);
+void State::PutParameter(std::string new_param) {
+NAMICS_DBG("PutParameter in State " + name << std::endl); KEYS.push_back(new_param);
 }
 
 bool State::CheckInput(int start) {
-NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
+NAMICS_DBG("CheckInput in State " + name << std::endl);	bool success=true;
 	fixed=false;
 	in_reaction =false;
 	alphabulk =-1;
@@ -25,7 +25,7 @@ NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 	success= In->CheckParameters("state",name,start, KEYS, PARAMETERS);
 	int length=In->MonList.size();
 	for (int k=0; k<length; k++) {
-		if (Seg[k]->name == name) { cout << "name of state can not be the same as the name of any mon in the system" << endl;
+		if (Seg[k]->name == name) { std::cout << "name of state can not be the same as the name of any mon in the system" << std::endl;
 		success=false;
 		}
 	}
@@ -33,13 +33,13 @@ NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 	for (int k=0; k<length_StateList; k++) {
 		if (In->StateList[k] == name) state_id=k;
 	}
-	if (state_id<0) cout << "error: state_id is negative " << endl;
+	if (state_id<0) std::cout << "error: state_id is negative " << std::endl;
 	if (success) {
 		if (GetValue("mon").size()==0) {
-			cout << "Please specify the 'mon' for state " << name << endl;
+			std::cout << "Please specify the 'mon' for state " << name << std::endl;
 			success=false;
 		} else {
-			string mon_name;
+			std::string mon_name;
 			mon_name=GetValue("mon");
 			bool mon_found=false;
 			for (int k=0; k<length; k++) {
@@ -50,23 +50,23 @@ NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 				}
 			}
 			if (!mon_found) {
-				cout <<"in state " << name << " mon name " << mon_name << " not found in system " << endl;
+				std::cout <<"in state " << name << " mon name " << mon_name << " not found in system " << std::endl;
 				success=false;
 			}
 			if (GetValue("alphabulk").size()>0) {
 				fixed=true;
 				alphabulk=ParseReal(GetValue("alphabulk"),alphabulk);
 				if (alphabulk <0 || alphabulk > 1) {
-					cout << "for state " << name << " value for alphabulk is out of range 0 ... 1 " << endl;
+					std::cout << "for state " << name << " value for alphabulk is out of range 0 ... 1 " << std::endl;
 					success=false;
 				}
 			}
 			valence = 0;
 			if (GetValue("valence").size()>0) {
-				const string valence_value = GetValue("valence");
+				const std::string valence_value = GetValue("valence");
 				valence=ParseReal(valence_value,valence);
 				if (valence <-10 || valence > 10) {
-					cout << "for state " << name << " value for valence " << valence_value << " is out of range -10 ... 10 " << endl;
+					std::cout << "for state " << name << " value for valence " << valence_value << " is out of range -10 ... 10 " << std::endl;
 					success=false;
 				}
 			}
@@ -77,11 +77,11 @@ NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 	Real Chi;
 	for (int i=0; i<length; i++) {
 		Chi=-999;
-		const string chi_value = GetValue("chi_"+chi_name[i]);
+		const std::string chi_value = GetValue("chi_"+chi_name[i]);
 		if (chi_value.size()>0) {
 			Chi=ParseReal(chi_value,Chi);
-			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "not valid." << endl; }
-			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "value ignored: set to zero!" << endl; Chi=0;}
+			if (Chi==-999) {success=false; std::cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "not valid." << std::endl; }
+			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) std::cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "value ignored: set to zero!" << std::endl; Chi=0;}
 
 		}
 		chi[i]=Chi;
@@ -89,36 +89,36 @@ NAMICS_DBG("CheckInput in State " + name << endl);	bool success=true;
 	return success;
 }
 
-string State::GetValue(string parameter){
+std::string State::GetValue(std::string parameter){
 	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
-void State::PutChiKEY(string new_name) {
-NAMICS_DBG("PutChiKey " + name << endl); KEYS.push_back("chi_" + new_name);
+void State::PutChiKEY(std::string new_name) {
+NAMICS_DBG("PutChiKey " + name << std::endl); KEYS.push_back("chi_" + new_name);
 	chi_name.push_back(new_name);
 	chi.push_back(-999);
 }
 
-void State::push(string s, Real X) {
-NAMICS_DBG("push (Real) in State " + name << endl); Reals.push_back(s);
+void State::push(std::string s, Real X) {
+NAMICS_DBG("push (Real) in State " + name << std::endl); Reals.push_back(s);
 	Reals_value.push_back(X);
 }
-void State::push(string s, int X) {
-NAMICS_DBG("push (int) in State " + name << endl); ints.push_back(s);
+void State::push(std::string s, int X) {
+NAMICS_DBG("push (int) in State " + name << std::endl); ints.push_back(s);
 	ints_value.push_back(X);
 }
-void State::push(string s, bool X) {
-NAMICS_DBG("push (boool) in State " + name << endl); bools.push_back(s);
+void State::push(std::string s, bool X) {
+NAMICS_DBG("push (boool) in State " + name << std::endl); bools.push_back(s);
 	bools_value.push_back(X);
 }
-void State::push(string s, string X) {
-NAMICS_DBG("push (string) in State " + name << endl); strings.push_back(s);
+void State::push(std::string s, std::string X) {
+NAMICS_DBG("push (std::string) in State " + name << std::endl); strings.push_back(s);
 	strings_value.push_back(X);
 }
 void State::PushOutput() {
-NAMICS_DBG("PushOutput in State " + name << endl); strings.clear();
+NAMICS_DBG("PushOutput in State " + name << std::endl); strings.clear();
 	strings_value.clear();
 	bools.clear();
 	bools_value.clear();
@@ -133,21 +133,19 @@ NAMICS_DBG("PushOutput in State " + name << endl); strings.clear();
 	for (int i=0; i<length; i++) push("chi_"+chi_name[i],chi[i]);
 }
 
-Real* State::GetPointer(string s,int &SIZE) {
-	(void)SIZE;
+std::span<Real> State::GetPointer(std::string s) {
 	(void)s;
-NAMICS_DBG("GetPointer in State " + name << endl);	return NULL;
+NAMICS_DBG("GetPointer in State " + name << std::endl);	return {};
 }
 
-int* State::GetPointerInt(string s,int &SIZE) {
-	(void)SIZE;
+std::span<int> State::GetPointerInt(std::string s) {
 	(void)s;
-NAMICS_DBG("GetPointerInt in State " + name << endl);	return NULL;
+NAMICS_DBG("GetPointerInt in State " + name << std::endl);	return {};
 }
 
 
-int State::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-NAMICS_DBG("GetValue (long)  in State " + name << endl);	int i=0;
+int State::GetValue(std::string prop,int &int_result,Real &Real_result,std::string &string_result){
+NAMICS_DBG("GetValue (long)  in State " + name << std::endl);	int i=0;
 	int length = ints.size();
 	while (i<length) {
 		if (prop==ints[i]) {

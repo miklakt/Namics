@@ -1,10 +1,10 @@
 #include "solve_scf.h"
 #include <iostream>
 
-Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,string name_) :
+Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_, std::span<const std::unique_ptr<State>> Sta_, std::span<const std::unique_ptr<Reaction>> Rea_, std::span<const std::unique_ptr<Molecule>> Mol_,System* Sys_,std::string name_) :
 	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, lat{Lat_}, Mol{Mol_}, Sta{Sta_}, Rea{Rea_}
 {
-NAMICS_DBG("Constructor in Solve_scf " << endl);
+NAMICS_DBG("Constructor in Solve_scf " << std::endl);
 	KEYS.push_back("method");
 	KEYS.push_back("x_info");
 	KEYS.push_back("e_info"); KEYS.push_back("s_info");KEYS.push_back("i_info");KEYS.push_back("t_info");KEYS.push_back("hs_info");
@@ -24,9 +24,6 @@ NAMICS_DBG("Constructor in Solve_scf " << endl);
 	max_g = false; // compute g based on max error
 	all=false;
 	restart_DIIS =0;
-	xx = nullptr;
-	yy = nullptr;
-	SIGN = nullptr;
 }
 
 Solve_scf::~Solve_scf() {
@@ -34,31 +31,27 @@ Solve_scf::~Solve_scf() {
 }
 
 void Solve_scf :: DeAllocateMemory(){
-NAMICS_DBG("DeAllocateMemory in Solve " << endl);
+NAMICS_DBG("DeAllocateMemory in Solve " << std::endl);
 	if (!all) return;
-	delete[] xx;
-	delete[] yy;
-	delete[] SIGN;
-	xx = nullptr;
-	yy = nullptr;
-	SIGN = nullptr;
+	xx.clear();
+	yy.clear();
+	SIGN.clear();
 	all=false;
-NAMICS_DBG("exit for 'destructor' in Solve " << endl);
+NAMICS_DBG("exit for 'destructor' in Solve " << std::endl);
 
 }
 
 void Solve_scf::AllocateMemory() {
-NAMICS_DBG("AllocateMemeory in Solve " << endl);
+NAMICS_DBG("AllocateMemeory in Solve " << std::endl);
 	if (all) DeAllocateMemory();
 	int M=lat->M;
 	iv = (Sys->ItMonList.size() + Sys->ItStateList.size())* M;
 	if (Sys->charged) iv += M;
-	xx = new Real[iv]();
+	xx.assign(iv, 0);
 	int niv = In->ReactionList.size();
 	if (niv>0) {
-		yy = new Real[niv]();
-		SIGN = new int[niv];
-		std::fill_n(SIGN, niv, 1);
+		yy.assign(niv, 0);
+		SIGN.assign(niv, 1);
 	}
 	all=true;
 
@@ -66,7 +59,7 @@ NAMICS_DBG("AllocateMemeory in Solve " << endl);
 }
 
 bool Solve_scf::CheckInput(int start_) { start=start_;
-NAMICS_DBG("CheckInput in Solve " << endl);
+NAMICS_DBG("CheckInput in Solve " << std::endl);
 	pseudohessian =false;
 	deltamin =0.1;
 	s_info=false;
@@ -94,19 +87,19 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 		i_info=ParseInt(GetValue("i_info"),1);
 		if (i_info == 0) {
 		// We cannot divide by zero (see modulus statements in sfnewton), but this will probably be what the user means.
-		cerr << "WARNING: i_info cannot be zero ! Defaulting to iterationlimit + 1."<< endl;
+		std::cerr << "WARNING: i_info cannot be zero ! Defaulting to iterationlimit + 1."<< std::endl;
 		i_info = iterationlimit+1;
 		}
 		deltamax=ParseReal(GetValue("deltamax"),0.1);
-		if (deltamax < 0 || deltamax>100) {deltamax = 0.1;  cout << "Value of deltamax out of range 0..100, and value set to default value 0.1" <<endl; }
+		if (deltamax < 0 || deltamax>100) {deltamax = 0.1;  std::cout << "Value of deltamax out of range 0..100, and value set to default value 0.1" <<std::endl; }
 		deltamin=0;
 		deltamin=ParseReal(GetValue("deltamin"),deltamin);
-		if (deltamin < 0 || deltamin>100) {deltamin = deltamax/100000;  cout << "Value of deltamin out of range 0..100, and value set to default value deltamax/100000" <<endl; }
+		if (deltamin < 0 || deltamin>100) {deltamin = deltamax/100000;  std::cout << "Value of deltamin out of range 0..100, and value set to default value deltamax/100000" <<std::endl; }
 		tolerance=ParseReal(GetValue("tolerance"),1e-7);
-		if (tolerance < 1e-16 ||tolerance>10) {tolerance = 1e-5;  cout << "Value of tolerance out of range 1e-12..10 Value set to default value 1e-5" <<endl; }
+		if (tolerance < 1e-16 ||tolerance>10) {tolerance = 1e-5;  std::cout << "Value of tolerance out of range 1e-12..10 Value set to default value 1e-5" <<std::endl; }
 
 			if (GetValue("method").size()==0) {SCF_method="pseudohessian";} else {
-				vector<string>method_options;
+				std::vector<std::string>method_options;
 				method_options.push_back("DIIS");
 				method_options.push_back("pseudohessian");
 				method_options.push_back("hessian");
@@ -118,59 +111,59 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 			samehessian=false;
 			max_accuracy_for_hessian_scaling=ParseReal(GetValue("max_accuracy_for_hessian_scaling"),0.1);
 			if (max_accuracy_for_hessian_scaling<1e-7 || max_accuracy_for_hessian_scaling>1) {
-				cout <<"max_accuracy_for_hessian_scaling is out of range: 1e-7...1; default value 0.1 is used instead" << endl;
+				std::cout <<"max_accuracy_for_hessian_scaling is out of range: 1e-7...1; default value 0.1 is used instead" << std::endl;
 				max_accuracy_for_hessian_scaling=0.1;
 			}
 			minAccuracyForHessian=ParseReal(GetValue("min_accuracy_for_hessian"),0.5);
 			if (minAccuracyForHessian<0 ||minAccuracyForHessian>1) {
-				cout <<"min_accuracy_for_hessian is out of range: 0...0.1; default value 0 is used instead (no hessian computation)" << endl;
+				std::cout <<"min_accuracy_for_hessian is out of range: 0...0.1; default value 0 is used instead (no hessian computation)" << std::endl;
 				minAccuracyForHessian=0;
 			}
 			maxFrReverseDirection =ParseReal(GetValue("max_fr_reverse_direction"),0.4);
 			if (maxFrReverseDirection <0.1 ||maxFrReverseDirection >0.5) {
-				cout <<"max_fr_reverse_direction is out of range: 0.1...0.5; default value 0.4 is used instead" << endl;
+				std::cout <<"max_fr_reverse_direction is out of range: 0.1...0.5; default value 0.4 is used instead" << std::endl;
 				maxFrReverseDirection =0.4;
 			}
 
 			n_iterations_for_hessian=ParseInt(GetValue("n_iterations_for_hessian"),iterationlimit+100);
 			if (n_iterations_for_hessian<1 ) {
-				cout <<" n_iterations_for_hessian setting must be larger than unity; hessian evaluations will not be done " << endl;
+				std::cout <<" n_iterations_for_hessian setting must be larger than unity; hessian evaluations will not be done " << std::endl;
 				n_iterations_for_hessian=iterationlimit+100;
 			}
 			maxNumSmallAlpha=ParseInt(GetValue("max_n_small_alpha"),50);
 			if (maxNumSmallAlpha<10 ||maxNumSmallAlpha>1000) {
-				cout <<" max_n_small_alpha is out of range: 10, ..., 100;  max_n_small_alpha is set to default: 50 " << endl;
+				std::cout <<" max_n_small_alpha is out of range: 10, ..., 100;  max_n_small_alpha is set to default: 50 " << std::endl;
 				maxNumSmallAlpha=50;
 			}
 			deltamin=ParseReal(GetValue("deltamin"),0);
 			if (deltamin <0 || deltamin>deltamax) {
-				cout <<"deltamin is out of range; 0, ..., " << deltamax << "; deltamin value set to 0 " << endl;
+				std::cout <<"deltamin is out of range; 0, ..., " << deltamax << "; deltamin value set to 0 " << std::endl;
 				deltamin=0;
 			}
 			smallAlpha=ParseReal(GetValue("small_alpha"),0.00001);
 			if (smallAlpha <0 || smallAlpha>1) {
-				cout <<"small_alpha is out of range; 0, ..., 1; small_alpha value set to default: 1e-5 " << endl;
+				std::cout <<"small_alpha is out of range; 0, ..., 1; small_alpha value set to default: 1e-5 " << std::endl;
 				smallAlpha=0.00001;
 			}
 		}
 		if (SCF_method=="DIIS") {
 			solver=diis;
 			m=ParseInt(GetValue("m"),10);
-			if (m < 0 ||m>100) {m=10;  cout << "Value of 'm' out of range 0..100, value set to default value 10" <<endl; }
+			if (m < 0 ||m>100) {m=10;  std::cout << "Value of 'm' out of range 0..100, value set to default value 10" <<std::endl; }
 			restart_DIIS=iterationlimit;
 			restart_DIIS=ParseInt(GetValue("n_restart_DIIS"),iterationlimit);
 			if (restart_DIIS < 0 || restart_DIIS > iterationlimit*10) {
-				restart_DIIS=iterationlimit; cout <<"Value of 'n_restart_DIIS' out of range 0 .. iterationlimit; value set to iterationlimit" << endl;
+				restart_DIIS=iterationlimit; std::cout <<"Value of 'n_restart_DIIS' out of range 0 .. iterationlimit; value set to iterationlimit" << std::endl;
 			}
-			restart_DIIS -=restart_DIIS%m; cout <<"Restart DIIS set to " << restart_DIIS << endl;
+			restart_DIIS -=restart_DIIS%m; std::cout <<"Restart DIIS set to " << restart_DIIS << std::endl;
 		}
 		if (SCF_method=="LBFGS") {
 			solver=LBFGS;
 			m=ParseInt(GetValue("m"),6);
-			if (m < 0 ||m>1000) {m=6;  cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<endl; }
+			if (m < 0 ||m>1000) {m=6;  std::cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<std::endl; }
 		}
 		if (GetValue("stop_criterion").size() > 0) {
-			vector<string>options;
+			std::vector<std::string>options;
 			options.push_back("norm_of_g");
 			options.push_back("max_of_element_of_|g|");
 			if (!ParseString(GetValue("stop_criterion"),stop_criterion,options,"In newton the stop_criterion setting was not recognised")) {success=false; };
@@ -183,39 +176,39 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 }
 
 
-void Solve_scf::PutParameter(string new_param) {
-NAMICS_DBG("PutParameter in Solve " << endl);
+void Solve_scf::PutParameter(std::string new_param) {
+NAMICS_DBG("PutParameter in Solve " << std::endl);
 	KEYS.push_back(new_param);
 }
 
-string Solve_scf::GetValue(string parameter){
+std::string Solve_scf::GetValue(std::string parameter){
 	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
-void Solve_scf::push(string s, Real X) {
-NAMICS_DBG("push (Real) in  Solve " << endl);
+void Solve_scf::push(std::string s, Real X) {
+NAMICS_DBG("push (Real) in  Solve " << std::endl);
 	Reals.push_back(s);
 	Reals_value.push_back(X);
 }
-void Solve_scf::push(string s, int X) {
-NAMICS_DBG("push (int) in  Solve " << endl);
+void Solve_scf::push(std::string s, int X) {
+NAMICS_DBG("push (int) in  Solve " << std::endl);
 	ints.push_back(s);
 	ints_value.push_back(X);
 }
-void Solve_scf::push(string s, bool X) {
-NAMICS_DBG("push (bool) in  Solve " << endl);
+void Solve_scf::push(std::string s, bool X) {
+NAMICS_DBG("push (bool) in  Solve " << std::endl);
 	bools.push_back(s);
 	bools_value.push_back(X);
 }
-void Solve_scf::push(string s, string X) {
-NAMICS_DBG("push (string) in  Solve " << endl);
+void Solve_scf::push(std::string s, std::string X) {
+NAMICS_DBG("push (std::string) in  Solve " << std::endl);
 	strings.push_back(s);
 	strings_value.push_back(X);
 }
 void Solve_scf::PushOutput() {
-NAMICS_DBG("PushOutput in  Solve " << endl);
+NAMICS_DBG("PushOutput in  Solve " << std::endl);
 	strings.clear();
 	strings_value.clear();
 	bools.clear();
@@ -256,8 +249,8 @@ NAMICS_DBG("PushOutput in  Solve " << endl);
 	Sys->PushOutput();
 }
 
-int Solve_scf::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-NAMICS_DBG("GetValue (long) in  Solve " << endl);
+int Solve_scf::GetValue(std::string prop,int &int_result,Real &Real_result,std::string &string_result){
+NAMICS_DBG("GetValue (long) in  Solve " << std::endl);
 	int i=0;
 	int length = ints.size();
 	while (i<length) {
@@ -297,7 +290,7 @@ NAMICS_DBG("GetValue (long) in  Solve " << endl);
 	return 0;
 }
 
-void Solve_scf::Copy(Real* x, Real* X, int MX, int MY, int MZ, int fjc_old) {
+void Solve_scf::Copy(std::span<Real> x, std::span<const Real> X, int MX, int MY, int MZ, int fjc_old) {
 	int mx=lat->MX;
 	int my=lat->MY;
 	int mz=lat->MZ;
@@ -314,7 +307,7 @@ void Solve_scf::Copy(Real* x, Real* X, int MX, int MY, int MZ, int fjc_old) {
 		case 1:
 			if (fjc==1 and fjc_old==1) {
 				if (MY>0||MZ>0) {
-					cout <<" Copy from more than one gradient to one gradient: (i) =(1,i) or (1,1,i) is used "<< endl;
+					std::cout <<" Copy from more than one gradient to one gradient: (i) =(1,i) or (1,1,i) is used "<< std::endl;
 				}
 				if (MZ>0) { pos_i=JX+JY; pos_o=MZ+2;} else {if (MY>0) {pos_i=JX; pos_o=MY+2; } else { pos_i=0; pos_o=MX+2; } }
 				for (i=0; i<mx+2*fjc; i++)  if (i<pos_o) x[i]=X[pos_i+i];
@@ -326,12 +319,12 @@ void Solve_scf::Copy(Real* x, Real* X, int MX, int MY, int MZ, int fjc_old) {
 			break;
 		case 2:
 			if (MY==0) {
-				cout <<" Copy from one-gradient to two gradients: one-gradient (x,i)=(i) is used for all x " << endl;
+				std::cout <<" Copy from one-gradient to two gradients: one-gradient (x,i)=(i) is used for all x " << std::endl;
 				for (i=0; i<mx+2*fjc; i++)
 				for (j=0; j<my+2*fjc; j++) if (j<MX+2*fjc_old) x[i*jx+j]=X[j];
 			} else {
 				if (MZ>0) {
-					cout <<" Copy from three gradients to two gradients: (i,j)=(1,i,j) is used " <<endl;
+					std::cout <<" Copy from three gradients to two gradients: (i,j)=(1,i,j) is used " <<std::endl;
 					JX=(MY+2*fjc_old)*(MZ+2*fjc_old);
 					JY=(MZ+2*fjc_old);
 					for (i=0; i<mx+2*fjc; i++)
@@ -345,13 +338,13 @@ void Solve_scf::Copy(Real* x, Real* X, int MX, int MY, int MZ, int fjc_old) {
 			break;
 		case 3:
 				if (MY==0) {
-					cout <<"Copy from one gradient to three gradients: (x,y,i) = (i) is used for all x,y " << endl;
+					std::cout <<"Copy from one gradient to three gradients: (x,y,i) = (i) is used for all x,y " << std::endl;
 					for (i=0; i<mx+2*fjc; i++)
 					for (j=0; j<my+2*fjc; j++)
 					for (k=0; k<mz+2*fjc; k++) if (k<MX+2*fjc_old) x[i*jx+j*jy+k] = X[k];
 				} else {
 					if (MZ==0) {
-						cout <<"Copy form two gradients to three: (x,i,j) = (i,j) for all x " << endl;
+						std::cout <<"Copy form two gradients to three: (x,i,j) = (i,j) for all x " << std::endl;
 						JX=(MY+2*fjc_old);
 						for (i=0; i<mx+2*fjc; i++)
 						for (j=0; j<my+2*fjc; j++)
@@ -370,9 +363,9 @@ void Solve_scf::Copy(Real* x, Real* X, int MX, int MY, int MZ, int fjc_old) {
 	}
 }
 
-bool Solve_scf::Guess(Real *X, string METHOD, vector<string> MONLIST, vector<string> STATELIST, bool CHARGED, int MX, int MY, int MZ,int fjc_old){
+bool Solve_scf::Guess(std::span<const Real> X, std::string METHOD, std::vector<std::string> MONLIST, std::vector<std::string> STATELIST, bool CHARGED, int MX, int MY, int MZ,int fjc_old){
 	(void)METHOD;
-	NAMICS_DBG( "Guess in Solve" << endl);
+	NAMICS_DBG( "Guess in Solve" << std::endl);
 	int M=lat->M;
 	bool success=true;
 	int m;
@@ -382,23 +375,30 @@ bool Solve_scf::Guess(Real *X, string METHOD, vector<string> MONLIST, vector<str
 	int length_old_state=STATELIST.size();
 	int length_new_mon=Sys->ItMonList.size();
 	int length_new_state=Sys->ItStateList.size();
+	auto xx_span = std::span<Real>(xx);
 	for (int i = 0; i<length_old_mon; i++) {
 		for (int j=0; j<length_new_mon; j++) {
 			if (MONLIST[i]==Seg[Sys->ItMonList[j]]->name) {
-				Copy(xx+M*j,X+i*m,MX,MY,MZ,fjc_old);
+				Copy(xx_span.subspan(static_cast<size_t>(M * j), static_cast<size_t>(M)),
+				     X.subspan(static_cast<size_t>(i * m), static_cast<size_t>(m)),
+				     MX,MY,MZ,fjc_old);
 			}
 		}
 	}
 	for (int i = 0; i<length_old_state; i++) {
 		for (int j=0; j<length_new_state; j++) {
 			if (STATELIST[i]==Sta[Sys->ItStateList[j]]->name) {
-				Copy(xx+M*(j+length_new_mon),X+(i+length_old_mon)*m,MX,MY,MZ,fjc_old);
+				Copy(xx_span.subspan(static_cast<size_t>(M * (j + length_new_mon)), static_cast<size_t>(M)),
+				     X.subspan(static_cast<size_t>((i + length_old_mon) * m), static_cast<size_t>(m)),
+				     MX,MY,MZ,fjc_old);
 			}
 		}
 	}
 
 	if (CHARGED && Sys->charged) {
-		Copy(xx+(length_new_mon+length_new_state)*M,X+(length_old_mon+length_old_state)*m,MX,MY,MZ,fjc_old);
+		Copy(xx_span.subspan(static_cast<size_t>((length_new_mon + length_new_state) * M), static_cast<size_t>(M)),
+		     X.subspan(static_cast<size_t>((length_old_mon + length_old_state) * m), static_cast<size_t>(m)),
+		     MX,MY,MZ,fjc_old);
 	}
 	return success;
 }
@@ -408,23 +408,24 @@ class SCF_LBFGS
 private:
     const Input* In;
     Lattice* Lat;
-    vector<Segment*> Seg;
-    vector<State*> Sta;
-    vector<Reaction*> Rea;
-    vector<Molecule*> Mol;
+    std::span<const std::unique_ptr<Segment>> Seg;
+    std::span<const std::unique_ptr<State>> Sta;
+    std::span<const std::unique_ptr<Reaction>> Rea;
+    std::span<const std::unique_ptr<Molecule>> Mol;
     System* Sys;
     int iterations =0;
     Real residual=1;
 public:
-    SCF_LBFGS(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_,vector<Reaction*> Rea_,vector<Molecule*> Mol_,System* Sys_) :
+    SCF_LBFGS(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_,std::span<const std::unique_ptr<State>> Sta_,std::span<const std::unique_ptr<Reaction>> Rea_,std::span<const std::unique_ptr<Molecule>> Mol_,System* Sys_) :
       In(In_),Lat(Lat_),Seg(Seg_),Sta(Sta_),Rea(Rea_),Mol(Mol_),Sys(Sys_) {}
 
     Real operator()(Vector& x_, Vector& g_)
     {
-	Real* x=&x_[0];
-	Real* g=&g_[0];
 	int iv=x_.size();
-	Sys->Classical_residual(x,g,residual,iterations, iv);
+	Sys->Classical_residual(std::span<const Real>(x_.data(), static_cast<size_t>(iv)),
+	                        std::span<Real>(g_.data(), static_cast<size_t>(iv)),
+	                        residual,
+	                        iterations);
 	iterations++;
 	residual=g_.norm();
 	return residual;
@@ -432,7 +433,7 @@ public:
 };
 
 bool Solve_scf::Solve(bool report_errors_) { //going SCF here
-NAMICS_DBG("Solve in  Solve_scf " << endl);
+NAMICS_DBG("Solve in  Solve_scf " << std::endl);
 	bool success=false;
 	bool report_errors=report_errors_;
 	int niv = In->ReactionList.size();
@@ -449,9 +450,9 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 		control= super;
 		pseudohessian=false; hessian =true;
 
-		success=iterate(yy,niv,100,1e-8,1,0.0000001,true);
-		cout << iterations << " iterations to find alphabulk values. " <<endl;
-		if (!success) cout <<"iteration for alphabulk values for internal states failed. Check eqns. " << endl;
+		success=iterate(yy.data(),niv,100,1e-8,1,0.0000001,true);
+		std::cout << iterations << " iterations to find alphabulk values. " <<std::endl;
+		if (!success) std::cout <<"iteration for alphabulk values for internal states failed. Check eqns. " << std::endl;
 		e_info=ee_info;
 		s_info=ss_info;
 		if (i_solver==1) solver=HESSIAN;
@@ -464,13 +465,13 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 
 		switch(solver) {
 		case HESSIAN:
-			success=iterate(xx,iv,iterationlimit,tolerance,deltamax,deltamin,true);
+			success=iterate(xx.data(),iv,iterationlimit,tolerance,deltamax,deltamin,true);
 		break;
 		case PSEUDOHESSIAN:
-			success=iterate(xx,iv,iterationlimit,tolerance,deltamax,deltamin,true);
+			success=iterate(xx.data(),iv,iterationlimit,tolerance,deltamax,deltamin,true);
 		break;
 		case diis:
-			success=iterate_DIIS(xx,iv,m,iterationlimit,tolerance,deltamax,restart_DIIS);
+			success=iterate_DIIS(xx.data(),iv,m,iterationlimit,tolerance,deltamax,restart_DIIS);
 		break;
 		case LBFGS:
 			success=true;
@@ -484,12 +485,12 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 			if (deltamin > 0 && deltamax > deltamin) param.min_step = deltamin;
 			LBFGSSolver<Real> mysolver(param);
 			Real fx=0;
-			cout <<endl <<"LBFGS has been notified" << endl;
-			Vector x_vec = Eigen::Map<Vector>(xx, iv);
+			std::cout <<std::endl <<"LBFGS has been notified" << std::endl;
+			Vector x_vec = Eigen::Map<Vector>(xx.data(), iv);
 			iterations =mysolver.minimize(fun, x_vec, fx);
-			std::copy_n(x_vec.data(), iv, xx);
+			std::copy_n(x_vec.data(), iv, xx.begin());
 			Real res = mysolver.final_grad_norm();
-			cout <<endl <<"Problem solved: " << iterations << " iterations,  |g|: " << res <<  endl;
+			std::cout <<std::endl <<"Problem solved: " << iterations << " iterations,  |g|: " << res <<  std::endl;
 			}
 		break;
 	}
@@ -499,10 +500,10 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 
 
 void Solve_scf::residuals(Real* x, Real* g){
- NAMICS_DBG("residuals in Solve_scf " << endl);
+ NAMICS_DBG("residuals in Solve_scf " << std::endl);
 	switch(gradient) {
 		case WEAK:
-			NAMICS_DBG("Residuals for weak iteration " << endl);
+			NAMICS_DBG("Residuals for weak iteration " << std::endl);
 			for (size_t i = 0; i<In->ReactionList.size(); i++) {
 				if (Rea[i]->Sto.size()==3) Rea[i]->GuessAlpha();
 			}
@@ -510,7 +511,7 @@ void Solve_scf::residuals(Real* x, Real* g){
 				if (Rea[i]->Sto.size()!=3) Rea[i]->GuessAlpha();
 			}
 			for (size_t i = 0; i<In->ReactionList.size(); i++) {
-				Rea[i]->PutAlpha(exp(x[i]));
+				Rea[i]->PutAlpha(std::exp(x[i]));
 			}
 
 
@@ -521,14 +522,17 @@ void Solve_scf::residuals(Real* x, Real* g){
 			}
 		break;
 		default:
-			NAMICS_DBG("Residuals in scf mode in Solve_scf " << endl);
-			Sys->Classical_residual(x,g,residual,iterations, iv);
+			NAMICS_DBG("Residuals in scf mode in Solve_scf " << std::endl);
+			Sys->Classical_residual(std::span<const Real>(x, static_cast<size_t>(iv)),
+			                        std::span<Real>(g, static_cast<size_t>(iv)),
+			                        residual,
+			                        iterations);
 		break;
 	}
 }
 
 void Solve_scf::inneriteration(Real* x, Real* g, Real* h, Real accuracy, Real& deltamax, Real ALPHA, int nvar) {
-NAMICS_DBG("inneriteration in Solve_scf " << endl);
+NAMICS_DBG("inneriteration in Solve_scf " << std::endl);
 	residual=accuracy; // track the reported residual alongside the active solver accuracy.
 	switch(control) {
 		case super:
@@ -541,14 +545,14 @@ NAMICS_DBG("inneriteration in Solve_scf " << endl);
 			if (iterations > 0) samehessian = false;
 			if (reset_pseudohessian) {reset_pseudohessian=false; pseudohessian = true;}
 
-			if (accuracy < minAccuracySoFar && iterations > 0 && accuracy == fabs(accuracy) ) {
+			if (accuracy < minAccuracySoFar && iterations > 0 && accuracy == std::fabs(accuracy) ) {
 				minAccuracySoFar = accuracy;
 			}
 
-			if (accuracy > minAccuracySoFar*resetHessianCriterion && accuracy == fabs(accuracy) ) {
+			if (accuracy > minAccuracySoFar*resetHessianCriterion && accuracy == std::fabs(accuracy) ) {
 				if (s_info) {
-					cout << accuracy << '\t' << minAccuracySoFar << '\t' << resetHessianCriterion << endl;
-					cout << "walking backwards: newton reset" << endl;
+					std::cout << accuracy << '\t' << minAccuracySoFar << '\t' << resetHessianCriterion << std::endl;
+					std::cout << "walking backwards: newton reset" << std::endl;
 				}
 				resethessian(h,g,x,nvar);
 				minAccuracySoFar *=1.5;
@@ -562,7 +566,7 @@ NAMICS_DBG("inneriteration in Solve_scf " << endl);
 			if (smallAlphaCount == maxNumSmallAlpha) {
 				smallAlphaCount = 0;
 				if (s_info) {
-					cout << "too many small alphas: newton reset" << endl;
+					std::cout << "too many small alphas: newton reset" << std::endl;
 				}
 				resethessian(h,g,x,nvar);
 				if (deltamax >0.005) deltamax *=0.9;
@@ -584,14 +588,14 @@ NAMICS_DBG("inneriteration in Solve_scf " << endl);
 			numIterationsSinceHessian++;
 			Real frReverseDirection = Real(numReverseDirection)/reverseDirectionRange;
 			if ((frReverseDirection > maxFrReverseDirection && pseudohessian && accuracy < minAccuracyForHessian)) {
-				if (s_info && e_info) cout <<"Bad convergence (reverse direction), computing full hessian..." << endl; else cout <<"!";
+				if (s_info && e_info) std::cout <<"Bad convergence (reverse direction), computing full hessian..." << std::endl; else std::cout <<"!";
 				pseudohessian = false; reset_pseudohessian =true;
 				numIterationsSinceHessian = 0;
 			} else if ((numIterationsSinceHessian >= n_iterations_for_hessian &&
 						iterations > 0 && accuracy < minAccuracyForHessian && minimum < minAccuracyForHessian)) {
 				if (s_info && e_info)
-					cout << "Still no solution, computing full hessian..." << endl;
-				else cout <<"*";
+					std::cout << "Still no solution, computing full hessian..." << std::endl;
+				else std::cout <<"*";
 				pseudohessian = false; reset_pseudohessian =true;
 				numIterationsSinceHessian = 0;
 			}

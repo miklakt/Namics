@@ -1,9 +1,9 @@
 #include "segment.h"
 #include "io_utils.h"
 
-Segment::Segment(const Input* In_,Lattice* Lat_, string name_,int segnr,int N_seg) {
+Segment::Segment(const Input* In_,Lattice* Lat_, std::string name_,int segnr,int N_seg) {
 	In=In_; name=name_; n_seg=N_seg; seg_nr=segnr;
-NAMICS_DBG("Segment constructor" + name << endl);
+NAMICS_DBG("Segment constructor" + name << std::endl);
 	lat=Lat_;
 	KEYS.push_back("freedom");
 	KEYS.push_back("valence");
@@ -23,54 +23,40 @@ NAMICS_DBG("Segment constructor" + name << endl);
 	freedom="free";
 }
 Segment::~Segment() {
-NAMICS_DBG("Segment destructor " + name << endl);
+NAMICS_DBG("Segment destructor " + name << std::endl);
 	DeAllocateMemory();
 }
 
 void Segment::DeAllocateMemory(void){
-NAMICS_DBG( "In Segment, Deallocating memory " + name << endl);
+NAMICS_DBG( "In Segment, Deallocating memory " + name << std::endl);
 if (!all_segment) return;
-
-	free(H_u);
-	free(H_u_ext); //cout <<"H_u_ext dismissed" << endl;
-	free(H_phi);
-	free(H_MASK);
-	free(H_alpha);
-	free(H_ALPHA);
-	free(H_phi_state);
-	free(G1);
-	free(phi_side);
+	u.clear();
+	u_ext.clear();
+	phi.clear();
+	MASK.clear();
+	alpha.clear();
+	ALPHA.clear();
+	phi_state.clear();
+	G1.clear();
+	phi_side.clear();
 	all_segment=false;
 }
 
 void Segment::AllocateMemory() {
-NAMICS_DBG("Allocate Memory in Segment " + name << endl);
+NAMICS_DBG("Allocate Memory in Segment " + name << std::endl);
 	DeAllocateMemory();
 	int M=lat->M;
 	ns=state_name.size(); if (ns==0) ns=1;
 	r.fill(0);
-	H_u = (Real*) malloc(M*ns*sizeof(Real));
-	H_u_ext = (Real*) malloc(M*sizeof(Real));
-	H_phi = (Real*) malloc(M*sizeof(Real));
-	H_MASK = (Real*) malloc(M*sizeof(Real));
-	H_alpha=(Real*) malloc(M*ns*sizeof(Real));
-	H_ALPHA=(Real*) malloc(M*ns*sizeof(Real));
-	H_phi_state = (Real*) malloc(M*ns*sizeof(Real));
-	std::fill_n(H_u, M * ns, 0);
-	std::fill_n(H_phi, M, 0);
-	std::fill_n(H_MASK, M, 0);
-	if (n_pos>0) P=H_P;
-	MASK=H_MASK;
-	phi =H_phi;
-	u = H_u;
-	u_ext=H_u_ext; std::fill_n(u_ext, M, 0);
-	phi_state = H_phi_state;
-	alpha=H_alpha;
-	ALPHA=H_ALPHA; std::fill_n(ALPHA, M, 0);
-	G1 = (Real*)malloc(M*sizeof(Real));
-	phi_side = (Real*)malloc(M*ns*sizeof(Real));
-	std::fill_n(G1, M, 0);
-	std::fill_n(phi_side, ns*M, 0);
+	u.assign(M * ns, 0);
+	u_ext.assign(M, 0);
+	phi.assign(M, 0);
+	MASK.assign(M, 0);
+	alpha.assign(M * ns, 0);
+	ALPHA.assign(M * ns, 0);
+	phi_state.assign(M * ns, 0);
+	G1.assign(M, 0);
+	phi_side.assign(M * ns, 0);
 	bool success=true;
 	bool HMaskDone=false;
 	success=ParseFreedoms(HMaskDone);
@@ -79,18 +65,18 @@ NAMICS_DBG("Allocate Memory in Segment " + name << endl);
 	if (freedom!="free"&& !HMaskDone) {
 		r[0]*=lat->fjc; r[1]*=lat->fjc; r[2]*=lat->fjc;
 		r[3]=(r[3]+1)*lat->fjc-1;r[4]=(r[4]+1)*lat->fjc-1;r[5]=(r[5]+1)*lat->fjc-1;
-		lat->CreateMASK(H_MASK,r.data(),H_P,n_pos,block);
+		lat->CreateMASK(MASK.data(),r.data(),P.data(),n_pos,block);
 	}
-	if (!success) cout <<"errors occurred.... progress uncertain...." << endl;
+	if (!success) std::cout <<"errors occurred.... progress uncertain...." << std::endl;
 
 	all_segment=true;
 }
 
 bool Segment::ParseFreedoms(bool& HMaskDone) {
-NAMICS_DBG("ParseFreedoms " << endl);
+NAMICS_DBG("ParseFreedoms " << std::endl);
 	bool success=true;
 	if (freedom == "pinned") {
-		string freedom_source;
+		std::string freedom_source;
 		int fjc = lat->fjc;
 		int n_layers_x=(lat->MX)/fjc;
 		int n_layers_y=(lat->MY)/fjc;
@@ -99,11 +85,11 @@ NAMICS_DBG("ParseFreedoms " << endl);
 
 		if (GetValue("pinned_range").size()>0) {
 			freedom_source="pinned_range";
-			string p_range=GetValue("pinned_range");
-			vector<string>sub;
+			std::string p_range=GetValue("pinned_range");
+			std::vector<std::string>sub;
 			In->split(p_range,';',sub);
 			int Lsub=sub.size();
-			vector<string>xyz;
+			std::vector<std::string>xyz;
 			for (int k=0; k<Lsub; k++) {
 				xyz.clear();
 				In->split(sub[k],',',xyz);
@@ -123,36 +109,36 @@ NAMICS_DBG("ParseFreedoms " << endl);
 			}
 			if (p_range=="firstlayer_x") {
 				if (lat->gradients==1) {p_range = "firstlayer;firstlayer"; }
-				if (lat->gradients==2) {p_range = "firstlayer,1;firstlayer,";p_range.append(to_string(n_layers_y)); }
-				if (lat->gradients==3) {p_range = "firstlayer,1,1;firstlayer,"; p_range.append(to_string(n_layers_y)).append(",").append(to_string(n_layers_z)); }
+				if (lat->gradients==2) {p_range = "firstlayer,1;firstlayer,";p_range.append(std::to_string(n_layers_y)); }
+				if (lat->gradients==3) {p_range = "firstlayer,1,1;firstlayer,"; p_range.append(std::to_string(n_layers_y)).append(",").append(std::to_string(n_layers_z)); }
 			}
 			if (p_range=="lastlayer_x") {
 				if (lat->gradients==1) {p_range = "lastlayer;lastlayer";}
-				if (lat->gradients==2) {p_range = "lastlayer,1;lastlayer,"; p_range.append(to_string(n_layers_y)); }
-				if (lat->gradients==3) {p_range = "lastlayer,1,1;lastlayer,"; p_range.append(to_string(n_layers_y)).append(",").append(to_string(n_layers_z)); }
+				if (lat->gradients==2) {p_range = "lastlayer,1;lastlayer,"; p_range.append(std::to_string(n_layers_y)); }
+				if (lat->gradients==3) {p_range = "lastlayer,1,1;lastlayer,"; p_range.append(std::to_string(n_layers_y)).append(",").append(std::to_string(n_layers_z)); }
 			}
 			if (p_range=="firstlayer_y") {
-				if (lat->gradients==2) {p_range = "1,firstlayer;";p_range.append(to_string(n_layers_x)).append(",firstlayer"); }
-				if (lat->gradients==3) {p_range = "1,firstlayer,1;";p_range.append(to_string(n_layers_x)).append(",firstlayer,").append(to_string(n_layers_z)); }
+				if (lat->gradients==2) {p_range = "1,firstlayer;";p_range.append(std::to_string(n_layers_x)).append(",firstlayer"); }
+				if (lat->gradients==3) {p_range = "1,firstlayer,1;";p_range.append(std::to_string(n_layers_x)).append(",firstlayer,").append(std::to_string(n_layers_z)); }
 			}
 			if (p_range=="lastlayer_y") {
-				if (lat->gradients==2) {p_range = "1,lastlayer;";p_range.append(to_string(n_layers_x)).append(",lastlayer"); }
-				if (lat->gradients==3) {p_range = "1,lastlayer,1;";p_range.append(to_string(n_layers_x)).append(",lastlayer,").append(to_string(n_layers_z)); }
+				if (lat->gradients==2) {p_range = "1,lastlayer;";p_range.append(std::to_string(n_layers_x)).append(",lastlayer"); }
+				if (lat->gradients==3) {p_range = "1,lastlayer,1;";p_range.append(std::to_string(n_layers_x)).append(",lastlayer,").append(std::to_string(n_layers_z)); }
 			}
 			if (p_range=="firstlayer_z") {
-				if (lat->gradients==3) {p_range = "1,1,firstlayer;";p_range.append(to_string(n_layers_x)).append(",").append(to_string(n_layers_y)).append(",firstlayer"); }
+				if (lat->gradients==3) {p_range = "1,1,firstlayer;";p_range.append(std::to_string(n_layers_x)).append(",").append(std::to_string(n_layers_y)).append(",firstlayer"); }
 			}
 			if (p_range=="lastlayer_z") {
-				if (lat->gradients==3) {p_range = "1,1,lastlayer;";p_range.append(to_string(n_layers_x)).append(",").append(to_string(n_layers_y)).append(",lastlayer"); }
+				if (lat->gradients==3) {p_range = "1,1,lastlayer;";p_range.append(std::to_string(n_layers_x)).append(",").append(std::to_string(n_layers_y)).append(",lastlayer"); }
 			}
 			phibulk=0;
 			if (GetValue("frozen_range").size()>0 || GetValue("frozen_filename").size()>0) {
-			cout<< "For mon :" + name + ", you should exclusively combine freedom : pinned with pinned_range or pinned_filename" << endl;  success=false;}
+			std::cout<< "For mon :" + name + ", you should exclusively combine freedom : pinned with pinned_range or pinned_filename" << std::endl;  success=false;}
 			if (GetValue("pinned_range").size()>0 && GetValue("pinned_filename").size()>0) {
-				cout<< "For mon " + name + ", you can not combine pinned_range with 'pinned_filename' " <<endl; success=false;
+				std::cout<< "For mon " + name + ", you can not combine pinned_range with 'pinned_filename' " <<std::endl; success=false;
 			}
 			if (GetValue("pinned_range").size()==0 && GetValue("pinned_filename").size()==0) {
-				cout<< "For mon " + name + ", you should provide either pinned_range or pinned_filename " <<endl; success=false;
+				std::cout<< "For mon " + name + ", you should provide either pinned_range or pinned_filename " <<std::endl; success=false;
 			}
 			sub.clear();
 			In->split(p_range,';',sub);
@@ -160,7 +146,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 			Lsub=sub.size();
 
 			if (Lsub!=2) {
-				cout <<"For mon " + name + ", the parsing of 'pinned_range' failed. Use x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, or x1;x2 for 3, 2, or 1  gradient computations, respectively. x, y and z can also be  keys: 'firstlayer', 'lastlayer'" << endl;
+				std::cout <<"For mon " + name + ", the parsing of 'pinned_range' failed. Use x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, or x1;x2 for 3, 2, or 1  gradient computations, respectively. x, y and z can also be  keys: 'firstlayer', 'lastlayer'" << std::endl;
 				success=false;
 				return success;
 			}
@@ -170,7 +156,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 				In->split(sub[k],',',xyz);
 				int Lxyz=xyz.size();
 				if (Lxyz<1 || Lxyz>3){
-					cout <<"For mon " + name + ", the parsing of 'pinned_range' failed. Number of coordinates should be 1, 2 or 3: e.g., x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, x1;x2 for 1, 2 or 3 gradients, respectively.  " << endl;
+					std::cout <<"For mon " + name + ", the parsing of 'pinned_range' failed. Number of coordinates should be 1, 2 or 3: e.g., x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, x1;x2 for 1, 2 or 3 gradients, respectively.  " << std::endl;
 					success=false;
 					return success;
 				}
@@ -178,19 +164,19 @@ NAMICS_DBG("ParseFreedoms " << endl);
 					if (xyz[kk]=="firstlayer") {
 						p_range.append("1");
 					} else if (xyz[kk]=="lastlayer") {
-						if (kk==0) p_range.append(to_string(n_layers_x));
-						if (kk==1) p_range.append(to_string(n_layers_y));
-						if (kk==2) p_range.append(to_string(n_layers_z));
+						if (kk==0) p_range.append(std::to_string(n_layers_x));
+						if (kk==1) p_range.append(std::to_string(n_layers_y));
+						if (kk==2) p_range.append(std::to_string(n_layers_z));
 					} else if (xyz[kk]=="var_pos") {
 						if (((kk==0) && (var_pos<1 || var_pos> n_layers_x)) || ((kk==1) && (var_pos<1 || var_pos> n_layers_y))  ||((kk==2) && (var_pos<1 || var_pos> n_layers_z))) {
-							cout <<"In pinned_range, 'var_pos' entry is out of bounds..." << endl; success=false; return success;
+							std::cout <<"In pinned_range, 'var_pos' entry is out of bounds..." << std::endl; success=false; return success;
 						}
-						p_range.append(to_string(var_pos));
+						p_range.append(std::to_string(var_pos));
 
 					} else {
 						int cor=ParseInt(xyz[kk],-1);
 						if (((kk==0) && (cor <1 || cor > n_layers_x)) || ((kk==1) && (cor <1 || cor > n_layers_y))  ||((kk==2) && (cor <1 || cor > n_layers_z))) {
-							cout <<" For mon " + name+ ", the 'pinned_range' is not parsed properly! Coordinates either out of bounds or keywords 'var_pos', 'firstlayer', 'lastlayer' were not found" << endl;
+							std::cout <<" For mon " + name+ ", the 'pinned_range' is not parsed properly! Coordinates either out of bounds or keywords 'var_pos', 'firstlayer', 'lastlayer' were not found" << std::endl;
 							success=false;
 							return success;
 						} else p_range.append(xyz[kk]);
@@ -200,28 +186,29 @@ NAMICS_DBG("ParseFreedoms " << endl);
 				if (k<Lsub-1) p_range.append(";");
 			}
 
-
+			P.clear();
 			n_pos=0;
-			if (success) success=lat->ReadRange(r.data(), H_P, n_pos, block, p_range,var_pos,name,freedom_source);
+			if (success) success=lat->ReadRange(r.data(), P.data(), n_pos, block, p_range,var_pos,name,freedom_source);
 			if (n_pos>0) {
-				H_P=(int*) malloc(n_pos*sizeof(int)); std::fill(H_P, H_P+n_pos, 0);
-				if (success) success=lat->ReadRange(r.data(), H_P, n_pos, block, p_range,var_pos,name,freedom_source);
+				P.assign(n_pos, 0);
+				if (success) success=lat->ReadRange(r.data(), P.data(), n_pos, block, p_range,var_pos,name,freedom_source);
 			}
 		}
 		if (GetValue("pinned_filename").size()>0) { freedom_source="pinned";
 			block=false;
-			const string filename=GetValue("pinned_filename");
+			const std::string filename=GetValue("pinned_filename");
+			P.clear();
 			n_pos=0;
-			if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,freedom_source);
+			if (success) success=lat->ReadRangeFile(filename,P.data(),n_pos,name,freedom_source);
 			if (n_pos>0) {
-				H_P=(int*) malloc(n_pos*sizeof(int)); std::fill(H_P, H_P+n_pos, 0);
-				if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,freedom_source);
+				P.assign(n_pos, 0);
+				if (success) success=lat->ReadRangeFile(filename,P.data(),n_pos,name,freedom_source);
 			}
 		}
 	}
 
 	if (freedom == "frozen") {
-		string freedom_source;
+		std::string freedom_source;
 		int n_layers_x=(lat->MX)/lat->fjc;
 		int n_layers_y=(lat->MY)/lat->fjc;
 		int n_layers_z=(lat->MZ)/lat->fjc;
@@ -229,21 +216,21 @@ NAMICS_DBG("ParseFreedoms " << endl);
 		frozen_at_bound=-1;
 		phibulk=0;
 		if (GetValue("pinned_range").size()>0 || GetValue("pinned_filename").size()>0) {
-		        cout<< "For mon " + name + ", you should exclusively combine 'freedom : frozen' with 'frozen_range' or 'frozen_filename'" << endl;  success=false;
+		        std::cout<< "For mon " + name + ", you should exclusively combine 'freedom : frozen' with 'frozen_range' or 'frozen_filename'" << std::endl;  success=false;
 		}
 		if (GetValue("frozen_range").size()>0 && GetValue("frozen_filename").size()>0) {
-			cout<< "For mon " + name + ", you can not combine 'frozen_range' with 'frozen_filename' " <<endl; success=false;
+			std::cout<< "For mon " + name + ", you can not combine 'frozen_range' with 'frozen_filename' " <<std::endl; success=false;
 		}
 		if (GetValue("frozen_range").size()==0 && GetValue("frozen_filename").size()==0) {
-			cout<< "For mon " + name + ", you should provide either 'frozen_range' or 'frozen_filename' " <<endl; success=false;
+			std::cout<< "For mon " + name + ", you should provide either 'frozen_range' or 'frozen_filename' " <<std::endl; success=false;
 		}
 		if (GetValue("frozen_range").size()>0) {
 			freedom_source="frozen_range";
-			string f_range=GetValue("frozen_range");
-			vector<string>sub;
+			std::string f_range=GetValue("frozen_range");
+			std::vector<std::string>sub;
 			In->split(f_range,';',sub);
 			int Lsub=sub.size();
-			vector<string>xyz;
+			std::vector<std::string>xyz;
 			for (int k=0; k<Lsub; k++) {
 				xyz.clear();
 				In->split(sub[k],',',xyz);
@@ -264,28 +251,28 @@ NAMICS_DBG("ParseFreedoms " << endl);
 
 			if (f_range=="lowerbound_x") {
 				if (lat->gradients==1) {f_range = "lowerbound;lowerbound"; frozen_at_bound=0;}
-				if (lat->gradients==2) {f_range = "lowerbound,1;lowerbound,"; f_range.append(to_string(n_layers_y)); frozen_at_bound=0;}
-				if (lat->gradients==3) {f_range = "lowerbound,1,1;lowerbound"; f_range.append(to_string(n_layers_y)).append(",").append(to_string(n_layers_z)); frozen_at_bound=0;}
+				if (lat->gradients==2) {f_range = "lowerbound,1;lowerbound,"; f_range.append(std::to_string(n_layers_y)); frozen_at_bound=0;}
+				if (lat->gradients==3) {f_range = "lowerbound,1,1;lowerbound"; f_range.append(std::to_string(n_layers_y)).append(",").append(std::to_string(n_layers_z)); frozen_at_bound=0;}
 			}
 			if (f_range=="upperbound_x") {
 				if (lat->gradients==1) {f_range = "upperbound;upperbound";frozen_at_bound=3;}
-				if (lat->gradients==2) {f_range = "upperbound,1;upperbound,"; f_range.append(to_string(n_layers_y)); frozen_at_bound=3;}
-				if (lat->gradients==3) {f_range = "upperbound,1,1;upperbound"; f_range.append(to_string(n_layers_y)).append(",").append(to_string(n_layers_z)); frozen_at_bound=3;}
+				if (lat->gradients==2) {f_range = "upperbound,1;upperbound,"; f_range.append(std::to_string(n_layers_y)); frozen_at_bound=3;}
+				if (lat->gradients==3) {f_range = "upperbound,1,1;upperbound"; f_range.append(std::to_string(n_layers_y)).append(",").append(std::to_string(n_layers_z)); frozen_at_bound=3;}
 			}
 			if (f_range=="lowerbound_y") {
-				if (lat->gradients==2) {f_range = "1,lowerbound;";f_range.append(to_string(n_layers_x)).append(",lowerbound"); frozen_at_bound=1;}
-				if (lat->gradients==3) {f_range = "1,lowerbound,1;";f_range.append(to_string(n_layers_x)).append(",lowerbound,").append(to_string(n_layers_z)); frozen_at_bound=1;}
+				if (lat->gradients==2) {f_range = "1,lowerbound;";f_range.append(std::to_string(n_layers_x)).append(",lowerbound"); frozen_at_bound=1;}
+				if (lat->gradients==3) {f_range = "1,lowerbound,1;";f_range.append(std::to_string(n_layers_x)).append(",lowerbound,").append(std::to_string(n_layers_z)); frozen_at_bound=1;}
 			}
 			if (f_range=="upperbound_y") {
-				if (lat->gradients==2) {f_range = "1,upperbound;";f_range.append(to_string(n_layers_x)).append(",upperbound");  frozen_at_bound=4;}
-				if (lat->gradients==3) {f_range = "1,upperbound,1;";f_range.append(to_string(n_layers_x)).append(",upperbound,").append(to_string(n_layers_z)); frozen_at_bound=4;}
+				if (lat->gradients==2) {f_range = "1,upperbound;";f_range.append(std::to_string(n_layers_x)).append(",upperbound");  frozen_at_bound=4;}
+				if (lat->gradients==3) {f_range = "1,upperbound,1;";f_range.append(std::to_string(n_layers_x)).append(",upperbound,").append(std::to_string(n_layers_z)); frozen_at_bound=4;}
 			}
 
 			if (f_range=="lowerbound_z") {
-				if (lat->gradients==3) {f_range = "1,1,lowerbound;";f_range.append(to_string(n_layers_x)).append(",").append(to_string(n_layers_y)).append(",lowerbound"); frozen_at_bound=2; }
+				if (lat->gradients==3) {f_range = "1,1,lowerbound;";f_range.append(std::to_string(n_layers_x)).append(",").append(std::to_string(n_layers_y)).append(",lowerbound"); frozen_at_bound=2; }
 			}
 			if (f_range=="upperbound_z") {
-				if (lat->gradients==3) {f_range = "1,1,upperbound;";f_range.append(to_string(n_layers_x)).append(",").append(to_string(n_layers_y)).append(",upperbound"); frozen_at_bound=5;}
+				if (lat->gradients==3) {f_range = "1,1,upperbound;";f_range.append(std::to_string(n_layers_x)).append(",").append(std::to_string(n_layers_y)).append(",upperbound"); frozen_at_bound=5;}
 			}
 
 			sub.clear();
@@ -294,8 +281,8 @@ NAMICS_DBG("ParseFreedoms " << endl);
 
 			Lsub=sub.size();
 			if (Lsub!=2) {
-				cout <<"For mon " + name + ", the parsing of 'frozen_range' failed. Use x1,y1,z1;x2,y2,z2 in 3 gradients, x1,y1;x2,y2 in two gradients x1;x2 for one gradient computations. x, y and z can also be  keys: 'firstlayer', 'lastlayer', 'lowerbound', or 'upperbound'." << endl;
-				cout <<"Alternatively - you can try a single keyword such as 'lowerbound', 'lowerbound_x', 'lowerbound_y', 'lowerbound_z', 'upperbound', 'upperbound_x', 'upperbound_y', 'upperbound_z'" << endl;
+				std::cout <<"For mon " + name + ", the parsing of 'frozen_range' failed. Use x1,y1,z1;x2,y2,z2 in 3 gradients, x1,y1;x2,y2 in two gradients x1;x2 for one gradient computations. x, y and z can also be  keys: 'firstlayer', 'lastlayer', 'lowerbound', or 'upperbound'." << std::endl;
+				std::cout <<"Alternatively - you can try a single keyword such as 'lowerbound', 'lowerbound_x', 'lowerbound_y', 'lowerbound_z', 'upperbound', 'upperbound_x', 'upperbound_y', 'upperbound_z'" << std::endl;
 				success=false;
 				return success;
 			}
@@ -304,7 +291,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 				In->split(sub[k],',',xyz);
 				int Lxyz=xyz.size();
 				if (Lxyz<1 || Lxyz>3){
-					cout <<"For mon " + name + ", the parsing of 'frozen_range' failed. Number of coordinates should be 1, 2 or 3: e.g., x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, x1;x2 for 1, 2 or 3 gradients, respectively.  " << endl;
+					std::cout <<"For mon " + name + ", the parsing of 'frozen_range' failed. Number of coordinates should be 1, 2 or 3: e.g., x1,y1,z1;x2,y2,z2, x1,y1;x2,y2, x1;x2 for 1, 2 or 3 gradients, respectively.  " << std::endl;
 					success=false;
 					return success;
 				}
@@ -313,64 +300,64 @@ NAMICS_DBG("ParseFreedoms " << endl);
 					if (xyz[kk]=="firstlayer")
 						f_range.append("1");
 					if (xyz[kk]=="lastlayer") {
-						if (kk==0) f_range.append(to_string(n_layers_x));
-						if (kk==1) f_range.append(to_string(n_layers_y));
-						if (kk==2) f_range.append(to_string(n_layers_z));
+						if (kk==0) f_range.append(std::to_string(n_layers_x));
+						if (kk==1) f_range.append(std::to_string(n_layers_y));
+						if (kk==2) f_range.append(std::to_string(n_layers_z));
 					}
 
 					if (xyz[kk]=="lowerbound") {
 						if ( (kk==0 && lat->BC[0] !="surface") ||(kk==1 && lat->BC[1] !="surface") ||(kk==2 && lat->BC[2] !="surface") ) {
-							cout<<"In lattice you need boundary condition 'surface' in combination with frozen_range containing 'lowerbound' " << endl; success=false;
+							std::cout<<"In lattice you need boundary condition 'surface' in combination with frozen_range containing 'lowerbound' " << std::endl; success=false;
 							return success;
 						}
 						f_range.append("0");
 					}
 					if (xyz[kk]=="upperbound") {
 						if ( (kk==0 && lat->BC[3] !="surface") ||(kk==1 && lat->BC[4] !="surface") ||(kk==2 && lat->BC[5] !="surface") ) {
-							cout<<"In lattice you need boundary condition 'surface' in combination with frozen_range containing 'upperbound' " << endl; success=false;
+							std::cout<<"In lattice you need boundary condition 'surface' in combination with frozen_range containing 'upperbound' " << std::endl; success=false;
 							return success;
 						}
-						if (kk==0) f_range.append(to_string(n_layers_x+1));
-						if (kk==1) f_range.append(to_string(n_layers_y+1));
-						if (kk==2) f_range.append(to_string(n_layers_z+1));
+						if (kk==0) f_range.append(std::to_string(n_layers_x+1));
+						if (kk==1) f_range.append(std::to_string(n_layers_y+1));
+						if (kk==2) f_range.append(std::to_string(n_layers_z+1));
 					}
 					if (xyz[kk]=="var_pos") {
 						if (((kk==0) && (var_pos<0 || var_pos> n_layers_x+1)) || ((kk==1) && (var_pos<0 || var_pos> n_layers_y+1))  ||((kk==2) && (var_pos<0 || var_pos> n_layers_z+1))) {
-							cout <<"In frozen_range, 'var_pos' entry is out of bounds..." << endl; success=false; return success;
+							std::cout <<"In frozen_range, 'var_pos' entry is out of bounds..." << std::endl; success=false; return success;
 						}
 
-						f_range.append(to_string(var_pos)); //check if var_pos is within lattice-range not implemented.
+						f_range.append(std::to_string(var_pos)); //check if var_pos is within lattice-range not implemented.
 					}
 
 					if (xyz[kk]!="firstlayer" && xyz[kk]!="lastlayer" && xyz[kk]!="lowerbound" && xyz[kk]!="upperbound" && xyz[kk]!="var_pos") {
 						int cor=ParseInt(xyz[kk],-1);
 						if ((kk==0 && (cor <0 || cor > n_layers_x+1)) || (kk==1 && (cor <0 || cor > n_layers_y+1))  ||(kk==2 && (cor <0 || cor > n_layers_z+1))) {
-							cout <<" For mon " + name+ ", the 'frozen_range' is not parsed properly! Coordinates either out of bounds or keywords  'var_pos', 'firstlayer', 'lastlayer', 'lowerbound', 'upperbound' were not found" << endl;
+							std::cout <<" For mon " + name+ ", the 'frozen_range' is not parsed properly! Coordinates either out of bounds or keywords  'var_pos', 'firstlayer', 'lastlayer', 'lowerbound', 'upperbound' were not found" << std::endl;
 							success=false;
 							return success;
 						} else {
 							if (kk==0 && cor ==0 ) {
-								if (lat->BC[0] !="surface") {cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << endl; success=false; return success;}
+								if (lat->BC[0] !="surface") {std::cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << std::endl; success=false; return success;}
 								frozen_at_bound=0;
 							}
 							if (kk==0 && cor == n_layers_x+1 ) {
-								if (lat->BC[3] !="surface") {cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << endl; success=false; return success;}
+								if (lat->BC[3] !="surface") {std::cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << std::endl; success=false; return success;}
 								frozen_at_bound=3;
 							}
 							if (kk==1 && cor ==0 ) {
-								if (lat->BC[1] !="surface") {cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << endl; success=false; return success;}
+								if (lat->BC[1] !="surface") {std::cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << std::endl; success=false; return success;}
 								frozen_at_bound=1;
 							}
 							if (kk==1 && cor == n_layers_y+1 ) {
-								if (lat->BC[4] !="surface") {cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << endl; success=false; return success;}
+								if (lat->BC[4] !="surface") {std::cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << std::endl; success=false; return success;}
 								frozen_at_bound=4;
 							}
 							if (kk==2 && cor ==0 ) {
-								if (lat->BC[2] !="surface") {cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << endl; success=false; return success;}
+								if (lat->BC[2] !="surface") {std::cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << std::endl; success=false; return success;}
 								frozen_at_bound=2;
 							}
 							if (kk==2 && cor == n_layers_z+1 ) {
-								if (lat->BC[5] !="surface") {cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << endl; success=false; return success;}
+								if (lat->BC[5] !="surface") {std::cout <<" Frozen segment " + name + " put at boundary, but lattice bc is not set to 'surface'" << std::endl; success=false; return success;}
 								frozen_at_bound=5;
 							}
 							f_range.append(xyz[kk]);
@@ -381,22 +368,23 @@ NAMICS_DBG("ParseFreedoms " << endl);
 				if (k<Lsub-1) f_range.append(";");
 			}
 
-
+			P.clear();
 			n_pos=0;
-			success=lat->ReadRange(r.data(), H_P, n_pos, block, f_range,var_pos,name,freedom_source);
+			success=lat->ReadRange(r.data(), P.data(), n_pos, block, f_range,var_pos,name,freedom_source);
 			if (n_pos>0) {
-				H_P=(int*) malloc(n_pos*sizeof(int)); std::fill(H_P, H_P+n_pos, 0);
-				success=lat->ReadRange(r.data(), H_P, n_pos, block, f_range,var_pos,name,freedom_source);
+				P.assign(n_pos, 0);
+				success=lat->ReadRange(r.data(), P.data(), n_pos, block, f_range,var_pos,name,freedom_source);
 			}
 		}
 		if (GetValue("frozen_filename").size()>0) { freedom_source="frozen";
 			block=false;
-			const string filename=GetValue("frozen_filename");
+			const std::string filename=GetValue("frozen_filename");
+			P.clear();
 			n_pos=0;
-			if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,freedom_source);
+			if (success) success=lat->ReadRangeFile(filename,P.data(),n_pos,name,freedom_source);
 			if (n_pos>0) {
-				H_P=(int*) malloc(n_pos*sizeof(int)); std::fill(H_P, H_P+n_pos, 0);
-				if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,freedom_source);
+				P.assign(n_pos, 0);
+				if (success) success=lat->ReadRangeFile(filename,P.data(),n_pos,name,freedom_source);
 			}
 		}
 	}
@@ -418,13 +406,12 @@ Real Segment::PinnedVolume() {
 }
 
 bool Segment::LoadExternalPotential() {
-	int M=lat->M;
-	std::fill_n(u_ext, M, 0);
+	std::fill(u_ext.begin(), u_ext.end(), 0);
 
-	const string external_potential_filename = GetValue("external_potential_filename");
+	const std::string external_potential_filename = GetValue("external_potential_filename");
 	if (external_potential_filename.size()==0) return true;
-	const string resolved_external_potential_filename = In->ResolvePath(external_potential_filename);
-	vector<Real> external_potential;
+	const std::string resolved_external_potential_filename = In->ResolvePath(external_potential_filename);
+	std::vector<Real> external_potential;
 	if (!io::ReadExternalPotentialJson(resolved_external_potential_filename, external_potential)) {
 		return false;
 	}
@@ -432,8 +419,8 @@ bool Segment::LoadExternalPotential() {
 	if (lat->gradients == 2) expected = lat->MX * lat->MY;
 	if (lat->gradients == 3) expected = lat->MX * lat->MY * lat->MZ;
 	if (static_cast<int>(external_potential.size()) != expected) {
-		cout << "Inputfile " << resolved_external_potential_filename << " has " << external_potential.size()
-		     << " values for 'external_potential', expected " << expected << " for mon " << name << endl;
+		std::cout << "Inputfile " << resolved_external_potential_filename << " has " << external_potential.size()
+		     << " values for 'external_potential', expected " << expected << " for mon " << name << std::endl;
 		return false;
 	}
 	// Flattened json profile order matches Output::WriteOutput:
@@ -446,22 +433,24 @@ bool Segment::LoadExternalPotential() {
 	} else if (lat->gradients == 3) {
 		for (int x=1; x<=lat->MX; x++) for (int y=1; y<=lat->MY; y++) for (int z=1; z<=lat->MZ; z++) u_ext[lat->P(x,y,z)] = external_potential[pos++];
 	} else {
-		cout << "Unsupported number of gradients for external_potential_filename in mon " << name << endl;
+		std::cout << "Unsupported number of gradients for external_potential_filename in mon " << name << std::endl;
 		return false;
 	}
 	return true;
 }
 
-bool Segment::PrepareForCalculations(Real* KSAM, bool first_time) {
-NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
+bool Segment::PrepareForCalculations(std::span<const Real> KSAM, bool first_time) {
+NAMICS_DBG("PrepareForCalcualtions in Segment " +name << std::endl);
 
 	int M=lat->M;
 
 	bool success=true;
 	phibulk=0;
 	if (freedom=="frozen") {
-		std::copy_n(MASK, M, phi);
-	} else std::fill_n(phi, M, 0);
+		std::copy_n(MASK.begin(), M, phi.begin());
+	} else {
+		std::fill(phi.begin(), phi.end(), 0);
+	}
 
 	if (GetValue("external_potential_filename").size()>0 && first_time) {
 		success=LoadExternalPotential();
@@ -470,32 +459,32 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 			for (int __i = 0; __i < (M); ++__i) (u)[__i] += (u_ext)[__i];
 		} else {
 			for (int i=0; i<ns; i++) {
-				for (int __i = 0; __i < (M); ++__i) (u+i*M)[__i] += (u_ext)[__i];
+				for (int __i = 0; __i < (M); ++__i) (u.data()+i*M)[__i] += (u_ext)[__i];
 			}
 		}
 	}
 
 	if (ns==1) {
-		lat->set_bounds(u);
-		for (int __i = 0; __i < (M); ++__i) (G1)[__i] = exp(-(u)[__i]);
+		lat->set_bounds(u.data());
+		for (int __i = 0; __i < (M); ++__i) (G1)[__i] = std::exp(-(u)[__i]);
 	} else {
-		std::fill_n(G1, M, 0);
+		std::fill(G1.begin(), G1.end(), 0);
 		for (int i=0; i<ns; i++) {
-			lat->set_bounds(u+M*i);
-			for (int __i = 0; __i < (M); ++__i) (alpha+M*i)[__i] = exp(-(u+M*i)[__i]);
-			for (int __i = 0; __i < (M); ++__i) (alpha+M*i)[__i] *= (state_alphabulk[i]);
-			for (int __i = 0; __i < (M); ++__i) (G1)[__i] += (alpha+M*i)[__i];
+			lat->set_bounds(u.data()+M*i);
+			for (int __i = 0; __i < (M); ++__i) (alpha.data()+M*i)[__i] = std::exp(-(u.data()+M*i)[__i]);
+			for (int __i = 0; __i < (M); ++__i) (alpha.data()+M*i)[__i] *= (state_alphabulk[i]);
+			for (int __i = 0; __i < (M); ++__i) (G1)[__i] += (alpha.data()+M*i)[__i];
 		}
-		for (int i=0; i<ns; i++) for (int __i = 0; __i < (M); ++__i) (alpha+i*M)[__i] = ((G1)[__i] != 0) ? ((alpha+i*M)[__i] / (G1)[__i]) : 0;
+		for (int i=0; i<ns; i++) for (int __i = 0; __i < (M); ++__i) (alpha.data()+i*M)[__i] = ((G1)[__i] != 0) ? ((alpha.data()+i*M)[__i] / (G1)[__i]) : 0;
 	}
 
 	if (freedom=="pinned") for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * (MASK)[__i];
-	if (freedom != "frozen") for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * (KSAM)[__i];
+	if (freedom != "frozen") for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * KSAM[__i];
 	return success;
 }
 
 bool Segment::CheckInput(int start_) {
-NAMICS_DBG("CheckInput in Segment " + name << endl);
+NAMICS_DBG("CheckInput in Segment " + name << std::endl);
 	bool success;
 	start=start_;
 	block=false;
@@ -503,7 +492,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	seg_nr_of_copy=-1;
 	state_nr_of_copy=-1;
 	ns=1;
-	vector<string>options;
+	std::vector<std::string>options;
 	n_pos=0;
 
 	fixedPsi0=false;
@@ -511,14 +500,14 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	if(success) {
 		if (GetValue("var_pos").size()>0) var_pos=ParseInt(GetValue("var_pos"),0);
 
-		string copy_of;
+		std::string copy_of;
 		if (GetValue("set_equal_to").size()>0) {
 			copy_of=GetValue("set_equal_to");
 			if (copy_of=="?") { success=false;
-				cout <<" The following is expected: 'set_equal_to : segname' where 'segname' as a valid name of a segment. " << endl;
-				cout <<" Use with caution. The 'epsilon' and all 'chi'-parameters of the segment " << name << " will be copied from the (indicated) segment " << endl;
-				cout <<" Note that the value of 'valence' is not copied. You can/should still set the 'valence' of segment '" << name << "' uniquely." <<endl;
-				cout <<" This has to do with the fact that 'electrostatics' is not effecting whether or not iteration variables are used for a particular segment. " <<endl;
+				std::cout <<" The following is expected: 'set_equal_to : segname' where 'segname' as a valid name of a segment. " << std::endl;
+				std::cout <<" Use with caution. The 'epsilon' and all 'chi'-parameters of the segment " << name << " will be copied from the (indicated) segment " << std::endl;
+				std::cout <<" Note that the value of 'valence' is not copied. You can/should still set the 'valence' of segment '" << name << "' uniquely." <<std::endl;
+				std::cout <<" This has to do with the fact that 'electrostatics' is not effecting whether or not iteration variables are used for a particular segment. " <<std::endl;
 			}
 		}
 
@@ -529,14 +518,14 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 			freedom="free";
 			freedom = ParseString(GetValue("freedom"),"free");
 			if (!In->InSet(options,freedom)) {
-				cout << "Freedom: '"<< freedom  <<"' for mon " + name + " not recognized. "<< endl;
-				cout << "Freedom choices: free, pinned, frozen " << endl; success=false;
+				std::cout << "Freedom: '"<< freedom  <<"' for mon " + name + " not recognized. "<< std::endl;
+				std::cout << "Freedom choices: free, pinned, frozen " << std::endl; success=false;
 			}
 
 		if (freedom =="free") {
 			if (GetValue("frozen_range").size()>0||GetValue("pinned_range").size()>0 ||
 			GetValue("frozen_filename").size()>0 || GetValue("pinned_filename").size()>0) {
-					if (start==1) {success=false; cout <<"In mon " + name + " you should not combine 'freedom : free' with 'frozen_range' or 'pinned_range' or corresponding filenames." << endl;
+					if (start==1) {success=false; std::cout <<"In mon " + name + " you should not combine 'freedom : free' with 'frozen_range' or 'pinned_range' or corresponding filenames." << std::endl;
 				}
 			}
 		}
@@ -544,19 +533,19 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 		valence =0;
 		if (GetValue("valence").size()>0) {
 			valence=ParseReal(GetValue("valence"),0);
-			if (valence<-10 || valence > 10) cout <<"For mon " + name + " valence value out of range -10 .. 10. Default value used instead" << endl;
+			if (valence<-10 || valence > 10) std::cout <<"For mon " + name + " valence value out of range -10 .. 10. Default value used instead" << std::endl;
 		}
 		epsilon=80;
 		if (GetValue("epsilon").size()>0) {
-			if (copy_of.size()>0) cout <<"For segment " << name << "value for epsilon will be overwritten by the value of segment " << copy_of << endl;
+			if (copy_of.size()>0) std::cout <<"For segment " << name << "value for epsilon will be overwritten by the value of segment " << copy_of << std::endl;
 			epsilon=ParseReal(GetValue("epsilon"),80);
-			if (epsilon<1 || epsilon > 250) cout <<"For mon " + name + " relative epsilon value out of range 1 .. 250. Default value 80 used instead" << endl;
+			if (epsilon<1 || epsilon > 250) std::cout <<"For mon " + name + " relative epsilon value out of range 1 .. 250. Default value 80 used instead" << std::endl;
 		}
 		if (valence !=0) {
 			if (lat->bond_length <1e-12 || lat->bond_length > 1e-8) {
 				success=false;
-				if (lat->bond_length==0) cout << "When there are charged segments, you should set the bond_length in lattice to a reasonable value, e.g. between 1e-102... 1e-8 m " << endl;
-				else cout <<"Bond length is out of range: 1e-12..1e-8 m " << endl;
+				if (lat->bond_length==0) std::cout << "When there are charged segments, you should set the bond_length in lattice to a reasonable value, e.g. between 1e-102... 1e-8 m " << std::endl;
+				else std::cout <<"Bond length is out of range: 1e-12..1e-8 m " << std::endl;
 			}
 		}
 		if (GetValue("e.psi0/kT").size()>0) {
@@ -565,15 +554,15 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 			PSI0=ParseReal(GetValue("e.psi0/kT"),0);
 			if (PSI0!=0 && valence !=0) {
 				success=false;
-				cout <<"You can set only 'valence' or 'e.psi0/kT', but not both " << endl;
+				std::cout <<"You can set only 'valence' or 'e.psi0/kT', but not both " << std::endl;
 			}
 			if (PSI0!=0 && freedom!="frozen") {
 				success=false;
-				cout <<"You can not set potential on segment that has not freedom 'frozen' " << endl;
+				std::cout <<"You can not set potential on segment that has not freedom 'frozen' " << std::endl;
 			}
 			if (PSI0 <-25 || PSI0 > 25) {
 				success=false;
-				cout <<"Value for dimensionless surface potentials 'e.psi0/kT' is out of range -25 .. 25. Recall the value of 1 at room temperature is equivalent to approximately 25 mV " << endl;
+				std::cout <<"Value for dimensionless surface potentials 'e.psi0/kT' is out of range -25 .. 25. Recall the value of 1 at room temperature is equivalent to approximately 25 mV " << std::endl;
 			}
 		}
 	}
@@ -581,7 +570,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	int length = state_name.size();
 	if (length >0 && freedom == "frozen") {
 		success=false;
-		cout <<" When freedom = 'frozen' a 'mon' can not have multiple internal states; status violated for mon " << name << endl;
+		std::cout <<" When freedom = 'frozen' a 'mon' can not have multiple internal states; status violated for mon " << name << std::endl;
 	}
 
 	length=chi_name.size();
@@ -589,11 +578,11 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	Real Chi;
 	for (int i=0; i<length; i++) {
 		Chi=-999;
-		const string chi_value = GetValue("chi_"+chi_name[i]);
+		const std::string chi_value = GetValue("chi_"+chi_name[i]);
 		if (chi_value.size()>0) {
 			Chi=ParseReal(chi_value,Chi);
-			if (Chi==-999) {success=false; cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "not valid." << endl; }
-			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "value ignored: set to zero!" << endl; Chi=0;}
+			if (Chi==-999) {success=false; std::cout <<" chi value: chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "not valid." << std::endl; }
+			if (name==chi_name[i] && Chi!=0) {if (Chi!=-999) std::cout <<" chi value for chi("<<name<<","<<chi_name[i]<<") = "<<chi_value << "value ignored: set to zero!" << std::endl; Chi=0;}
 
 		}
 		chi[i]=Chi;
@@ -602,69 +591,69 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	if (GetValue("external_potential_filename").size()>0) {
 		if (GetValue("external_potential_filename")=="?") {
 			success=false;
-			cout <<"Provide a json file containing an 'external_potential' array for mon " << name << endl;
+			std::cout <<"Provide a json file containing an 'external_potential' std::array for mon " << name << std::endl;
 		}
 	}
 
 	bool HMD=false;
-	H_MASK = (Real*) malloc(lat->M*sizeof(Real));
+	MASK.assign(lat->M, 0);
+	P.clear();
 	r.fill(0);
 	if (success) success=ParseFreedoms(HMD);
-	free(H_MASK);
-	if(n_pos>0) free(H_P);
+	MASK.clear();
+	P.clear();
 	return success;
 }
 
 void Segment::SetPhiSide(){
-NAMICS_DBG("SetPhiSide in Segment " + name << endl);
+NAMICS_DBG("SetPhiSide in Segment " + name << std::endl);
 	int M=lat->M;
 	if (ns==1) {
-
-		lat->Side(phi_side,phi,M);
+		lat->Side(phi_side.data(),phi.data(),M);
 	} else {
 		for (int i=0; i<ns; i++) {
-			for (int __i = 0; __i < (M); ++__i) (phi_state+i*M)[__i] = (alpha+i*M)[__i] * (phi)[__i];
-			lat->Side(phi_side+i*M,phi_state+i*M,M);
+			for (int __i = 0; __i < (M); ++__i) (phi_state.data()+i*M)[__i] = (alpha.data()+i*M)[__i] * (phi)[__i];
+			lat->Side(phi_side.data()+i*M,phi_state.data()+i*M,M);
 			state_phibulk[i]=phibulk*state_alphabulk[i];
 		}
 	}
 }
 
-void Segment::PutChiKEY(string new_name) {
-NAMICS_DBG("PutChiKey " + name << endl);
+void Segment::PutChiKEY(std::string new_name) {
+NAMICS_DBG("PutChiKey " + name << std::endl);
 	KEYS.push_back("chi_" + new_name);
 	chi_name.push_back(new_name);
 	chi.push_back(-999);
 }
 
-string Segment::GetValue(string parameter) {
+std::string Segment::GetValue(std::string parameter) {
 	auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
-void Segment::push(string s, Real X) {
-NAMICS_DBG("Push in Segment (Real) " + name << endl);
+void Segment::push(std::string s, Real X) {
+NAMICS_DBG("Push in Segment (Real) " + name << std::endl);
 	Reals.push_back(s);
 	Reals_value.push_back(X);
 }
-void Segment::push(string s, int X) {
-NAMICS_DBG("Push in Segment (int) " + name << endl);
+void Segment::push(std::string s, int X) {
+NAMICS_DBG("Push in Segment (int) " + name << std::endl);
 	ints.push_back(s);
 	ints_value.push_back(X);
 }
-void Segment::push(string s, bool X) {
-NAMICS_DBG("Push in Segment (bool) " + name << endl);
+void Segment::push(std::string s, bool X) {
+NAMICS_DBG("Push in Segment (bool) " + name << std::endl);
 	bools.push_back(s);
 	bools_value.push_back(X);
 }
-void Segment::push(string s, string X) {
-NAMICS_DBG("Push in Segment (string) " + name << endl);
+void Segment::push(std::string s, std::string X) {
+NAMICS_DBG("Push in Segment (std::string) " + name << std::endl);
 	strings.push_back(s);
 	strings_value.push_back(X);
 }
 void Segment::PushOutput() {
-NAMICS_DBG("PushOutput for segment " + name << endl);
+NAMICS_DBG("PushOutput for segment " + name << std::endl);
 	int M = lat->M;
 
 	strings.clear();
@@ -678,7 +667,7 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 	push("freedom",freedom);
 	push("valence",valence);
 	Real theta=0;
-	theta = lat->WeightedSum(phi);
+	theta = lat->WeightedSum(phi.data());
 	push("theta",theta);
 	Real theta_exc=0;
 	Real RMS=0;
@@ -722,14 +711,14 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 		Real first_moment = 0;
 		Real second_moment = 0;
 		Real fluctuations = 0;
-		if (theta_exc !=0) first_moment=lat->Moment(phi,phibulk,1)/theta_exc;
-		if (theta_exc !=0) second_moment=lat->Moment(phi,phibulk,2)/theta_exc;
-		if (second_moment !=0) RMS=pow(second_moment,0.5);
+		if (theta_exc !=0) first_moment=lat->Moment(phi.data(),phibulk,1)/theta_exc;
+		if (theta_exc !=0) second_moment=lat->Moment(phi.data(),phibulk,2)/theta_exc;
+		if (second_moment !=0) RMS=std::pow(second_moment,0.5);
 		push("RMS",RMS);
 		push("1st_M_phi_z",first_moment);
 		push("2nd_M_phi_z",second_moment);
 		fluctuations = (second_moment-first_moment*first_moment);
-		if (fluctuations >0) fluctuations = sqrt(fluctuations); else fluctuations=0;
+		if (fluctuations >0) fluctuations = std::sqrt(fluctuations); else fluctuations=0;
 		push("fluctuations",fluctuations);
 	}
 	if (ns>1) {
@@ -738,7 +727,7 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 			push("alphabulk_"+state_name[i],state_alphabulk[i]);
 			push("valence_"+state_name[i],state_valence[i]);
 			push("phibulk_"+state_name[i],state_phibulk[i]);
-			theta=lat->WeightedSum(phi_state+i*M);
+			theta=lat->WeightedSum(phi_state.data()+i*M);
 			state_theta.push_back(theta);
 			push("theta_"+state_name[i],theta);
 			push("theta_exc_"+state_name[i],theta-lat->volume*state_phibulk[i]);
@@ -749,7 +738,7 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 	if (fixedPsi0) push("Psi0",PSI0);
 	if (freedom=="pinned") push("range",GetValue("pinned_range"));
 	if (freedom=="frozen") push("range",GetValue("frozen_range"));
-	string profile="profile;0"; push("phi",profile);
+	std::string profile="profile;0"; push("phi",profile);
 
 	profile="profile;1"; push("G1",profile);
 	if (lat->gradients==3) {
@@ -757,19 +746,19 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 
 	}
 	int k=1;
-	string s;
-	string str;
+	std::string s;
+	std::string str;
 	if (ns >1) {
 		for (int i=0; i<ns; i++) { k++;
-			stringstream ss; ss<<k; str=ss.str();
+			std::stringstream ss; ss<<k; str=ss.str();
 			s="profile;"+str; push("phi-"+state_name[i],s);
 		}
 		for (int i=0; i<ns; i++) { k++;
-			stringstream ss; ss<<k; str=ss.str();
+			std::stringstream ss; ss<<k; str=ss.str();
 			s="profile;"+str; push("alpha-"+state_name[i],s);
 		}
 		for (int i=0; i<ns; i++) { k++;
-			stringstream ss; ss<<k; str=ss.str();
+			std::stringstream ss; ss<<k; str=ss.str();
 			s="profile;"+str; push("u-"+state_name[i],s);
 		}
 	}
@@ -777,18 +766,17 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 
 }
 
-Real* Segment::GetPointer(string s, int &SIZE) {
-NAMICS_DBG("Get Pointer for segment " + name << endl);
-	vector<string> sub;
+std::span<Real> Segment::GetPointer(std::string s) {
+NAMICS_DBG("Get Pointer for segment " + name << std::endl);
+	std::vector<std::string> sub;
 	int M=lat->M;
-	SIZE=lat->M;
 	In->split(s,';',sub);
 	if (sub[0]=="profile") {
 
 	if (sub[1]=="0") {
 		if (freedom=="frozen") {
-			std::copy_n(MASK, M, phi);
-		} else lat->set_bounds(phi);
+			std::copy_n(MASK.begin(), M, phi.begin());
+		} else lat->set_bounds(phi.data());
 		return phi;
 	}
 	if (sub[1]=="1") return G1;
@@ -799,7 +787,7 @@ NAMICS_DBG("Get Pointer for segment " + name << endl);
 		int JX=lat->JX;
 		int JY=lat->JY;
 		Real Sum;
-		std::fill_n(phi_side, M, 0); //phi_side is reused because this array is no longer needed (hopefully....).
+		std::fill(phi_side.begin(), phi_side.begin() + M, 0); //phi_side is reused because this std::array is no longer needed (hopefully....).
 		for (int z=0; z<MZ; z++) {
 			Sum=0;
 			for (int x=1; x<MX+1; x++) for (int y=1; y<MY+1; y++)
@@ -811,36 +799,35 @@ NAMICS_DBG("Get Pointer for segment " + name << endl);
 	}
 	if (ns>1) {
 		for (int i=0; i<ns; i++) {
-			stringstream ss; ss<<i+2; string str=ss.str();
-			if (sub[1]==str) return phi_state+i*M;
+			std::stringstream ss; ss<<i+2; std::string str=ss.str();
+			if (sub[1]==str) return std::span<Real>(phi_state).subspan(static_cast<size_t>(i * M), static_cast<size_t>(M));
 		}
 		for (int i=0; i<ns; i++) {
-			stringstream ss; ss<<i+ns+2; string str=ss.str();
-			if (sub[1]==str) return alpha+i*M;
+			std::stringstream ss; ss<<i+ns+2; std::string str=ss.str();
+			if (sub[1]==str) return std::span<Real>(alpha).subspan(static_cast<size_t>(i * M), static_cast<size_t>(M));
 		}
 		for (int i=0; i<ns; i++) {
-			stringstream ss; ss<<i+2*ns+2; string str=ss.str();
-			if (sub[1]==str) return u+i*M;
+			std::stringstream ss; ss<<i+2*ns+2; std::string str=ss.str();
+			if (sub[1]==str) return std::span<Real>(u).subspan(static_cast<size_t>(i * M), static_cast<size_t>(M));
 		}
 	}
 
 
-	} else {//sub[0]=="vector" ..do not forget to set SIZE before returning the pointer.
+	} else {//sub[0]=="std::vector" ..do not forget to set SIZE before returning the pointer.
 	}
-	return NULL;
+	return {};
 }
-int* Segment::GetPointerInt(string s, int &SIZE) {
-NAMICS_DBG("GetPointerInt for segment " + name << endl);
-	vector<string> sub;
-	SIZE=lat->M;
+std::span<int> Segment::GetPointerInt(std::string s) {
+NAMICS_DBG("GetPointerInt for segment " + name << std::endl);
+	std::vector<std::string> sub;
 	In->split(s,';',sub);
-	if (sub[0]=="array") {// set SIZE and return int pointer.
+	if (sub[0]=="std::array") {// set SIZE and return int pointer.
 	}
-	return NULL;
+	return {};
 }
 
-int Segment::GetValue(string prop,int &int_result,Real &Real_result,string &string_result){
-NAMICS_DBG("GetValue long for segment " + name << endl);
+int Segment::GetValue(std::string prop,int &int_result,Real &Real_result,std::string &string_result){
+NAMICS_DBG("GetValue long for segment " + name << std::endl);
 	int i=0;
 	int length = ints.size();
 	while (i<length) {
@@ -879,17 +866,17 @@ NAMICS_DBG("GetValue long for segment " + name << endl);
 	}
 	return 0;
 }
-void Segment::UpdateValence(Real*g, Real* psi, Real* q, Real* eps,bool grad_epsilon) {
+void Segment::UpdateValence(Real*g, std::span<Real> psi, std::span<Real> q, std::span<Real> eps,bool grad_epsilon) {
 	int M=lat->M;
 	if (fixedPsi0) {
 
-		OverwriteC(psi,MASK,PSI0,M);
-		lat->UpdateQ(g,psi,q,eps,MASK,grad_epsilon);
+		OverwriteC(psi.data(),MASK.data(),PSI0,M);
+		lat->UpdateQ(g,psi.data(),q.data(),eps.data(),MASK.data(),grad_epsilon);
 	}
 
 }
 int Segment::AddState(int id_,Real alphabulk,Real valence,bool fixed) {
-NAMICS_DBG("AddState " << id_ <<" to seg " << name << endl);
+NAMICS_DBG("AddState " << id_ <<" to seg " << name << std::endl);
 	int length = state_name.size();
 	int state_number=-1;
 	bool found=false;
@@ -918,8 +905,8 @@ NAMICS_DBG("AddState " << id_ <<" to seg " << name << endl);
 
 	if (valence !=0) {
 		if (lat->bond_length <1e-10 || lat->bond_length > 1e-8) {
-			if (lat->bond_length==0) cout << "When there are charged states, you should set the bond_length in lattice to a reasonable value, e.g. between 1e-10 ... 1e-8 m " << endl;
-			else cout <<"Bond length is out of range: 1e-10..1e-8 m " << endl;
+			if (lat->bond_length==0) std::cout << "When there are charged states, you should set the bond_length in lattice to a reasonable value, e.g. between 1e-10 ... 1e-8 m " << std::endl;
+			else std::cout <<"Bond length is out of range: 1e-10..1e-8 m " << std::endl;
 		}
 	}
 
@@ -952,7 +939,7 @@ bool Segment::PutAlpha(Real alpha) { //expected to replace other method with sam
 	for (int i=0; i<n_s; i++) {
 		if (state_alphabulk[i]==0) state_alphabulk[i]=1.0-sum_alpha;
 		if (state_alphabulk[i]<0 || state_alphabulk[i]>1) {
-			success=false; cout <<"In Segment::PutAlpha, alphabulk out of bounds " << endl;
+			success=false; std::cout <<"In Segment::PutAlpha, alphabulk out of bounds " << std::endl;
 		}
 	}
 
@@ -977,7 +964,7 @@ bool Segment::CanBeReached(int x0, int y0, int z0, int Ds) {
 		case 1:
 			for (x=1; x<MX+1; x++){
 				if (MASK[x*JX+y*JY+z*JZ]==1) {
-					if (abs(x-x0)+abs(y-y0)+abs(z-z0) < Ds) return true;
+					if (std::abs(x-x0)+std::abs(y-y0)+std::abs(z-z0) < Ds) return true;
 				}
 
 			}

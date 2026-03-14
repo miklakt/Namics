@@ -2,16 +2,16 @@
 #include <string>
 #include "LGrad3.h"
 
-LGrad3::LGrad3(const Input& In_,const string& name_): Lattice(In_,name_) {}
+LGrad3::LGrad3(const Input& In_,const std::string& name_): Lattice(In_,name_) {}
 
 LGrad3::~LGrad3() {
-NAMICS_DBG("LGrad3 destructor " << endl);}
+NAMICS_DBG("LGrad3 destructor " << std::endl);}
 
 void LGrad3:: ComputeLambdas() {
 }
 
 bool LGrad3::PutM() {
-NAMICS_DBG("PutM in LGrad3 " << endl);	bool success=true;
+NAMICS_DBG("PutM in LGrad3 " << std::endl);	bool success=true;
 	volume = MX*MY*MZ;
 	JX=(MZ+2*fjc)*(MY+2*fjc); JY=MZ+2*fjc; JZ=1; M = (MX+2*fjc)*(MY+2*fjc)*(MZ+2*fjc);
 
@@ -21,29 +21,29 @@ NAMICS_DBG("PutM in LGrad3 " << endl);	bool success=true;
 
 void LGrad3::TimesL(Real* X){
 	(void)X;
-NAMICS_DBG("TimesL in LGrad3 " << endl);}
+NAMICS_DBG("TimesL in LGrad3 " << std::endl);}
 
 void LGrad3::DivL(Real* X){
 	(void)X;
-NAMICS_DBG("DivL in LGrad3 " << endl);}
+NAMICS_DBG("DivL in LGrad3 " << std::endl);}
 
 Real LGrad3:: Moment(Real* X,Real Xb, int n) {
 	(void)n;
 	(void)Xb;
 	(void)X;
-NAMICS_DBG("Moment in LGrad3 " << endl);	Real Result=0;
+NAMICS_DBG("Moment in LGrad3 " << std::endl);	Real Result=0;
 	return Result/fjc;
 }
 
 Real LGrad3::WeightedSum(Real* X){
-NAMICS_DBG("weighted sum in LGrad3 " << endl);	Real sum{0};
+NAMICS_DBG("weighted sum in LGrad3 " << std::endl);	Real sum{0};
 	remove_bounds(X);
 	(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i];
 	return sum;
 }
 
 void LGrad3::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
-NAMICS_DBG(" Side in LGrad3 " << endl);	if (ignore_sites) {
+NAMICS_DBG(" Side in LGrad3 " << std::endl);	if (ignore_sites) {
 		std::copy_n(X, M, X_side); return;
 	}
 	std::fill_n(X_side, M, 0);//set_bounds(X);
@@ -369,9 +369,9 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 		}
 	} else {
 		if (lattice_type ==simple_cubic) {
-			cout <<"Markov 2, simple cubic, geometry 3, stencil_full not implemented" << endl;
+			std::cout <<"Markov 2, simple cubic, geometry 3, stencil_full not implemented" << std::endl;
 		} else {
-			cout <<"Markov 2, hexagonal, geometry 3, stencil_full not implemented" << endl;
+			std::cout <<"Markov 2, hexagonal, geometry 3, stencil_full not implemented" << std::endl;
 		}
 	}
 }
@@ -582,15 +582,15 @@ void LGrad3::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 		}
 	} else {
 		if (lattice_type==simple_cubic) {
-			cout<<"Markov 2, geometry 3, simple_cubic , stencil_full, not implemented" << endl;
+			std::cout<<"Markov 2, geometry 3, simple_cubic , stencil_full, not implemented" << std::endl;
 		} else {
-			cout<<"Markov 2, geometry 3, hexagonal, stencil_full, not implemented" << endl;
+			std::cout<<"Markov 2, geometry 3, hexagonal, stencil_full, not implemented" << std::endl;
 		}
 	}
 }
 
 void LGrad3::propagate(Real *G, Real *G1, int s_from, int s_to,int M) { //this procedure should function on simple cubic lattice.
-NAMICS_DBG(" propagate in LGrad3 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
+NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
 	int JX_=JX, JY_=JY;
 	int k=sub_box_on;
 
@@ -723,19 +723,19 @@ NAMICS_DBG(" propagate in LGrad3 " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*
 }
 
 
-bool LGrad3::ReadRange(int* r, int* H_p, int &n_pos, bool &block, string range, int var_pos, string seg_name, string range_type) {
+bool LGrad3::ReadRange(int* r, int* H_p, int &n_pos, bool &block, std::string range, int var_pos, std::string seg_name, std::string range_type) {
 	(void)var_pos;
 	(void)n_pos;
 	(void)H_p;
-NAMICS_DBG("ReadRange in LGrad3 " << endl);	bool success=true;
-	vector<string>set;
-	vector<string>coor;
-	vector<string>xyz;
+NAMICS_DBG("ReadRange in LGrad3 " << std::endl);	bool success=true;
+	std::vector<std::string>set;
+	std::vector<std::string>coor;
+	std::vector<std::string>xyz;
 	In->split(range,';',set);
 	coor.clear();
 	block=true; In->split(set[0],',',coor);
 
-	if (coor.size()!=3) {cout << "In mon " + 	seg_name + ", for 'pos 1', in '" + range_type + "' the coordiantes do not come in set of three: 'x,y,z'" << endl; success=false;}
+	if (coor.size()!=3) {std::cout << "In mon " + 	seg_name + ", for 'pos 1', in '" + range_type + "' the coordiantes do not come in set of three: 'x,y,z'" << std::endl; success=false;}
 	else {
 		r[0]=ParseInt(coor[0],0);
 		r[1]=ParseInt(coor[1],0);
@@ -743,29 +743,29 @@ NAMICS_DBG("ReadRange in LGrad3 " << endl);	bool success=true;
 	}
 	coor.clear(); In->split(set[1],',',coor);
 
-	if (coor.size()!=3) {cout << "In mon " + seg_name+ ", for 'pos 2', in '" + range_type + "', the coordinates do not come in set of three: 'x,y,z'" << endl; success=false;}
+	if (coor.size()!=3) {std::cout << "In mon " + seg_name+ ", for 'pos 2', in '" + range_type + "', the coordinates do not come in set of three: 'x,y,z'" << std::endl; success=false;}
 	else {
 		r[3]=ParseInt(coor[0],0);
 		r[4]=ParseInt(coor[1],0);
 		r[5]=ParseInt(coor[2],0);
 	}
-	if (r[0] > r[3]) {cout << "In mon " + seg_name+ ", for 'pos 1', the x-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
-	if (r[1] > r[4]) {cout << "In mon " + seg_name+ ", for 'pos 1', the y-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
-	if (r[2] > r[5]) {cout << "In mon " + seg_name+ ", for 'pos 1', the z-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << endl; success =false;}
+	if (r[0] > r[3]) {std::cout << "In mon " + seg_name+ ", for 'pos 1', the x-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << std::endl; success =false;}
+	if (r[1] > r[4]) {std::cout << "In mon " + seg_name+ ", for 'pos 1', the y-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << std::endl; success =false;}
+	if (r[2] > r[5]) {std::cout << "In mon " + seg_name+ ", for 'pos 1', the z-coordinate in '" + range_type + "' should be less than that of 'pos 2'" << std::endl; success =false;}
 	return success;
 }
 
-bool LGrad3::ReadRangeFile(string filename,int* H_p, int &n_pos, string seg_name, string range_type) {
-NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
-		cout << "Rangefile is not supported for FJC-choices >3." << endl;
+bool LGrad3::ReadRangeFile(std::string filename,int* H_p, int &n_pos, std::string seg_name, std::string range_type) {
+NAMICS_DBG("ReadRangeFile in LGrad3 " << std::endl);	if (fjc>1) {
+		std::cout << "Rangefile is not supported for FJC-choices >3." << std::endl;
 		return false;
 	}
 
 	bool success=true;
-	string content;
-	vector<string> lines;
-	vector<string> xyz;
-	const string resolved_range_file = In->ResolvePath(filename);
+	std::string content;
+	std::vector<std::string> lines;
+	std::vector<std::string> xyz;
+	const std::string resolved_range_file = In->ResolvePath(filename);
 
 	int length;
 	int length_xyz;
@@ -785,7 +785,7 @@ NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
 				if (ParseInt(lines[i],0)==1) n_pos++;
 				i++;
 			};
-			if (n_pos==0) {cout << "Warning: Input file for locations of 'particles' does not contain any unities." << endl;}
+			if (n_pos==0) {std::cout << "Warning: Input file for locations of 'particles' does not contain any unities." << std::endl;}
 		} else {
 			i=0; p_i=0;
 			for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++) for (z=1; z<MZ+1; z++) {
@@ -802,14 +802,14 @@ NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
 				In->split(lines[i],',',xyz);
 				length_xyz=xyz.size();
 				if (length_xyz!=3) {
-					cout << "In mon " + seg_name + " " +range_type+"_filename  the expected 'triple coordinate' structure 'x,y,z' was not found. " << endl;  success = false;
+					std::cout << "In mon " + seg_name + " " +range_type+"_filename  the expected 'triple coordinate' structure 'x,y,z' was not found. " << std::endl;  success = false;
 				} else {
 					px=ParseInt(xyz[0],0);
-					if (px < 1 || px > MX) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the x-coordinate in "+range_type+"_filename out of bounds: 1.." << MX << endl; success =false;}
+					if (px < 1 || px > MX) {std::cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the x-coordinate in "+range_type+"_filename out of bounds: 1.." << MX << std::endl; success =false;}
 					py=ParseInt(xyz[1],0);
-					if (py < 1 || py > MY) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MY << endl; success =false;}
+					if (py < 1 || py > MY) {std::cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the y-coordinate in "+range_type+"_filename out of bounds: 1.." << MY << std::endl; success =false;}
 					pz=ParseInt(xyz[2],0);
-					if (pz < 1 || pz > MZ) {cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the z-coordinate in "+range_type+"_filename out of bounds: 1.." << MZ << endl; success =false;}
+					if (pz < 1 || pz > MZ) {std::cout << "In mon " + seg_name + ", for 'pos' "<< i << ", the z-coordinate in "+range_type+"_filename out of bounds: 1.." << MZ << std::endl; success =false;}
 				}
 				H_p[i]=px*JX+py*JY+fjc-1+pz;
 				i++;
@@ -820,7 +820,7 @@ NAMICS_DBG("ReadRangeFile in LGrad3 " << endl);	if (fjc>1) {
 }
 
 bool LGrad3::CreateMASK(Real* H_MASK, int* r, int* H_P, int n_pos, bool block) {
-NAMICS_DBG("CreateMask for LGrad3 " + name << endl);	bool success=true;
+NAMICS_DBG("CreateMask for LGrad3 " + name << std::endl);	bool success=true;
 	std::fill_n(H_MASK, M, static_cast<Real>(0));
 	// Build mask from either a block in r=[x1,y1,z1,x2,y2,z2] or list of indices in H_P.
 	if (block) {
@@ -849,9 +849,9 @@ void LGrad3::UpdateEE(Real* EE, Real* psi, Real* E) {
 	set_M_bounds(psi);
 
 	std::fill_n(EE, M, 0);
-	for (int __i = 0; __i < (M-2); ++__i) (EE+1)[__i] += pow((psi)[__i]-(psi+1)[__i],2) + pow((psi+1)[__i]-(psi+2)[__i],2);
-	for (int __i = 0; __i < (M-2*JX); ++__i) (EE+JX)[__i] += pow((psi)[__i]-(psi+JX)[__i],2) + pow((psi+JX)[__i]-(psi+2*JX)[__i],2);
-	for (int __i = 0; __i < (M-2*JY); ++__i) (EE+JY)[__i] += pow((psi)[__i]-(psi+JY)[__i],2) + pow((psi+JY)[__i]-(psi+2*JY)[__i],2);
+	for (int __i = 0; __i < (M-2); ++__i) (EE+1)[__i] += std::pow((psi)[__i]-(psi+1)[__i],2) + std::pow((psi+1)[__i]-(psi+2)[__i],2);
+	for (int __i = 0; __i < (M-2*JX); ++__i) (EE+JX)[__i] += std::pow((psi)[__i]-(psi+JX)[__i],2) + std::pow((psi+JX)[__i]-(psi+2*JX)[__i],2);
+	for (int __i = 0; __i < (M-2*JY); ++__i) (EE+JY)[__i] += std::pow((psi)[__i]-(psi+JY)[__i],2) + std::pow((psi+JY)[__i]-(psi+2*JY)[__i],2);
 	for (int __i = 0; __i < (M); ++__i) (EE)[__i] *= (pf);
 
 
@@ -995,7 +995,7 @@ void LGrad3::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool gra
 }
 
 void LGrad3::set_bounds_x(Real* X,Real* Y,int shifty,int shiftz){
-NAMICS_DBG("set_bounds_x (shift in y,z ) in LGrad3 " << endl);	int y,z;
+NAMICS_DBG("set_bounds_x (shift in y,z ) in LGrad3 " << std::endl);	int y,z;
 	int k=0;
 	if (BX1>BXM) {
 		set_bounds_x(X,shifty,shiftz);
@@ -1025,7 +1025,7 @@ NAMICS_DBG("set_bounds_x (shift in y,z ) in LGrad3 " << endl);	int y,z;
 	}
 }
 void LGrad3::set_bounds_y(Real* X,Real* Y,int shiftx, int shiftz){
-NAMICS_DBG("set_bounds_y (shift in x,z) in LGrad3 " << endl);	int x,z;
+NAMICS_DBG("set_bounds_y (shift in x,z) in LGrad3 " << std::endl);	int x,z;
 	int k=0;
 	if (BY1>BYM) {
 		set_bounds_y(X,shiftx,shiftz);
@@ -1056,7 +1056,7 @@ NAMICS_DBG("set_bounds_y (shift in x,z) in LGrad3 " << endl);	int x,z;
 }
 
 void LGrad3::set_bounds_z(Real* X,Real* Y,int shiftx,int shifty){
-NAMICS_DBG("set_bounds_z shift (x,y) in LGrad3 " << endl);	int x,y;
+NAMICS_DBG("set_bounds_z shift (x,y) in LGrad3 " << std::endl);	int x,y;
 	int k=0;
 	if (BZ1>BZM) { //periodic
 		set_bounds_z(X,shiftx,shifty);
@@ -1085,7 +1085,7 @@ NAMICS_DBG("set_bounds_z shift (x,y) in LGrad3 " << endl);	int x,y;
 }
 
 void LGrad3::set_bounds_x(Real* X, int shifty, int shiftz){
-NAMICS_DBG("set_bounds_x (shift yz) in LGrad3 " << endl);	int y,z;
+NAMICS_DBG("set_bounds_x (shift yz) in LGrad3 " << std::endl);	int y,z;
 	int k=0;
 	if (fjc==1) {
 		 for (y=1; y<MY+1; y++) for (z=1; z<MZ+1; z++)  {
@@ -1101,7 +1101,7 @@ NAMICS_DBG("set_bounds_x (shift yz) in LGrad3 " << endl);	int y,z;
 }
 
 void LGrad3::set_bounds_y(Real* X,int shiftx, int shiftz){
-NAMICS_DBG("set_bounds_y (shift x,z) in LGrad3 " << endl);	int x,z;
+NAMICS_DBG("set_bounds_y (shift x,z) in LGrad3 " << std::endl);	int x,z;
 	int k=0;
 	if (fjc==1) {
 		for (z=1; z<MZ+1; z++) for (x=1; x<MX+1; x++){
@@ -1117,7 +1117,7 @@ NAMICS_DBG("set_bounds_y (shift x,z) in LGrad3 " << endl);	int x,z;
 }
 
 void LGrad3::set_bounds_z(Real* X,int shiftx, int shifty){
-NAMICS_DBG("set_bounds_z (shift xy) in LGrad3 " << endl);	int x,y;
+NAMICS_DBG("set_bounds_z (shift xy) in LGrad3 " << std::endl);	int x,y;
 	int k=0;
 	if (fjc==1) {
 		for (x=1; x<MX+1; x++) for (y=1; y<MY+1; y++) {
@@ -1133,7 +1133,7 @@ NAMICS_DBG("set_bounds_z (shift xy) in LGrad3 " << endl);	int x,y;
 }
 
 void LGrad3::remove_bounds(Real *X){
-NAMICS_DBG("remove_bounds in LGrad3 " << endl);	int x,y,z;
+NAMICS_DBG("remove_bounds in LGrad3 " << std::endl);	int x,y,z;
 	int k;
 	if (sub_box_on!=0) {
 		int k=sub_box_on;
@@ -1158,7 +1158,7 @@ NAMICS_DBG("remove_bounds in LGrad3 " << endl);	int x,y,z;
 }
 
 void LGrad3::set_bounds(Real* X){
-NAMICS_DBG("set_bounds in LGrad3 " << endl);	int x,y,z;
+NAMICS_DBG("set_bounds in LGrad3 " << std::endl);	int x,y,z;
 	int k=0;
 	if (sub_box_on!=0) {
 		int k=sub_box_on;
@@ -1541,7 +1541,7 @@ void LGrad3::Terminate(Real* Gz,Real* G,int Markov, int M){
 	} else std::copy_n(G, M, Gz);
 }
 
-bool LGrad3:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R){
+bool LGrad3:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){
 	bool success=true;
 	int length =px.size();
 	int X,Y,Z;
@@ -1573,6 +1573,6 @@ Real LGrad3::MomentPlanar(Real* X,int n,Real Z0){
 	(void)Z0;
 	(void)n;
 	(void)X;
-	cout <<"MomentPlanar not implemented; kJ0 or kbar may be wrong. " << endl;
+	std::cout <<"MomentPlanar not implemented; kJ0 or kbar may be wrong. " << std::endl;
 	return 0;
 }

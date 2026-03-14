@@ -48,11 +48,10 @@ std::string BuildInitialGuessObject(const std::string& method,
                                     bool charged,
                                     const std::vector<std::string>& monlist,
                                     const std::vector<std::string>& statelist,
-                                    const Real* values,
-                                    int value_count) {
+                                    std::span<const Real> values) {
 	const int m = GuessProfileSize(mx, my, mz, fjc);
 	const int expected = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0)) * m;
-	if (values == nullptr || value_count != expected) return "";
+	if (static_cast<int>(values.size()) != expected) return "";
 
 	std::ostringstream out;
 	auto write_string_array = [&](const std::vector<std::string>& names) {
@@ -63,7 +62,7 @@ std::string BuildInitialGuessObject(const std::string& method,
 		}
 		out << "]";
 	};
-	auto write_profile = [&](const std::string& key, const Real* data, bool trailing_comma) {
+	auto write_profile = [&](const std::string& key, std::span<const Real> data, bool trailing_comma) {
 		out << "          \"" << JsonEscape(key) << "\": [";
 		for (int i = 0; i < m; ++i) {
 			if (i > 0) out << ", ";
@@ -97,17 +96,17 @@ std::string BuildInitialGuessObject(const std::string& method,
 	int profile_index = 0;
 	for (const std::string& mon_name : monlist) {
 		++profile_index;
-		write_profile("mon:" + mon_name, values + offset * m, profile_index < total_profiles);
+		write_profile("mon:" + mon_name, values.subspan(static_cast<size_t>(offset * m), static_cast<size_t>(m)), profile_index < total_profiles);
 		++offset;
 	}
 	for (const std::string& state_name : statelist) {
 		++profile_index;
-		write_profile("state:" + state_name, values + offset * m, profile_index < total_profiles);
+		write_profile("state:" + state_name, values.subspan(static_cast<size_t>(offset * m), static_cast<size_t>(m)), profile_index < total_profiles);
 		++offset;
 	}
 	if (charged) {
 		++profile_index;
-		write_profile("psi", values + offset * m, profile_index < total_profiles);
+		write_profile("psi", values.subspan(static_cast<size_t>(offset * m), static_cast<size_t>(m)), profile_index < total_profiles);
 	}
 	out << "        }\n";
 	out << "      }";
@@ -116,8 +115,8 @@ std::string BuildInitialGuessObject(const std::string& method,
 
 } // namespace
 
-Output::Output(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,Solve_scf* New_,string name_) {
-NAMICS_DBG("constructor in Output "<< endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; New=New_;
+Output::Output(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_,std::span<const std::unique_ptr<State>> Sta_, std::span<const std::unique_ptr<Reaction>> Rea_, std::span<const std::unique_ptr<Molecule>> Mol_,System* Sys_,Solve_scf* New_,std::string name_) {
+NAMICS_DBG("constructor in Output "<< std::endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; New=New_;
 	json_writer = io::json::SharedJsonWriter();
 	lat=Lat_;
 	KEYS.push_back("write_bounds");
@@ -127,13 +126,13 @@ NAMICS_DBG("constructor in Output "<< endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea
 	KEYS.push_back("filename");
 }
 Output::~Output() {
-NAMICS_DBG("destructor in output " << endl);}
-void Output::PutParameter(string new_param) {
-NAMICS_DBG("PutParameter in Output " << endl); KEYS.push_back(new_param);
+NAMICS_DBG("destructor in output " << std::endl);}
+void Output::PutParameter(std::string new_param) {
+NAMICS_DBG("PutParameter in Output " << std::endl); KEYS.push_back(new_param);
 }
 
 bool Output::Load() {
-NAMICS_DBG("Load in output " << endl);	bool success=true;
+NAMICS_DBG("Load in output " << std::endl);	bool success=true;
 	OUT_key.clear();
 	OUT_name.clear();
 	OUT_prop.clear();
@@ -143,29 +142,29 @@ NAMICS_DBG("Load in output " << endl);	bool success=true;
 	if (success) {
 		for (size_t i = 0; i < OUT_key.size(); ) {
 			if (OUT_key[i]=="mol"){
-				const string& wildcard = OUT_prop[i];
+				const std::string& wildcard = OUT_prop[i];
 				const size_t star = wildcard.find('*');
-				if (star == string::npos) {
+				if (star == std::string::npos) {
 					++i;
 					continue;
 				}
-				if (star == 0 || wildcard.find('*', star + 1) != string::npos) {
-					cout << "Mol wildcard output requires exactly one '*' and an explicit monomer prefix." << endl;
+				if (star == 0 || wildcard.find('*', star + 1) != std::string::npos) {
+					std::cout << "Mol wildcard output requires exactly one '*' and an explicit monomer prefix." << std::endl;
 					return false;
 				}
-				const string prefix = wildcard.substr(0, star);
-				const string suffix = wildcard.substr(star + 1);
+				const std::string prefix = wildcard.substr(0, star);
+				const std::string suffix = wildcard.substr(star + 1);
 
 				int molnr = -1;
 				if (!ContainsValue(In->MolList, OUT_name[i], &molnr)) {
-					cout << "Program error: output references unknown molecule '" << OUT_name[i] << "'." << endl;
+					std::cout << "Program error: output references unknown molecule '" << OUT_name[i] << "'." << std::endl;
 					return false;
 				}
 				const int monlength = Mol[molnr]->MolMonList.size();
 				for (int j=0; j<monlength; j++) {
 					OUT_key.push_back(OUT_key[i]);
 					OUT_name.push_back(OUT_name[i]);
-					string s=prefix;
+					std::string s=prefix;
 					s=s.append(Seg[Mol[molnr]->MolMonList[j]]->name);
 					s=s.append(suffix);
 					OUT_prop.push_back(s);
@@ -183,7 +182,7 @@ NAMICS_DBG("Load in output " << endl);	bool success=true;
 }
 
 bool Output::CheckInput(int start_) {
-NAMICS_DBG("CheckInput in output " << endl);	start=start_;
+NAMICS_DBG("CheckInput in output " << std::endl);	start=start_;
 	bool success=true;
 	success=In->CheckParameters("output",name,start, KEYS, PARAMETERS);
 	if (success) {
@@ -202,8 +201,8 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 				sep = ":";
 			} else {
 				if (sep.length()>1) {
-					cout <<"For output entry 'header_separator', expected to find the keyword 'classic' (meaning ':') or a single character." << endl;
-					cout <<"header_separator set to the default value '_'" << endl;
+					std::cout <<"For output entry 'header_separator', expected to find the keyword 'classic' (meaning ':') or a single character." << std::endl;
+					std::cout <<"header_separator set to the default value '_'" << std::endl;
 					sep="_";
 				}
 			}
@@ -213,25 +212,25 @@ NAMICS_DBG("CheckInput in output " << endl);	start=start_;
 
 			if (success) {
 				if (!Load()) {
-					cout <<"Error in Load() in output" << endl;
+					std::cout <<"Error in Load() in output" << std::endl;
 				success=false;
 			}
 		}
-	} else cout <<"Error in CheckParameters in output" << endl;
+	} else std::cout <<"Error in CheckParameters in output" << std::endl;
 	return success;
 }
 
-string Output::GetValue(string parameter) {
-NAMICS_DBG("GetValue in output " << endl); auto it = PARAMETERS.find(parameter);
+std::string Output::GetValue(std::string parameter) {
+NAMICS_DBG("GetValue in output " << std::endl); auto it = PARAMETERS.find(parameter);
 	if (it != PARAMETERS.end()) return it->second;
 	return "";
 }
 
-int* Output::GetPointerInt(string key, string name, string prop, int &Size) {
-NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.size();
+std::span<int> Output::GetPointerInt(std::string key, std::string name, std::string prop) {
+NAMICS_DBG("GetPointerInt in output " << std::endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int statelistlength=In->StateList.size();
-	if (key=="output") return NULL;
+	if (key=="output") return {};
 	int listlength;
 	int choice=0;
 	int i,j;
@@ -246,7 +245,7 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 			listlength=Sys->strings.size();
 			j=0;
 			while (j<listlength) {
-				if (prop==Sys->strings[j]) return Sys->GetPointerInt(Sys->strings_value[j],Size);
+				if (prop==Sys->strings[j]) return Sys->GetPointerInt(Sys->strings_value[j]);
 				j++;
 			}
 			break;
@@ -257,7 +256,7 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 					listlength= Mol[i]->strings.size();
 					j=0;
 					while (j<listlength) {
-						if (prop==Mol[i]->strings[j]) return Mol[i]->GetPointerInt(Mol[i]->strings_value[j],Size);
+						if (prop==Mol[i]->strings[j]) return Mol[i]->GetPointerInt(Mol[i]->strings_value[j]);
 						j++;
 					}
 				}
@@ -271,7 +270,7 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 					listlength= Seg[i]->strings.size();
 					j=0;
 					while (j<listlength) {
-						if (prop==Seg[i]->strings[j]) return Seg[i]->GetPointerInt(Seg[i]->strings_value[j],Size);
+						if (prop==Seg[i]->strings[j]) return Seg[i]->GetPointerInt(Seg[i]->strings_value[j]);
 						j++;
 					}
 				}
@@ -285,7 +284,7 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 					listlength= Sta[i]->strings.size();
 					j=0;
 					while (j<listlength) {
-						if (prop==Sta[i]->strings[j]) return Sta[i]->GetPointerInt(Sta[i]->strings_value[j],Size);
+						if (prop==Sta[i]->strings[j]) return Sta[i]->GetPointerInt(Sta[i]->strings_value[j]);
 						j++;
 					}
 				}
@@ -296,20 +295,20 @@ NAMICS_DBG("GetPointerInt in output " << endl); int monlistlength=In->MonList.si
 			listlength= lat->strings.size();
 			j=0;
 			while (j<listlength) {
-				if (prop==lat->strings[j]) return lat->GetPointerInt(lat->strings_value[j],Size);
+				if (prop==lat->strings[j]) return lat->GetPointerInt(lat->strings_value[j]);
 				j++;
 			}
 			break;
 		default:
-			cout << "Program error: in Output, GetPointerInt reaches default...." << endl;
+			std::cout << "Program error: in Output, GetPointerInt reaches default...." << std::endl;
 	}
-	return NULL;
+	return {};
 }
-Real* Output::GetPointer(string key, string name, string prop, int &Size) {
-NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size();
+std::span<Real> Output::GetPointer(std::string key, std::string name, std::string prop) {
+NAMICS_DBG("GetPointer in output " << std::endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int statelistlength=In->StateList.size();
-	if (key=="output") return NULL;
+	if (key=="output") return {};
 	int listlength;
 	int choice=0;
 	int i,j;
@@ -324,7 +323,7 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 			listlength=Sys->strings.size();
 			j=0;
 			while (j<listlength) {
-				if (prop==Sys->strings[j]) return Sys->GetPointer(Sys->strings_value[j],Size);
+				if (prop==Sys->strings[j]) return Sys->GetPointer(Sys->strings_value[j]);
 				j++;
 			}
 			break;
@@ -335,7 +334,7 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 					listlength= Mol[i]->strings.size();
 					j=0;
 					while (j<listlength) {
-						if (prop==Mol[i]->strings[j]) return Mol[i]->GetPointer(Mol[i]->strings_value[j],Size);
+						if (prop==Mol[i]->strings[j]) return Mol[i]->GetPointer(Mol[i]->strings_value[j]);
 						j++;
 					}
 				}
@@ -349,7 +348,7 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 					listlength= Seg[i]->strings.size();
 					j=0;
 					while (j<listlength) {
-						if (prop==Seg[i]->strings[j]) return Seg[i]->GetPointer(Seg[i]->strings_value[j],Size);
+						if (prop==Seg[i]->strings[j]) return Seg[i]->GetPointer(Seg[i]->strings_value[j]);
 						j++;
 					}
 				}
@@ -361,13 +360,12 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 			while (i<statelistlength){
 				if (name==In->StateList[i]) {
 					if (prop=="phi") {
-						Size = lat->M;
-						return Seg[Sta[i]->mon_nr]->phi_state + Sta[i]->state_nr * Size;
+						return std::span<Real>(Seg[Sta[i]->mon_nr]->phi_state).subspan(static_cast<size_t>(Sta[i]->state_nr * lat->M), static_cast<size_t>(lat->M));
 					}
 					listlength= Sta[i]->strings.size();
 					j=0;
 					while (j<listlength) {
-						if (prop==Sta[i]->strings[j]) return Sta[i]->GetPointer(Sta[i]->strings_value[j],Size);
+						if (prop==Sta[i]->strings[j]) return Sta[i]->GetPointer(Sta[i]->strings_value[j]);
 						j++;
 					}
 				}
@@ -378,17 +376,17 @@ NAMICS_DBG("GetPointer in output " << endl); int monlistlength=In->MonList.size(
 			listlength= lat->strings.size();
 			j=0;
 			while (j<listlength) {
-				if (prop==lat->strings[j]) return lat->GetPointer(lat->strings_value[j],Size);
+				if (prop==lat->strings[j]) return lat->GetPointer(lat->strings_value[j]);
 				j++;
 			}
 			break;
 		default:
-			cout << "Program error: in Output, GetPointer reaches default...." << endl;
+			std::cout << "Program error: in Output, GetPointer reaches default...." << std::endl;
 	}
-	return NULL;
+	return {};
 }
-int Output::GetValue(string key, string name, string prop, int &int_result, Real &Real_result, string &string_result) {
-NAMICS_DBG("GetValue (long) in output " << endl); int monlistlength=In->MonList.size();
+int Output::GetValue(std::string key, std::string name, std::string prop, int &int_result, Real &Real_result, std::string &string_result) {
+NAMICS_DBG("GetValue (long) in output " << std::endl); int monlistlength=In->MonList.size();
 	int mollistlength=In->MolList.size();
 	int statelistlength=In->StateList.size();
 	int choice=0;
@@ -435,18 +433,17 @@ NAMICS_DBG("GetValue (long) in output " << endl); int monlistlength=In->MonList.
 			return GetValue(prop,name,int_result,Real_result,string_result);
 			break;
 		default:
-			cout << "Program error: in Output, GetValue reaches default...." << endl;
+			std::cout << "Program error: in Output, GetValue reaches default...." << std::endl;
 	}
 	return 0;
 }
 
 void Output::WriteOutput(int subl) {
-NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
+NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 	if (!write) return;
-	int Size=0;
-	string filename;
-	string base_name;
-	const string configured_filename = GetValue("filename");
+	std::string filename;
+	std::string base_name;
+	const std::string configured_filename = GetValue("filename");
 	if (configured_filename.size() > 0) {
 		std::filesystem::path configured_path(In->ResolvePath(configured_filename));
 		if (configured_path.extension() != ".json") {
@@ -475,21 +472,21 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 		filename = In->GetOutputPath() + filename;
 	}
 
-	vector<Real*> profile_pointer;
-	vector<string> profile_header;
-	vector<pair<string, string>> scalar_values;
+	std::vector<std::span<Real>> profile_pointer;
+	std::vector<std::string> profile_header;
+	std::vector<std::pair<std::string, std::string>> scalar_values;
 	int length = OUT_key.size();
 	for (int i=0; i<length; i++) {
-		string label = OUT_key[i];
+		std::string label = OUT_key[i];
 		label.append(sep).append(OUT_name[i]).append(sep).append(OUT_prop[i]);
 
-		vector<string> prop_sub;
+		std::vector<std::string> prop_sub;
 		In->split(OUT_prop[i],'(',prop_sub);
 		const bool indexed_scalar = (prop_sub.size() > 1 && prop_sub[0] != OUT_prop[i]);
 
 		if (!indexed_scalar) {
-			Real* profile = GetPointer(OUT_key[i], OUT_name[i], OUT_prop[i], Size);
-			if (profile != NULL) {
+			auto profile = GetPointer(OUT_key[i], OUT_name[i], OUT_prop[i]);
+			if (!profile.empty()) {
 				profile_pointer.push_back(profile);
 				profile_header.push_back(label);
 				continue;
@@ -498,18 +495,18 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 
 		int int_result = 0;
 		Real Real_result = 0;
-		string string_result;
-		const string value_key = prop_sub.size() > 0 ? prop_sub[0] : OUT_prop[i];
+		std::string string_result;
+		const std::string value_key = prop_sub.size() > 0 ? prop_sub[0] : OUT_prop[i];
 		const int result_nr = GetValue(OUT_key[i], OUT_name[i], value_key, int_result, Real_result, string_result);
-		string literal = "null";
+		std::string literal = "null";
 		if (result_nr == 1) {
 			literal = JsonNumber(int_result);
 		} else if (result_nr == 2) {
 			literal = JsonNumber(Real_result);
 		} else if (result_nr == 3) {
 			if (indexed_scalar) {
-				Real* profile = GetPointer(OUT_key[i], OUT_name[i], value_key, Size);
-				if (profile != NULL) {
+				auto profile = GetPointer(OUT_key[i], OUT_name[i], value_key);
+				if (!profile.empty()) {
 					literal = JsonNumber(lat->GetValue(profile, prop_sub[1]));
 				}
 			} else if (IsJsonBoolString(string_result)) {
@@ -518,7 +515,7 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 				literal = "\"" + JsonEscape(string_result) + "\"";
 			}
 		} else {
-			cout << "Warning: unable to resolve json output quantity '" << label << "'" << endl;
+			std::cout << "Warning: unable to resolve json output quantity '" << label << "'" << std::endl;
 		}
 		scalar_values.push_back({label, literal});
 	}
@@ -535,8 +532,8 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 			return static_cast<Real>(z - lat->fjc + 1) * inv_fjc - static_cast<Real>(0.5) * inv_fjc;
 		};
 
-		vector<string> column_names;
-		vector<vector<Real>> column_values;
+		std::vector<std::string> column_names;
+		std::vector<std::vector<Real>> column_values;
 		if (!profile_pointer.empty()) {
 			if (lat->gradients >= 1) {
 				column_names.push_back("x");
@@ -614,10 +611,9 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 			                                               Sys->charged,
 			                                               guess_monlist,
 			                                               guess_statelist,
-			                                               New->xx,
-			                                               New->iv);
+			                                               std::span<const Real>(New->xx).first(static_cast<size_t>(New->iv)));
 			if (initial_guess_object.empty()) {
-				cout << "Warning: unable to serialize embedded initial guess for problem " << start << endl;
+				std::cout << "Warning: unable to serialize embedded initial guess for problem " << start << std::endl;
 			}
 		}
 
@@ -654,11 +650,11 @@ NAMICS_DBG("WriteOutput in output " + name << endl);	lat->subl=subl;
 
 	const bool first_problem_of_run = (start == 1 && subl == 0);
 	if (!json_writer->WriteProblem(filename, problem.str(), metadata.str(), append, first_problem_of_run)) {
-		cout << "Failed to write json output file " << filename << endl;
+		std::cout << "Failed to write json output file " << filename << std::endl;
 	}
 }
 
-int Output::GetValue(string prop, string mod, int& int_result, Real& Real_result, string& string_result) {
+int Output::GetValue(std::string prop, std::string mod, int& int_result, Real& Real_result, std::string& string_result) {
 	(void)mod;
   int i = 0;
   int_result=0;
@@ -705,20 +701,20 @@ int Output::GetValue(string prop, string mod, int& int_result, Real& Real_result
   return 0;
 }
 
-void Output::push(string s, Real X) {
+void Output::push(std::string s, Real X) {
   Reals.push_back(s);
   Reals_value.push_back(X);
 }
-void Output::push(string s, int X) {
+void Output::push(std::string s, int X) {
   ints.push_back(s);
   ints_value.push_back(X);
 }
-void Output::push(string s, bool X) {
+void Output::push(std::string s, bool X) {
   bools.push_back(s);
   bools_value.push_back(X);
 }
 
-void Output::push(string s, string X) {
+void Output::push(std::string s, std::string X) {
   strings.push_back(s);
   strings_value.push_back(X);
 }

@@ -3,7 +3,7 @@
 #include "LGrad1.h"
 class LG1Planar : public LGrad1
 {
-	public:	LG1Planar(const Input& In_,const string& name_);
+	public:	LG1Planar(const Input& In_,const std::string& name_);
 	~LG1Planar();
 
 	void ComputeLambdas(void);
@@ -15,6 +15,6 @@ class LG1Planar : public LGrad1
 	void UpdateEE(Real*, Real*,Real*);
 	void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool);
 	void UpdateQ(Real*,Real*,Real*,Real*,Real*,bool);
-	bool PutMask(Real* ,vector<int>,vector<int>,vector<int>,int);
+	bool PutMask(Real* ,std::vector<int>,std::vector<int>,std::vector<int>,int);
 };
 #endif

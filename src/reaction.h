@@ -9,44 +9,44 @@
 
 class Reaction {
 public:
-	Reaction(const Input*,vector<Segment*>,vector<State*>,string);
+	Reaction(const Input*,std::span<const std::unique_ptr<Segment>>,std::span<const std::unique_ptr<State>>,std::string);
 
 	~Reaction();
-	vector<State*> Sta; 
-	vector<Segment*> Seg;
-	vector<int> Sto;
-	vector<int> State_nr;
-	vector<int> State_in_seg_nr; 
-	vector<int> Seg_nr; 
+	std::span<const std::unique_ptr<State>> Sta;
+	std::span<const std::unique_ptr<Segment>> Seg;
+	std::vector<int> Sto;
+	std::vector<int> State_nr;
+	std::vector<int> State_in_seg_nr; 
+	std::vector<int> Seg_nr; 
 	Real K;
 	Real pK;
-	string equation;
+	std::string equation;
 	
-	string name; 
+	std::string name; 
 	const Input* In;
-	vector<string> ints;
-	vector<string> Reals;
-	vector<string> bools;
-	vector<string> strings;
-	vector<Real> Reals_value;
-	vector<int> ints_value;
-	vector<bool> bools_value;
-	vector<string> strings_value;
-	void push(string,Real);
-	void push(string,int);
-	void push(string,bool);
-	void push(string,string);
+	std::vector<std::string> ints;
+	std::vector<std::string> Reals;
+	std::vector<std::string> bools;
+	std::vector<std::string> strings;
+	std::vector<Real> Reals_value;
+	std::vector<int> ints_value;
+	std::vector<bool> bools_value;
+	std::vector<std::string> strings_value;
+	void push(std::string,Real);
+	void push(std::string,int);
+	void push(std::string,bool);
+	void push(std::string,std::string);
 	void PushOutput();
-	Real* GetPointer(string,int&);
-	int* GetPointerInt(string,int&);
-	int GetValue(string,int&,Real&,string&);	
+	std::span<Real> GetPointer(std::string);
+	std::span<int> GetPointerInt(std::string);
+	int GetValue(std::string,int&,Real&,std::string&);	
 
-	std::vector<string> KEYS;
+	std::vector<std::string> KEYS;
 	ParameterStore PARAMETERS;
 	bool CheckInput(int);
-	void PutParameter(string); 
-	string GetValue(string); 
-	Real ChemIntBulk(State*);
+	void PutParameter(std::string); 
+	std::string GetValue(std::string); 
+	Real ChemIntBulk(const State&);
 	Real pKeff();
 	Real Residual_value();
 	bool GuessAlpha();

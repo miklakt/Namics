@@ -7,7 +7,7 @@
 #include "tools_host.h"
 class mol_branched : public Molecule
 {
-	public: mol_branched(const Input*,Lattice*,vector<Segment*>,string);
+	public: mol_branched(const Input*,Lattice*,std::span<const std::unique_ptr<Segment>>,std::string);
 	~mol_branched();
 
 	Real* ForwardBra(Real*, int generation, int &s);

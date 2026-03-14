@@ -278,7 +278,7 @@ inline bool ExtractLastEmbeddedInitialGuessObject(const std::string& json_text, 
 
 template <typename RealT>
 inline bool ParseInitialGuessJsonObject(const std::string& object_text,
-                                        RealT* x,
+                                        std::span<RealT> x,
                                         std::string& method,
                                         std::vector<std::string>& monlist,
                                         std::vector<std::string>& statelist,
@@ -332,13 +332,14 @@ inline bool ParseInitialGuessJsonObject(const std::string& object_text,
 		assembled.insert(assembled.end(), values.begin(), values.end());
 	}
 
+	if (x.size() != assembled.size()) return false;
 	for (size_t i = 0; i < assembled.size(); ++i) x[i] = assembled[i];
 	return true;
 }
 
 template <typename RealT>
 inline bool ReadInitialGuessJson(const std::string& filename,
-                                 RealT* x,
+                                 std::span<RealT> x,
                                  std::string& method,
                                  std::vector<std::string>& monlist,
                                  std::vector<std::string>& statelist,
@@ -452,7 +453,7 @@ inline bool ReadExternalPotentialJson(const std::string& filename,
 
 template <typename RealT>
 inline bool ReadInitialGuess(const std::string& filename,
-                             RealT* x,
+                             std::span<RealT> x,
                              std::string& method,
                              std::vector<std::string>& monlist,
                              std::vector<std::string>& statelist,

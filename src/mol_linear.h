@@ -7,7 +7,7 @@
 #include "tools_host.h"
 class mol_linear : public Molecule
 {
-	public: mol_linear(const Input*,Lattice*,vector<Segment*>,string);
+	public: mol_linear(const Input*,Lattice*,std::span<const std::unique_ptr<Segment>>,std::string);
 	~mol_linear();
 
 	bool ComputePhi();

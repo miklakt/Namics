@@ -1,10 +1,10 @@
 #include <iostream>
 #include "LG1Planar.h"
 
-LG1Planar::LG1Planar(const Input& In_,const string& name_): LGrad1(In_,name_) {}
+LG1Planar::LG1Planar(const Input& In_,const std::string& name_): LGrad1(In_,name_) {}
 
 LG1Planar::~LG1Planar() {
-NAMICS_DBG("LG1Planar destructor " << endl);}
+NAMICS_DBG("LG1Planar destructor " << std::endl);}
 
 void LG1Planar:: ComputeLambdas() {
 	for (int i=1; i<MX+1; i++) L[i]=1;
@@ -24,10 +24,11 @@ void LG1Planar:: ComputeLambdas() {
 }
 
 void LG1Planar::Side(Real *X_side, Real *X, int M) {
-NAMICS_DBG(" Side in LG1Planar " << endl);	if (ignore_sites) {
+NAMICS_DBG(" Side in LG1Planar " << std::endl);	if (ignore_sites) {
 		std::copy_n(X, M, X_side); return;
 	}
 	std::fill_n(X_side, M, 0); //set_bounds(X);
+	Real* LAMBDA = this->LAMBDA.data();
 	int kk;
 
 	if (fcc_sites) {
@@ -52,7 +53,7 @@ NAMICS_DBG(" Side in LG1Planar " << endl);	if (ignore_sites) {
 }
 
 void LG1Planar::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) {
-NAMICS_DBG(" propagateF in LG1Planar " << endl);
+NAMICS_DBG(" propagateF in LG1Planar " << std::endl);
 	Real *gs = G+M*FJC*(s_to), *gs_1 = G+M*FJC*(s_from);
 	Real *g = G1;
 
@@ -81,8 +82,8 @@ NAMICS_DBG(" propagateF in LG1Planar " << endl);
 		for (int p=0; p<FJC; p++){
 			a=p-fjc; if (a<0) {b=0; a=-a; } else {b=a; a=0;}
 			for (int q=0; q<FJC; q++) {
-				c=P[abs(-p+q)];
-				if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
+				c=P[std::abs(-p+q)];
+				if (q>0 && q<FJC-1) c+= P[FJC-1-std::abs(FJC-1-p-q)];
 				if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (gs_1+q*M+b)[__i];
 			}
 		}
@@ -91,7 +92,7 @@ NAMICS_DBG(" propagateF in LG1Planar " << endl);
 }
 
 void LG1Planar::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) {
-NAMICS_DBG(" propagateB in LG1Planar " << endl);
+NAMICS_DBG(" propagateB in LG1Planar " << std::endl);
 	Real *gs = G+M*FJC*(s_to), *gs_1 = G+M*FJC*(s_from);
 	Real *g = G1;
 
@@ -120,8 +121,8 @@ NAMICS_DBG(" propagateB in LG1Planar " << endl);
 		for (int q=FJC-1; q>-1; q--){
 			a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
 			for (int p=FJC-1; p>-1; p--) {
-				c=P[abs(-p+q)];
-				if (q>0 && q<FJC-1) c+= P[FJC-1-abs(FJC-1-p-q)];
+				c=P[std::abs(-p+q)];
+				if (q>0 && q<FJC-1) c+= P[FJC-1-std::abs(FJC-1-p-q)];
 				if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (gs_1+q*M+b)[__i];
 			}
 		}
@@ -131,7 +132,8 @@ NAMICS_DBG(" propagateB in LG1Planar " << endl);
 }
 
 void LG1Planar::propagate(Real *G, Real *G1, int s_from, int s_to,int M) {
-NAMICS_DBG(" propagate in LG1Planar " << endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
+NAMICS_DBG(" propagate in LG1Planar " << std::endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
+	Real* LAMBDA = this->LAMBDA.data();
 	int kk;
 	int j;
 	std::fill_n(gs, M, 0); set_bounds(gs_1);
@@ -236,22 +238,21 @@ void LG1Planar::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool 
 		g[x]=-q[x];
 	}
 }
-bool LG1Planar:: PutMask(Real* MASK,vector<int>px,vector<int>py,vector<int>pz,int R){
+bool LG1Planar:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){
 	(void)R;
 	(void)pz;
 	(void)py;
 	(void)px;
 	(void)MASK;
 	bool success=true;
-	cout <<"PutMask does not make sence in planar 1 gradient system " << endl;
+	std::cout <<"PutMask does not make sence in planar 1 gradient system " << std::endl;
 	return success;
 }
 
 Real LG1Planar::MomentPlanar(Real* X, int n, Real Z0){
 	Real result=0;
 	for (int z=0; z<M; z++) {
-		result +=X[z]*pow(z-Z0,n);
+		result +=X[z]*std::pow(z-Z0,n);
 	}
 	return result;
 }
-

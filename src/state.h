@@ -5,49 +5,49 @@
 #include "segment.h"
 class State {
 public:
-	State(const Input*,vector<Segment*>,string);
+	State(const Input*,std::span<const std::unique_ptr<Segment>>,std::string);
 
 	~State();
 	const Input* In;
-	vector<Segment*> Seg;
-	string name; 
-	vector<string> chi_name;
-	vector<Real> chi;
+	std::span<const std::unique_ptr<Segment>> Seg;
+	std::string name; 
+	std::vector<std::string> chi_name;
+	std::vector<Real> chi;
  
 	bool unique;
 	int seg_nr_of_copy;
 	int state_nr_of_copy; 
 	Real valence;
-	string mon_name;
+	std::string mon_name;
 	int mon_nr; //number of the monomer to which the state belongs
 	int state_nr; //number of the state of the monomer it belongs to
 	int state_id; //state number in In->StateList
-	string state_name;
+	std::string state_name;
 	Real alphabulk;
 	bool fixed;
 	bool in_reaction;
 
-	vector<string> ints;
-	vector<string> Reals;
-	vector<string> bools;
-	vector<string> strings;
-	vector<Real> Reals_value;
-	vector<int> ints_value;
-	vector<bool> bools_value;
-	vector<string> strings_value;
-	void push(string,Real);
-	void push(string,int);
-	void push(string,bool);
-	void push(string,string);
+	std::vector<std::string> ints;
+	std::vector<std::string> Reals;
+	std::vector<std::string> bools;
+	std::vector<std::string> strings;
+	std::vector<Real> Reals_value;
+	std::vector<int> ints_value;
+	std::vector<bool> bools_value;
+	std::vector<std::string> strings_value;
+	void push(std::string,Real);
+	void push(std::string,int);
+	void push(std::string,bool);
+	void push(std::string,std::string);
 	void PushOutput();
-	Real* GetPointer(string,int&);
-	int* GetPointerInt(string,int&);
-	int GetValue(string,int&,Real&,string&);	
-	void PutChiKEY(string);
-	std::vector<string> KEYS;
+	std::span<Real> GetPointer(std::string);
+	std::span<int> GetPointerInt(std::string);
+	int GetValue(std::string,int&,Real&,std::string&);	
+	void PutChiKEY(std::string);
+	std::vector<std::string> KEYS;
 	ParameterStore PARAMETERS;
 	bool CheckInput(int);
-	void PutParameter(string); 
-	string GetValue(string); 
+	void PutParameter(std::string); 
+	std::string GetValue(std::string); 
 };
 #endif

@@ -21,22 +21,22 @@ class Solve_scf : public SFNewton {
 public:
 	Solve_scf() {};
 
-	Solve_scf(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,string);
+	Solve_scf(const Input*,Lattice*,std::span<const std::unique_ptr<Segment>>,std::span<const std::unique_ptr<State>>,std::span<const std::unique_ptr<Reaction>>,std::span<const std::unique_ptr<Molecule>>,System*,std::string);
 
 	~Solve_scf();
 
-	string name;
+	std::string name;
 	const Input* In;
 	System* Sys;
-	vector<Segment*> Seg;
+	std::span<const std::unique_ptr<Segment>> Seg;
 	Lattice* lat;
-	vector<Molecule*> Mol;
-	vector<State*> Sta;
-	vector<Reaction*> Rea;
+	std::span<const std::unique_ptr<Molecule>> Mol;
+	std::span<const std::unique_ptr<State>> Sta;
+	std::span<const std::unique_ptr<Reaction>> Rea;
 
 	int start;
-	string SCF_method;
-	string stop_criterion;
+	std::string SCF_method;
+	std::string stop_criterion;
 	int iv;
 	int m, restart_DIIS;
 	bool all;
@@ -46,20 +46,20 @@ public:
 
 	int iterationlimit;
 
-	vector<string> ints;
-	vector<string> Reals;
-	vector<string> bools;
-	vector<string> strings;
-	vector<Real> Reals_value;
-	vector<int> ints_value;
-	vector<bool> bools_value;
-	vector<string> strings_value;
-	void push(string,Real);
-	void push(string,int);
-	void push(string,bool);
-	void push(string,string);
+	std::vector<std::string> ints;
+	std::vector<std::string> Reals;
+	std::vector<std::string> bools;
+	std::vector<std::string> strings;
+	std::vector<Real> Reals_value;
+	std::vector<int> ints_value;
+	std::vector<bool> bools_value;
+	std::vector<std::string> strings_value;
+	void push(std::string,Real);
+	void push(std::string,int);
+	void push(std::string,bool);
+	void push(std::string,std::string);
 	void PushOutput();
-	int GetValue(string,int&,Real&,string&);
+	int GetValue(std::string,int&,Real&,std::string&);
 	enum iteration_method {HESSIAN,PSEUDOHESSIAN,diis,LBFGS};
 	enum inner_iteration_method {super,proceed};
 	enum gradient_method {classical, WEAK};
@@ -68,17 +68,17 @@ public:
 	inner_iteration_method control;
 
 
-	Real *xx;
-	Real *yy;
-	int *SIGN;
+	std::vector<Real> xx;
+	std::vector<Real> yy;
+	std::vector<int> SIGN;
 
-	std::vector<string> KEYS;
+	std::vector<std::string> KEYS;
 	ParameterStore PARAMETERS;
 	bool CheckInput(int);
-	void PutParameter(string);
-	string GetValue(string);
-	void Copy(Real*,Real*,int,int,int,int);
-	bool Guess(Real*,string,vector<string>,vector<string>,bool,int,int,int,int);
+	void PutParameter(std::string);
+	std::string GetValue(std::string);
+	void Copy(std::span<Real>,std::span<const Real>,int,int,int,int);
+	bool Guess(std::span<const Real>,std::string,std::vector<std::string>,std::vector<std::string>,bool,int,int,int,int);
 
 	bool Solve(bool);
 

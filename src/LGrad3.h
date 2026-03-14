@@ -3,7 +3,7 @@
 #include "lattice.h"
 class LGrad3 : public Lattice
 {
-	public:	LGrad3(const Input& In_,const string& name_);
+	public:	LGrad3(const Input& In_,const std::string& name_);
 	~LGrad3();
 
 	void ComputeLambdas(void);
@@ -17,8 +17,8 @@ class LGrad3 : public Lattice
 	void propagate(Real*,Real*, int, int,int);
 	void propagateF(Real*,Real*,Real*, int, int,int);
 	void propagateB(Real*,Real*,Real*, int, int,int);
-	bool ReadRange(int*, int*, int&, bool&, string, int, string, string);
-	bool ReadRangeFile(string,int* H_p,int&, string, string);
+	bool ReadRange(int*, int*, int&, bool&, std::string, int, std::string, std::string);
+	bool ReadRangeFile(std::string,int* H_p,int&, std::string, std::string);
 	bool CreateMASK(Real*, int*, int*, int, bool);
 	Real ComputeTheta(Real*);
 	void UpdateEE(Real*, Real*,Real*);
@@ -40,6 +40,6 @@ class LGrad3 : public Lattice
 	void set_bounds_x(Real*,int,int);
 	void set_bounds_y(Real*,int,int);
 	void set_bounds_z(Real*,int,int);
-	bool PutMask(Real* ,vector<int>,vector<int>,vector<int>,int);
+	bool PutMask(Real* ,std::vector<int>,std::vector<int>,std::vector<int>,int);
 };
 #endif

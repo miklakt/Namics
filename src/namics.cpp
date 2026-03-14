@@ -31,14 +31,14 @@ bool debug = false;
 //Output when the user malforms input. Update when adding new command line switches.
 void improperInput()
 {
-	cerr << "Improper usage: namics [-options] [filename]." << endl
-			 << "Options available:" << endl;
-	cerr << "-d Enables debugging mode." << endl;
+	std::cerr << "Improper usage: namics [-options] [filename]." << std::endl
+			 << "Options available:" << std::endl;
+	std::cerr << "-d Enables debugging mode." << std::endl;
 }
 
 int main(int argc, char *argv[])
 {
-	vector<string> args(argv, argv + argc);
+	std::vector<std::string> args(argv, argv + argc);
 	//Output error if no filename has been specified.
 	if (argc == 1)
 	{
@@ -53,15 +53,15 @@ int main(int argc, char *argv[])
 	}
 
 	// If the specified filename has no extension: add the extension specified below.
-	string extension = "in";
-	ostringstream filename;
+	std::string extension = "in";
+	std::ostringstream filename;
 	filename << args.back();
 	bool hasNoExtension = (filename.str().substr(filename.str().find_last_of(".") + 1) != extension);
 	if (hasNoExtension)
 		filename << "." << extension;
 
 	//If the switch -d is given, enable debug. Add new switches by copying and replacing -d and debug = true.
-	if (find(args.begin(), args.end(), "-d") != args.end())
+	if (std::find(args.begin(), args.end(), "-d") != args.end())
 	{
 		debug = true;
 	}
@@ -69,30 +69,30 @@ int main(int argc, char *argv[])
 	int start = 0;
 	int n_starts = 0;
 
-	string METHOD = "";
-	Real *X = nullptr;
+	std::string METHOD = "";
+	std::vector<Real> X;
 	int MX = 0, MY = 0, MZ = 0;
 	int fjc_old = 0;
 	bool CHARGED = false;
-	vector<string> MONLIST;
-	vector<string> STATELIST;
+	std::vector<std::string> MONLIST;
+	std::vector<std::string> STATELIST;
 
 	// Single ownership
-	unique_ptr<Input> In;              // Inputs read from file
-	unique_ptr<Lattice> Lat;
-	unique_ptr<Lattice> lat_p;
-	unique_ptr<Molecule> mol_p;
-	unique_ptr<Solve_scf> New;         // Solver and iteration scheme
-	unique_ptr<System> Sys;
+	std::unique_ptr<Input> In;              // Inputs read from file
+	std::unique_ptr<Lattice> Lat;
+	std::unique_ptr<Lattice> lat_p;
+	std::unique_ptr<Molecule> mol_p;
+	std::unique_ptr<Solve_scf> New;         // Solver and iteration scheme
+	std::unique_ptr<System> Sys;
 
 	// Multi-instance collections
-	unique_ptr<Output> Out;            // Output written to file
-	vector<Molecule *> Mol;            // Properties of entire molecule
-	vector<Segment *> Seg;             // Properties of molecule segments
-	vector<State *> Sta;
-	vector<Reaction *> Rea;
+	std::unique_ptr<Output> Out;            // Output written to file
+	std::vector<std::unique_ptr<Molecule>> Mol;
+	std::vector<std::unique_ptr<Segment>> Seg;
+	std::vector<std::unique_ptr<State>> Sta;
+	std::vector<std::unique_ptr<Reaction>> Rea;
 
-	In = make_unique<Input>(filename.str());
+	In = std::make_unique<Input>(filename.str());
 	if (In->Input_error)
 	{
 		return 0;
@@ -109,37 +109,37 @@ int main(int argc, char *argv[])
 
 		start++;
 		if (!In->MakeLists(start)) return 0;
-		cout << "Problem nr " << start << " out of " << n_starts << endl;
+		std::cout << "Problem nr " << start << " out of " << n_starts << std::endl;
 
 		/******** Class creation starts here ********/
 
-		lat_p = make_unique<LGrad1>(*In, In->LatList[0]);
+		lat_p = std::make_unique<LGrad1>(*In, In->LatList[0]);
 		if (!lat_p->CheckInput(start,true)) //-1 means that checkinput will stop when gradients and geometry are known.
 		{
 			return 0;
 		} else
 		{ int gradients=lat_p->gradients;
-		  string geometry = lat_p->geometry;
+		  std::string geometry = lat_p->geometry;
 		  bool success;
 			lat_p.reset();
 			switch (gradients) {
 				case 1:
 					if (geometry=="planar") {
-						Lat = make_unique<LG1Planar>(*In,In->LatList[0]);
+						Lat = std::make_unique<LG1Planar>(*In,In->LatList[0]);
 					} else {
-						Lat = make_unique<LGrad1>(*In,In->LatList[0]);
+						Lat = std::make_unique<LGrad1>(*In,In->LatList[0]);
 					}
 
 					break;
 				case 2:
 					if (geometry=="planar") {
-						Lat = make_unique<LG2Planar>(*In,In->LatList[0]);
+						Lat = std::make_unique<LG2Planar>(*In,In->LatList[0]);
 					} else {
-						Lat = make_unique<LGrad2>(*In,In->LatList[0]);
+						Lat = std::make_unique<LGrad2>(*In,In->LatList[0]);
 					}
 					break;
 				case 3:
-					Lat = make_unique<LGrad3>(*In,In->LatList[0]);
+					Lat = std::make_unique<LGrad3>(*In,In->LatList[0]);
 					break;
 			}
 			success=Lat->CheckInput(start,false);
@@ -148,13 +148,19 @@ int main(int argc, char *argv[])
 		}
 
 		int n_seg = In->MonList.size();
+		Seg.clear();
+		Seg.reserve(n_seg);
 		for (int i = 0; i < n_seg; i++) {
-			Seg.push_back(new Segment(In.get(), Lat.get(), In->MonList[i], i, n_seg));
+			Seg.push_back(std::make_unique<Segment>(In.get(), Lat.get(), In->MonList[i], i, n_seg));
 		}
 		//Create state class instance and check inputs
 		int n_stat = In->StateList.size();
+		Sta.clear();
+		Sta.reserve(n_stat);
 		for (int i = 0; i < n_stat; i++)
-			Sta.push_back(new State(In.get(), Seg, In->StateList[i]));
+		{
+			Sta.push_back(std::make_unique<State>(In.get(), Seg, In->StateList[i]));
+		}
 
 		for (int i = 0; i < n_seg; i++)
 		{
@@ -185,39 +191,43 @@ int main(int argc, char *argv[])
 
 		//Create reaction class instance and check inputs
 		int n_rea = In->ReactionList.size();
+		Rea.clear();
+		Rea.reserve(n_rea);
 		for (int i = 0; i < n_rea; i++)
 		{
-			Rea.push_back(new Reaction(In.get(), Seg, Sta, In->ReactionList[i]));
+			Rea.push_back(std::make_unique<Reaction>(In.get(), Seg, Sta, In->ReactionList[i]));
 			if (!Rea[i]->CheckInput(start))
 				return 0;
 		}
 
 		int n_mol = In->MolList.size();
+		Mol.clear();
+		Mol.reserve(n_mol);
 		for (int i = 0; i < n_mol; i++)
 		{
-			mol_p = make_unique<Molecule>(In.get(), Lat.get(), Seg, In->MolList[i]);
+			mol_p = std::make_unique<Molecule>(In.get(), Lat.get(), Seg, In->MolList[i]);
 			if (!mol_p->CheckInput(start,true)) //'true' here means that checkinput can stop wehn Moltype and freedom are known.
 			{
 				return 0;
 			} else {
 				if (mol_p->MolType == monomer) {
-					Mol.push_back(new Molecule(In.get(), Lat.get(), Seg, In->MolList[i]));
+					Mol.push_back(std::make_unique<Molecule>(In.get(), Lat.get(), Seg, In->MolList[i]));
 				} else if (mol_p->MolType == linear) {
-					Mol.push_back(new mol_linear(In.get(), Lat.get(), Seg, In->MolList[i]));
+					Mol.push_back(std::make_unique<mol_linear>(In.get(), Lat.get(), Seg, In->MolList[i]));
 				} else {
-					Mol.push_back(new mol_branched(In.get(), Lat.get(), Seg, In->MolList[i]));
+					Mol.push_back(std::make_unique<mol_branched>(In.get(), Lat.get(), Seg, In->MolList[i]));
 				}
 				mol_p.reset();
 				if (!Mol[i]->CheckInput(start,false)) return 0;
 			}
 		}
 
-		Sys = make_unique<System>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, In->SysList[0]);
+		Sys = std::make_unique<System>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, In->SysList[0]);
 		if (!Sys->CheckInput(start)) return 0;
 		if (!Sys->CheckChi_values(n_seg))return 0;
 
 
-		New = make_unique<Solve_scf>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), In->NewtonList[0]);
+		New = std::make_unique<Solve_scf>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), In->NewtonList[0]);
 		if (!New->CheckInput(start)) return 0;
 
 
@@ -227,7 +237,7 @@ int main(int argc, char *argv[])
 		{
 			MONLIST.clear();
 			STATELIST.clear();
-			if (!io::ReadInitialGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 0))
+			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>{}, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 0))
 			{
 				return 1;
 			}
@@ -246,13 +256,10 @@ int main(int argc, char *argv[])
 
 			if (CHARGED)
 				IV += m;
-			if (start > 0) {
-				free(X);
-				X = (Real *)malloc(IV * sizeof(Real));
-			}
+			X.resize(IV);
 			MONLIST.clear();
 			STATELIST.clear();
-			if (!io::ReadInitialGuess(Sys->guess_inputfile, X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 1)) {
+			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>(X), METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 1)) {
 				return 1;
 			}
 		}
@@ -265,11 +272,11 @@ int main(int argc, char *argv[])
 		// Prepare and create output class instance.
 		Out.reset();
 		if (In->OutputList.empty()) {
-			cout << "Warning: no output defined!" << endl;
+			std::cout << "Warning: no output defined!" << std::endl;
 		} else {
-			Out = make_unique<Output>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), "json");
+			Out = std::make_unique<Output>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), "json");
 			if (!Out->CheckInput(start)) {
-				cout << "input_error in output " << endl;
+				std::cout << "input_error in output " << std::endl;
 				return 0;
 			}
 		}
@@ -280,19 +287,18 @@ int main(int argc, char *argv[])
 
 				New->AllocateMemory();
 
-				if (Sys->initial_guess != "none")
+				if (Sys->initial_guess != "none" && !X.empty())
 				New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
 
 				if (!New->Solve(true)) return 1;
 
 				if (Sys->initial_guess == "previous_result" || Sys->initial_guess == "file") {
 					if (New->iv == IV_new) {
-						std::copy_n(New->xx, IV_new, X);
+						std::copy_n(New->xx.begin(), IV_new, X.begin());
 					} else {
-						if (X!=NULL) free(X);
 						IV_new=New->iv;
-						X = (Real *)malloc(IV_new * sizeof(Real));
-						std::copy_n(New->xx, IV_new, X);
+						X.resize(IV_new);
+						std::copy_n(New->xx.begin(), IV_new, X.begin());
 						MX=Lat->MX;
 						MY=Lat->MY;
 						MZ=Lat->MZ;
@@ -327,10 +333,8 @@ int main(int argc, char *argv[])
 			MZ = Lat->MZ;
 			CHARGED = Sys->charged;
 			IV_new = New->iv;
-			if (start > 1 || (start == 1 && Sys->initial_guess == "file"))
-				free(X);
-			X = (Real *)malloc(IV_new * sizeof(Real));
-			std::copy_n(New->xx, IV_new, X);
+			X.resize(IV_new);
+			std::copy_n(New->xx.begin(), IV_new, X.begin());
 			fjc_old = Lat->fjc;
 			mon_length = Sys->ItMonList.size();
 			state_length = Sys->ItStateList.size();
@@ -353,21 +357,12 @@ int main(int argc, char *argv[])
 		Out.reset();
 		New.reset();
 		Sys.reset();
-		for (int i = 0; i < n_mol; i++)
-			delete Mol[i];
 		Mol.clear();
-		for (int i = 0; i < n_seg; i++)
-			delete Seg[i];
 		Seg.clear();
-		for (int i = 0; i < n_stat; i++)
-			delete Sta[i];
 		Sta.clear();
-		for (int i = 0; i < n_rea; i++)
-			delete Rea[i];
 		Rea.clear();
 		Lat.reset();
 	} //loop over starts.
-	free(X);
 	In.reset();
 	return 0;
 }

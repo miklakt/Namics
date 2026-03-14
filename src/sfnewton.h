@@ -53,9 +53,8 @@ public:
 	int i_info,iv;
 	Real residual;
 	Real epsilon;
-	int* reverseDirection;
-	int* mask;
-	Real* d_Ci;
+	std::vector<int> reverseDirection;
+	std::vector<int> mask;
 	int IV;
 	int iterations;
 	Real minimum;
@@ -66,10 +65,10 @@ public:
 	int getiterations();
 	bool ispseudohessian();
 
-	string GetNewtonInfo(int&);
+	std::string GetNewtonInfo(int&);
 	void COMPUTEG(Real*,Real*,int,bool);
 	void ResetX(Real*,int,bool);
-	bool Message(bool,bool,int, int,Real, Real,string);
+	bool Message(bool,bool,int, int,Real, Real,std::string);
 
 	Real newdirection(Real*, Real*,Real*, Real*,Real*, Real*, int, Real,bool); //there is only one of this.
 	void direction(Real*, Real*, Real*, Real*, Real*, int, Real,Real,bool);
@@ -97,7 +96,7 @@ public:
 
 	bool iterate(Real*,int,int,Real,Real,Real,bool);
 	bool iterate_DIIS(Real*,int,int,int, Real, Real,int);
-	bool iterate_RF(Real*,int,int,Real,Real,string);
+	bool iterate_RF(Real*,int,int,Real,Real,std::string);
 	void Ax(Real*, Real*, int);
 	void DIIS(Real* , Real*, Real*, Real* , Real* ,Real*, int, int , int, int);
 private:

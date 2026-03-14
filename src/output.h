@@ -13,17 +13,17 @@
 
 class Output {
 public:
-	Output(const Input*,Lattice*,vector<Segment*>,vector<State*>,vector<Reaction*>,vector<Molecule*>,System*,Solve_scf*,string);
+	Output(const Input*,Lattice*,std::span<const std::unique_ptr<Segment>>,std::span<const std::unique_ptr<State>>,std::span<const std::unique_ptr<Reaction>>,std::span<const std::unique_ptr<Molecule>>,System*,Solve_scf*,std::string);
 
 ~Output();
 
-	string name;
+	std::string name;
 	const Input* In;
 	Lattice* lat;
-	vector<Segment*> Seg;
-	vector<State*> Sta;
-	vector<Reaction*> Rea;
-	vector<Molecule*> Mol;
+	std::span<const std::unique_ptr<Segment>> Seg;
+	std::span<const std::unique_ptr<State>> Sta;
+	std::span<const std::unique_ptr<Reaction>> Rea;
+	std::span<const std::unique_ptr<Molecule>> Mol;
 	System* Sys;
 	Solve_scf* New;
 	std::shared_ptr<io::json::JsonWriter> json_writer;
@@ -31,37 +31,37 @@ public:
 	bool write_bounds;
 	bool append;
 	bool write;
-	string sep;
+	std::string sep;
 
-  	vector<string> ints;
- 	vector<string> Reals;
- 	vector<string> bools;
-	vector<string> strings;
-  	vector<Real> Reals_value;
-  	vector<int> ints_value;
-  	vector<bool> bools_value;
-  	vector<string> strings_value;
+  	std::vector<std::string> ints;
+ 	std::vector<std::string> Reals;
+ 	std::vector<std::string> bools;
+	std::vector<std::string> strings;
+  	std::vector<Real> Reals_value;
+  	std::vector<int> ints_value;
+  	std::vector<bool> bools_value;
+  	std::vector<std::string> strings_value;
 
-	std::vector<string> OUT_key;
-	std::vector<string> OUT_name;
-	std::vector<string> OUT_prop;
+	std::vector<std::string> OUT_key;
+	std::vector<std::string> OUT_name;
+	std::vector<std::string> OUT_prop;
 
 
-	std::vector<string> KEYS;
+	std::vector<std::string> KEYS;
 	ParameterStore PARAMETERS;
 	bool CheckInput(int);
-	void PutParameter(string);
-	string GetValue(string);
+	void PutParameter(std::string);
+	std::string GetValue(std::string);
 	bool Load();
 	void WriteOutput(int);
-	int GetValue(string, string, string, int&, Real&, string&);
-	Real* GetPointer(string, string, string, int&);
-	int* GetPointerInt(string, string, string, int&);
-	int GetValue(string, string, int& , Real& , string&);
-	void push(string, Real);
-	void push(string, int);
-	void push(string, bool);
-	void push(string, string);
+	int GetValue(std::string, std::string, std::string, int&, Real&, std::string&);
+	std::span<Real> GetPointer(std::string, std::string, std::string);
+	std::span<int> GetPointerInt(std::string, std::string, std::string);
+	int GetValue(std::string, std::string, int& , Real& , std::string&);
+	void push(std::string, Real);
+	void push(std::string, int);
+	void push(std::string, bool);
+	void push(std::string, std::string);
 
 };
 #endif

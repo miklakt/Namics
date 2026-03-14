@@ -7,7 +7,7 @@
 
 extern bool debug;
 
-// Expands to a compiler-specific function signature string used in debug output.
+// Expands to a compiler-specific function signature used in debug output.
 #if defined(_MSC_VER)
 #define NAMICS_FUNCTION_SIGNATURE __FUNCSIG__
 #elif defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER) || defined(__clang__) || defined(__GNUC__)
@@ -54,7 +54,7 @@ inline void DBG_Emit(const char* file,
 
 /**
  * Convenience macro for stream-style debug messages.
- * Use it as: NAMICS_DBG("text " << value << endl);
+ * Use it as: NAMICS_DBG("text " << value << std::endl);
  */
 #define NAMICS_DBG(message_expr)                                                        \
 	do {                                                                                \

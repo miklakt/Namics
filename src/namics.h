@@ -18,9 +18,9 @@
 #include <span>
 
 #include <iomanip>
+#include <memory>
 #include "debug_log.h"
 
-using namespace std;
 using ParameterStore = std::unordered_map<std::string, std::string>;
 //these are our options.
 #ifdef LongReal
@@ -31,7 +31,7 @@ typedef double Real;
 
 
 
-//I.V. Ionova, E.A. Carter, "Error vector choice in direct inversion in the iterative subspace method, J. Compt. Chem. 17, 1836-1847, 1996.
+//I.V. Ionova, E.A. Carter, "Error std::vector choice in direct inversion in the iterative subspace method, J. Compt. Chem. 17, 1836-1847, 1996.
 
 extern Real e;
 extern Real T;

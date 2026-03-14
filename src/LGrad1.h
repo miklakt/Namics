@@ -3,7 +3,7 @@
 #include "lattice.h"
 class LGrad1 : public Lattice
 {
-	public: LGrad1(const Input& In_,const string& name_);
+	public: LGrad1(const Input& In_,const std::string& name_);
 	virtual ~LGrad1();
 
 
@@ -13,8 +13,8 @@ class LGrad1 : public Lattice
 	Real Moment(Real*,Real,int);
 	Real MomentPlanar(Real*,int,Real);
 	Real WeightedSum(Real*);
-	bool ReadRange(int*, int*, int&, bool&, string, int, string, string);
-	bool ReadRangeFile(string,int* H_p,int&, string, string);
+	bool ReadRange(int*, int*, int&, bool&, std::string, int, std::string, std::string);
+	bool ReadRangeFile(std::string,int* H_p,int&, std::string, std::string);
 	bool CreateMASK(Real*, int*, int*, int, bool);
 	Real ComputeTheta(Real*);
 	void remove_bounds(Real*);
@@ -37,6 +37,6 @@ class LGrad1 : public Lattice
 	virtual void AddPhiS(Real*,Real*,Real*,Real,int, int);
 	virtual void Initiate(Real*,Real*,int, int);
 	virtual void Terminate(Real*,Real*,int,int);
-	bool PutMask(Real* ,vector<int>,vector<int>,vector<int>,int);
+	bool PutMask(Real* ,std::vector<int>,std::vector<int>,std::vector<int>,int);
 };
 #endif
