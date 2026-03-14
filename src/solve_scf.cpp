@@ -2,10 +2,9 @@
 #include <iostream>
 
 Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, vector<State*> Sta_, vector<Reaction*> Rea_, vector<Molecule*> Mol_,System* Sys_,string name_) :
-	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, Lat{Lat_}, Mol{Mol_}, Sta{Sta_}, Rea{Rea_}
+	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, lat{Lat_}, Mol{Mol_}, Sta{Sta_}, Rea{Rea_}
 {
 NAMICS_DBG("Constructor in Solve_scf " << endl);
-	lat=Lat;
 	KEYS.push_back("method");
 	KEYS.push_back("x_info");
 	KEYS.push_back("e_info"); KEYS.push_back("s_info");KEYS.push_back("i_info");KEYS.push_back("t_info");KEYS.push_back("hs_info");
@@ -23,7 +22,6 @@ NAMICS_DBG("Constructor in Solve_scf " << endl);
 	KEYS.push_back("m");
 	KEYS.push_back("n_restart_DIIS");
 	max_g = false; // compute g based on max error
-	rescue_status = NONE;
 	all=false;
 	restart_DIIS =0;
 	xx = nullptr;
@@ -55,9 +53,6 @@ NAMICS_DBG("AllocateMemeory in Solve " << endl);
 	int M=lat->M;
 	iv = (Sys->ItMonList.size() + Sys->ItStateList.size())* M;
 	if (Sys->charged) iv += M;
-	if (Sys->constraintfields) iv +=M;
-	int length = In->MonList.size();
-	for (int i = 0; i < length; i++) iv+=Seg[i]->constraint_z.size();
 	xx = new Real[iv]();
 	int niv = In->ReactionList.size();
 	if (niv>0) {
@@ -174,9 +169,6 @@ NAMICS_DBG("CheckInput in Solve " << endl);
 			m=ParseInt(GetValue("m"),6);
 			if (m < 0 ||m>1000) {m=6;  cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<endl; }
 		}
-
-		StoreFileGuess=ParseString(GetValue("store_guess"),"");
-		ReadFileGuess=ParseString(GetValue("read_guess"),"");
 		if (GetValue("stop_criterion").size() > 0) {
 			vector<string>options;
 			options.push_back("norm_of_g");
@@ -483,7 +475,7 @@ NAMICS_DBG("Solve in  Solve_scf " << endl);
 		case LBFGS:
 			success=true;
 			{
-			SCF_LBFGS fun(In,Lat,Seg,Sta,Rea,Mol,Sys);
+			SCF_LBFGS fun(In,lat,Seg,Sta,Rea,Mol,Sys);
 			LBFGSParam<Real> param;
 			param.epsilon=tolerance;
 			param.m=m;
@@ -606,34 +598,4 @@ NAMICS_DBG("inneriteration in Solve_scf " << endl);
 
 		break;
 	}
-}
-
-bool Solve_scf::attempt_DIIS_rescue() {
-	cout << "Attempting rescue!" << endl;
-	switch (rescue_status) {
-		case NONE:
-			cout << "Zeroing iteration variables." << endl;
-			std::fill_n(xx, iv, 0);
-			rescue_status = ZERO;
-			break;
-		case ZERO:
-			cout << "Adjusting memory depth." << endl;
-			m *= 0.5;
-			cout << "Zeroing iteration variables." << endl;
-			std::fill_n(xx, iv, 0);
-			rescue_status = M;
-			break;
-		case M:
-			cout << "Decreasing delta_max." << endl;
-			deltamax *= 0.1;
-			cout << "Zeroing iteration variables." << endl;
-			std::fill_n(xx, iv, 0);
-			rescue_status = DELTA_MAX;
-			break;
-		case DELTA_MAX:
-			cerr << "Exhausted all rescue options. Crash is imminent, exiting." << endl;
-			exit(0);
-			break;
-	}
-	return true;
 }

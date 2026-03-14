@@ -472,7 +472,6 @@ bool Input::MakeLists(int start) {
 	test_count(LatList,"lat",1,1,"There must be exactly one 'lat name' in the input");
 	test_count(NewtonList,"newton",0,1,"There can be no more than 1 'newton name' in input");
 	if (NewtonList.size()==0) NewtonList.push_back("NN");
-	test_count(NewtonList,"newton",0,1,"There can be no more than 1 'newton name' in input");
 	test_count(MonList,"mon",1,1000,"There must be at least one 'mon name' in input");
 	test_count(StateList,"state",0,1000,"There can not be more than 1000 'state name's in input");
 	test_count(ReactionList,"reaction",0,1000,"There can not be more than 1000 reaction name's in input");

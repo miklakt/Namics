@@ -119,7 +119,6 @@ public:
 	virtual void Side(Real *, Real *, int) =0;
 	virtual bool ReadRange(int*, int*, int&, bool&, string, int, string, string)=0;
 	virtual bool ReadRangeFile(string,int* H_p,int&, string, string) =0;
-	virtual bool FillMask(Real*, vector<int>, vector<int>, vector<int>, string)=0;
 	virtual bool CreateMASK(Real*, int*, int*, int, bool) =0;
 	virtual Real ComputeTheta(Real*) =0;
 	virtual void UpdateEE(Real*, Real*,Real*) =0;

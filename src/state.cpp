@@ -6,21 +6,7 @@ State::State(const Input* In_,vector<Segment*> Seg_, string name_) {
 	KEYS.push_back("valence");
 	KEYS.push_back("mon");
 }
-State::~State() {
-	DeAllocateMemory();
-}
-void State::DeAllocateMemory(){
-NAMICS_DBG("Destructor for State " + name << endl);}
-
-void State::AllocateMemory(int Clamp_nr, int n_box) {
-	(void)n_box;
-	(void)Clamp_nr;
-NAMICS_DBG("AllocateMemory in State " + name << endl);
-}
-
-void State::PrepareForCalculations() {
-NAMICS_DBG("PrepareForCalculations in State " + name << endl);
-}
+State::~State() = default;
 
 
 void State::PutParameter(string new_param) {

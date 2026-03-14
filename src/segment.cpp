@@ -2,9 +2,9 @@
 #include "io_utils.h"
 
 Segment::Segment(const Input* In_,Lattice* Lat_, string name_,int segnr,int N_seg) {
-	In=In_; Lat=Lat_; name=name_; n_seg=N_seg; seg_nr=segnr; prepared = 0;
+	In=In_; name=name_; n_seg=N_seg; seg_nr=segnr;
 NAMICS_DBG("Segment constructor" + name << endl);
-	lat=Lat;
+	lat=Lat_;
 	KEYS.push_back("freedom");
 	KEYS.push_back("valence");
 	KEYS.push_back("epsilon");
@@ -15,18 +15,12 @@ NAMICS_DBG("Segment constructor" + name << endl);
 	KEYS.push_back("frozen_filename");
 	KEYS.push_back("external_potential_filename");
 	KEYS.push_back("var_pos");
-	KEYS.push_back("phi");
 	KEYS.push_back("set_equal_to");
 	var_pos=0;
 	ns=1;
 	all_segment=false;
-	constraints=false;
 	phibulk=0;
 	freedom="free";
-	used_in_mol_nr=-2;
-	phi_LB_X=phi_UB_X=0;
-	phi_LB_Y=phi_UB_Y=0;
-	B=1; J=0;
 }
 Segment::~Segment() {
 NAMICS_DBG("Segment destructor " + name << endl);
@@ -37,7 +31,6 @@ void Segment::DeAllocateMemory(void){
 NAMICS_DBG( "In Segment, Deallocating memory " + name << endl);
 if (!all_segment) return;
 
-	free(r);
 	free(H_u);
 	free(H_u_ext); //cout <<"H_u_ext dismissed" << endl;
 	free(H_phi);
@@ -55,7 +48,7 @@ NAMICS_DBG("Allocate Memory in Segment " + name << endl);
 	DeAllocateMemory();
 	int M=lat->M;
 	ns=state_name.size(); if (ns==0) ns=1;
-	r=(int*) malloc(6*sizeof(int)); std::fill(r,r+6,0);
+	r.fill(0);
 	H_u = (Real*) malloc(M*ns*sizeof(Real));
 	H_u_ext = (Real*) malloc(M*sizeof(Real));
 	H_phi = (Real*) malloc(M*sizeof(Real));
@@ -86,7 +79,7 @@ NAMICS_DBG("Allocate Memory in Segment " + name << endl);
 	if (freedom!="free"&& !HMaskDone) {
 		r[0]*=lat->fjc; r[1]*=lat->fjc; r[2]*=lat->fjc;
 		r[3]=(r[3]+1)*lat->fjc-1;r[4]=(r[4]+1)*lat->fjc-1;r[5]=(r[5]+1)*lat->fjc-1;
-		lat->CreateMASK(H_MASK,r,H_P,n_pos,block);
+		lat->CreateMASK(H_MASK,r.data(),H_P,n_pos,block);
 	}
 	if (!success) cout <<"errors occurred.... progress uncertain...." << endl;
 
@@ -97,6 +90,7 @@ bool Segment::ParseFreedoms(bool& HMaskDone) {
 NAMICS_DBG("ParseFreedoms " << endl);
 	bool success=true;
 	if (freedom == "pinned") {
+		string freedom_source;
 		int fjc = lat->fjc;
 		int n_layers_x=(lat->MX)/fjc;
 		int n_layers_y=(lat->MY)/fjc;
@@ -104,7 +98,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 
 
 		if (GetValue("pinned_range").size()>0) {
-			s_freedom="pinned_range";
+			freedom_source="pinned_range";
 			string p_range=GetValue("pinned_range");
 			vector<string>sub;
 			In->split(p_range,';',sub);
@@ -208,25 +202,26 @@ NAMICS_DBG("ParseFreedoms " << endl);
 
 
 			n_pos=0;
-			if (success) success=lat->ReadRange(r, H_P, n_pos, block, p_range,var_pos,name,s_freedom);
+			if (success) success=lat->ReadRange(r.data(), H_P, n_pos, block, p_range,var_pos,name,freedom_source);
 			if (n_pos>0) {
 				H_P=(int*) malloc(n_pos*sizeof(int)); std::fill(H_P, H_P+n_pos, 0);
-				if (success) success=lat->ReadRange(r, H_P, n_pos, block, p_range,var_pos,name,s_freedom);
+				if (success) success=lat->ReadRange(r.data(), H_P, n_pos, block, p_range,var_pos,name,freedom_source);
 			}
 		}
-		if (GetValue("pinned_filename").size()>0) { s_freedom="pinned";
+		if (GetValue("pinned_filename").size()>0) { freedom_source="pinned";
 			block=false;
-			filename=GetValue("pinned_filename");
+			const string filename=GetValue("pinned_filename");
 			n_pos=0;
-			if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,s_freedom);
+			if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,freedom_source);
 			if (n_pos>0) {
 				H_P=(int*) malloc(n_pos*sizeof(int)); std::fill(H_P, H_P+n_pos, 0);
-				if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,s_freedom);
+				if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,freedom_source);
 			}
 		}
 	}
 
 	if (freedom == "frozen") {
+		string freedom_source;
 		int n_layers_x=(lat->MX)/lat->fjc;
 		int n_layers_y=(lat->MY)/lat->fjc;
 		int n_layers_z=(lat->MZ)/lat->fjc;
@@ -243,7 +238,7 @@ NAMICS_DBG("ParseFreedoms " << endl);
 			cout<< "For mon " + name + ", you should provide either 'frozen_range' or 'frozen_filename' " <<endl; success=false;
 		}
 		if (GetValue("frozen_range").size()>0) {
-			s_freedom="frozen_range";
+			freedom_source="frozen_range";
 			string f_range=GetValue("frozen_range");
 			vector<string>sub;
 			In->split(f_range,';',sub);
@@ -388,20 +383,20 @@ NAMICS_DBG("ParseFreedoms " << endl);
 
 
 			n_pos=0;
-			success=lat->ReadRange(r, H_P, n_pos, block, f_range,var_pos,name,s_freedom);
+			success=lat->ReadRange(r.data(), H_P, n_pos, block, f_range,var_pos,name,freedom_source);
 			if (n_pos>0) {
 				H_P=(int*) malloc(n_pos*sizeof(int)); std::fill(H_P, H_P+n_pos, 0);
-				success=lat->ReadRange(r, H_P, n_pos, block, f_range,var_pos,name,s_freedom);
+				success=lat->ReadRange(r.data(), H_P, n_pos, block, f_range,var_pos,name,freedom_source);
 			}
 		}
-		if (GetValue("frozen_filename").size()>0) { s_freedom="frozen";
+		if (GetValue("frozen_filename").size()>0) { freedom_source="frozen";
 			block=false;
-			filename=GetValue("frozen_filename");
+			const string filename=GetValue("frozen_filename");
 			n_pos=0;
-			if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,s_freedom);
+			if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,freedom_source);
 			if (n_pos>0) {
 				H_P=(int*) malloc(n_pos*sizeof(int)); std::fill(H_P, H_P+n_pos, 0);
-				if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,s_freedom);
+				if (success) success=lat->ReadRangeFile(filename,H_P,n_pos,name,freedom_source);
 			}
 		}
 	}
@@ -499,34 +494,6 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << endl);
 	return success;
 }
 
-void Segment::PutContraintBC() {
-NAMICS_DBG("PutConstraintBC Segment " + name << endl);
-	int gradients=lat->gradients;
-	int M=lat->M;
-	int MX=lat->MX;
-	int MY=lat->MY;
-	int JX=lat->JX;
-	switch (gradients) {
-		case 1:
-
-			if (phi_LB_X>0) phi[0]=phi_LB_X;
-			if (phi_UB_X>0) phi[M-1]=phi_UB_X;
-			break;
-		case 2:
-				for (int x=1; x<MX+1; x++) {
-					phi[x*JX+0] = phi_LB_Y;
-					phi[x*JX+MY+1]=phi_UB_Y;
-				}
-				for (int y=1; y<MY+1; y++) {
-					phi[0+y] = phi_LB_X;
-					phi[(MX+1)*JX+y]=phi_UB_X;
-				}
-			break;
-		default:
-			break;
-	}
-}
-
 bool Segment::CheckInput(int start_) {
 NAMICS_DBG("CheckInput in Segment " + name << endl);
 	bool success;
@@ -544,7 +511,7 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 	if(success) {
 		if (GetValue("var_pos").size()>0) var_pos=ParseInt(GetValue("var_pos"),0);
 
-		copy_of.clear();
+		string copy_of;
 		if (GetValue("set_equal_to").size()>0) {
 			copy_of=GetValue("set_equal_to");
 			if (copy_of=="?") { success=false;
@@ -639,80 +606,13 @@ NAMICS_DBG("CheckInput in Segment " + name << endl);
 		}
 	}
 
-
-	if (GetValue("phi").size()>0){
-		constraints=true;
-		string s = GetValue("phi");
-		if (lat->gradients > 1 ) {success=false; cout <<"Constraints in phi only allowed in one-gradient calculations. (for the time being)" << endl; }
-		if (s=="?") {
-				cout <<"Expect for the argument of 'phi' a sequence of z_values and corresponding volume fractions: " << endl;
-				cout <<"(z_value_1,phi_value_1)(z_value_2,phi_value_2) ....(z_value_last,phi_value_last)" << endl;
-				cout <<"'z_value' should be in range 1 .. " + lat->MX << endl;
-				cout <<"'phi_value' should be in range 0 .. 1 " << endl;
-			  success=false;
-		}
-		vector<int> open;
-		vector<int> close;
-		vector<string>sub;
-		open.clear(); close.clear();
-		if (!In->EvenBrackets(s,open,close)) {
-			cout << "s : " << s << endl;
-			cout << "In constraints for segment " + name + " the backets are not balanced. For help use: 'mon : " +name + " : phi : ?' " << endl; success=false;
-		}
-		int length=open.size();
-		int k=0;
-		while (k<length and success) {
-			string sA=s.substr(open[k]+1,close[k]-open[k]-1);
-			sub.clear();
-			In->split(sA,',',sub);
-			if (sub.size()!=2) {
-				cout <<"In constraints for segment " + name + "failed to understand '" + sA + "' no valid '(z,phi)' pair found. For help use: 'mon : " +name + " : phi : ?' " << endl;
-				success=false;
-				break;
-			}
-				int zz=ParseInt(sub[0],0);
-				Real RHO=ParseReal(sub[1],-1);
-				if (zz<1 || zz>lat->MX) {
-					cout <<"In constraints for segment " + name + "failed to understand '" + sA + "' no valid integer found for first argument. For help use: 'mon : " +name + " : phi : ?' " << endl; success=false;
-				} else constraint_z.push_back(zz);
-				if (RHO<0 ||RHO>1) {
-					cout <<"In constraints for segment " + name + "failed to understand '" + sA + "' no valid Real found for second argument. For help use: 'mon : " +name + " : phi : ?' " << endl; success=false;
-				} else constraint_phi.push_back(RHO);
-				constraint_beta.push_back(0);
-			k++;
-		}
-	}
-
-	if (constraints) {
-		int length = constraint_z.size();
-		cout <<"constraints for monomer type " + name << endl;
-		for (int i=0; i<length; i++){
-			cout << "constraint z =" << constraint_z[i] << " constraint phi = " << constraint_phi[i] << endl;
-		}
-	}
-
 	bool HMD=false;
 	H_MASK = (Real*) malloc(lat->M*sizeof(Real));
-	r=(int*) malloc(6*sizeof(int)); std::fill(r,r+6,0);
+	r.fill(0);
 	if (success) success=ParseFreedoms(HMD);
 	free(H_MASK);
 	if(n_pos>0) free(H_P);
-	free(r);
 	return success;
-}
-
-string Segment::GetOriginal() {
-	return copy_of;
-}
-
-Real Segment::Get_g(int ii) {
-	NAMICS_DBG("Get_g" + name << endl);
-	return constraint_phi[ii]/phi[constraint_z[ii]]-1.0;
-}
-
-void Segment::Put_beta(int ii, Real BETA) {
-	constraint_beta[ii]=BETA; //just to enable it to be outputted.
-	u[constraint_z[ii]] +=BETA;
 }
 
 void Segment::SetPhiSide(){
@@ -730,37 +630,6 @@ NAMICS_DBG("SetPhiSide in Segment " + name << endl);
 	}
 }
 
-
-Real* Segment::GetMASK() {
-NAMICS_DBG("Get Mask for segment" + name << endl);
-	if (MASK==NULL) {cout <<"MASK not yet created. Task to point to MASK in segment is rejected. " << endl; return NULL;}
-	else return MASK;
-}
-
-Real* Segment::GetPhi() {
-NAMICS_DBG("GetPhi in segment " + name << endl);
-	int M=lat->M;
-	if (freedom=="frozen") std::copy_n(MASK, M, phi);
-	return phi;
-}
-
-string Segment::GetFreedom(void){
-NAMICS_DBG("GetFreedom for segment " + name << endl);
-	return freedom;
-}
-bool Segment::IsFree(void) {
-NAMICS_DBG("Is free for " + name << endl);
-	return freedom == "free";
-}
-bool Segment::IsPinned(void) {
-NAMICS_DBG("IsPinned for segment " + name << endl);
-	return freedom == "pinned";
-}
-bool Segment::IsFrozen(void) {
-NAMICS_DBG("IsFrozen for segment " + name << endl);
-	phibulk =0;
-	return freedom == "frozen";
-}
 void Segment::PutChiKEY(string new_name) {
 NAMICS_DBG("PutChiKey " + name << endl);
 	KEYS.push_back("chi_" + new_name);
@@ -808,8 +677,6 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 	Reals_value.clear();
 	push("freedom",freedom);
 	push("valence",valence);
-	push("B",B);
-	push("J",J);
 	Real theta=0;
 	theta = lat->WeightedSum(phi);
 	push("theta",theta);
@@ -852,22 +719,19 @@ NAMICS_DBG("PushOutput for segment " + name << endl);
 		push("var_pos",var_pos);
 	}
 	if (freedom=="free") {
-		M1=0;
-		if (theta_exc !=0) M1=lat->Moment(phi,phibulk,1)/theta_exc;
-	 	M2=0;
-		if (theta_exc !=0) M2=lat->Moment(phi,phibulk,2)/theta_exc;
-		if (M2 !=0) RMS=pow(M2,0.5);
+		Real first_moment = 0;
+		Real second_moment = 0;
+		Real fluctuations = 0;
+		if (theta_exc !=0) first_moment=lat->Moment(phi,phibulk,1)/theta_exc;
+		if (theta_exc !=0) second_moment=lat->Moment(phi,phibulk,2)/theta_exc;
+		if (second_moment !=0) RMS=pow(second_moment,0.5);
 		push("RMS",RMS);
-		push("1st_M_phi_z",M1);
-		push("2nd_M_phi_z",M2);
-		Fl = (M2-M1*M1);
-		if (Fl >0) Fl = sqrt(Fl); else Fl=0;
-		push("fluctuations",Fl);
+		push("1st_M_phi_z",first_moment);
+		push("2nd_M_phi_z",second_moment);
+		fluctuations = (second_moment-first_moment*first_moment);
+		if (fluctuations >0) fluctuations = sqrt(fluctuations); else fluctuations=0;
+		push("fluctuations",fluctuations);
 	}
-	push("phi_LB_x",phi_LB_X);
-	push("phi_UB_x",phi_UB_X);
-	push("phi_LB_y",phi_LB_Y);
-	push("phi_UB_y",phi_UB_Y);
 	if (ns>1) {
 		state_theta.clear();
 		for (int i=0; i<ns; i++){

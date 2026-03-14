@@ -10,6 +10,7 @@ mol_branched::mol_branched(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_,
 mol_branched::~mol_branched() { }
 
 void mol_branched::BackwardBra2ndO(Real* G_start, int generation,int &unity, int &s){
+	(void)G_start;
 NAMICS_DBG("BackwardBra2ndO in mol_branched " << endl);
 	int b0 = first_b[generation];
 	int bN = last_b[generation];
@@ -24,22 +25,12 @@ NAMICS_DBG("BackwardBra2ndO in mol_branched " << endl);
 			Br.clear(); Gb.clear();
 			while (Gnr[k] != generation){
 				Br.push_back(Gnr[k]);
-				if (save_memory) {
-					Gb.push_back(Gg_f+last_stored[k]*M*size);
-				} else {
-					Gb.push_back(Gg_f+last_s[Gnr[k]]*M*size);
-				}
-
+				Gb.push_back(Gg_f+last_s[Gnr[k]]*M*size);
 				ss=first_s[Gnr[k]];
 				k-=(last_b[Gnr[k]]-first_b[Gnr[k]]+1) ;
 			}
 			Br.push_back(generation); ss--;
-			if (save_memory) {
-				Gb.push_back(Gg_f+last_stored[k]*M*size);
-			} else {
-				Gb.push_back(Gg_f+ss*M*size); //backbone last before branch point.
-
-			}
+			Gb.push_back(Gg_f+ss*M*size); //backbone last before branch point.
 			int length = Br.size();
 			Real* GX= (Real*) malloc(length*M*sizeof(Real));
 
@@ -78,32 +69,8 @@ NAMICS_DBG("BackwardBra2ndO in mol_branched " << endl);
 			free(GX);
 			k++;
 		} else {
-			if (generation==0) {
-				if (ring) {
-					if (k==bN) {
-						lat->Initiate(Gg_b + (s%2)*M*size,G_start,Markov,M);
-						lat->AddPhiS(rho+molmon_nr[k]*M, Gg_f+s*M*size, Gg_b+(s%2)*M*size,Markov, M);
-						s--;
-					} else {
-						if (k==bN-1) {
-							N= n_mon[k];
-							for (int b=0; b<N; b++) {
-								lat->propagateB(Gg_b,Seg[mon_nr[k]]->G1,P,(s+1)%2,s%2,M);
-								lat->AddPhiS(rho+molmon_nr[k]*M, Gg_f+s*M*size, Gg_b+(s%2)*M*size, Markov,M);
-								s--;
-							}
-						} else
-						if (k>b0) {
-							propagate_backward(Seg[mon_nr[k]]->G1,s,k,P,unity,M); unity=0;
-						}
-					}
-				} else {
-					propagate_backward(Seg[mon_nr[k]]->G1,s,k,P,unity,M);unity=0;
-				}
-
-			} else {
-				propagate_backward(Seg[mon_nr[k]]->G1,s,k,P,unity,M); unity=0;
-			}
+			propagate_backward(Seg[mon_nr[k]]->G1,s,k,P,unity,M);
+			unity=0;
 		}
 	}
 	free(GS); free(GB);
@@ -144,21 +111,11 @@ NAMICS_DBG("ForwardBra2nd0 in mol_branched " << endl);
 					for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
 				}
 				for (int t=0; t<size; t++) for (int __i = 0; __i < (M); ++__i) (GB+M*size+t*M)[__i] = (GB+M*size+t*M)[__i] * (GS+2*M)[__i]; //all side freely jointed
-				if (save_memory) {
-					std::copy_n(GB+M*size, M*size, Gs); std::copy_n(GB+M*size, M*size, Gs+M*size);
-					std::copy_n(GB+M*size, M*size, Gg_f+(memory[k]-1)*M*size); //correct because in this block there is just one segment.
-				} else {
-					std::copy_n(GB+M*size, M*size, Gg_f+s*M*size);
-				}
+				std::copy_n(GB+M*size, M*size, Gg_f+s*M*size);
 				s++;
 			}
 		} else {
-			if (k==0 && ring) {
-				lat->Initiate(Gg_f,G0,Markov,M); s++;
-			} else {
-				Glast=propagate_forward(Seg[mon_nr[k]]->G1,s,k,P,generation,M);
-			}
-
+			Glast=propagate_forward(Seg[mon_nr[k]]->G1,s,k,P,generation,M);
 		}
 	}
 	free(GS); free(GB);
@@ -168,6 +125,7 @@ NAMICS_DBG("ForwardBra2nd0 in mol_branched " << endl);
 
 
 void mol_branched::BackwardBra(Real* G_start, int generation, int &s){
+	(void)G_start;
 NAMICS_DBG("BackwardBr in mol_branched " << endl);
 
 	int b0 = first_b[generation];
@@ -175,7 +133,6 @@ NAMICS_DBG("BackwardBr in mol_branched " << endl);
 	vector<int> Br;
 	vector<Real*> Gb;
 	int M=lat->M;
-	int N;
 	Real* GS= (Real*) malloc(4*M*sizeof(Real));
 	int ss=0;
 	for (int k = bN ; k >= b0 ; k--){
@@ -183,21 +140,12 @@ NAMICS_DBG("BackwardBr in mol_branched " << endl);
 			Br.clear(); Gb.clear();
 			while (Gnr[k] != generation){
 				Br.push_back(Gnr[k]);
-				if (save_memory) {
-					Gb.push_back(Gg_f+last_stored[k]*M);
-				} else {
-					Gb.push_back(Gg_f+last_s[Gnr[k]]*M);
-				}
-
+				Gb.push_back(Gg_f+last_s[Gnr[k]]*M);
 				ss=first_s[Gnr[k]];
 				k-=(last_b[Gnr[k]]-first_b[Gnr[k]]+1) ;
 			}
 			Br.push_back(generation); ss--;
-			if (save_memory) {
-				Gb.push_back(Gg_f+last_stored[k]*M);
-			} else {
-				Gb.push_back(Gg_f+ss*M);
-			}
+			Gb.push_back(Gg_f+ss*M);
 			int length = Br.size();
 			Real* GX= (Real*) malloc(length*M*sizeof(Real));
 			for (int i=0; i<length; i++) std::copy_n(Gb[i], M, GX+i*M);
@@ -220,27 +168,7 @@ NAMICS_DBG("BackwardBr in mol_branched " << endl);
 			free(GX);
 			k++;
 		} else {
-			if (generation==0) {
-				if (ring) {
-					if (k==bN) {
-						lat->Initiate(Gg_b + (s%2)*M,G_start,Markov,M);
-						lat->AddPhiS(rho+molmon_nr[k]*M, Gg_f+s*M, Gg_b+(s%2)*M,Markov, M);
-						s--;
-					} else {
-						if (k==bN-1) {
-							N= n_mon[k];
-							for (int b=0; b<N; b++) {
-								lat->propagate(Gg_b,Seg[mon_nr[k]]->G1,(s+1)%2,s%2,M);
-								lat->AddPhiS(rho+molmon_nr[k]*M, Gg_f+s*M, Gg_b+(s%2)*M, Markov,M);
-								s--;
-							}
-						} else
-						if (k>b0) propagate_backward(Seg[mon_nr[k]]->G1,s,k,generation,M);
-					}
-				} else propagate_backward(Seg[mon_nr[k]]->G1,s,k,generation,M);
-
-			} else
-				propagate_backward(Seg[mon_nr[k]]->G1,s,k,generation,M);
+			propagate_backward(Seg[mon_nr[k]]->G1,s,k,generation,M);
 		}
 
 	}
@@ -277,21 +205,11 @@ NAMICS_DBG("ForwardBra in mol_branched " << endl);
 					lat->propagate(GS,UNITY,0,1,M);
 					for (int __i = 0; __i < (M); ++__i) (GS+2*M)[__i] = (GS+2*M)[__i] * (GS+M)[__i];
 				}
-				if (save_memory) {
-					std::copy_n(GS+2*M, M, Gs); std::copy_n(GS+2*M, M, Gs+M);
-					std::copy_n(GS+2*M, M, Gg_f+(memory[k]-1)*M); //correct because in this block there is just one segment.
-				} else {
-					std::copy_n(GS+2*M, M, Gg_f+s*M);
-				}
+				std::copy_n(GS+2*M, M, Gg_f+s*M);
 				s++;
 			}
 		} else {
-			if (k==0 && ring) {
-				std::copy_n(G0, M, Gg_f); s++;
-			} else {
-				Glast=propagate_forward(Seg[mon_nr[k]]->G1,s,k,generation,M);
-			}
-
+			Glast=propagate_forward(Seg[mon_nr[k]]->G1,s,k,generation,M);
 		}
 	}
 	free(GS);
@@ -309,111 +227,19 @@ NAMICS_DBG("ComputePhi in mol_branched " << endl);
 	int unity=0;
 	int s=0;
 
-	int gradients=lat->gradients;
-	int MX=lat->MX;
-	int MY=lat->MY;
-	int MZ=lat->MZ;
-	int JX=lat->JX;
-	int JY=lat->JY;
-	int JZ=lat->JZ;
-	int x=0,y=0,z=0,i=0,i_old=0;
-	vector<int> Ds;
-	vector<int> SegPinned;
-	Real* G0;
-	Real* Mask;
-	bool doit;
-
 	Real* G;
-	if (ring) {
-		G0 = new Real[M]; std::fill_n(G0, M, 0);
-		Mask = new Real[M]; std::fill_n(Mask, M, 0);
-		if (IsPinned()) {
-
-			int length=MolMonList.size();
-			int i=0;
-			while (i<length) {
-        			if (Seg[MolMonList[i]]->GetFreedom()=="pinned") SegPinned.push_back(MolMonList[i]);
-				i++;
-			}
-			length = mon_nr.size();
-
-			int pinnedlength=SegPinned.size();
-			for (int j=0; j<pinnedlength; j++) {
-				int Ds1=0,Ds2=0;
-				bool found=false;
-				for (int i=0; i<length; i++) {
-					if (found) {
-						Ds2 +=n_mon[i];
-					} else {
-						if (mon_nr[i]==SegPinned[j]) found=true; else Ds1 +=n_mon[i];
-					}
-				}
-				if (Ds1<Ds2) Ds.push_back(Ds1); else Ds.push_back(Ds2); //shortest distance along contour to 'ends' of the chain
-			}
-		}
-		GN=0;
-		switch (gradients) {
-			case 3:
-				for (z=1; z<MZ+1; z++)
-			case 2:
-				for (y=1; y<MY+1; y++)
-			case 1:
-				for (x=1; x<MX+1; x++) {
-					i_old=i; i=JX*x+JY*y+JZ*z;
-					s=0;
-					Mask[i_old]=0;Mask[i]=1;
-					doit =true;
-					int pinnedlength=SegPinned.size();
-					for (int j=0; j<pinnedlength; j++) {
-						if (doit) doit=Seg[SegPinned[j]]->CanBeReached(x,y,z,Ds[j]*lat->fjc); //make sure that the pinned positions can be reached.
-					}
-					if (Seg[mon_nr[0]]->G1[i]>0 && doit) {
-						for (int __i = 0; __i < (M); ++__i) (G0)[__i] = (Mask)[__i] * (Seg[mon_nr[0]]->G1)[__i];
-
-						if (Markov == 2) {
-							G=ForwardBra2ndO(G0,generation,s);
-						} else {
-							G=ForwardBra(G0,generation,s);
-						}
-						for (int k=0; k<size; k++) for (int __i = 0; __i < (M); ++__i) (G+k*M)[__i] = (G+k*M)[__i] * (Mask)[__i]; //to make sure GN is computed correctly.
-						GN+=lat->ComputeGN(G,Markov,M);
-						s--;
-						if (save_memory) {
-							lat->Initiate(Gg_b,G0,Markov,M);
-							lat->Initiate(Gg_b+M*size,G0,Markov,M);
-						} //toggle; initialize on both spots the same G1, so that we always get proper start.
-						if (Markov == 2) {
-							BackwardBra2ndO(G0,generation,unity,s);
-						} else {
-
-							BackwardBra(G0,generation,s);
-						}
-					}
-				}
-		}
-		delete [] G0; delete [] Mask;
+	if (Markov == 2) {
+		G=ForwardBra2ndO(Seg[mon_nr[last_b[0]]]->G1,generation,s);
 	} else {
-		if (Markov == 2) {
-			G=ForwardBra2ndO(Seg[mon_nr[last_b[0]]]->G1,generation,s);
-		} else {
-			G=ForwardBra(Seg[mon_nr[last_b[0]]]->G1,generation,s);
-		}
-		GN=lat->ComputeGN(G,Markov,M);
-		s--;
-		if (save_memory) {
-			lat->Initiate(Gg_b,Seg[mon_nr[last_b[0]]]->G1,Markov,M);
-			lat->Initiate(Gg_b+M*size,Seg[mon_nr[last_b[0]]]->G1,Markov,M);
-		} //toggle; initialize on both spots the same G1, so that we always get proper start.
-		if (Markov == 2) {
-			BackwardBra2ndO(Seg[mon_nr[last_b[0]]]->G1,generation,unity,s);
-		} else {
-
-			BackwardBra(Seg[mon_nr[last_b[0]]]->G1,generation,s);
-		}
+		G=ForwardBra(Seg[mon_nr[last_b[0]]]->G1,generation,s);
 	}
-
+	GN=lat->ComputeGN(G,Markov,M);
+	s--;
+	if (Markov == 2) {
+		BackwardBra2ndO(Seg[mon_nr[last_b[0]]]->G1,generation,unity,s);
+	} else {
+		BackwardBra(Seg[mon_nr[last_b[0]]]->G1,generation,s);
+	}
 
 	return success;
 }
-
-

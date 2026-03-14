@@ -319,9 +319,6 @@ int main(int argc, char *argv[])
 				subloop++;
 			}
 
-		for (auto all_segments : Seg)
-			all_segments->prepared = false;
-
 		if (Sys->initial_guess == "previous_result"|| Sys->initial_guess == "file")
 		{
 			METHOD = New->SCF_method;

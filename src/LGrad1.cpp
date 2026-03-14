@@ -503,40 +503,6 @@ NAMICS_DBG("ReadRangeFile in LGrad1 " << endl);	if (fjc>1) {
 	return success;
 }
 
-bool LGrad1::FillMask(Real* Mask, vector<int>px, vector<int>py, vector<int>pz, string filename) {
-	(void)pz;
-	(void)py;
-	bool success=true;
-	bool readfile=false;
-	int length=0;
-	int length_px = px.size();
-
-	vector<string> lines;
-	int p;
-	if (px.size()==0) {
-		readfile=true;
-		string content;
-		success=io::ReadSanitizedFile(In->ResolvePath(filename),content);
-		if (success) {
-			In->split(content,'#',lines);
-			length = lines.size();
-		}
-	}
-	if (readfile) {
-		if (MX!=length) {success=false; cout <<"inputfile for filling delta_range has not expected length in x-direction" << endl;
-		} else {
-			for (int x=1; x<MX+1; x++) Mask[x]=ParseInt(lines[x],-1);
-		}
-	} else  {
-		for (int i=0; i<length_px; i++) {
-			p=px[i]; if (p<1 || p>MX) {success=false; cout<<" x-value in delta_range out of bounds; " << endl; }
-			else Mask[fjc-1+px[i]]=1;
-		}
-	}
-	for (int i=0; i<M; i++) if (!(Mask[i]==0 || Mask[i]==1)) {success =false; cout <<"Delta_range does not contain '0' or '1' values. Check delta_inputfile values"<<endl; }
-	return success;
-}
-
 bool LGrad1::CreateMASK(Real* H_MASK, int* r, int* H_P, int n_pos, bool block) {
 NAMICS_DBG("CreateMask for LGrad1 " + name << endl);	bool success=true;
 	std::fill_n(H_MASK, M, static_cast<Real>(0));

@@ -7,42 +7,23 @@ System::System(const Input* In_, Lattice* Lat_, vector<Segment*> Seg_, vector<St
 {
 	Seg = Seg_;
 	Mol = Mol_;
-	Lat = Lat_;
 	In = In_;
 	name = name_;
 	Sta = Sta_;
 	Rea = Rea_;
-	lat=Lat;
-	prepared = false;
+	lat=Lat_;
 	NAMICS_DBG( "Constructor for system " << endl);
-	KEYS.push_back("constraint");
-	KEYS.push_back("delta_range");
-	KEYS.push_back("delta_range_units");
-	KEYS.push_back("delta_inputfile");
-	KEYS.push_back("delta_molecules");
-	KEYS.push_back("phi_ratio");
 	KEYS.push_back("initial_guess");
 	KEYS.push_back("guess_inputfile");
 	KEYS.push_back("write_initial_guess");
-	KEYS.push_back("find_local_solution");
-	KEYS.push_back("split");
 	KEYS.push_back("X");
 	KEYS.push_back("E");
-	KEYS.push_back("compute_Gibbs_excess");
-	KEYS.push_back("compute_kJ0");
 
 		charged=false;
-	constraintfields=false;
 	grad_epsilon = false;
 	all_system=false;
-	extra_constraints=0;
-	local_solution=false;
-	progress=0;
-	old_residual = 10;
-	do_blocks=false;
 	first_pass=true;
 	neutralizer=-1;
-	pos_interface=0.0;
 }
 System::~System()
 {
@@ -60,15 +41,9 @@ void System:: DeAllocateMemory(void){
 		free(H_q);
 		free(H_psi);
 	}
-	if (constraintfields)
-	{
-		free(H_beta);
-		free(H_BETA);
-	}
   free(phitot);
   free(TEMP);
   free(KSAM);
-  free(FILL);
   free(CHI);
 
   if (charged) {
@@ -85,7 +60,6 @@ void System::AllocateMemory()
 {
 	NAMICS_DBG( "AllocateMemory in system " << endl);
 	DeAllocateMemory();
-	progress=0; old_residual=10;
 	int M = lat->M;
 	H_GrandPotentialDensity = (Real *)malloc(M * sizeof(Real));
 	std::fill(H_GrandPotentialDensity,H_GrandPotentialDensity+M,0);
@@ -96,13 +70,6 @@ void System::AllocateMemory()
 	{
 		H_q = (Real *)malloc(M * sizeof(Real));
 		H_psi = (Real *)malloc(M * sizeof(Real));
-	}
-	if (constraintfields)
-	{
-		H_beta = (Real *)malloc(M * sizeof(Real));
-		std::fill(H_beta,H_beta+M,0);
-		H_BETA = (Real *)malloc(M * sizeof(Real)); std::fill_n(H_BETA, M, 0);
-		lat->FillMask(H_beta, px, py, pz, delta_inputfile);
 	}
 
   phitot = (Real*)malloc(M * sizeof(Real));
@@ -115,17 +82,11 @@ void System::AllocateMemory()
      E = (Real*)malloc(M * sizeof(Real));
     psiMask = (Real*)malloc(M * sizeof(Real));
   }
-  if (constraintfields) {
-	beta=H_beta;
-	BETA=H_BETA;
-  }
   KSAM = (Real*)malloc(M * sizeof(Real));
-  FILL = (Real*)malloc(M * sizeof(Real));
   FreeEnergyDensity = H_FreeEnergyDensity;
   GrandPotentialDensity = H_GrandPotentialDensity;
   TEMP = (Real*)malloc(M * sizeof(Real));
   std::fill_n(KSAM, M, 0);
-  std::fill_n(FILL, M, 0);
   if (charged) {
     std::fill_n(psi, M, 0);
     std::fill_n(EE, M, 0);
@@ -147,7 +108,6 @@ bool System::generate_mask()
 	NAMICS_DBG( "generate_mask in system " << endl);
 	int M = lat->M;
 	bool success = true;
-	extra_constraints=0;
 	FrozenList.clear();
 	int length = In->MonList.size();
 	for (int i = 0; i < length; i++)
@@ -156,8 +116,6 @@ bool System::generate_mask()
 		if (Seg[i]->freedom == "frozen") {
 			FrozenList.push_back(i);
 		}
-
-		if (Seg[i]->constraints) extra_constraints+=Seg[i]->constraint_z.size();
 	}
 
 	std::fill_n(KSAM, M, 0);
@@ -170,20 +128,20 @@ bool System::generate_mask()
 
 	for (int __i = 0; __i < (M); ++__i) (KSAM)[__i] = ((KSAM)[__i] == 0) ? 1 : 0;
 
-	volume = 0;
+	Real accessible_volume = 0;
 	if (lat->gradients < 3)
 	{
 		for (int i = 0; i < M; i++)
 		{
-			volume += KSAM[i] * lat->L[i];
+			accessible_volume += KSAM[i] * lat->L[i];
 		}
 	}
 	else
 	{
-		for (int __i = 0; __i < (M); ++__i) (volume) += (KSAM)[__i];
+		for (int __i = 0; __i < (M); ++__i) (accessible_volume) += (KSAM)[__i];
 	}
 
-	lat->Accesible_volume=volume;
+	lat->Accesible_volume=accessible_volume;
 
 	return success;
 }
@@ -194,92 +152,21 @@ bool System::PrepareForCalculations(bool first_time)
 
 	bool success = true;
 	int M = lat->M;
-
-
-
 		success = generate_mask();
-		prepared = true;
-
-	if (constraintfields)
-	{
-		for (int __i = 0; __i < (M); ++__i) (BETA)[__i] = exp(-(BETA)[__i]); // Beta wordt nu exp(-beta)
-	}
 
 	n_mol = In->MolList.size();
 	success = lat->PrepareForCalculations();
 	int n_mon = In->MonList.size();
 
-	Filling=false;
-	for (int i = 0; i < n_mol; i++){
-		if (Mol[i]->Filling) {
-			Filling=true;
-			FillList.clear();
-			std::fill_n(FILL, M, 0);
-			Mol[i]->theta=0;
-			Real frac=0;
-			Real frac_0=0;
-			Real pinned_v=0;
-			int seg_pinned=Mol[i]->GetPinnedSeg();
-			Real S1=0.0;
-			Real S2=0.0;
-			Mol[i]->FillRangesList.clear();
-			for (int k=0; k<n_mon; k++) {
-				S1=0.0;
-				if (Seg[k]->freedom=="pinned") {
-					for (int j=0; j<M; j++) S1+=Seg[k]->MASK[j]*Seg[seg_pinned]->MASK[j];
-					S2=0.0; (S2) = 0; for (int __i = 0; __i < (M); ++__i) (S2) += (Seg[k]->MASK)[__i];
-					if (S1==S2) Mol[i]->FillRangesList.push_back(k);
-				}
-			}
-			int length=Mol[i]->FillRangesList.size();
-
-			for (int j=0; j<length; j++) {
-				frac=0;
-				for (int __i = 0; __i < (M); ++__i) (FILL)[__i] += (Seg[Mol[i]->FillRangesList[j]]->MASK)[__i];
-				FillList.push_back(Mol[i]->FillRangesList[j]);
-				for (int k=0; k<n_mol;k++) {
-					frac=Mol[k]->fraction(Mol[i]->FillRangesList[j]);
-					if (k==i && frac>0) {
-							if (frac_0==0) {
-								frac_0=frac;
-								pinned_v=Seg[Mol[i]->FillRangesList[j]]->PinnedVolume();
-							} else {cout <<" Multiple pinned segments found in molecule that is filling the pinned_range" << endl; }
-					} else Mol[i]->theta+=frac*Mol[k]->theta;
-				}
-			}
-			if (frac_0==0) {
-				success=false;
-				cout <<"Error in computing theta for molecule " << Mol[i]->name << ". Possible pinned monomer of this molecule is not in the 'fill_range-of' list of monomers. " << endl;
-			} else {
-				Mol[i]->theta=(pinned_v-Mol[i]->theta)/frac_0;
-				Mol[i]->n=Mol[i]->theta/Mol[i]->chainlength;
-			success=false;
-			}
-			for (int i=0; i<M; i++) {
-				if (FILL[i]>0) FILL[i]=1;
-				lat->volume-=FILL[i];
-			}
-
-			for (int __i = 0; __i < (M); ++__i) (FILL)[__i] = ((FILL)[__i] == 0) ? 1 : 0;
-		}
-	}
-
 	for (int i = 0; i < n_mon; i++)
 	{
 		success = Seg[i]->PrepareForCalculations(KSAM,first_time);
-		if (Filling) {
-			if (!In->InSet(FillList,i) && Seg[i]->freedom =="free") {
-				for (int __i = 0; __i < (M); ++__i) (Seg[i]->G1)[__i] = (Seg[i]->G1)[__i] * (FILL)[__i];
-			}
-		}
 	}
 	for (int i = 0; i < n_mol; i++)
 	{
 		success = Mol[i]->PrepareForCalculations(KSAM);
 	}
 	if (first_time) {
-		do_blocks=false;
-		progress=0;
   		if (charged) {
     			int length = FrozenList.size();
     			std::fill_n(psiMask, M, 0);
@@ -343,12 +230,6 @@ bool System::MakeItsLists(void) {
 	return changed;
 }
 
-string System::GetMonName(int mon_number_I)
-{
-	NAMICS_DBG( "GetMonName for system " << endl);
-	return Seg[mon_number_I]->name;
-}
-
 bool System::CheckInput(int start_)
 {
 	NAMICS_DBG( "CheckInput for system " << endl);
@@ -360,37 +241,6 @@ bool System::CheckInput(int start_)
 	success = In->CheckParameters("sys", name, start, KEYS, PARAMETERS);
 	if (success)
 	{
-		if (GetValue("find_local_solution").size()>0) {
-			split = 2;
-			local_solution=ParseBool(GetValue("find_local_solution"),false);
-			if (local_solution) {
-				if (lat->gradients!=3) {
-					local_solution =false; cout << "find_local_solution is rejected as it requires 3 gradient system. " << endl;
-					if (!(lat->MZ==2 || lat->MZ==4 || lat->MZ==8 || lat->MZ==16 ||lat->MZ==32 || lat->MZ==64 ||lat->MZ==128 || lat->MZ ==256)){
-					      local_solution =false; cout<<"find_local_solution requires system size in z-direction equal to 2^n with n=1..8"<< endl;
-					}
-					if (!(lat->MY==2 || lat->MY==4 || lat->MY==8 || lat->MY==16 ||lat->MY==32 || lat->MY==64 ||lat->MY==128 || lat->MY ==256)){
-					      local_solution =false; cout<<"find_local_solution requires system size in y-direction equal to 2^n with n=1..8"<< endl;
-					}
-					if (!(lat->MX==2 || lat->MX==4 || lat->MX==8 || lat->MX==16 ||lat->MX==32 || lat->MX==64 ||lat->MX==128 || lat->MX ==256)){
-					      local_solution =false; cout<<"find_local_solution requires system size in x-direction equal to 2^n with n=1..8"<< endl;
-					}
-				}
-				if (GetValue("split").size()>0) {
-					split=ParseInt(GetValue("split"),2);
-					if (!(split ==2 || split ==4 || split ==8 ||split ==16 || split==32 || split==64 || split ==128) ) {
-						cout <<"Value for split should be 2^n, with n= 1,..,6. used split = 2 instead." << endl;
-						split =2;
-					}
-					if (split > lat->MX || split > lat->MY || split > lat->MZ) {
-						cout <<"Value for split can not exeed n_layers_x or n_layers_y or n_layers_z, value split=2 is used " << endl;
-						split = 2;
-					}
-
-				}
-			}
-		}
-
 		success = CheckChi_values(In->MonList.size());
 
 			MakeItsLists();
@@ -424,7 +274,15 @@ bool System::CheckInput(int start_)
 			cout << "In system '" + name + "' the 'solvent' was not found, while the volume fractions of the bulk do not add up to unity. " << endl;
 			success = false;
 		}
-		if (IsCharged())
+			bool has_charged_molecule = false;
+			int molecule_count = In->MolList.size();
+			for (int i = 0; i < molecule_count; i++) {
+				if (Mol[i]->IsCharged()) {
+					has_charged_molecule = true;
+					break;
+				}
+		}
+		if (has_charged_molecule)
 		{
 			charged = true;
 			neutralizer = -1;
@@ -454,178 +312,6 @@ bool System::CheckInput(int start_)
 			}
 		}
 
-		if (GetValue("constraint").size() > 0)
-		{
-			constraintfields = true;
-			px.clear();
-			py.clear();
-			pz.clear();
-			vector<string> constraints;
-			constraints.push_back("delta");
-			ConstraintType = "";
-			if (!ParseString(GetValue("constraint"), ConstraintType, constraints, "Info about 'constraint' rejected"))
-			{
-				success = false;
-			};
-			if (ConstraintType == "delta")
-			{
-				if (GetValue("delta_range").size() > 0)
-				{	int units=1;
-					if (lat->fjc>1) {
-						if (GetValue("delta_range_units").size() == 0) {
-							cout <<"Because you have FJC-choices>3, you also need to specify the 'delta_range_units'. You can select 'bondlength' or 'gritsize'. " << endl;
-							cout <<"Using bondlength units allows delta_range from 0 ... n_layers" << endl;
-							cout <<"Using gritsize and e.g. FJC-choices=5 gives fjc=2 allows delta_range from fjc .. fjc (n_layers+1)-1, etc."  << endl; success=false;
-						} else {
-							vector<string> options;
-							string bond_range_units;
-							options.push_back("bondlength");
-							options.push_back("gritsize");
-							bond_range_units = GetValue("delta_range_units");
-							if (bond_range_units=="bondlength") units = lat->fjc;
-							else if (bond_range_units=="gritsize") units =1;
-							else {
-								cout << "Value for 'delta_range_units' not recognized. Use 'bondlength' or 'gritsize'. Depending on FJC-choices the delta_range can be larger for 'gritsize' than for 'bondlength'."<< endl;
-								success=false; units =lat->fjc;
-							}
-						}
-					} else {
- 						units=1;
-						if (GetValue("delta_range_units").size() > 0) {
-							string delta_range_units=GetValue("delta_range_units");
-							if (delta_range_units != "bondlength") cout << "Delta_range_units set to 'bondlength' because FJC-choices =3" << endl;
-						}
-					}
-					string s = GetValue("delta_range");
-					vector<string> sub;
-					vector<string> set;
-					vector<string> coor;
-					In->split(s, ';', sub);
-					int n_points = sub.size();
-					for (int i = 0; i < n_points; i++)
-					{
-						set.clear();
-						In->split(sub[i], '(', set);
-						int length = set.size();
-						if (length != 2)
-						{
-							if (length == 1 && set[0] == "file")
-							{
-								if (GetValue("delta_inputfile").size() > 0)
-								{
-									delta_inputfile = In->ResolvePath(GetValue("delta_inputfile"));
-								}
-								else
-								{
-									success = false;
-									cout << "When 'delta_range' is set to 'file', you should provide a 'delta_inputfile'" << endl;
-								}
-							}
-							else
-							{
-								success = false;
-								cout << "In 'delta_range', for position " << i << "the expected '(x,y,z)' format was not found " << endl;
-							}
-						}
-						else
-						{
-							coor.clear();
-							In->split(set[1], ',', coor);
-							int grad = lat->gradients;
-							int corsize = coor.size();
-							if (corsize != grad)
-							{
-								success = false;
-								if (grad == 1)
-									cout << "In 'delta_range', for position " << i << " the expected '(x)' format was not found " << endl;
-								if (grad == 2)
-									cout << "In 'delta_range', for position " << i << " the expected '(x,y)' format was not found " << endl;
-								if (grad == 3)
-									cout << "In 'delta_range', for position " << i << " the expected '(x,y,z)' format was not found " << endl;
-							}
-							else
-							{
-								int rr;
-								rr=ParseInt(coor[0], -1)*units;
-								if (rr<0 || rr>lat->MX) {cout << "Coordinate x for delta_range is out of bonds. " << endl; success=false; }
-								else px.push_back(rr);
-								if (grad > 1) {
-									rr=ParseInt(coor[1], -1)*units;
-									if (rr<0 || rr>lat->MY) {cout << "Coordinate y for delta_range is out of bonds. " << endl; success=false; }
-									else py.push_back(rr);
-								}
-								if (grad > 2){
-									rr=ParseInt(coor[2], -1)*units;
-									if (rr<0 || rr>lat->MZ) {cout << "Coordinate z for delta_range is out of bonds. " << endl; success=false; }
-									pz.push_back(rr);
-								}
-							}
-						}
-					}
-				}
-				else
-				{
-					success = false;
-					cout << "When 'constraint' is set to 'delta', you should specify a 'delta_range' " << endl;
-				}
-
-				if (GetValue("delta_molecules").size() > 0)
-				{
-					string deltamols = GetValue("delta_molecules");
-					vector<string> sub;
-					In->split(deltamols, ';', sub);
-					int length_sub = sub.size();
-					if (length_sub != 2)
-					{
-						success = false;
-						cout << " delta_molecules item should contain two 'molecule names' separated by a ';'" << endl;
-					}
-					else
-					{
-						DeltaMolList.clear();
-						int length = In->MolList.size();
-						for (int i = 0; i < length; i++)
-						{
-							if (sub[0] == Mol[i]->name)
-								DeltaMolList.push_back(i);
-							if (sub[1] == Mol[i]->name)
-								DeltaMolList.push_back(i);
-						}
-						if (DeltaMolList.size() !=2) {success = false;
-						cout << " In delta_molecules, two molecule names were expected but not found " << endl; return 0; }
-						if (DeltaMolList[0] == DeltaMolList[1])
-						{
-							success = false;
-							cout << " In delta_molecules you should specify two different names " << endl;
-						}
-						if (DeltaMolList.size() < 2)
-						{
-							success = false;
-							cout << " In 'delta_molecules', one or more molecule names are not recognized" << endl;
-						}
-					}
-				}
-				else
-				{
-					success = false;
-					cout << "When 'constraint' is set to 'delta', you should specify a set of 'delta_molecules' " << endl;
-				}
-
-
-				phi_ratio=-1.0;
-				if(GetValue("phi_ratio").size()>0) {
-					if (GetValue("phi_ratio")=="critical_ratio") {
-						phi_ratio=1.0*Mol[DeltaMolList[0]]->chainlength/Mol[DeltaMolList[1]]->chainlength;
-						if (phi_ratio>0) phi_ratio=sqrt(phi_ratio);
-					}
-					else phi_ratio=ParseReal(GetValue("phi_ratio"),-1);
-					if (phi_ratio<0) {cout <<" phi_ratio shoud contain keyword 'critical_ratio' or a positive real number, typically 1. " << endl; success=false;}
-				} else {
-					success=false; cout <<"Please give a value for 'phi_ratio' (typically 1 or specify the keyword 'critical_ratio')" << endl;
-				}
-			}
-
-			}
 			vector<string> options;
 			initial_guess = "previous_result";
 		if (GetValue("initial_guess").size() > 0)
@@ -804,7 +490,7 @@ bool System::CheckInput(int start_)
 
 	int length = In->MonList.size();
 
-	int *bc =(int*) malloc(6*sizeof(int)); std::fill(bc,bc+6,0);
+	std::array<int, 6> bc{};
 	for (int i = 0; i < length; i++) {
 		if (Seg[i]->freedom == "frozen") {
 			if (Seg[i]->frozen_at_bound>-1) {
@@ -827,7 +513,6 @@ bool System::CheckInput(int start_)
 	if (lat->BC[3]=="surface" && bc[3] >1) {cout <<"Overpopulated 'surface'. Specify only one segment with frozen_range including the upperboundary in x" << endl; success=false;}
 	if (lat->BC[4]=="surface" && bc[4] >1) {cout <<"Overpopulated 'surface'. Specify only one segment with frozen_range including the upperboundary in y" << endl; success=false;}
 	if (lat->BC[5]=="surface" && bc[5] >1) {cout <<"Overpopulated 'surface'. Specify only one segment with frozen_range including the upperboundary in z" << endl; success=false;}
-	free(bc);
 
 	return success;
 }
@@ -901,19 +586,6 @@ bool System::IsUnique(int Segnr_, int Statenr_)
 		}
 	}
 	return is_unique;
-}
-
-bool System::IsCharged()
-{
-	NAMICS_DBG( "System::IsCharged " << endl);
-	bool success = false;
-	int length = In->MolList.size();
-	for (int i = 0; i < length; i++)
-	{
-		if (Mol[i]->IsCharged())
-			success = true;
-	}
-	return success;
 }
 
 void System::PutParameter(string new_param)
@@ -995,28 +667,10 @@ void System::PushOutput()
 		}
 		push("E",sumE);
 	}
-
-
-	if (GetValue("delta_range").size()>0) push("delta_range",GetValue("delta_range"));
-	if (GetValue("phi_ratio").size()>0) push("phi_ratio",phi_ratio);
 	int n_seg=In->MonList.size();
 	for (int i=0; i<n_seg; i++)
 	for (int j=0; j<n_seg; j++){
 		push("chi_"+Seg[i]->name+"_"+Seg[j]->name,CHI[i * n_seg + j]);
-	}
-	if (GetValue("compute_kJ0").size()>0){
-		int M=lat->M;
-		if (lat->gradients==1 && lat->geometry=="planar") {
-			if (pos_interface==0) pos_interface=M/2+0.5;
-			push("kJ0", -lat->MomentPlanar(GrandPotentialDensity,1,pos_interface)/lat->fjc);
-			pos_interface=0;
-		} else {
-			cout <<" 'compute_kJ0' requested but 'compute_kJ0' rejected because either geomety is not planar, or gradients = 1 or 'delta_range' not found " << endl;
-		}
-
-		if (lat->gradients == 1 && lat->geometry == "planar") {
-			push("kbar", lat->MomentPlanar(GrandPotentialDensity,2,M/2+0.5)/pow(lat->fjc,2));
-		}
 	}
 	Real X = 0;
 	if (Xn_1.size() > 0 || XmolList.size() > 0)
@@ -1070,12 +724,6 @@ void System::PushOutput()
 	push("free_energy_density", s);
 	s = "profile;6";
 	push("phitot", s);
-	int n_mol = In->MolList.size();
-	Real Sprod=0;
-	for (int i=0; i<n_mol; i++) {
-		Sprod += Mol[i]->J*Mol[i]->Delta_MU;
-	}
-	push("Sprod",Sprod);
 
 	if (charged)
 	{
@@ -1168,15 +816,6 @@ int System::GetValue(string prop, int &int_result, Real &Real_result, string &st
 	return 0;
 }
 
-int System::GetMonNr(string MonName) {
-	int nr=-1;
-	int length=In->MonList.size();
-	for (int i=0; i<length; i++) {
-		if (Seg[i]->name ==MonName) nr=i;
-	}
-	return nr;
-}
-
 bool System::CheckChi_values(int n_seg)
 {
 	NAMICS_DBG( "CheckChi_values for system " << endl);
@@ -1203,28 +842,31 @@ bool System::CheckChi_values(int n_seg)
 			success = false;
 		}
 	}
-	for (int i = 0; i < n_seg; i++)
-		for (int k = i + 1; k < n_seg; k++)
-			if (CHI[i * n_seg + k] != CHI[k * n_seg + i])
-			{
-				cout << "CHI-value symmetry violated: chi(" << Seg[i]->name << "," << Seg[k]->name << ") is not equal to chi(" << Seg[k]->name << "," << Seg[i]->name << ")" << endl;
-				success = false;
-			}
+		for (int i = 0; i < n_seg; i++)
+			for (int k = i + 1; k < n_seg; k++)
+				if (CHI[i * n_seg + k] != CHI[k * n_seg + i])
+				{
+					cout << "CHI-value symmetry violated: chi(" << Seg[i]->name << "," << Seg[k]->name << ") is not equal to chi(" << Seg[k]->name << "," << Seg[i]->name << ")" << endl;
+					success = false;
+				}
 
-	for (int i = 0; i < n_seg; i++) {
-		string NAME=Seg[i]->GetOriginal();
-		if (NAME.size()>0) {
-			int segnr = GetMonNr(NAME);
-			if (segnr<0 || segnr ==i) {
-				if (segnr < 0) cout <<"In segment " << Seg[i]->name << " 'set_to_seg' is rejected because the segment " << NAME << " was not found" << endl;
-				else cout <<"In segment " << Seg[i]->name << " 'set_to_seg' is rejected because the segment " << NAME << " can not copied from itself...." << endl;
-			} else {
-				Seg[i]->epsilon = Seg[segnr]->epsilon;
-				for (int k=0; k<n_seg; k++) {CHI[i*n_seg+k]=CHI[segnr*n_seg+k]; CHI[k*n_seg+i]=CHI[i*n_seg+k]; }
-				CHI[i*n_seg+segnr]=CHI[segnr*n_seg+i]=0;
+		for (int i = 0; i < n_seg; i++) {
+			string NAME=Seg[i]->GetValue("set_equal_to");
+			if (NAME.size()>0) {
+				int segnr = -1;
+				for (int j=0; j<n_seg; j++) {
+					if (Seg[j]->name ==NAME) segnr=j;
+				}
+				if (segnr<0 || segnr ==i) {
+					if (segnr < 0) cout <<"In segment " << Seg[i]->name << " 'set_to_seg' is rejected because the segment " << NAME << " was not found" << endl;
+					else cout <<"In segment " << Seg[i]->name << " 'set_to_seg' is rejected because the segment " << NAME << " can not copied from itself...." << endl;
+				} else {
+					Seg[i]->epsilon = Seg[segnr]->epsilon;
+					for (int k=0; k<n_seg; k++) {CHI[i*n_seg+k]=CHI[segnr*n_seg+k]; CHI[k*n_seg+i]=CHI[i*n_seg+k]; }
+					CHI[i*n_seg+segnr]=CHI[segnr*n_seg+i]=0;
+				}
 			}
 		}
-	}
 
 	int n_segments = In->MonList.size();
 	int n_states = In->StateList.size();
@@ -1405,26 +1047,6 @@ void System:: ComputePhis(Real* x,bool first_time, Real residual) {
 	ComputePhis(residual);
 }
 
-bool System:: Put_U(Real* xx){
-	NAMICS_DBG( "Put_U in System" << endl);
-	bool success=true;
-	int M=lat->M;
-	int itmonlistlength=ItMonList.size();
-	for (int i=0; i<itmonlistlength; i++) {
-		int IM=ItMonList[i];
-	 	Real *u=Seg[IM]->u;
-		std::copy_n(u, M, xx+i*M);
-		for (int __i = 0; __i < (M); ++__i) (xx+i*M)[__i] -= (Seg[IM]->u_ext)[__i];
-		if (charged){
-			for (int __i = 0; __i < (M); ++__i) (xx+i*M)[__i] -= (-1.0*Seg[IM]->epsilon) * (EE)[__i];
-			if (Seg[IM]->valence != 0) {
-				for (int __i = 0; __i < (M); ++__i) (xx+i*M)[__i] -= (Seg[IM]->valence) * (psi)[__i];
-			}
-		}
-	}
-	return success;
-}
-
 bool System:: PutU(Real* xx) {
 NAMICS_DBG("PutU in  Solve " << endl);
 	int M=lat->M;
@@ -1497,18 +1119,6 @@ NAMICS_DBG("PutU in  Solve " << endl);
 		k++;
 	}
 	if (charged) itpos +=M;
-	if (constraintfields) {std::copy_n(xx+itpos, M, BETA); itpos+=M;}
-	if (extra_constraints>0) {
-		int length = In->MonList.size();
-		for (int i = 0; i < length; i++)
-		{
-			int constraint_size=Seg[i]->constraint_z.size();
-			for (int k=0; k<constraint_size; k++) {
-				itpos++;
-				Seg[i]->Put_beta(k,xx[itpos-1]);
-			}
-		}
-	}
 
 	return success;
 }
@@ -1589,50 +1199,15 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << endl);
 		lat->remove_bounds(g+itpos);
 		itpos+=M;
 	}
-
-	if (constraintfields) { //only works for two components...
-		std::copy_n(Mol[DeltaMolList[1]]->phitot, M, g+itpos);
-		for (int __i = 0; __i < (M); ++__i) (g+itpos)[__i] = (g+itpos)[__i] - (Mol[DeltaMolList[0]]->phitot)[__i];
-		Real R = (phi_ratio-1)/(phi_ratio+1);
-		for (int __i = 0; __i < (M); ++__i) (g+itpos)[__i] = (g+itpos)[__i] + (R);
-		for (int __i = 0; __i < (M); ++__i) (g+itpos)[__i] = (g+itpos)[__i] * (beta)[__i];
-		itpos+=M;
-	}
-
-	if (extra_constraints>0) {
-		int length = In->MonList.size();
-		for (int i = 0; i < length; i++)
-		{
-			int constraint_size=Seg[i]->constraint_z.size();
-			for (int k=0; k<constraint_size; k++) {
-				itpos++;
-				g[itpos-1]=Seg[i]->Get_g(k);
-			}
-		}
-	}
 }
 
 
 bool System::ComputePhis(Real residual){
 NAMICS_DBG("ComputePhis in system" << endl);
-	bool prepare_for_blocks=false;
 	int M= lat->M;
 	Real A=0, B=0; //A should contain sum_phi*charge; B should contain sum_phi
 	bool success=true;
 	std::fill_n(phitot, M, 0);
-
-	if (local_solution) {
-		if (residual/old_residual < 0.9) progress--; else progress++;
-		if (progress < 0 ) progress=0;
-		if (progress > 100 ) {
-			progress=0;
-			if (!do_blocks) {
-			prepare_for_blocks=true;
-			cout <<"no progress: trying fo find local solution" << endl;
-			}
-		}
-		old_residual = residual;
-	}
 
 	int length=FrozenList.size();
 	for (int i=0; i<length; i++) {
@@ -1641,20 +1216,7 @@ NAMICS_DBG("ComputePhis in system" << endl);
 	}
 
 	for (int i=0; i<n_mol; i++) {
-		if (constraintfields) {
-			if (i==DeltaMolList[0]) {
-				success=Mol[i]->ComputePhi(BETA,1);
-			} else {
-				if (i==DeltaMolList[1]) {
-					success=Mol[i]->ComputePhi(BETA,-1);
-				} else {
-					success=Mol[i]->ComputePhi(BETA,0);
-				}
-			}
-		}
-		else {
-			success = Mol[i]->ComputePhi(BETA, 0);
-		}
+		success = Mol[i]->ComputePhi();
 	}
 
 	for (int i = 0; i < n_mol; i++)
@@ -1731,42 +1293,6 @@ NAMICS_DBG("ComputePhis in system" << endl);
 			k++;
 		}
 
-		if (Mol[i]->freedom == "range_restricted")
-		{
-			Real *phit = Mol[i]->phitot;
-			std::fill_n(phit, M, 0);
-			int k = 0;
-			while (k < length)
-			{
-				Real *phi = Mol[i]->phi + k * M;
-				for (int __i = 0; __i < (M); ++__i) (phit)[__i] += (phi)[__i];
-				k++;
-			}
-			OverwriteA(phit, Mol[i]->R_mask, phit, M);
-			Real theta = lat->ComputeTheta(phit);
-			norm = Mol[i]->theta_range / theta;
-			Mol[i]->norm = norm;
-			Mol[i]->phibulk = Mol[i]->chainlength * norm;
-
-			A += Mol[i]->phibulk * Mol[i]->Charge();
-			B += Mol[i]->phibulk;
-
-			Mol[i]->n = norm * Mol[i]->GN;
-			Mol[i]->theta = Mol[i]->n * Mol[i]->chainlength;
-			std::fill_n(phit, M, 0);
-			k = 0;
-			while (k < length)
-			{
-				Real *phi = Mol[i]->phi + k * M;
-				for (int __i = 0; __i < (M); ++__i) (phi)[__i] *= (norm);
-				if (debug)
-				{
-					Real sum = lat->ComputeTheta(phi);
-					NAMICS_DBG("Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << endl);
-				}
-				k++;
-			}
-		}
 	}
 	if (charged && neutralizer > -1)
 		{
@@ -1860,44 +1386,12 @@ for (int j=0; j<n_mol; j++) {
 		}
 
 	int n_seg = In->MonList.size();
-	if (do_blocks) {
-		for (int k=0; k<n_mol; k++) {
-			if (Mol[k]->freedom =="restricted") {
-				Mol[k]->NormPerBlock(split);
-				cout<<"*";
-			}
-		}
-		for (int k=0; k<n_seg; k++) {
-			if (Seg[k]->freedom =="free") std::fill_n(Seg[k]->phi, M, 0);
-		}
-		for (int k=0; k<n_mol; k++) {
-			int length = Mol[k]->MolMonList.size();
-			for (int i=0; i<length; i++) {
-				Real *phi_mon = Seg[Mol[k]->MolMonList[i]]->phi;
-				Real *phi_molmon = Mol[k]->phi + i * M;
-				for (int __i = 0; __i < (M); ++__i) (phi_mon)[__i] += (phi_molmon)[__i];
-			}
-		}
-	}
-
-
 	for (int i = 0; i < n_seg; i++) {
 		lat->set_bounds(Seg[i]->phi);
 	}
 
 	for (int i = 0; i < n_seg; i++) {
 		Seg[i]->SetPhiSide();
-	}
-
-
-	if (prepare_for_blocks) {
-		do_blocks=true;
-
-		for (int k=0; k<n_mol; k++) {
-			if (Mol[k]->freedom =="restricted") {
-				Mol[k]->SetThetaBlocks(split);
-			}
-		}
 	}
 	return success;
 }
@@ -1975,15 +1469,6 @@ bool System::CheckResults(bool e_info_)
 	}
 	first_pass=false;
 
-	if (GetValue("compute_Gibbs_excess").size()>0){
-		Real Rgibbs=Mol[solvent]->ComputeGibbs(0);
-		Real excess=0;
-		for (int i=0; i<n_mol; i++) {
-			if (i !=solvent) excess+=Mol[i]->ComputeGibbs(Rgibbs);
-		}
-		if (excess<-1e-5 || excess > 1e-5) cout <<"total excess is not close to zero: " << excess << endl;
-	}
-
 	return success;
 }
 
@@ -2044,12 +1529,6 @@ Real System::GetFreeEnergy(void)
 		for (int __i = 0; __i < (M); ++__i) (TEMP)[__i] *= (constant);
 		for (int __i = 0; __i < (M); ++__i) (F)[__i] += (TEMP)[__i];
 	}
-	if (constraintfields) {
-		for (int i=0; i<M; i++) if (beta[i]>0) {
-			F[i] +=log(BETA[i])*(Mol[DeltaMolList[0]]->phitot[i]-Mol[DeltaMolList[1]]->phitot[i]);
-		}
- 	}
-
 	Real *phi;
 	Real *phi_side;
 	Real *g;
@@ -2177,20 +1656,6 @@ std::fill_n(TEMP, M, 0);
 	return FreeEnergy + lat->WeightedSum(F);
 }
 
-Real System::GetSpontaneousCurvature()
-{
-	int M = lat->M;
-	if (lat->gradients ==1 && lat->geometry=="planar")  return -1.0*lat->MomentPlanar(GrandPotentialDensity,1,M/2+0.5);
-	else return 0;
-};
-
-Real System::GetKBar()
-{
-	int M = lat->M;
-	if (lat->gradients ==1 && lat->geometry=="planar")  return lat->MomentPlanar(GrandPotentialDensity,2,M/2+0.5);
-	else return 0;
-};
-
 Real System::GetGrandPotential(void)
 { //Eqn 293
 	NAMICS_DBG( "GetGrandPotential for system " << endl);
@@ -2211,14 +1676,6 @@ Real System::GetGrandPotential(void)
 	}
 
 	for (int __i = 0; __i < (M); ++__i) (GP)[__i] += (alpha)[__i];
-
-
-	if (constraintfields) {
-		for (int i=0; i<M; i++) if (beta[i]>0) {
-			GP[i] -=log(BETA[i])*(Mol[DeltaMolList[0]]->phitot[i]-Mol[DeltaMolList[1]]->phitot[i]);
-		}
- 	}
-
 	Real phibulkA;
 	Real phibulkB;
 	Real chi;

@@ -12,12 +12,7 @@ public:
 
 	string name;
 	const Input* In;
-	Lattice* Lat;
 	Lattice* lat;
-	vector<int> constraint_z;
-	vector<Real> constraint_phi;
-	vector<Real> constraint_beta;
-	bool constraints;
 
 	vector<string> chi_name;
 	vector<Real> chi;
@@ -26,10 +21,8 @@ public:
 	bool unique;
 	int seg_nr_of_copy;
 	int state_nr_of_copy;
-	bool prepared;
 
 	Real theta_exc;
-	Real M1,M2,Fl;
 	Real epsilon;
 	Real valence;
 	Real PSI0;
@@ -45,23 +38,15 @@ public:
 	vector<Real>state_phibulk;
 	vector<Real>state_theta;
 
-	string filename;
-	string copy_of;
-	string s_freedom;
 	bool block;
 	bool all_segment;
 	int ns;
 
 	int n_pos;
-	int* r;
+	std::array<int, 6> r;
 	int start;
 	int var_pos;
 	int frozen_at_bound;
-	int used_in_mol_nr;
-	Real phi_LB_X;
-	Real phi_UB_X;
-	Real phi_LB_Y;
-	Real phi_UB_Y;
 
 	vector<string> ints;
 	vector<string> Reals;
@@ -80,12 +65,6 @@ public:
 	int* GetPointerInt(string,int&);
 	int GetValue(string,int&,Real&,string&);
 	bool LoadExternalPotential();
-	Real Get_g(int ) ;
-	void Put_beta(int, Real );
-	void PutContraintBC ();
-
-
-	string GetOriginal();
 
 	int* H_P;
 	Real* H_MASK;
@@ -109,21 +88,13 @@ public:
 	Real* alpha;//fraction of segment in specfied state
 	Real* ALPHA; //Lagrange parameter per segement for steady state
 	int ItState;
-	Real B;
-	Real J;
 
 	std::vector<string> KEYS;
 	ParameterStore PARAMETERS;
 	bool CheckInput(int);
 	void PutChiKEY(string);
 	string GetValue(string);
-	string GetFreedom();
 	Real PinnedVolume();
-	bool IsFree();
-	bool IsPinned();
-	bool IsFrozen();
-	Real* GetMASK();
-	Real* GetPhi();
 	void DeAllocateMemory();
 	void AllocateMemory();
 	bool PrepareForCalculations(Real*,bool);

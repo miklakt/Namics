@@ -11,9 +11,7 @@ class Reaction {
 public:
 	Reaction(const Input*,vector<Segment*>,vector<State*>,string);
 
-~Reaction();
-	void DeAllocateMemory();
-	void AllocateMemory(int,int);
+	~Reaction();
 	vector<State*> Sta; 
 	vector<Segment*> Seg;
 	vector<int> Sto;
@@ -42,7 +40,6 @@ public:
 	Real* GetPointer(string,int&);
 	int* GetPointerInt(string,int&);
 	int GetValue(string,int&,Real&,string&);	
-	void PrepareForCalculations();
 
 	std::vector<string> KEYS;
 	ParameterStore PARAMETERS;

@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <array>
 #include <iterator>
 #include <algorithm>
 #include <unordered_map>

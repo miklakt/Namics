@@ -7,9 +7,7 @@ class State {
 public:
 	State(const Input*,vector<Segment*>,string);
 
-~State();
-	void DeAllocateMemory();
-	void AllocateMemory(int,int);
+	~State();
 	const Input* In;
 	vector<Segment*> Seg;
 	string name; 
@@ -45,7 +43,6 @@ public:
 	Real* GetPointer(string,int&);
 	int* GetPointerInt(string,int&);
 	int GetValue(string,int&,Real&,string&);	
-	void PrepareForCalculations();
 	void PutChiKEY(string);
 	std::vector<string> KEYS;
 	ParameterStore PARAMETERS;

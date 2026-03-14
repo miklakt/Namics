@@ -25,21 +25,10 @@ public:
 
 	~Solve_scf();
 
-	enum rescue {
-		NONE,
-		ZERO,
-		M,
-		DELTA_MAX,
-	};
-
-	bool attempt_DIIS_rescue();
-	rescue rescue_status;
-
 	string name;
 	const Input* In;
 	System* Sys;
 	vector<Segment*> Seg;
-	Lattice* Lat;
 	Lattice* lat;
 	vector<Molecule*> Mol;
 	vector<State*> Sta;
@@ -47,8 +36,6 @@ public:
 
 	int start;
 	string SCF_method;
-	string StoreFileGuess;
-	string ReadFileGuess;
 	string stop_criterion;
 	int iv;
 	int m, restart_DIIS;
@@ -97,9 +84,6 @@ public:
 
 	void DeAllocateMemory();
 	void AllocateMemory();
-	void ComputePhis(bool);
-	bool PutU();
-	bool Put_U();
 	void residuals(Real*,Real*);
 
 	void inneriteration(Real*,Real*,Real*,Real,Real&,Real,int);

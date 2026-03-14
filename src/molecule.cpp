@@ -1,34 +1,20 @@
 #include "molecule.h"
 
 Molecule::Molecule(const Input* In_,Lattice* Lat_,vector<Segment*> Seg_, string name_) {
-	In=In_; Seg=Seg_; name=name_;  Lat=Lat_;
+	In=In_; Seg=Seg_; name=name_;
 NAMICS_DBG("Constructor for Mol " + name << endl);
-	lat=Lat;
+	lat=Lat_;
 	KEYS.push_back("freedom");
 	KEYS.push_back("composition");
-	KEYS.push_back("ring");
 	KEYS.push_back("theta");
 	KEYS.push_back("phibulk");
 	KEYS.push_back("n");
-	KEYS.push_back("save_memory");
-	KEYS.push_back("restricted_range");
-	KEYS.push_back("compute_width_interface");
 	KEYS.push_back("Markov");
 	KEYS.push_back("k_stiff");
 	KEYS.push_back("B");
-
-	width=0;
-	phi1=0;
-	phiM=0;
-	Dphi=0;
-	pos_interface=0;
-	ring=false;
 	all_molecule=false;
 	Markov =1;
-	FillRangesList.clear();
-	Filling=false;
-	save_memory=false;
-	J=0; Delta_MU=0; B=1;
+	B=1;
 
 }
 
@@ -44,7 +30,6 @@ NAMICS_DBG("DeallocateMemory for Mol " + name << endl);
 	if (Markov==2) { free(P);}
 	free(Gg_f);
 	free(Gg_b);
-	if (save_memory) free(Gs);
 	free(UNITY);
 
 	all_molecule=false;
@@ -72,22 +57,9 @@ NAMICS_DBG("AllocateMemory in Mol " + name << endl);
 		}
 	}
 
-	if (save_memory) {
-		int length_ = mon_nr.size();
-		for (int i=0; i<length_; i++) last_stored.push_back(0);
-		for (int i=0; i<length_; i++) {
-			int n=int(pow(n_mon[i]*2,1.0/2.0)+0.5); //in sfbox apparently the pow 1/3 is reached. Here it fails for unknown reasons.
-			if (n>n_mon[i]) n=n_mon[i]; //This seems to me to be enough...needs a check though..
-			if (i==0) memory.push_back(n); else memory.push_back(n+memory[i-1]);
-		}
-	}
 	N=0;
-	if (save_memory) {
-		N=memory[n_mon.size()-1];
-	} else {
-		int length_ = mon_nr.size();
-		for (int i=0; i<length_; i++) {N+=n_mon[i];}
-	}
+	int length_ = mon_nr.size();
+	for (int i=0; i<length_; i++) {N+=n_mon[i];}
 
 	H_phi = (Real*) malloc(M*MolMonList.size()*sizeof(Real)); std::fill_n(H_phi, M * MolMonList.size(), 0);
 	H_phitot = (Real*) malloc(M*sizeof(Real)); std::fill_n(H_phitot, M, 0);
@@ -97,7 +69,6 @@ NAMICS_DBG("AllocateMemory in Mol " + name << endl);
 	std::fill_n(Gg_b, 2*M*size, 0);
 	phi=H_phi;
 	rho=phi;
-	if (save_memory) {Gs=(Real*) malloc(2*M*sizeof(Real)*size); std::fill_n(Gs, 2*M*size, 0);}
 	phitot = H_phitot;
 	UNITY = (Real*) malloc(M*sizeof(Real)*size); std::fill_n(UNITY, M*size, 0);
 	all_molecule=true;
@@ -117,24 +88,26 @@ int M=lat->M;
 
 bool Molecule::CheckInput(int start_, bool checking) {
 NAMICS_DBG("Molecule:: CheckInput for mol " << name << endl);
-start=start_;
-phibulk=0;
-n=0;
-theta=0;
-norm=0;
+	start=start_;
+	phibulk=0;
+	n=0;
+	theta=0;
+	norm=0;
 NAMICS_DBG("CheckInput for Mol " + name << endl);
 	bool success=true;
 	if (!In->CheckParameters("mol",name,start, KEYS, PARAMETERS)) {
 		success=false;
 	} else {
-		save_memory=false;
-		if (GetValue("save_memory").size()>0) {
-			save_memory=ParseBool(GetValue("save_memory"),false);
-		}
-		if (GetValue("composition").size()==0) {cout << "For mol '" + name + "' the definition of 'composition' is required" << endl; success = false;
+		const string freedom_value = GetValue("freedom");
+		const string theta_value = GetValue("theta");
+		const string n_value = GetValue("n");
+		const string composition_value = GetValue("composition");
+		if (composition_value.size()==0) {
+			cout << "For mol '" + name + "' the definition of 'composition' is required" << endl;
+			success = false;
 		} else {
 			try {
-				if (!Decomposition(GetValue("composition"))) {
+				if (!Decomposition(composition_value)) {
 					cout << "For mol '" + name + "' the composition is rejected. " << endl;
 					success=false;
 				}
@@ -143,166 +116,82 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 				success = false;
 			}
 		}
-		if (GetValue("restricted_range").size()>0) {
-			if (GetValue("freedom")!="range_restricted") cout <<"For mol '" + name + "' freedom is not set to 'range_restricted' and therefore  the value of 'restricted_range' is ignored" << endl;
-		}
-
+		const bool pinned = IsPinned();
 		if (checking) {
-			if (GetValue("freedom").size() > 0) freedom = GetValue("freedom"); else {
+			if (freedom_value.size() > 0) freedom = freedom_value; else {
 				cout <<"For molecule " << name << " no value for 'freedom' was found " << endl;
 				success=false;
 			}
 			return success; //because moltype and freedom are known; as start <0 the checkinput can be terminated.
 		}
-		if (IsPinned()) {
-			if (GetValue("freedom").size()==0) {
-					cout <<"For mol " + name + " the setting for 'freedom' was not set" << endl; return false;
-			} else {
-				vector<string> free_list;
-				free_list.push_back("restricted");
-				free_list.push_back("fill_range");
-				if (!ParseString(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) return false;
-				if (freedom=="restricted") {
-					if (GetValue("theta").size() ==0 && GetValue("n").size()==0) {
-							cout <<"In mol " + name + ", the setting 'freedom = restricted' or 'freedom = range_restricted',should be combined with a value for 'theta' or 'n'; do not use both settings! "<<endl; success=false;
-					} else {
-							if (GetValue("theta").size() >0 && GetValue("n").size()>0) {
-							cout <<"In mol " + name + ", the setting 'freedom = restricted' of 'freedom = range_restricted' do not specify both 'n' and 'theta' "<<endl; success=false;
-					} else {
-							if (GetValue("n").size()>0) {n=ParseReal(GetValue("n"),10*lat->volume);theta=n*chainlength;}
-							if (GetValue("theta").size()>0) {theta = ParseReal(GetValue("theta"),10*lat->volume);n=theta/chainlength;}
-							if (theta < 0 ) {    //|| theta > lat->volume) {
-								cout << "In mol " + name + ", the value of 'n' or 'theta' " << theta << "  is out of range 0 .. 'volume'/N, cq 'volume' "<< lat->volume << endl; success=false;
-							}
-						}
-					}
-				}
-				if (freedom=="fill_range") {
-					freedom="restricted";
-					Filling=true;
-					if (GetValue("theta").size() > 0 || GetValue("n").size()>0 || GetValue("phibulk").size() > 0) {
-						if (start==1) cout <<"For mol " + name + " the freedom is set to 'fill-range-of{-mon_name}' and therefore the value of 'theta', the value of 'n', or the value of 'phibulk' is ignored. " << endl;
-					}
-				}
+		if (freedom_value.size()==0) {
+			if (pinned) {
+				cout <<"For mol " + name + " the setting for 'freedom' was not set" << endl;
+				return false;
 			}
-		} else if (GetValue("freedom").size()==0) {
-			cout <<"For mol " + name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' 'range_restricted' . Problem terminated " << endl;
+			cout <<"For mol " + name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' . Problem terminated " << endl;
 			success = false;
 		} else {
 			vector<string> free_list;
-			if (!IsPinned()) {
+			if (!pinned) {
 				free_list.push_back("free");
 				free_list.push_back("solvent");
 				free_list.push_back("neutralizer");
-				free_list.push_back("range_restricted");
 			}
 			free_list.push_back("restricted");
-			if (!ParseString(GetValue("freedom"),freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) success=false;
-			if (freedom == "solvent") {
-				if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the solvent" << endl; }
-			}
-			if (freedom == "neutralizer") {
-				if (IsPinned()) {success=false; cout << "Mol '" + name + "' is 'pinned' and therefore this molecule can not be the neutralizer" << endl; }
-				if (!IsCharged()) {success=false; cout << "Mol '" + name + "' is not 'charged' and therefore this molecule can not be the neutralizer" << endl; }
-			}
-			if (freedom == "free") {
-				if (GetValue("phibulk").size() ==0) {
-					cout <<"In mol " + name + ", the setting 'freedom = free' should be combined with a value for 'phibulk'. "<<endl; return false;
-				} else {
+			if (!ParseString(freedom_value,freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) {
+				if (pinned) return false;
+				success=false;
+			} else {
+				if (freedom == "neutralizer" && !IsCharged()) {
+					success=false;
+					cout << "Mol '" + name + "' is not 'charged' and therefore this molecule can not be the neutralizer" << endl;
+				}
+				if (freedom == "free") {
+					if (GetValue("phibulk").size() ==0) {
+						cout <<"In mol " + name + ", the setting 'freedom = free' should be combined with a value for 'phibulk'. "<<endl;
+						return false;
+					}
 					phibulk=ParseReal(GetValue("phibulk"),-1);
 					if (phibulk < 0 || phibulk >1) {
-						cout << "In mol " + name + ", the value of 'phibulk' is out of range 0 .. 1." << endl; return false;
+						cout << "In mol " + name + ", the value of 'phibulk' is out of range 0 .. 1." << endl;
+						return false;
 					}
 				}
-			}
 
-			B=1;
-			if (GetValue("B").size()>0){
-				B=ParseReal(GetValue("B"),B);
-				if (B<1e-9) {
-					cout <<"for Mol" + name + " mobility B should have a posititve value. Default value B=1 is chosen. " << endl;
-					B=1;
+				if (!pinned) B=1;
+				if (!pinned && GetValue("B").size()>0){
+					B=ParseReal(GetValue("B"),B);
+					if (B<1e-9) {
+						cout <<"for Mol" + name + " mobility B should have a posititve value. Default value B=1 is chosen. " << endl;
+						B=1;
+					}
 				}
-			}
 
-			if (freedom == "restricted" || freedom=="range_restricted") {
-				if (GetValue("theta").size() ==0 && GetValue("n").size()==0) {
-					cout <<"In mol " + name + ", the setting 'freedom = restricted' or 'freedom = range_restricted',should be combined with a value for 'theta' or 'n'; do not use both settings! "<<endl; success=false;
-				} else {
-					if (GetValue("theta").size() >0 && GetValue("n").size()>0) {
-						cout <<"In mol " + name + ", the setting 'freedom = restricted' of 'freedom = range_restricted' do not specify both 'n' and 'theta' "<<endl; success=false;
+				if (freedom=="restricted") {
+					if (theta_value.size() ==0 && n_value.size()==0) {
+						cout <<"In mol " + name + ", the setting 'freedom = restricted' should be combined with a value for 'theta' or 'n'; do not use both settings! "<<endl;
+						success=false;
+					} else if (theta_value.size() >0 && n_value.size()>0) {
+						cout <<"In mol " + name + ", the setting 'freedom = restricted' does not allow both 'n' and 'theta' "<<endl;
+						success=false;
 					} else {
-						if (GetValue("n").size()>0) {n=ParseReal(GetValue("n"),10*lat->volume);theta=n*chainlength;}
-						if (GetValue("theta").size()>0) {theta = ParseReal(GetValue("theta"),10*lat->volume);n=theta/chainlength;}
-						if (theta < 0 || theta > lat->volume) {
-							cout << "In mol " + name + ", the value of 'n' or 'theta' is out of range 0 .. 'volume', cq 'volume'/N." << endl; success=false;
+						if (n_value.size()>0) {n=ParseReal(n_value,10*lat->volume);theta=n*chainlength;}
+						if (theta_value.size()>0) {theta = ParseReal(theta_value,10*lat->volume);n=theta/chainlength;}
+						if (theta < 0 || (!pinned && theta > lat->volume)) {
+							cout << "In mol " + name + ", the value of 'n' or 'theta' is out of range." << endl;
+							success=false;
 						}
 					}
 				}
 			}
-			if (freedom =="range_restricted" ) {
-				if (GetValue("restricted_range").size() ==0) {
-					success=false;
-					cout<<"In mol '" + name + "', freedom is set to 'range_restricted'. In this case we expect the setting for 'restricted_range'. This setting was not found. Problem terminated. " << endl;
-				} else { //read range;
-					int *HP=NULL;
-					int M=lat->M;
-					int npos=0;
-					bool block;
-					R_mask=(Real*)malloc(M*sizeof(Real));
-					string s="restricted_range";
-					int *r=(int*) malloc(6*sizeof(int));
-					success=lat->ReadRange(r,HP,npos,block,GetValue("restricted_range"),0,name,s);
-					lat->CreateMASK(R_mask,r,HP,npos,block);
-					theta_range = theta;
-					n_range = theta_range/chainlength;
-					free(r);
-				}
-			}
 		}
-
-
-		ring=false;
-		if (GetValue("ring").size() > 0) {
-				ParseBool(GetValue("ring"),ring,"Input for ring is either 'true' or 'false'. Moreover, first and last segments of the backbone will be put on top of each other (chain length gets shorter by one). ");
-				if (ring) {
-					int length;
-					switch (MolType) {
-					case monomer:
-						cout << "Can not make a ring from a molecule type monomer; ring option is ignored" << endl;
-						ring=false;
-						break;
-					case linear:
-					case branched:
-						length=mon_nr.size();
-						if (mon_nr[0]==mon_nr[length-1]) {
-							if (n_mon[0] !=1 || n_mon[length-1] !=1) {
-								cout <<"Fist and last block of main chain should consist of just one segment: e.g. (A)1(B)99(A)1 is a ring of 100 segments (one A only)."  << endl;
-								ring =false;
-							} else  {
-								cout <<"ring can be implemented " << endl;
-								cout <<"chain length reduced by one" << endl;
-								chainlength--;
-							}
-						} else {
-							ring =false;
-							cout <<"first and last segment of the main chain should be of the same type, as these two are 'merged'. Chain length is reduced by one." << endl;
-							cout <<"make sure to start the main chain and end the main chain by a block with length 1: for example '(B)1(B)99(B)1' will be a ring of 100 segments." << endl;
-						}
-					break;
-					default:
-						ring=false;
-					break;
-
-				}
-			}
-		}
-
 	}
 	Markov=1;
 	if (GetValue("Markov").size()>0) Markov=ParseInt(GetValue("Markov"),1);
 	if (Markov<1 || Markov>2) {
-		cout <<" Integer value for 'Markov' is by default 1 and may be set to 2 for some mol_types and fjc-choices only. Markov value out of bounds. Proceed with caution. " << endl; success = false;
+		cout <<" Integer value for 'Markov' is by default 1 and may be set to 2 for some mol_types and fjc-choices only. Markov value out of bounds. Proceed with caution. " << endl;
+		success = false;
 	}
 	if (Markov==2) lat->Markov=2;
 	k_stiff=lat->k_stiff; //pick up 'default' value from lattice.
@@ -348,18 +237,6 @@ NAMICS_DBG("CheckInput for Mol " + name << endl);
 	if (size==0) {success=false; cout <<"Attention: size in molecule is not set; combination gradients (1,2,3),  Markov=2, stencil_full (true,false), lattice_type (hexagonal, simple_cubic) not implemented" << endl;}
 
 	return success;
-}
-
-int Molecule::GetMonNr(string s){
-NAMICS_DBG("GetMonNr for Mon " + name << endl);
-	int n_segments=In->MonList.size();
-	int found=-1;
-	int i=0;
-	while(i<n_segments) {
-		if (Seg[i]->name ==s) found=i;
-		i++;
-	}
-	return found;
 }
 
 bool Molecule::ExpandBrackets(string &s) {
@@ -439,7 +316,11 @@ NAMICS_DBG("Molecule:: Interpret" << endl);
 	int length=open.size();
 	while (k<length) {
 		string segname=s.substr(open[k]+1,close[k]-open[k]-1);
-		int mnr=GetMonNr(segname);
+		int mnr=-1;
+		int n_segments=In->MonList.size();
+		for (int i=0; i<n_segments; i++) {
+			if (Seg[i]->name ==segname) mnr=i;
+		}
 		if (mnr <0)  {cerr <<"In composition of mol '" + name + "', segment name '" + segname + "' is not recognised"  << endl; success = false;
 		throw "Composition Error";
 		} else {
@@ -598,11 +479,6 @@ NAMICS_DBG("Decomposition for Mol " + name << endl);
 	return success;
 }
 
-int Molecule::GetChainlength(void){
-NAMICS_DBG("GetChainlength for Mol " + name << endl);
-	return chainlength;
-}
-
 bool Molecule:: MakeMonList(void) {
 NAMICS_DBG("Molecule:: MakeMonList" << endl);
 	MolMonList.clear();
@@ -611,7 +487,7 @@ NAMICS_DBG("Molecule:: MakeMonList" << endl);
 	int i=0;
 	while (i<length) {
 		if (!In->InSet(MolMonList,mon_nr[i])) {
-			if (Seg[mon_nr[i]]->GetFreedom()=="frozen") {
+			if (Seg[mon_nr[i]]->freedom=="frozen") {
 				success = false;
 				cout << "In 'composition of mol " + name + ", a segment was found with freedom 'frozen'. This is not permitted. " << endl;
 
@@ -632,28 +508,11 @@ NAMICS_DBG("Molecule:: MakeMonList" << endl);
 
 bool Molecule::IsPinned() {
 NAMICS_DBG("IsPinned for Mol " + name << endl);
-	bool success=false;
 	int length=MolMonList.size();
-	int i=0;
-	while (i<length) {
-        	if (Seg[MolMonList[i]]->GetFreedom()=="pinned") success=true;
-		i++;
+	for (int i=0; i<length; i++) {
+		if (Seg[MolMonList[i]]->freedom=="pinned") return true;
 	}
-	return success;
-}
-
-int Molecule::GetPinnedSeg() {
-NAMICS_DBG("GetPinnedSeg for Mol " + name << endl);
-	int segnr=-1;
-	int length=MolMonList.size();
-	int i=0;
-	while (i<length) {
-        	if (Seg[MolMonList[i]]->GetFreedom()=="pinned") {
-				if (segnr > -1) cout <<"multiple segnrs in GetPinnedSeg() " << endl; else segnr=MolMonList[i];
-			}
-		i++;
-	}
-	return segnr;
+	return false;
 }
 
 Real Molecule::Charge() {
@@ -790,8 +649,6 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 	push("n_exc",thetaexc/chainlength);
 	push("nexc",thetaexc/chainlength);
 	push("thetaexc",thetaexc);
-	push("theta_Gibbs",theta_Gibbs);
-	if (R_Gibbs>0) push("R_Gibbs",R_Gibbs);
 	push("n",n);
 	push("chainlength",chainlength);
 	push("phibulk",phibulk);
@@ -808,17 +665,6 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 		}
 		push("Gamma",theta-(TrueVolume-Volume_particles)*phibulk);
 	}
-	if (GetValue("compute_width_interface").size()>0){
-		if (!ComputeWidth()) {
-			cout <<"Computation of width of interface is rejected" <<endl;
-		}
-	}
-	push("width",width);
-	push("phi1",H_phitot[lat->fjc]);
-	push("phiM",H_phitot[lat->M-2*lat->fjc]);
-	push("Dphi",phi1-phiM);
-	push("pos_interface",pos_interface);
-	push("phi_average",phi_av);
 	if (chainlength==1) {
 		int seg=MolMonList[0];
 		if (Seg[seg]->ns >1) {
@@ -848,14 +694,6 @@ NAMICS_DBG("PushOutput for Mol " + name << endl);
 
 	push("GN",GN);
 	push("norm",norm);
-	J=0;
-
-	int molmonlength=MolMonList.size();
-	for (int i=0; i<molmonlength; i++) {
-		J+=Seg[MolMonList[i]]->J;
-	}
-	push("J",J/chainlength);
-	push("DeltaMu",Delta_MU);
 	string s="profile;0"; push("phi",s);
 	int length = MolMonList.size();
 	for (int i=0; i<length; i++) {
@@ -889,11 +727,6 @@ NAMICS_DBG("GetPointer for Mol " + name << endl);
 		}
 	}
 	return NULL;
-}
-
-void Molecule::PutTheta(Real T){
-	theta=T;
-	n=theta/chainlength;
 }
 
 int* Molecule::GetPointerInt(string s, int &SIZE) {
@@ -946,164 +779,19 @@ NAMICS_DBG("GetValue (long) for Mol " + name << endl);
 	return 0;
 }
 
-Real Molecule::ComputeGibbs(Real R_gibbs) {
-NAMICS_DBG("ComputeGibbs for Mol " + name << endl);
-	int fjc=lat->fjc;
-	int M=lat->M;
-	int gradients=lat->gradients;
-	if (gradients>1) {cout <<"Error in ComputeGibbs; gadients not equal to 1 " << endl; return 0.0;}
-	lat->remove_bounds(phitot);
-	Real phi_low =phitot[fjc+1];
-	Real phi_high=phitot[M-2*fjc-1];
-	theta=lat->WeightedSum(phitot);
-	Real theta_exc=theta-lat->volume*phibulk;
-	if (freedom=="solvent") {
-		theta_Gibbs=0;
-		R_Gibbs=theta_exc/(phi_low-phi_high);
-		return  R_Gibbs;
-	} else {
-		R_Gibbs=R_gibbs;
-		theta_Gibbs=theta_exc-(phi_low-phi_high)*R_gibbs;
-		return theta_Gibbs;
-	}
-}
-
-bool Molecule::ComputeWidth() {
-NAMICS_DBG("ComputeWidth for Mol " + name << endl);
-	bool success=true;
-	int M=lat->M;
-	if (lat->gradients>1) {success=false; cout <<" Compute width of interface only in system with 'one-gradient'" << endl; return success; }
-	if (GetValue("compute_width_interface")!="true") {
-		cout <<"Interfacial width not computed because value for 'compute_width_interface' was not set to 'true'. " << endl; success=false; return success;
-	} else {
-		int fjc=lat->fjc;
-		width=0;
-		Dphi=0;
-		phi_av=0;
-		phi1=phitot[fjc]; phiM=phitot[M-2*fjc]; Dphi=phi1-phiM;
-		if (Dphi*Dphi<1e-20) {cout << "There is no interface present. Width evaluation failed;" << endl; return success; }
-		for (int x=fjc; x<M-fjc-1; x++) {
-			if ((phitot[x]-phitot[x+1])/Dphi > width) {width = (phitot[x]-phitot[x+1])/Dphi; pos_interface=x+0.5; phi_av=(phitot[x]+phitot[x+1])/2;}
-			}
-	}
-	if (width >0) width = 1.0/width/lat->fjc;
-	pos_interface = (pos_interface)/lat->fjc;
-	return success;
-}
-
-void Molecule::NormPerBlock(int split) {
-	int MX=lat->MX/split;
-	int MY=lat->MY/split;
-	int MZ=lat->MZ/split;
-	int JX=lat->JX;
-	int JY=lat->JY;
-	int M = lat->M;
-	Real theta_block;
-	int blocknr=-1;
-	for(int i=0; i<split; i++)
-	for(int j=0; j<split; j++)
-	for(int k=0; k<split; k++){
-		theta_block=0;
-		blocknr++;
-		for (int x=1; x<=MX; x++)
-		for (int y=1; y<=MY; y++)
-		for (int z=1; z<=MZ; z++) {
-			theta_block+=phitot[(i*MX+x)*JX+(j*MY+y)*JY+(k*MZ+z)];
-		}
-		for (int x=1; x<=MX; x++)
-		for (int y=1; y<=MY; y++)
-		for (int z=1; z<=MZ; z++) {
-			phitot[(i*MX+x)*JX+(j*MY+y)*JY+(k*MZ+z)]*=block[blocknr]/theta_block;
-		        int length=MolMonList.size();
-			for (int kk=0; kk<length; kk++)
-			     phi[kk*M+(i*MX+x)*JX+(j*MY+y)*JY+(k*MZ+z)]*=block[blocknr]/theta_block;
-		}
-	}
-}
-
-void Molecule::SetThetaBlocks(int split) {
-	int MX=lat->MX/split;
-	int MY=lat->MY/split;
-	int MZ=lat->MZ/split;
-	int JX=lat->JX;
-	int JY=lat->JY;
-	Real theta_block;
-	Real theta_tot=0;
-	block.clear();
-	for(int i=0; i<split; i++)
-	for(int j=0; j<split; j++)
-	for(int k=0; k<split; k++){
-		theta_block=0;
-		for (int x=1; x<=MX; x++)
-		for (int y=1; y<=MY; y++)
-		for (int z=1; z<=MZ; z++) {
-			theta_block+=phitot[(i*MX+x)*JX+(j*MY+y)*JY+(k*MZ+z)];
-		}
-		theta_tot+=theta_block;
-		block.push_back(theta_block);
-	}
-}
-
 Real* Molecule::propagate_forward(Real* G1, int &s, int block, int generation, int M) {
 NAMICS_DBG("1. propagate_forward for Mol " + name << endl);
 
 	int N= n_mon[block];
-
-	if (save_memory) {
-		int k,k0,t0,v0,t;
-		int n=memory[block]; if (block>0) n-=memory[block-1];
-		int n0=0; if (block>0) n0=memory[block-1];
-
-		t=1;
-		v0=t0=k0=0;
-
-		if (s==first_s[generation]) {
-
-			lat->Initiate(Gs+M,G1,Markov,M);
-			lat->Initiate(Gs,G1,Markov,M); //not sure why this is done....
+	for (int k=0; k<N; k++) {
+		if (s>first_s[generation]) {
+			lat->propagate(Gg_f,G1,s-1,s,M);
 		} else {
-			lat->propagate(Gs,G1,0,1,M); //assuming Gs contains previous end-point distribution on pos zero;
+			lat->Initiate(Gg_f+first_s[generation]*M,G1,Markov,M);
 		}
-		std::copy_n(Gs+M, M, Gg_f+n0*M); last_stored[block]=n0;
 		s++;
-		t=1;
-		v0=t0=k0=0;
-		for (k=2; k<=N; k++) {
-			t++; s++;
-			lat->propagate(Gs,G1,(k-1)%2,k%2,M);
-			if (t>n) {
-				t0++;
-				if (t0 == n) t0 = ++v0;
-				t = t0 + 1;
-				k0 = k - t0 - 1;
-			}
-
-			if ((t == t0+1 && t0 == v0)
-		  	 || (t == t0+1 && ((n-t0)*(n-t0+1) >= N-1-2*(k0+t0)))
-		  	 || (2*(n-t+k) >= N-1)) {
-				std::copy_n(Gs+(k%2)*M, M, Gg_f+(n0+t-1)*M);
-				last_stored[block]=n0+t-1;
-			}
-		}
-		if ((N)%2!=0) {
-			std::copy_n(Gs+M, M, Gs);
-		}
-	} else {
-		for (int k=0; k<N; k++) {
-			if (s>first_s[generation]) {
-
-				lat->propagate(Gg_f,G1,s-1,s,M);
-			} else {
-				lat->Initiate(Gg_f+first_s[generation]*M,G1,Markov,M);
-			}
-			 s++;
-		}
 	}
-	if (save_memory) {
-		return Gg_f+last_stored[block]*M;
-	} else {
-		 return Gg_f+(s-1)*M;
-	}
+	return Gg_f+(s-1)*M;
 
 }
 
@@ -1112,64 +800,15 @@ void Molecule::propagate_backward(Real* G1, int &s, int block, int unity, int M)
 NAMICS_DBG("propagate_backward for Mol " + name << endl);
 
 	int N= n_mon[block];
-	if (save_memory) {
-		int k,k0,t0,v0,t,rk1;
-		int n=memory[block]; if (block>0) n-=memory[block-1];
-		int n0=0; if (block>0) n0=memory[block-1];
-
-		t=1;
-		v0=t0=k0=0;
-		for (k=2; k<=N; k++) {t++; if (t>n) { t0++; if (t0 == n) t0 = ++v0; t = t0 + 1; k0 = k - t0 - 1;}}
-		for (k=N; k>=1; k--) {
-			if (k==N) {
-				if (s==chainlength-1) {
-					std::copy_n(G1, M, Gg_b+(k%2)*M);
-				} else {
-					lat->propagate(Gg_b,G1,(k+1)%2,k%2,M);
-				}
-			} else {
-				lat->propagate(Gg_b,G1,(k+1)%2,k%2,M);
-			}
-			t = k - k0;
-
-			if (t == t0) {
-				k0 += - n + t0;
-				if (t0 == v0 ) {
-					k0 -= ((n - t0)*(n - t0 + 1))/2;
-				}
-				t0 --;
-				if (t0 < v0) {
-					v0 = t0;
-				}
-				std::copy_n(Gg_f+(n0+t-1)*M, M, Gs+(t%2)*M);
-				for (rk1=k0+t0+2; rk1<=k; rk1++) {
-					t++;
-					lat->propagate(Gs,G1,(t-1)%2,t%2,M);
-					if (t == t0+1 || k0+n == k) {
-						std::copy_n(Gs+(t%2)*M, M, Gg_f+(n0+t-1)*M);
-					}
-					if (t == n && k0+n < k) {
-						t  = ++t0;
-						k0 += n - t0;
-					}
-				}
-				t = n;
-			}
-			lat->AddPhiS(rho+molmon_nr[block]*M,Gg_f+(n0+t-1)*M,Gg_b+(k%2)*M,Markov,M);
-			s--;
+	for (int k=0; k<N; k++) {
+		if (s<chainlength-1) {
+			lat->propagate(Gg_b,G1,(s+1)%2,s%2,M);
+		} else {
+			lat->Initiate(Gg_b+(s%2)*M,G1,Markov,M);
 		}
-		std::copy_n(Gg_b+M, M, Gg_b);
-	} else {
-		for (int k=0; k<N; k++) {
-			if (s<chainlength-1) {
-				lat->propagate(Gg_b,G1,(s+1)%2,s%2,M);
-			} else {
-				lat->Initiate(Gg_b+(s%2)*M,G1,Markov,M);
-			}
 
-			lat->AddPhiS(rho+molmon_nr[block]*M, Gg_f+(s*M), Gg_b+(s%2)*M,Markov, M);
-			s--;
-		}
+		lat->AddPhiS(rho+molmon_nr[block]*M, Gg_f+(s*M), Gg_b+(s%2)*M,Markov, M);
+		s--;
 	}
 }
 
@@ -1179,172 +818,40 @@ Real* Molecule::propagate_forward(Real* G1, int &s, int block, Real* P, int gene
 NAMICS_DBG("1. propagate_forward for Mol " + name << endl);
 
 	int N= n_mon[block];
-	if (save_memory) {
-		int k,k0,t0,v0,t;
-		int n=memory[block]; if (block>0) n-=memory[block-1];
-		int n0=0; if (block>0) n0=memory[block-1];
-		if (s==first_s[generation]) {
-
-			lat->Initiate(Gs+size*M,G1,Markov,M);
+	for (int k=0; k<N; k++) {
+		if (s>first_s[generation]) {
+			lat->propagateF(Gg_f,G1,P,s-1,s,M);
 		} else {
-			lat->propagateF(Gs,G1,P,0,1,M); //assuming Gs contains previous end-point distribution on pos zero;
-
+			lat->Initiate(Gg_f+first_s[generation]*M*size,G1,Markov,M);
 		}
 		s++;
-		std::copy_n(Gs+M*size, M*size, Gg_f+n0*M*size);
-		last_stored[block]=n0;
-
-		t=1;
-		v0=t0=k0=0;
-		for (k=2; k<=N; k++) {
-			t++; s++;
-			lat->propagateF(Gs,G1,P,(k-1)%2,k%2,M);
-			if (t>n) {
-				t0++;
-				if (t0 == n) { t0 = ++v0; cout <<"v0 >0 .... save memory may fail!" << endl; }
-				t = t0 + 1;
-				k0 = k - t0 - 1;
-			}
-			if ((t == t0+1 && t0 == v0)
-		  	 || (t == t0+1 && ((n-t0)*(n-t0+1) >= N-1-2*(k0+t0)))
-		  	 || (2*(n-t+k) >= N-1)) {
-				std::copy_n(Gs+(k%2)*M*size, M*size, Gg_f+(n0+t-1)*M*size);
-				last_stored[block]=n0+t-1;
-			}
-		}
-		if ((N)%2!=0) {
-			std::copy_n(Gs+M*size, M*size, Gs);
-		}
-	} else {
-		for (int k=0; k<N; k++) {
-			if (s>first_s[generation]) {
-				lat->propagateF(Gg_f,G1,P,s-1,s,M);
-			} else {
-				lat->Initiate(Gg_f+first_s[generation]*M*size,G1,Markov,M);
-			}
-			 s++;
-		}
 	}
-	if (save_memory) {
-		return Gg_f+last_stored[block]*M*size;
-	} else {
-		 return Gg_f+(s-1)*M*size;
-	}
+	return Gg_f+(s-1)*M*size;
 
 }
 
 void Molecule::propagate_backward(Real* G1, int &s, int block, Real* P, int& unity, int M) {
 NAMICS_DBG("propagate_backward for Mol " + name << endl);
 	int N= n_mon[block];
-	if (save_memory) {
-		int k,k0,t0,v0,t,rk1;
-		int n=memory[block]; if (block>0) n-=memory[block-1];
-		int n0=0; if (block>0) n0=memory[block-1];
-
-		t=1;
-		v0=t0=k0=0;
-		for (k=2; k<=N; k++) {t++; if (t>n) { t0++; if (t0 == n) t0 = ++v0; t = t0 + 1; k0 = k - t0 - 1;}}
-		for (k=N; k>=1; k--) {
-			if (k==N) {
-				if (s==chainlength-1) {
-					lat->Initiate(Gg_b+(k%2)*M*size,G1,Markov,M);
-				} else {
-					if (unity==-1) {
-						unity=0;
-						Real* GB= (Real*) malloc(2*M*sizeof(Real));
-						lat->Terminate(GB,Gg_b+((k+1)%2)*M*size,Markov,M);
-						lat->propagate(GB,G1,0,1,M); //first step is freely joined
-						lat->Initiate(Gg_b+(k%2)*M*size,GB+M,Markov,M);
-						free(GB);
-					} else {
-						lat->propagateB(Gg_b,G1,P,(k+1)%2,k%2,M);
-					}
-				}
+	for (int k=0; k<N; k++) {
+		if (s<chainlength-1) {
+			if (unity==-1) {
+				unity=0;
+				Real* GB= (Real*) malloc(2*M*sizeof(Real));
+				lat->Terminate(GB,Gg_b+((s+1)%2)*M*size,Markov,M);
+				lat->propagate(GB,G1,0,1,M); //first step is freely joined
+				lat->Initiate(Gg_b+(s%2)*M*size,GB+M,Markov,M);
+				free(GB);
 			} else {
-				lat->propagateB(Gg_b,G1,P,(k+1)%2,k%2,M);
+				lat->propagateB(Gg_b,G1,P,(s+1)%2,s%2,M);
 			}
-			t = k - k0;
-			if (t == t0) {
-				k0 += - n + t0;
-				if (t0 == v0 ) {
-					k0 -= ((n - t0)*(n - t0 + 1))/2;
-				}
-				t0 --;
-				if (t0 < v0) {
-					v0 = t0;
-				}
-				std::copy_n(Gg_f+(n0+t-1)*M*size, M*size, Gs+(t%2)*M*size);
-				for (rk1=k0+t0+2; rk1<=k; rk1++) {
-					t++;
-					lat->propagateF(Gs,G1,P,(t-1)%2,t%2,M);
-					if (t == t0+1 || k0+n == k) {
-						std::copy_n(Gs+(t%2)*M*size, M*size, Gg_f+(n0+t-1)*M*size);
-					}
-					if (t == n && k0+n < k) {
-						t  = ++t0;
-						k0 += n - t0;
-					}
-				}
-				t = n;
-			}
-
-			lat->AddPhiS(rho+molmon_nr[block]*M,Gg_f+(n0+t-1)*M*size,Gg_b+(k%2)*M*size,Markov,M);
-			s--;
-		}
-		std::copy_n(Gg_b+M*size, size*M, Gg_b);
-	} else {
-		for (int k=0; k<N; k++) {
-			if (s<chainlength-1) {
-				if (unity==-1) {
-					unity=0;
-					Real* GB= (Real*) malloc(2*M*sizeof(Real));
-					lat->Terminate(GB,Gg_b+((s+1)%2)*M*size,Markov,M);
-					lat->propagate(GB,G1,0,1,M); //first step is freely joined
-					lat->Initiate(Gg_b+(s%2)*M*size,GB+M,Markov,M);
-					free(GB);
-				} else {
-					lat->propagateB(Gg_b,G1,P,(s+1)%2,s%2,M);
-				}
-			} else {
-				lat->Initiate(Gg_b+(s%2)*M*size,G1,Markov,M);
-			}
-
-			lat->AddPhiS(rho+molmon_nr[block]*M, Gg_f+s*M*size, Gg_b+(s%2)*M*size, Markov, M);
-			s--;
-		}
-	}
-}
-
-bool Molecule::ComputePhi(Real* BETA,int id){
-NAMICS_DBG("ComputePhi for Mol " + name << endl);
-	bool success=true;
-	int M=lat->M;
-	if (id !=0) {
-		int molmonlistlength= MolMonList.size();
-		for (int i=0; i<molmonlistlength; i++)
-		if (id==1) {
-			for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = (Seg[MolMonList[i]]->G1)[__i] * (BETA)[__i];
 		} else {
-			for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = ((BETA)[__i] != 0) ? ((Seg[MolMonList[i]]->G1)[__i] / (BETA)[__i]) : 0;
+			lat->Initiate(Gg_b+(s%2)*M*size,G1,Markov,M);
 		}
+
+		lat->AddPhiS(rho+molmon_nr[block]*M, Gg_f+s*M*size, Gg_b+(s%2)*M*size, Markov, M);
+		s--;
 	}
-	success=ComputePhi();
-
-
-	if (id !=0) {
-		int molmonlistlength=MolMonList.size();
-
-		for (int i=0; i<molmonlistlength; i++) {
-			if (id==1) {
-				for (int __i = 0; __i < (M); ++__i) (phi+i*M)[__i] = ((BETA)[__i] != 0) ? ((phi+i*M)[__i] / (BETA)[__i]) : 0;
-				for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = ((BETA)[__i] != 0) ? ((Seg[MolMonList[i]]->G1)[__i] / (BETA)[__i]) : 0;
-			}  else {
-				for (int __i = 0; __i < (M); ++__i) (phi+i*M)[__i] = (phi+i*M)[__i] * (BETA)[__i];
-				for (int __i = 0; __i < (M); ++__i) (Seg[MolMonList[i]]->G1)[__i] = (Seg[MolMonList[i]]->G1)[__i] * (BETA)[__i];
-			}
-		}
-	}
-	return success;
 }
 
 bool Molecule::ComputePhi(){
@@ -1362,11 +869,8 @@ Real Molecule::fraction(int segnr){
 NAMICS_DBG("fraction for mol_test " + name << endl); //default for monomer.
 	int Nseg=0;
 	int length = mon_nr.size();
-	int i=0;
-	if (ring) i++; //first segment is not counted in fraction;
-	while (i<length) {
+	for (int i = 0; i < length; i++) {
 		if (segnr==mon_nr[i]) {Nseg+=n_mon[i];}
-		i++;
 	}
 	return 1.0*Nseg/chainlength;
 }

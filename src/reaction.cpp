@@ -6,22 +6,7 @@ Reaction::Reaction(const Input* In_,vector<Segment*> Seg_, vector<State*> Sta_, 
 	KEYS.push_back("pK");
 	KEYS.push_back("equation");  
 }
-Reaction::~Reaction() {
-	DeAllocateMemory();
-}
-void Reaction::DeAllocateMemory(){
-NAMICS_DBG("Destructor for Reaction " + name << endl);
-}
-
-void Reaction::AllocateMemory(int Clamp_nr, int n_box) {
-	(void)n_box;
-	(void)Clamp_nr;
-NAMICS_DBG("AllocateMemory in Reaction " + name << endl);	
-}
-
-void Reaction::PrepareForCalculations() {
-NAMICS_DBG("PrepareForCalculations in Reaction " + name << endl);
-}
+Reaction::~Reaction() = default;
 
 
 void Reaction::PutParameter(string new_param) {
