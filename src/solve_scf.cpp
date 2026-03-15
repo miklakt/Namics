@@ -5,22 +5,6 @@ Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,std::span<const std::unique_
 	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, lat{Lat_}, Mol{Mol_}, Sta{Sta_}, Rea{Rea_}
 {
 NAMICS_DBG("Constructor in Solve_scf " << std::endl);
-	KEYS.push_back("method");
-	KEYS.push_back("x_info");
-	KEYS.push_back("e_info"); KEYS.push_back("s_info");KEYS.push_back("i_info");KEYS.push_back("t_info");KEYS.push_back("hs_info");
-	KEYS.push_back("iterationlimit" ); KEYS.push_back("tolerance");
-	KEYS.push_back("stop_criterion");
-	KEYS.push_back("deltamin");KEYS.push_back("deltamax");
-	KEYS.push_back("linesearchlimit");
-	KEYS.push_back("max_accuracy_for_hessian_scaling");
-	KEYS.push_back("n_iterations_for_hessian");
-	KEYS.push_back("small_alpha");
-	KEYS.push_back("max_n_small_alpha");
-	KEYS.push_back("min_accuracy_for_hessian");
-	KEYS.push_back("max_fr_reverse_direction");
-	KEYS.push_back("print_hessian_at_it");
-	KEYS.push_back("m");
-	KEYS.push_back("n_restart_DIIS");
 	max_g = false; // compute g based on max error
 	all=false;
 	restart_DIIS =0;
@@ -75,72 +59,91 @@ NAMICS_DBG("CheckInput in Solve " << std::endl);
 	gradient=classical;
 	residual=1;
 	m=10;
-	success=In->CheckParameters("newton",name,start, KEYS, PARAMETERS);
+	const auto& parameters = In->Parameters("newton", name, start);
+	static const std::vector<std::string> keys = {
+		"method", "e_info", "s_info", "i_info", "t_info", "hs_info",
+		"iterationlimit", "tolerance", "stop_criterion", "deltamin", "deltamax",
+		"linesearchlimit", "max_accuracy_for_hessian_scaling", "n_iterations_for_hessian",
+		"small_alpha", "max_n_small_alpha", "min_accuracy_for_hessian",
+		"max_fr_reverse_direction", "m", "n_restart_DIIS"
+	};
+	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
+		if (ContainsValue(keys, it.key())) continue;
+		success = false;
+		std::cout << "newton property '" << it.key() << "' is unknown. Select from: " << std::endl;
+		for (const std::string& item : keys) std::cout << item << std::endl;
+	}
 	if (success) {
-		iterationlimit=ParseInt(GetValue("iterationlimit"),1000);
+		try {
+		iterationlimit=parameters.value("iterationlimit",1000);
 		if (iterationlimit < 0 || iterationlimit>1e6) {iterationlimit = 1000;}
 
-		e_info=ParseBool(GetValue("e_info"),true);
-		hs_info=ParseBool(GetValue("hs_info"),true);
-		s_info=ParseBool(GetValue("s_info"),false);
-		t_info=ParseBool(GetValue("t_info"),false);
-		i_info=ParseInt(GetValue("i_info"),1);
+		e_info=parameters.value("e_info",true);
+		hs_info=parameters.value("hs_info",true);
+		s_info=parameters.value("s_info",false);
+		t_info=parameters.value("t_info",false);
+		i_info=parameters.value("i_info",1);
 		if (i_info == 0) {
 		// We cannot divide by zero (see modulus statements in sfnewton), but this will probably be what the user means.
 		std::cerr << "WARNING: i_info cannot be zero ! Defaulting to iterationlimit + 1."<< std::endl;
 		i_info = iterationlimit+1;
 		}
-		deltamax=ParseReal(GetValue("deltamax"),0.1);
+		deltamax=parameters.value("deltamax",0.1);
 		if (deltamax < 0 || deltamax>100) {deltamax = 0.1;  std::cout << "Value of deltamax out of range 0..100, and value set to default value 0.1" <<std::endl; }
 		deltamin=0;
-		deltamin=ParseReal(GetValue("deltamin"),deltamin);
+		deltamin=parameters.value("deltamin",deltamin);
 		if (deltamin < 0 || deltamin>100) {deltamin = deltamax/100000;  std::cout << "Value of deltamin out of range 0..100, and value set to default value deltamax/100000" <<std::endl; }
-		tolerance=ParseReal(GetValue("tolerance"),1e-7);
+		tolerance=parameters.value("tolerance",1e-7);
 		if (tolerance < 1e-16 ||tolerance>10) {tolerance = 1e-5;  std::cout << "Value of tolerance out of range 1e-12..10 Value set to default value 1e-5" <<std::endl; }
 
-			if (GetValue("method").size()==0) {SCF_method="pseudohessian";} else {
-				std::vector<std::string>method_options;
-				method_options.push_back("DIIS");
-				method_options.push_back("pseudohessian");
-				method_options.push_back("hessian");
-				method_options.push_back("LBFGS");
-				if (!ParseString(GetValue("method"),SCF_method,method_options,"In 'solve_scf' the entry for 'method' not recognized: choose from:")) success=false;
+			const std::string method_value = parameters.value("method", std::string{});
+			if (method_value.empty()) {
+				SCF_method="pseudohessian";
+			} else if (method_value == "DIIS" || method_value == "pseudohessian" || method_value == "hessian" || method_value == "LBFGS") {
+				SCF_method = method_value;
+			} else {
+				std::cout << "In 'solve_scf' the entry for 'method' not recognized: choose from:" << std::endl;
+				std::cout << "DIIS" << std::endl;
+				std::cout << "pseudohessian" << std::endl;
+				std::cout << "hessian" << std::endl;
+				std::cout << "LBFGS" << std::endl;
+				success = false;
 			}
 		if (SCF_method=="hessian" || SCF_method=="pseudohessian") {
 			if (SCF_method=="hessian") {pseudohessian=false; hessian=true; solver=HESSIAN;} else { pseudohessian=true; hessian=false; solver=PSEUDOHESSIAN;}
 			samehessian=false;
-			max_accuracy_for_hessian_scaling=ParseReal(GetValue("max_accuracy_for_hessian_scaling"),0.1);
+			max_accuracy_for_hessian_scaling=parameters.value("max_accuracy_for_hessian_scaling",0.1);
 			if (max_accuracy_for_hessian_scaling<1e-7 || max_accuracy_for_hessian_scaling>1) {
 				std::cout <<"max_accuracy_for_hessian_scaling is out of range: 1e-7...1; default value 0.1 is used instead" << std::endl;
 				max_accuracy_for_hessian_scaling=0.1;
 			}
-			minAccuracyForHessian=ParseReal(GetValue("min_accuracy_for_hessian"),0.5);
+			minAccuracyForHessian=parameters.value("min_accuracy_for_hessian",0.5);
 			if (minAccuracyForHessian<0 ||minAccuracyForHessian>1) {
 				std::cout <<"min_accuracy_for_hessian is out of range: 0...0.1; default value 0 is used instead (no hessian computation)" << std::endl;
 				minAccuracyForHessian=0;
 			}
-			maxFrReverseDirection =ParseReal(GetValue("max_fr_reverse_direction"),0.4);
+			maxFrReverseDirection =parameters.value("max_fr_reverse_direction",0.4);
 			if (maxFrReverseDirection <0.1 ||maxFrReverseDirection >0.5) {
 				std::cout <<"max_fr_reverse_direction is out of range: 0.1...0.5; default value 0.4 is used instead" << std::endl;
 				maxFrReverseDirection =0.4;
 			}
 
-			n_iterations_for_hessian=ParseInt(GetValue("n_iterations_for_hessian"),iterationlimit+100);
+			n_iterations_for_hessian=parameters.value("n_iterations_for_hessian",iterationlimit+100);
 			if (n_iterations_for_hessian<1 ) {
 				std::cout <<" n_iterations_for_hessian setting must be larger than unity; hessian evaluations will not be done " << std::endl;
 				n_iterations_for_hessian=iterationlimit+100;
 			}
-			maxNumSmallAlpha=ParseInt(GetValue("max_n_small_alpha"),50);
+			maxNumSmallAlpha=parameters.value("max_n_small_alpha",50);
 			if (maxNumSmallAlpha<10 ||maxNumSmallAlpha>1000) {
 				std::cout <<" max_n_small_alpha is out of range: 10, ..., 100;  max_n_small_alpha is set to default: 50 " << std::endl;
 				maxNumSmallAlpha=50;
 			}
-			deltamin=ParseReal(GetValue("deltamin"),0);
+			deltamin=parameters.value("deltamin",0.0);
 			if (deltamin <0 || deltamin>deltamax) {
 				std::cout <<"deltamin is out of range; 0, ..., " << deltamax << "; deltamin value set to 0 " << std::endl;
 				deltamin=0;
 			}
-			smallAlpha=ParseReal(GetValue("small_alpha"),0.00001);
+			smallAlpha=parameters.value("small_alpha",0.00001);
 			if (smallAlpha <0 || smallAlpha>1) {
 				std::cout <<"small_alpha is out of range; 0, ..., 1; small_alpha value set to default: 1e-5 " << std::endl;
 				smallAlpha=0.00001;
@@ -148,10 +151,10 @@ NAMICS_DBG("CheckInput in Solve " << std::endl);
 		}
 		if (SCF_method=="DIIS") {
 			solver=diis;
-			m=ParseInt(GetValue("m"),10);
+			m=parameters.value("m",10);
 			if (m < 0 ||m>100) {m=10;  std::cout << "Value of 'm' out of range 0..100, value set to default value 10" <<std::endl; }
 			restart_DIIS=iterationlimit;
-			restart_DIIS=ParseInt(GetValue("n_restart_DIIS"),iterationlimit);
+			restart_DIIS=parameters.value("n_restart_DIIS",iterationlimit);
 			if (restart_DIIS < 0 || restart_DIIS > iterationlimit*10) {
 				restart_DIIS=iterationlimit; std::cout <<"Value of 'n_restart_DIIS' out of range 0 .. iterationlimit; value set to iterationlimit" << std::endl;
 			}
@@ -159,79 +162,46 @@ NAMICS_DBG("CheckInput in Solve " << std::endl);
 		}
 		if (SCF_method=="LBFGS") {
 			solver=LBFGS;
-			m=ParseInt(GetValue("m"),6);
+			m=parameters.value("m",6);
 			if (m < 0 ||m>1000) {m=6;  std::cout << "Value of 'm' out of range 0..1000, value set to default value 6" <<std::endl; }
 		}
-		if (GetValue("stop_criterion").size() > 0) {
-			std::vector<std::string>options;
-			options.push_back("norm_of_g");
-			options.push_back("max_of_element_of_|g|");
-			if (!ParseString(GetValue("stop_criterion"),stop_criterion,options,"In newton the stop_criterion setting was not recognised")) {success=false; };
-			if(GetValue("stop_criterion") == options[1]) {
+		const std::string stop_value = parameters.value("stop_criterion", std::string{});
+		if (!stop_value.empty()) {
+			if (stop_value != "norm_of_g" && stop_value != "max_of_element_of_|g|") {
+				std::cout << "In newton the stop_criterion setting was not recognised" << std::endl;
+				success = false;
+			} else {
+				stop_criterion = stop_value;
+			}
+			if(stop_value == "max_of_element_of_|g|") {
 				max_g = true;
 			}
+		}
+		} catch (const nlohmann::json::exception& error) {
+			std::cout << "Invalid json type in newton '" << name << "': " << error.what() << std::endl;
+			success = false;
 		}
 	}
 	return success;
 }
-
-
-void Solve_scf::PutParameter(std::string new_param) {
-NAMICS_DBG("PutParameter in Solve " << std::endl);
-	KEYS.push_back(new_param);
-}
-
-std::string Solve_scf::GetValue(std::string parameter){
-	auto it = PARAMETERS.find(parameter);
-	if (it != PARAMETERS.end()) return it->second;
-	return "";
-}
-
-void Solve_scf::push(std::string s, Real X) {
-NAMICS_DBG("push (Real) in  Solve " << std::endl);
-	Reals.push_back(s);
-	Reals_value.push_back(X);
-}
-void Solve_scf::push(std::string s, int X) {
-NAMICS_DBG("push (int) in  Solve " << std::endl);
-	ints.push_back(s);
-	ints_value.push_back(X);
-}
-void Solve_scf::push(std::string s, bool X) {
-NAMICS_DBG("push (bool) in  Solve " << std::endl);
-	bools.push_back(s);
-	bools_value.push_back(X);
-}
-void Solve_scf::push(std::string s, std::string X) {
-NAMICS_DBG("push (std::string) in  Solve " << std::endl);
-	strings.push_back(s);
-	strings_value.push_back(X);
-}
 void Solve_scf::PushOutput() {
 NAMICS_DBG("PushOutput in  Solve " << std::endl);
-	strings.clear();
-	strings_value.clear();
-	bools.clear();
-	bools_value.clear();
-	Reals.clear();
-	Reals_value.clear();
-	ints.clear();
-	ints_value.clear();
-	push("method",SCF_method);
-	push("m",m);
-	push("delta_max",deltamax);
-	push("residual",residual);
-	push("tolerance",tolerance);
-	push("iterations",iterations);
-	push("iterationlimit",iterationlimit);
-	push("stop_criterion",stop_criterion);
+	OUTPUT = nlohmann::ordered_json::object();
+	OUTPUT["method"] = SCF_method;
+	OUTPUT["m"] = m;
+	OUTPUT["delta_max"] = deltamax;
+	OUTPUT["residual"] = residual;
+	OUTPUT["tolerance"] = tolerance;
+	OUTPUT["iterations"] = iterations;
+	OUTPUT["iterationlimit"] = iterationlimit;
+	OUTPUT["stop_criterion"] = stop_criterion;
 	if (pseudohessian || hessian) {
-		push("linesearchlimit",linesearchlimit);
-		push("max_accuracy_for_hessian_scaling",max_accuracy_for_hessian_scaling);
-		push("n_iteratons_for_hessian",n_iterations_for_hessian);
-		push("small_alpha",smallAlpha);
-		push("max_n_small_alpha",maxNumSmallAlpha);
-		push("min_accuracy_for_hessian",minAccuracyForHessian);
+		OUTPUT["linesearchlimit"] = linesearchlimit;
+		OUTPUT["max_accuracy_for_hessian_scaling"] = max_accuracy_for_hessian_scaling;
+		OUTPUT["n_iteratons_for_hessian"] = n_iterations_for_hessian;
+		OUTPUT["small_alpha"] = smallAlpha;
+		OUTPUT["max_n_small_alpha"] = maxNumSmallAlpha;
+		OUTPUT["min_accuracy_for_hessian"] = minAccuracyForHessian;
 	}
 	lat->PushOutput();
 	int length = In->MonList.size();
@@ -247,47 +217,6 @@ NAMICS_DBG("PushOutput in  Solve " << std::endl);
 	length = In->ReactionList.size();
 	for (int i=0; i<length; i++) Rea[i]->PushOutput();
 	Sys->PushOutput();
-}
-
-int Solve_scf::GetValue(std::string prop,int &int_result,Real &Real_result,std::string &string_result){
-NAMICS_DBG("GetValue (long) in  Solve " << std::endl);
-	int i=0;
-	int length = ints.size();
-	while (i<length) {
-		if (prop==ints[i]) {
-			int_result=ints_value[i];
-			return 1;
-		}
-		i++;
-	}
-	i=0;
-	length = Reals.size();
-	while (i<length) {
-		if (prop==Reals[i]) {
-			Real_result=Reals_value[i];
-			return 2;
-		}
-		i++;
-	}
-	i=0;
-	length = bools.size();
-	while (i<length) {
-		if (prop==bools[i]) {
-			if (bools_value[i]) string_result="true"; else string_result="false";
-			return 3;
-		}
-		i++;
-	}
-	i=0;
-	length = strings.size();
-	while (i<length) {
-		if (prop==strings[i]) {
-			string_result=strings_value[i];
-			return 3;
-		}
-		i++;
-	}
-	return 0;
 }
 
 void Solve_scf::Copy(std::span<Real> x, std::span<const Real> X, int MX, int MY, int MZ, int fjc_old) {

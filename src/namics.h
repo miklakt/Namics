@@ -16,12 +16,13 @@
 #include <algorithm>
 #include <unordered_map>
 #include <span>
+#include <nlohmann/json.hpp>
 
 #include <iomanip>
 #include <memory>
 #include "debug_log.h"
 
-using ParameterStore = std::unordered_map<std::string, std::string>;
+using ParameterStore = nlohmann::ordered_json;
 //these are our options.
 #ifdef LongReal
 typedef long double Real; //See comment at top of file.

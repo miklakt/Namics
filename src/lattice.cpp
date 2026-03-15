@@ -21,28 +21,32 @@ const std::vector<std::string>& LatticeKeys() {
 	return keys;
 }
 
-std::string GetParameter(const ParameterStore& parameters, const std::string& key) {
-	const auto it = parameters.find(key);
-	return it == parameters.end() ? std::string() : it->second;
-}
-
 bool ParseSelection(const Input& in, const std::string& name, int start, LatticeSelection& selection) {
-	ParameterStore parameters;
-	if (!in.CheckParameters("lat", name, start, LatticeKeys(), parameters)) return false;
-
-	selection.gradients = ParseInt(GetParameter(parameters, "gradients"), 1);
-	if (selection.gradients < 1 || selection.gradients > 3) {
-		std::cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << std::endl;
-		selection.gradients = 1;
+	const auto& parameters = in.Parameters("lat", name, start);
+	bool success = true;
+	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
+		if (ContainsValue(LatticeKeys(), it.key())) continue;
+		success = false;
+		std::cout << "lat property '" << it.key() << "' is unknown. Select from: " << std::endl;
+		for (const std::string& item : LatticeKeys()) std::cout << item << std::endl;
 	}
+	if (!success) return false;
 
-	std::vector<std::string> options = {"spherical", "cylindrical", "flat", "planar"};
-	const std::string geometry = GetParameter(parameters, "geometry");
-	if (!geometry.empty()) {
-		if (!ParseString(geometry, selection.geometry, options, "In lattice input for 'geometry' not recognized."))
+	try {
+		selection.gradients = parameters.value("gradients", 1);
+		if (selection.gradients < 1 || selection.gradients > 3) {
+			std::cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << std::endl;
+			selection.gradients = 1;
+		}
+
+		selection.geometry = parameters.value("geometry", std::string{"planar"});
+		if (selection.geometry != "spherical" && selection.geometry != "cylindrical" && selection.geometry != "flat" && selection.geometry != "planar") {
+			std::cout << "In lattice input for 'geometry' not recognized." << std::endl;
 			return false;
-	} else {
-		selection.geometry = "planar";
+		}
+	} catch (const nlohmann::json::exception& error) {
+		std::cout << "Invalid json type in lat '" << name << "': " << error.what() << std::endl;
+		return false;
 	}
 	if (selection.geometry == "flat") selection.geometry = "planar";
 	return true;
@@ -59,8 +63,7 @@ std::unique_ptr<Lattice> TryCreate(const Input& in, const std::string& name, int
 } // namespace
 
 Lattice::Lattice(const Input& In_,const std::string& name_) :
-	BC(6), // boundary condition slots: lower/upper for x, y, z
-	KEYS(LatticeKeys())
+	BC(6) // boundary condition slots: lower/upper for x, y, z
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
 NAMICS_DBG("Lattice constructor" << std::endl);	In=&In_; name=name_;
 	sub_box_on = 0;
@@ -309,80 +312,76 @@ bool Lattice::CheckInput(int start) {
 NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 	mx.push_back(0); my.push_back(0); mz.push_back(0); jx.push_back(0); jy.push_back(0); m.push_back(0); n_box.push_back(0);
 	std::string Value;
+	const auto& parameters = In->Parameters("lat", name, start);
 
-	success = In->CheckParameters("lat",name,start, KEYS, PARAMETERS);
-	if (!success) return success;
+	try {
+		auto assign_choice = [&](const std::string& value, std::string& target, const std::vector<std::string>& allowed, const std::string& error) {
+			if (!ContainsValue(allowed, value)) {
+				std::cout << error << std::endl;
+				success = false;
+				return;
+			}
+			target = value;
+		};
 		std::vector<std::string> options;
 		FJC=3;	fjc=1;
-		if (success && GetValue("FJC_choices").length()>0) {
-			if (!ParseInt(GetValue("FJC_choices"),FJC,"FJC_choices can adopt only few integer values: 3 + i*2, with i = 0, 1, 2, 3, ..."))
-				success=false;
-			else if ((FJC-3) %2 != 0) {
+		if (parameters.contains("FJC_choices")) {
+			FJC = parameters.at("FJC_choices").get<int>();
+			if ((FJC-3) %2 != 0) {
 				std::cout << "FJC_choices can adopt only few integer values: 3 + i*2, with i = 0, 1, 2, 3, ...." <<std::endl;
 				success=false;
 			}
-
 			fjc=(FJC-1)/2;
 		}
 
-		if (success && GetValue("b/l").length()>0) {
-			int fjc_new=1;
-			if (!ParseInt(GetValue("b/l"),fjc_new,"b/l can adopt only few integer values: 1, 2, 3, ..."))
+		if (parameters.contains("b/l")) {
+			int fjc_new = parameters.at("b/l").get<int>();
+			if (fjc_new <1 ) {
+				std::cout << "b/l should be a positive integer: 1, 2, 3, ...." <<std::endl;
 				success=false;
-			else {
-				if (fjc_new <1 ) {
-					std::cout << "b/l should be a positive integer: 1, 2, 3, ...." <<std::endl;
-					success=false;
-				}
-				if (GetValue("FJC_choices").length()>0 && fjc_new !=fjc) {
-					std::cout <<"You have set both 'FJC_choices' and 'b/l', but their values are not consistent with each other."<<std::endl;
-					if (fjc_new<fjc && fjc_new >0) {
-							std::cout <<"The value of 'b/l' is used, and that of FJC_choices is rejected." << std::endl;
-					} else {
-							if (fjc_new<1) success=true;
-							std::cout <<"The value of 'FJC_choices' is used, and that of b/l is rejected." << std::endl;
-							fjc_new=fjc;
-					}
+			}
+			if (parameters.contains("FJC_choices") && fjc_new !=fjc) {
+				std::cout <<"You have set both 'FJC_choices' and 'b/l', but their values are not consistent with each other."<<std::endl;
+				if (fjc_new<fjc && fjc_new >0) {
+					std::cout <<"The value of 'b/l' is used, and that of FJC_choices is rejected." << std::endl;
+				} else {
+					if (fjc_new<1) success=true;
+					std::cout <<"The value of 'FJC_choices' is used, and that of b/l is rejected." << std::endl;
+					fjc_new=fjc;
 				}
 			}
 			fjc=fjc_new;
-			FJC=2*fjc+1; //3+(fjc-1)*2;
+			FJC=2*fjc+1;
 		}
 
 		bond_length=0;
-		if (GetValue("bondlength").size()>0) {
-			bond_length =  ParseReal(GetValue("bondlength"),5e-10);
+		if (parameters.contains("bondlength")) {
+			bond_length = parameters.at("bondlength").get<Real>();
 			if (bond_length < 1e-11 || bond_length > 1e-8) {std::cout <<" bondlength out of range 1e-11..1e-8 " << std::endl; success=false;}
 		}
 		bond_length/=fjc;
 
 		std::string lat_type;
 		lattice_type=simple_cubic;
-		options.push_back("simple_cubic"); options.push_back("hexagonal");
-		Value=GetValue("lattice_type");
+		Value=parameters.value("lattice_type", std::string{});
 		if (Value.length()>0) {
-			if (!ParseString(Value,lat_type,options,"Input for 'lattice_type' not recognized. 'simple_cubic' or 'hexagonal'.")) success = false; else {
-				if (lat_type == "simple_cubic") {lattice_type=simple_cubic; lambda=1.0/6.0; Z=6;}
-				if (lat_type == "hexagonal") {lattice_type=hexagonal; lambda=1.0/4.0; Z=4;}
-			}
+			if (Value == "simple_cubic") {lat_type = Value; lattice_type=simple_cubic; lambda=1.0/6.0; Z=6;}
+			else if (Value == "hexagonal") {lat_type = Value; lattice_type=hexagonal; lambda=1.0/4.0; Z=4;}
+			else {std::cout << "Input for 'lattice_type' not recognized. 'simple_cubic' or 'hexagonal'." << std::endl; success = false;}
 		} else {
 			success=false; std::cout <<"Namics can not run without input for 'lattice_type'" << std::endl;
 		}
 
 		offset_first_layer =0;
-		gradients=1;
-		gradients=ParseInt(GetValue("gradients"),1);
+		gradients=parameters.value("gradients",1);
 		if (gradients<0||gradients>3) {std::cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << std::endl; gradients=1;}
 		switch(gradients) {
-			case 1:
-				MX = ParseInt(GetValue("n_layers"),-123);
-
+			case 1: {
+				MX = parameters.contains("n_layers") ? parameters.at("n_layers").get<int>() : -123;
 				if (MX==-123) {success=false; std::cout <<"In 'lat' the parameter 'n_layers' is required. Problem terminated" << std::endl;}
-				else {
-					if (MX<0 || MX >1e6) {
-						success = false;
-						std::cout <<"n_layers out of bounds, currently: 0..1e6; Problem terminated" << std::endl;
-					}
+				else if (MX<0 || MX >1e6) {
+					success = false;
+					std::cout <<"n_layers out of bounds, currently: 0..1e6; Problem terminated" << std::endl;
 				}
 				MX=fjc*(MX);
 				options.clear();
@@ -390,13 +389,13 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 				options.push_back("cylindrical");
 				options.push_back("flat");options.push_back("planar");
 
-				if (GetValue("geometry").size()>0) {
-					if (!ParseString(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
-						success=false;
+				const std::string geometry_value = parameters.value("geometry", std::string{});
+				if (!geometry_value.empty()) {
+					assign_choice(geometry_value, geometry, options, "In lattice input for 'geometry' not recognized.");
 				} else geometry = "planar";
 				if (geometry=="flat") geometry="planar";
 				if (geometry!="planar") {
-					offset_first_layer=ParseReal(GetValue("offset_first_layer"),0);
+					offset_first_layer=parameters.value("offset_first_layer",0.0);
 					if (offset_first_layer<0) {
 						std::cout <<"value of 'offset_first_layer' can not be negative. Value ignored. " << std::endl;
 						offset_first_layer=0;
@@ -409,62 +408,56 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 				options.push_back("mirror");
 				options.push_back("surface");
 				options.push_back("periodic");
-				if (GetValue("lowerbound_x").size()>0) {success=false; std::cout << "lowerbound_x is not allowed in 1-gradient calculations" << std::endl;}
-				if (GetValue("lowerbound_y").size()>0) {success=false; std::cout << "lowerbound_y is not allowed in 1-gradient calculations" << std::endl;}
-				if (GetValue("lowerbound_z").size()>0) {success=false; std::cout << "lowerbound_z is not allowed in 1-gradient calculations" << std::endl;}
-				if (GetValue("upperbound_x").size()>0) {success=false; std::cout << "upperbound_x is not allowed in 1-gradient calculations" << std::endl;}
-				if (GetValue("upperbound_y").size()>0) {success=false; std::cout << "upperbound_y is not allowed in 1-gradient calculations" << std::endl;}
-				if (GetValue("upperbound_z").size()>0) {success=false; std::cout << "upperbound_z is not allowed in 1-gradient calculations" << std::endl;}
+				if (parameters.contains("lowerbound_x")) {success=false; std::cout << "lowerbound_x is not allowed in 1-gradient calculations" << std::endl;}
+				if (parameters.contains("lowerbound_y")) {success=false; std::cout << "lowerbound_y is not allowed in 1-gradient calculations" << std::endl;}
+				if (parameters.contains("lowerbound_z")) {success=false; std::cout << "lowerbound_z is not allowed in 1-gradient calculations" << std::endl;}
+				if (parameters.contains("upperbound_x")) {success=false; std::cout << "upperbound_x is not allowed in 1-gradient calculations" << std::endl;}
+				if (parameters.contains("upperbound_y")) {success=false; std::cout << "upperbound_y is not allowed in 1-gradient calculations" << std::endl;}
+				if (parameters.contains("upperbound_z")) {success=false; std::cout << "upperbound_z is not allowed in 1-gradient calculations" << std::endl;}
 
+				const std::string lowerbound = parameters.value("lowerbound", std::string{});
+				if (lowerbound.empty()) BC[0]="mirror";
+				else assign_choice(lowerbound, BC[0], options, "For 'lowerbound' boundary condition not recognized. ");
 
-				if (GetValue("lowerbound").size()==0) BC[0]="mirror";
-				else if (!ParseString(GetValue("lowerbound"),BC[0],options,"For 'lowerbound' boundary condition not recognized. ")) success=false;
-
-				if (GetValue("upperbound").size()==0) BC[3]="mirror";
-				else if (!ParseString(GetValue("upperbound"),BC[3],options,"For 'upperbound' boundary condition not recognized."))
-					success = false;
-
+				const std::string upperbound = parameters.value("upperbound", std::string{});
+				if (upperbound.empty()) BC[3]="mirror";
+				else assign_choice(upperbound, BC[3], options, "For 'upperbound' boundary condition not recognized.");
 				break;
-			case 2:
-				if (GetValue("upperbound").size()>0) {success=false; std::cout << "upperbound is only allowed in 1-gradient calculations" << std::endl;}
-				if (GetValue("lowerbound").size()>0) {success=false; std::cout << "lowerbound is only allowed in 1-gradient calculations" << std::endl;}
+			}
+			case 2: {
+				if (parameters.contains("upperbound")) {success=false; std::cout << "upperbound is only allowed in 1-gradient calculations" << std::endl;}
+				if (parameters.contains("lowerbound")) {success=false; std::cout << "lowerbound is only allowed in 1-gradient calculations" << std::endl;}
 
-				MX = ParseInt(GetValue("n_layers_x"),-123);
+				MX = parameters.contains("n_layers_x") ? parameters.at("n_layers_x").get<int>() : -123;
 				if (MX==-123) {
 					success=false;
 					std::cout <<"In 'lat' the parameter 'n_layers_x' is required. Problem terminated" << std::endl;
-				}
-				else {
-					if (MX<0 || MX >1e6) {
-						success = false;
-						std::cout <<"n_layers_x out of bounds, currently: 0.. 1e6; Problem terminated" << std::endl;
-					}
+				} else if (MX<0 || MX >1e6) {
+					success = false;
+					std::cout <<"n_layers_x out of bounds, currently: 0.. 1e6; Problem terminated" << std::endl;
 				}
 				MX=fjc*(MX);
-				MY = ParseInt(GetValue("n_layers_y"),-123);
+				MY = parameters.contains("n_layers_y") ? parameters.at("n_layers_y").get<int>() : -123;
 				if (MY==-123) {
 					success=false;
 					std::cout <<"In 'lat' the parameter 'n_layers_y' is required. Problem terminated" << std::endl;
-				}
-				else {
-					if (MY<0 || MY >1e6) {
-						success = false;
-						std::cout <<"n_layers_y out of bounds, currently: 0.. 1e6; Problem terminated" << std::endl;
-					}
+				} else if (MY<0 || MY >1e6) {
+					success = false;
+					std::cout <<"n_layers_y out of bounds, currently: 0.. 1e6; Problem terminated" << std::endl;
 				}
 				MY=fjc*(MY);
 				options.clear();
 				options.push_back("cylindrical");
 				options.push_back("flat");options.push_back("planar");
-				if (GetValue("geometry").size()>0) {
-					if (!ParseString(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
-						success=false;
+				const std::string geometry_value = parameters.value("geometry", std::string{});
+				if (!geometry_value.empty()) {
+					assign_choice(geometry_value, geometry, options, "In lattice input for 'geometry' not recognized.");
 				} else geometry = "planar";
 				if (geometry=="flat") geometry="planar";
 				if (geometry=="planar") {volume = MX*MY;}
 
 				if (geometry!="planar") {
-					offset_first_layer=ParseReal(GetValue("offset_first_layer"),0);
+					offset_first_layer=parameters.value("offset_first_layer",0.0);
 					if (offset_first_layer<0) {
 						std::cout <<"value of 'offset_first_layer' can not be negative. Value ignored. " << std::endl;
 						offset_first_layer=0;
@@ -473,30 +466,32 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 
 				options.clear();
 				options.push_back("mirror");
-				options.push_back("surface"); //turned on...let's hope it works
-				if (geometry=="planar")
-					options.push_back("periodic");
-				if (GetValue("lowerbound_z").size()>0) {
+				options.push_back("surface");
+				if (geometry=="planar") options.push_back("periodic");
+				if (parameters.contains("lowerbound_z")) {
 					std::cout << "lowerbound_z is not allowed in 2-gradient calculations" << std::endl;
 					success=false;
 				}
-				if (GetValue("upperbound_z").size()>0) {
+				if (parameters.contains("upperbound_z")) {
 					std::cout << "upperbound_z is not allowed in 2-gradient calculations" << std::endl;
 					success=false;
 				}
 
-				if (GetValue("lowerbound_x").size()==0) BC[0]="mirror";
-				else if (!ParseString(GetValue("lowerbound_x"),BC[0],options,"for 'lowerbound_x' boundary condition not recognized.  ")) success=false;
+				const std::string lowerbound_x = parameters.value("lowerbound_x", std::string{});
+				if (lowerbound_x.empty()) BC[0]="mirror";
+				else assign_choice(lowerbound_x, BC[0], options, "for 'lowerbound_x' boundary condition not recognized.  ");
 
-				if (GetValue("upperbound_x").size()==0) BC[3]="mirror";
-				else if (!ParseString(GetValue("upperbound_x"),BC[3],options,"for 'upperbound_x' boundary condition not recognized. ")) success = false;
+				const std::string upperbound_x = parameters.value("upperbound_x", std::string{});
+				if (upperbound_x.empty()) BC[3]="mirror";
+				else assign_choice(upperbound_x, BC[3], options, "for 'upperbound_x' boundary condition not recognized. ");
 
-				if (GetValue("lowerbound_y").size()==0) BC[1]="mirror";
-				else if (!ParseString(GetValue("lowerbound_y"),BC[1],options,"for 'lowerbound_y' boundary condition not recognized. ")) success=false;
+				const std::string lowerbound_y = parameters.value("lowerbound_y", std::string{});
+				if (lowerbound_y.empty()) BC[1]="mirror";
+				else assign_choice(lowerbound_y, BC[1], options, "for 'lowerbound_y' boundary condition not recognized. ");
 
-				if (GetValue("upperbound_y").size()==0) BC[4]="mirror";
-				else if (!ParseString(GetValue("upperbound_y"),BC[4],options,"for 'upperbound_Y' boundary condition not recognized. ")) success = false;
-
+				const std::string upperbound_y = parameters.value("upperbound_y", std::string{});
+				if (upperbound_y.empty()) BC[4]="mirror";
+				else assign_choice(upperbound_y, BC[4], options, "for 'upperbound_Y' boundary condition not recognized. ");
 
 				if (BC[0]=="periodic" || BC[3]=="periodic") {
 					if (BC[0]!=BC[3]) {
@@ -508,48 +503,55 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 					if (BC[1]!=BC[4]) {success=false;  std::cout <<"For boundaries in y-direction: 'periodic' BC should be set to upper and lower bounds " << std::endl;}
 				}
 				break;
-			case 3:
-				if (GetValue("upperbound").size()>0) {success=false; std::cout << "upperbound is only allowed in 1-gradient calculations" << std::endl;}
-				if (GetValue("lowerbound").size()>0) {success=false; std::cout << "lowerbound is only allowed in 1-gradient calculations" << std::endl;}
+			}
+			case 3: {
+				if (parameters.contains("upperbound")) {success=false; std::cout << "upperbound is only allowed in 1-gradient calculations" << std::endl;}
+				if (parameters.contains("lowerbound")) {success=false; std::cout << "lowerbound is only allowed in 1-gradient calculations" << std::endl;}
 
-				if (!ParseInt(GetValue("n_layers_x"),MX,1,1e6,"In 'lat' the parameter 'n_layers_x' is required"))
-					success=false;
-				if (!ParseInt(GetValue("n_layers_y"),MY,1,1e6,"In 'lat' the parameter 'n_layers_y' is required"))
-					success=false;
-				if (!ParseInt(GetValue("n_layers_z"),MZ,1,1e6,"In 'lat' the parameter 'n_layers_z' is required"))
-					success=false;
+				if (!parameters.contains("n_layers_x")) {std::cout <<"In 'lat' the parameter 'n_layers_x' is required" << std::endl; success=false;}
+				else MX = parameters.at("n_layers_x").get<int>();
+				if (!parameters.contains("n_layers_y")) {std::cout <<"In 'lat' the parameter 'n_layers_y' is required" << std::endl; success=false;}
+				else MY = parameters.at("n_layers_y").get<int>();
+				if (!parameters.contains("n_layers_z")) {std::cout <<"In 'lat' the parameter 'n_layers_z' is required" << std::endl; success=false;}
+				else MZ = parameters.at("n_layers_z").get<int>();
+				if (MX<1 || MX>1e6) success=false;
+				if (MY<1 || MY>1e6) success=false;
+				if (MZ<1 || MZ>1e6) success=false;
 				MX=fjc*(MX);
 				MY=fjc*(MY);
 				MZ=fjc*(MZ);
 				options.clear();
-				options.push_back("mirror"); //options.push_back("mirror_2");
+				options.push_back("mirror");
 				options.push_back("periodic");
-				//options.push_back("surface");
-				//options.push_back("shifted_mirror");
 
+				const std::string lowerbound_x = parameters.value("lowerbound_x", std::string{});
+				if (lowerbound_x.empty()) BC[0]="mirror";
+				else assign_choice(lowerbound_x, BC[0], options, "for 'lowerbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ");
 
-				if (GetValue("lowerbound_x").size()==0) BC[0]="mirror";
-				else if (!ParseString(GetValue("lowerbound_x"),BC[0],options,"for 'lowerbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
+				const std::string upperbound_x = parameters.value("upperbound_x", std::string{});
+				if (upperbound_x.empty()) BC[3]="mirror";
+				else assign_choice(upperbound_x, BC[3], options, "for 'upperbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ");
 
-				if (GetValue("upperbound_x").size()==0) BC[3]="mirror";
-				else if (!ParseString(GetValue("upperbound_x"),BC[3],options,"for 'upperbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
+				const std::string lowerbound_y = parameters.value("lowerbound_y", std::string{});
+				if (lowerbound_y.empty()) BC[1]="mirror";
+				else assign_choice(lowerbound_y, BC[1], options, "for 'lowerbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ");
 
-				if (GetValue("lowerbound_y").size()==0) BC[1]="mirror";
-				else if (!ParseString(GetValue("lowerbound_y"),BC[1],options,"for 'lowerbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
+				const std::string upperbound_y = parameters.value("upperbound_y", std::string{});
+				if (upperbound_y.empty()) BC[4]="mirror";
+				else assign_choice(upperbound_y, BC[4], options, "for 'upperbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ");
 
-				if (GetValue("upperbound_y").size()==0) BC[4]="mirror";
-				else if (!ParseString(GetValue("upperbound_y"),BC[4],options,"for 'upperbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
+				const std::string lowerbound_z = parameters.value("lowerbound_z", std::string{});
+				if (lowerbound_z.empty()) BC[2]="mirror";
+				else assign_choice(lowerbound_z, BC[2], options, "for 'lowerbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ");
 
-				if (GetValue("lowerbound_z").size()==0) BC[2]="mirror";
-				else if (!ParseString(GetValue("lowerbound_z"),BC[2],options,"for 'lowerbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success=false;
-
-				if (GetValue("upperbound_z").size()==0) BC[5]="mirror";
-				else if (!ParseString(GetValue("upperbound_z"),BC[5],options,"for 'upperbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ")) success = false;
+				const std::string upperbound_z = parameters.value("upperbound_z", std::string{});
+				if (upperbound_z.empty()) BC[5]="mirror";
+				else assign_choice(upperbound_z, BC[5], options, "for 'upperbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ");
 
 				if (BC[1]=="periodic" || BC[4]=="periodic") {
 					if (BC[1] != BC[4]) {
-					std::cout <<"In y-direction the boundary conditions do not match:" + BC[1] << " and " <<  BC[4] << std::endl;
-					success=false;
+						std::cout <<"In y-direction the boundary conditions do not match:" + BC[1] << " and " <<  BC[4] << std::endl;
+						success=false;
 					}
 				}
 				if (BC[2]=="periodic" || BC[5]=="periodic") {
@@ -558,25 +560,24 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 						success=false;
 					}
 				}
-
 				break;
+			}
 			default:
 				std::cout << "gradients out of bounds " << std::endl;
 				break;
 		}
 
-
 		if ((fjc>1) && (lattice_type != hexagonal)) {success = false; std::cout << "For FJC-choices >3, we need lattice_type = 'hexagonal'." << std::endl; }
 		if (gradients ==2 && fjc>3) {success = false; std::cout <<" When gradients is 2, FJC-choices are limited to 7 " << std::endl; }
 		if (gradients ==3 && fjc>2) {success = false; std::cout <<" When gradients is 3, FJC-choices are limited to 5 " << std::endl; }
 
-		if (GetValue("ignore_site_fraction").length()>0) {
-			ignore_sites=ParseBool(GetValue("ignore_site_fraction"),false);
+		if (parameters.contains("ignore_site_fraction")) {
+			ignore_sites=parameters.at("ignore_site_fraction").get<bool>();
 			if (!ignore_sites) std::cout <<"ignore_site_fraction is set to false. Full site fractions computed. " << std::endl;
 		}
 
-		if (GetValue("fcc_site_fraction").length()>0) {
-			fcc_sites=ParseBool(GetValue("fcc_site_fraction"),false);
+		if (parameters.contains("fcc_site_fraction")) {
+			fcc_sites=parameters.at("fcc_site_fraction").get<bool>();
 			if (!fcc_sites) std::cout <<"fcc_site_fraction is set to false. Full site fractions computed. " << std::endl;
 		}
 
@@ -584,180 +585,58 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 			std::cout <<"can't combine 'fcc_site_fraction' with 'ignore_site_fraction'" <<std::endl; success=false;
 		}
 		stencil_full=true;
-		if (GetValue("stencil_full").length()>0) {
-			stencil_full=ParseBool(GetValue("stencil_full"),true);
+		if (parameters.contains("stencil_full")) {
+			stencil_full=parameters.at("stencil_full").get<bool>();
 			if (gradients<3 && stencil_full) std::cout << "untested territory for 'stencil_full' " << std::endl;
 		}
-		// Initialize system size and indexing.
 		PutM();
 		Markov=1;
+	} catch (const nlohmann::json::exception& error) {
+		std::cout << "Invalid json type in lat '" << name << "': " << error.what() << std::endl;
+		success = false;
+	}
 
 	return success;
 }
-
-void Lattice::PutParameter(std::string new_param) {
-NAMICS_DBG("PutParameters in lattice " << std::endl); KEYS.push_back(new_param);
-}
-
-std::string Lattice::GetValue(std::string parameter){
-	auto it = PARAMETERS.find(parameter);
-	if (it != PARAMETERS.end()) return it->second;
-	return "";
-}
-
-Real Lattice::GetValue(std::span<const Real> X,std::string s){
-NAMICS_DBG("GetValue in lattice " << std::endl);if (X.empty()) std::cout << "profile std::span is empty" << std::endl;
-	int x=0,y=0,z=0;
-	std::vector<std::string> sub;
-	In->split(s,',',sub);
-	switch(gradients) {
-		case 1:
-			if (sub.size()==1) {
-				x=ParseInt(sub[0],x);
-				if (x==-1) x=MX; //trick to get the value of lastlayer; currently only in 1gradient case....
-					if (x<0||x>MX+1) {
-						std::cout <<"Requested output position is out of bounds." << std::endl;
-						return 0;
-					} else return X[x];
-				} else std::cout <<"Request for profile output does not contain the expected coordinate." << std::endl;
-				break;
-		case 2:
-			if (sub.size()==2) {
-				x=ParseInt(sub[0],x);
-				y=ParseInt(sub[1],y);
-					if (x<0||x>MX+1||y<0||y>MY+1) {
-						std::cout <<"Requested output position is out of bounds." << std::endl;
-						return 0;
-					} else return X[JX*x+y];
-				} else std::cout <<"Request for profile output does not contain the expected coordinate." << std::endl;
-				break;
-		case 3:
-			if (sub.size()>2) {
-				x=ParseInt(sub[0],x);
-				y=ParseInt(sub[1],y);
-				z=ParseInt(sub[2],y);
-					if (x<0||x>MX+1||y<0||y>MY+1||z<0||z>MZ+1) {
-						std::cout <<"Requested output position is out of bounds." << std::endl;
-						return 0;
-					} else return X[JX*x+JY*y+z];
-				} else  std::cout <<"Request for profile output does not contain the expected coordinate." << std::endl;
-			return 0;
-			break;
-		default:
-			break;
-	}
-	return 0;
-}
-
-
 
 bool Lattice::PrepareForCalculations(void) {
 NAMICS_DBG("PrepareForCalculations in lattice" << std::endl);	bool success=true;
 	return success;
 }
 
-void Lattice::push(std::string s, Real X) {
-NAMICS_DBG("push (Real) in lattice " << std::endl); Reals.push_back(s);
-	Reals_value.push_back(X);
-}
-void Lattice::push(std::string s, int X) {
-NAMICS_DBG("push (int) in lattice " << std::endl); ints.push_back(s);
-	ints_value.push_back(X);
-}
-void Lattice::push(std::string s, bool X) {
-NAMICS_DBG("push (bool) in lattice " << std::endl); bools.push_back(s);
-	bools_value.push_back(X);
-}
-void Lattice::push(std::string s, std::string X) {
-NAMICS_DBG("push (std::string) in lattice " << std::endl); strings.push_back(s);
-	strings_value.push_back(X);
-}
-
-std::span<Real> Lattice::GetPointer(std::string s) {
-NAMICS_DBG("GetPointer for lattice " + name << std::endl);	std::vector<std::string> sub;
-	In->split(s,';',sub);
-	if (sub[0]=="profile" && sub[1]=="0") return L;
-	if (sub[0]=="std::vector") {}
-	return {};
-}
-
-std::span<int> Lattice::GetPointerInt(std::string s) {
-NAMICS_DBG("GetPointerInt for lattice " + name << std::endl);	std::vector<std::string> sub;
-	In->split(s,';',sub);
-	if (sub[0]=="std::array"){//get with sub[1] the number and put the pointer to integer std::array in return.
-	}
-
+std::span<Real> Lattice::GetPointer(int profile) {
+NAMICS_DBG("GetPointer for lattice " + name << std::endl);
+	if (profile == 0) return L;
 	return {};
 }
 
 void Lattice::PushOutput() {
-NAMICS_DBG("PushOutput in lat " << std::endl); strings.clear();
-	strings_value.clear();
-	bools.clear();
-	bools_value.clear();
-	Reals.clear();
-	Reals_value.clear();
-	ints.clear();
-	ints_value.clear();
-	std::string mirror="mirror";
-	std::string periodic="periodic";
-	push("geometry",geometry);
-	push("gradients",gradients);
-	if (offset_first_layer>0) push("offset_first_layer",offset_first_layer);
-	push("volume",volume);
-	push("accessible volume",Accesible_volume);
-	std::string LatticeType;
-	if (lattice_type == simple_cubic) LatticeType="simple_cubic"; else LatticeType="hexagonal";
-	push("lattice_type",LatticeType);
-	push("bond_length",bond_length);
-	push("FJC_choices",FJC);
-	std::string s="profile;0"; push("L",s);
+NAMICS_DBG("PushOutput in lat " << std::endl);
+	OUTPUT = nlohmann::ordered_json::object();
+	OUTPUT["geometry"] = geometry;
+	OUTPUT["gradients"] = gradients;
+	if (offset_first_layer > 0) OUTPUT["offset_first_layer"] = offset_first_layer;
+	OUTPUT["volume"] = volume;
+	OUTPUT["accessible volume"] = Accesible_volume;
+	OUTPUT["lattice_type"] = lattice_type == simple_cubic ? "simple_cubic" : "hexagonal";
+	OUTPUT["bond_length"] = bond_length;
+	OUTPUT["FJC_choices"] = FJC;
+	OUTPUT["L"] = {{"profile", 0}};
 
 	switch (gradients) {
 		case 3:
-			push("n_layers_z",MZ/fjc);
+			OUTPUT["n_layers_z"] = MZ / fjc;
 
 			// Fall through
 		case 2:
-			push("n_layers_y",MY/fjc);
+			OUTPUT["n_layers_y"] = MY / fjc;
 			// Fall through
 		case 1:
-			push("n_layers",MX/fjc);
+			OUTPUT["n_layers"] = MX / fjc;
 			break;
 		default:
 			break;
 	}
-}
-
-
-int Lattice::GetValue(std::string prop,int &int_result,Real &Real_result,std::string &string_result){
-NAMICS_DBG("GetValue (long)  in lattice " << std::endl);
-	for ( size_t i = 0 ; i<ints.size() ; ++i)
-		if (prop==ints[i]) {
-			int_result=ints_value[i];
-			return 1;
-		}
-
-	for ( size_t i = 0 ; i<Reals.size() ; ++i)
-		if (prop==Reals[i]) {
-			Real_result=Reals_value[i];
-			return 2;
-		}
-
-	for ( size_t i = 0 ; i<bools.size() ; ++i)
-		if (prop==bools[i]) {
-			if (bools_value[i]) string_result="true";
-			else string_result="false";
-			return 3;
-		}
-
-	for ( size_t i = 0 ; i<strings.size() ; ++i)
-		if (prop==strings[i]) {
-			string_result=strings_value[i];
-			return 3;
-		}
-
-	return 0;
 }
 
 

@@ -4,14 +4,6 @@ Molecule::Molecule(const Input* In_,Lattice* Lat_,std::span<const std::unique_pt
 	In=In_; Seg=Seg_; name=name_;
 NAMICS_DBG("Constructor for Mol " + name << std::endl);
 	lat=Lat_;
-	KEYS.push_back("freedom");
-	KEYS.push_back("composition");
-	KEYS.push_back("theta");
-	KEYS.push_back("phibulk");
-	KEYS.push_back("n");
-	KEYS.push_back("Markov");
-	KEYS.push_back("k_stiff");
-	KEYS.push_back("B");
 	all_molecule=false;
 	Markov =1;
 	B=1;
@@ -88,13 +80,20 @@ NAMICS_DBG("Molecule:: CheckInput for mol " << name << std::endl);
 	norm=0;
 NAMICS_DBG("CheckInput for Mol " + name << std::endl);
 	bool success=true;
-	if (!In->CheckParameters("mol",name,start, KEYS, PARAMETERS)) {
-		success=false;
-	} else {
-		const std::string freedom_value = GetValue("freedom");
-		const std::string theta_value = GetValue("theta");
-		const std::string n_value = GetValue("n");
-		const std::string composition_value = GetValue("composition");
+	const auto& parameters = In->Parameters("mol", name, start);
+	static const std::vector<std::string> keys = {"freedom", "composition", "theta", "phibulk", "n", "Markov", "k_stiff", "B"};
+	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
+		if (ContainsValue(keys, it.key())) continue;
+		success = false;
+		std::cout << "mol property '" << it.key() << "' is unknown. Select from: " << std::endl;
+		for (const std::string& item : keys) std::cout << item << std::endl;
+	}
+	if (success) {
+		try {
+		const std::string freedom_value = parameters.value("freedom", std::string{});
+		const bool has_theta = parameters.contains("theta");
+		const bool has_n = parameters.contains("n");
+		const std::string composition_value = parameters.value("composition", std::string{});
 		if (composition_value.size()==0) {
 			std::cout << "For mol '" + name + "' the definition of 'composition' is required" << std::endl;
 			success = false;
@@ -125,27 +124,28 @@ NAMICS_DBG("CheckInput for Mol " + name << std::endl);
 			std::cout <<"For mol " + name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' . Problem terminated " << std::endl;
 			success = false;
 		} else {
-			std::vector<std::string> free_list;
-			if (!pinned) {
-				free_list.push_back("free");
-				free_list.push_back("solvent");
-				free_list.push_back("neutralizer");
-			}
-			free_list.push_back("restricted");
-			if (!ParseString(freedom_value,freedom,free_list,"In mol " + name + " the value for 'freedom' is not recognised ")) {
+			const bool allowed_freedom = freedom_value == "restricted" || (!pinned && (freedom_value == "free" || freedom_value == "solvent" || freedom_value == "neutralizer"));
+			if (!allowed_freedom) {
+				std::cout << "In mol " + name + " the value for 'freedom' is not recognised " << std::endl;
+				std::cout << "Select from: " << std::endl;
+				if (!pinned) {
+					std::cout << "free ; solvent ; neutralizer ; ";
+				}
+				std::cout << "restricted ; " << std::endl;
 				if (pinned) return false;
 				success=false;
 			} else {
+				freedom = freedom_value;
 				if (freedom == "neutralizer" && !IsCharged()) {
 					success=false;
 					std::cout << "Mol '" + name + "' is not 'charged' and therefore this molecule can not be the neutralizer" << std::endl;
 				}
 				if (freedom == "free") {
-					if (GetValue("phibulk").size() ==0) {
+					if (!parameters.contains("phibulk")) {
 						std::cout <<"In mol " + name + ", the setting 'freedom = free' should be combined with a value for 'phibulk'. "<<std::endl;
 						return false;
 					}
-					phibulk=ParseReal(GetValue("phibulk"),-1);
+					phibulk=parameters.at("phibulk").get<Real>();
 					if (phibulk < 0 || phibulk >1) {
 						std::cout << "In mol " + name + ", the value of 'phibulk' is out of range 0 .. 1." << std::endl;
 						return false;
@@ -153,8 +153,8 @@ NAMICS_DBG("CheckInput for Mol " + name << std::endl);
 				}
 
 				if (!pinned) B=1;
-				if (!pinned && GetValue("B").size()>0){
-					B=ParseReal(GetValue("B"),B);
+				if (!pinned && parameters.contains("B")){
+					B=parameters.at("B").get<Real>();
 					if (B<1e-9) {
 						std::cout <<"for Mol" + name + " mobility B should have a posititve value. Default value B=1 is chosen. " << std::endl;
 						B=1;
@@ -162,15 +162,15 @@ NAMICS_DBG("CheckInput for Mol " + name << std::endl);
 				}
 
 				if (freedom=="restricted") {
-					if (theta_value.size() ==0 && n_value.size()==0) {
+					if (!has_theta && !has_n) {
 						std::cout <<"In mol " + name + ", the setting 'freedom = restricted' should be combined with a value for 'theta' or 'n'; do not use both settings! "<<std::endl;
 						success=false;
-					} else if (theta_value.size() >0 && n_value.size()>0) {
+					} else if (has_theta && has_n) {
 						std::cout <<"In mol " + name + ", the setting 'freedom = restricted' does not allow both 'n' and 'theta' "<<std::endl;
 						success=false;
 					} else {
-						if (n_value.size()>0) {n=ParseReal(n_value,10*lat->volume);theta=n*chainlength;}
-						if (theta_value.size()>0) {theta = ParseReal(theta_value,10*lat->volume);n=theta/chainlength;}
+						if (has_n) {n=parameters.at("n").get<Real>();theta=n*chainlength;}
+						if (has_theta) {theta = parameters.at("theta").get<Real>();n=theta/chainlength;}
 						if (theta < 0 || (!pinned && theta > lat->volume)) {
 							std::cout << "In mol " + name + ", the value of 'n' or 'theta' is out of range." << std::endl;
 							success=false;
@@ -179,17 +179,21 @@ NAMICS_DBG("CheckInput for Mol " + name << std::endl);
 				}
 			}
 		}
+		} catch (const nlohmann::json::exception& error) {
+			std::cout << "Invalid json type in mol '" << name << "': " << error.what() << std::endl;
+			success = false;
+		}
 	}
 	Markov=1;
-	if (GetValue("Markov").size()>0) Markov=ParseInt(GetValue("Markov"),1);
+	if (parameters.contains("Markov")) Markov=parameters.at("Markov").get<int>();
 	if (Markov<1 || Markov>2) {
 		std::cout <<" Integer value for 'Markov' is by default 1 and may be set to 2 for some mol_types and fjc-choices only. Markov value out of bounds. Proceed with caution. " << std::endl;
 		success = false;
 	}
 	if (Markov==2) lat->Markov=2;
 	k_stiff=lat->k_stiff; //pick up 'default' value from lattice.
-	if (GetValue("k_stiff").size()>0) {
-		k_stiff=ParseReal(GetValue("k_stiff"),k_stiff);
+	if (parameters.contains("k_stiff")) {
+		k_stiff=parameters.at("k_stiff").get<Real>();
 		if (k_stiff<0 || k_stiff>10) {
 			success =false;
 			std::cout <<" Real value for 'k_stiff' out of bounds (0 < k_stiff < 10). " << std::endl;
@@ -479,7 +483,7 @@ NAMICS_DBG("Molecule:: MakeMonList" << std::endl);
 	int length = mon_nr.size();
 	int i=0;
 	while (i<length) {
-		if (!In->InSet(MolMonList,mon_nr[i])) {
+		if (!ContainsValue(MolMonList,mon_nr[i])) {
 			if (Seg[mon_nr[i]]->freedom=="frozen") {
 				success = false;
 				std::cout << "In 'composition of mol " + name + ", a segment was found with freedom 'frozen'. This is not permitted. " << std::endl;
@@ -492,7 +496,7 @@ NAMICS_DBG("Molecule:: MakeMonList" << std::endl);
 	i=0;
 	int pos;
 	while (i<length) {
-		if (In->InSet(MolMonList,pos,mon_nr[i])) {molmon_nr.push_back(pos);
+		if (ContainsValue(MolMonList,mon_nr[i],&pos)) {molmon_nr.push_back(pos);
 		} else {std::cout <<"program error in mol PrepareForCalcualations" << std::endl; }
 		i++;
 	}
@@ -541,112 +545,50 @@ NAMICS_DBG("IsCharged for Mol " + name << std::endl);
 	return ischarged;
 }
 
-void Molecule::PutParameter(std::string new_param) {
-NAMICS_DBG("PutParameter for Mol " + name << std::endl);
-	KEYS.push_back(new_param);
-}
-
-std::string Molecule::GetValue(std::string parameter) {
-	auto it = PARAMETERS.find(parameter);
-	if (it != PARAMETERS.end()) return it->second;
-	return "";
-}
-
-void Molecule::push(std::string s, Real X) {
-NAMICS_DBG("push (Real) for Mol " + name << std::endl);
-	Reals.push_back(s);
-	Reals_value.push_back(X);
-}
-void Molecule::push(std::string s, int X) {
-NAMICS_DBG("push (int) for Mol " + name << std::endl);
-	ints.push_back(s);
-	ints_value.push_back(X);
-}
-void Molecule::push(std::string s, bool X) {
-NAMICS_DBG("push (bool) for Mol " + name << std::endl);
-	bools.push_back(s);
-	bools_value.push_back(X);
-}
-void Molecule::push(std::string s, std::string X) {
-NAMICS_DBG("push (std::string) for Mol " + name << std::endl);
-	strings.push_back(s);
-	strings_value.push_back(X);
-}
-
-
-
 void Molecule::PushOutput() {
 NAMICS_DBG("PushOutput for Mol " + name << std::endl);
-	strings.clear();
-	strings_value.clear();
-	bools.clear();
-	bools_value.clear();
-	Reals.clear();
-	Reals_value.clear();
-	ints.clear();
-	ints_value.clear();
-	push("composition",GetValue("composition"));
-	push("freedom",freedom);
-	if (freedom=="free") theta = lat->WeightedSum(phitot.data());
-	push("Markov",Markov);
-	push("k_stiff",k_stiff);
+	const auto& parameters = In->Parameters("mol", name, start);
+	OUTPUT = nlohmann::ordered_json::object();
+	OUTPUT["composition"] = parameters.value("composition", std::string{});
+	OUTPUT["freedom"] = freedom;
+	if (freedom == "free") theta = lat->WeightedSum(phitot.data());
+	OUTPUT["Markov"] = Markov;
+	OUTPUT["k_stiff"] = k_stiff;
 	if (lat->gradients==3) {
 		int MZ=lat->MZ;
 		int MY=lat->MY;
 		int MX=lat->MX;
 		int JX=lat->JX;
 		int JY=lat->JY;
-		for (int z=1; z<MZ+1; z++) {
+		for (int z = 1; z < MZ + 1 && z <= 20; z++) {
 			Real phiz=0;
 			for (int x=1; x<MX+1; x++) for (int y=1;y<MY+1;y++) {
 				phiz +=phitot[x*JX+y*JY+z];
 			}
 			phiz /= MX*MY;
-			if (z==1) push("phiz[1]",phiz);
-			if (z==2) push("phiz[2]",phiz);
-			if (z==3) push("phiz[3]",phiz);
-			if (z==4) push("phiz[4]",phiz);
-			if (z==5) push("phiz[5]",phiz);
-			if (z==6) push("phiz[6]",phiz);
-			if (z==7) push("phiz[7]",phiz);
-			if (z==8) push("phiz[8]",phiz);
-			if (z==9) push("phiz[9]",phiz);
-			if (z==10) push("phiz[10]",phiz);
-			if (z==11) push("phiz[11]",phiz);
-			if (z==12) push("phiz[12]",phiz);
-			if (z==13) push("phiz[13]",phiz);
-			if (z==14) push("phiz[14]",phiz);
-			if (z==15) push("phiz[15]",phiz);
-			if (z==16) push("phiz[16]",phiz);
-			if (z==17) push("phiz[17]",phiz);
-			if (z==18) push("phiz[18]",phiz);
-			if (z==19) push("phiz[19]",phiz);
-			if (z==20) push("phiz[20]",phiz);
+			OUTPUT["phiz[" + std::to_string(z) + "]"] = phiz;
 		}
 	}
-	if (Markov==2) {
-		for (int k=0; k<size; k++){
-			if (k==0) push("P[0]",P[0]);
-			if (k==1) push("P[1]",P[1]);
-			if (k==2) push("P[2]",P[2]);
-			if (k==3) push("P[3]",P[3]);
-			if (k==4) push("P[4]",P[4]);
+	if (Markov == 2) {
+		for (int k = 0; k < size && k < 5; k++) {
+			OUTPUT["P[" + std::to_string(k) + "]"] = P[k];
 		}
 	}
-	push("Rg",std::pow((lat->Moment(phitot.data(),0.0,2)/chainlength),0.5));
+	OUTPUT["Rg"] = std::pow((lat->Moment(phitot.data(),0.0,2) / chainlength), 0.5);
 	lat->remove_bounds(phitot.data());
 	theta=lat->WeightedSum(phitot.data());
-	push("theta",theta);
+	OUTPUT["theta"] = theta;
 	Real thetaexc=theta-lat->volume*phibulk;
-	push("theta_exc",thetaexc);
-	push("n_exc",thetaexc/chainlength);
-	push("nexc",thetaexc/chainlength);
-	push("thetaexc",thetaexc);
-	push("n",n);
-	push("chainlength",chainlength);
-	push("phibulk",phibulk);
-	push("Mu",Mu);
-	push("mu",Mu); push("MU",Mu);
+	OUTPUT["theta_exc"] = thetaexc;
+	OUTPUT["n_exc"] = thetaexc / chainlength;
+	OUTPUT["nexc"] = thetaexc / chainlength;
+	OUTPUT["thetaexc"] = thetaexc;
+	OUTPUT["n"] = n;
+	OUTPUT["chainlength"] = chainlength;
+	OUTPUT["phibulk"] = phibulk;
+	OUTPUT["Mu"] = Mu;
+	OUTPUT["mu"] = Mu;
+	OUTPUT["MU"] = Mu;
 	if (lat->gradients==3) {
 		Real TrueVolume=lat->MX*lat->MY*lat->MZ;
 		Real Volume_particles=0;
@@ -656,7 +598,7 @@ NAMICS_DBG("PushOutput for Mol " + name << std::endl);
 				for (int __j = 0; __j < lat->M; ++__j) Volume_particles += Seg[i]->MASK[__j];
 			}
 		}
-		push("Gamma",theta-(TrueVolume-Volume_particles)*phibulk);
+		OUTPUT["Gamma"] = theta - (TrueVolume - Volume_particles) * phibulk;
 	}
 	if (chainlength==1) {
 		int seg=MolMonList[0];
@@ -664,7 +606,7 @@ NAMICS_DBG("PushOutput for Mol " + name << std::endl);
 			if (mu_state.size() ==0) for (int i=0; i<Seg[seg]->ns; i++) mu_state.push_back(Mu);
 			for (int i=0; i<Seg[seg]->ns; i++) {
 				mu_state[i]+=std::log(Seg[seg]->state_alphabulk[i]);
-				push("mu-"+Seg[seg]->state_name[i],mu_state[i]);
+				OUTPUT["mu-" + Seg[seg]->state_name[i]] = mu_state[i];
 			}
 		}
 	}
@@ -683,91 +625,28 @@ NAMICS_DBG("PushOutput for Mol " + name << std::endl);
 		if (phitot[i]> phimax ) phimax =phitot[i]; else maxfound=true;
 	}
 
-	push("phiMax",phimax);
-
-	push("GN",GN);
-	push("norm",norm);
-	std::string s="profile;0"; push("phi",s);
-	int length = MolMonList.size();
-	for (int i=0; i<length; i++) {
-		std::stringstream ss; ss<<i+1; std::string str=ss.str();
-		s= "profile;"+str; push("phi_"+Seg[MolMonList[i]]->name,s);
+	OUTPUT["phiMax"] = phimax;
+	OUTPUT["GN"] = GN;
+	OUTPUT["norm"] = norm;
+	OUTPUT["phi"] = {{"profile", 0}};
+	for (size_t i = 0; i < MolMonList.size(); i++) {
+		OUTPUT["phi_" + Seg[MolMonList[i]]->name] = {{"profile", static_cast<int>(i) + 1}};
 	}
 }
 
-std::span<Real> Molecule::GetPointer(std::string s) {
+std::span<Real> Molecule::GetPointer(int profile) {
 NAMICS_DBG("GetPointer for Mol " + name << std::endl);
-	std::vector<std::string> sub;
-	int M= lat->M;
-	In->split(s,';',sub);
-	if (sub[0]=="profile") {
-		if (sub[1]=="0") {
-			lat->set_bounds(phitot.data());
-			return phitot;
-		}
-
-		int length=MolMonList.size();
-		int i=0;
-		while (i<length) {
-			std::stringstream ss; ss<<i+1; std::string str=ss.str();
-			if (sub[1]==str) {
-				auto profile = std::span<Real>(phi).subspan(static_cast<size_t>(i * M), static_cast<size_t>(M));
-				lat->set_bounds(profile.data());
-				return profile;
-			}
-			i++;
-		}
+	const int M = lat->M;
+	if (profile == 0) {
+		lat->set_bounds(phitot.data());
+		return phitot;
+	}
+	if (profile > 0 && profile <= static_cast<int>(MolMonList.size())) {
+		auto data = std::span<Real>(phi).subspan(static_cast<size_t>(profile - 1) * M, static_cast<size_t>(M));
+		lat->set_bounds(data.data());
+		return data;
 	}
 	return {};
-}
-
-std::span<int> Molecule::GetPointerInt(std::string s) {
-NAMICS_DBG("GetPointerInt for Mol " + name << std::endl);
-	std::vector<std::string> sub;
-	In->split(s,';',sub);
-	if (sub[0]=="std::array") { //set SIZE and return std::array pointer.
-	}
-	return {};
-}
-int Molecule::GetValue(std::string prop,int &int_result,Real &Real_result,std::string &string_result){
-NAMICS_DBG("GetValue (long) for Mol " + name << std::endl);
-	int i=0;
-	int length = ints.size();
-	while (i<length) {
-		if (prop==ints[i]) {
-			int_result=ints_value[i];
-			return 1;
-		}
-		i++;
-	}
-	i=0;
-	length = Reals.size();
-	while (i<length) {
-		if (prop==Reals[i]) {
-			Real_result=Reals_value[i];
-			return 2;
-		}
-		i++;
-	}
-	i=0;
-	length = bools.size();
-	while (i<length) {
-		if (prop==bools[i]) {
-			if (bools_value[i]) string_result="true"; else string_result="false";
-			return 3;
-		}
-		i++;
-	}
-	i=0;
-	length = strings.size();
-	while (i<length) {
-		if (prop==strings[i]) {
-			string_result=strings_value[i];
-			return 3;
-		}
-		i++;
-	}
-	return 0;
 }
 
 Real* Molecule::propagate_forward(Real* G1, int &s, int block, int generation, int M) {

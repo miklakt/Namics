@@ -11,7 +11,6 @@ public:
 	const Input* In;
 	std::span<const std::unique_ptr<Segment>> Seg;
 	std::string name; 
-	std::vector<std::string> chi_name;
 	std::vector<Real> chi;
  
 	bool unique;
@@ -26,28 +25,9 @@ public:
 	Real alphabulk;
 	bool fixed;
 	bool in_reaction;
-
-	std::vector<std::string> ints;
-	std::vector<std::string> Reals;
-	std::vector<std::string> bools;
-	std::vector<std::string> strings;
-	std::vector<Real> Reals_value;
-	std::vector<int> ints_value;
-	std::vector<bool> bools_value;
-	std::vector<std::string> strings_value;
-	void push(std::string,Real);
-	void push(std::string,int);
-	void push(std::string,bool);
-	void push(std::string,std::string);
+	ParameterStore OUTPUT;
 	void PushOutput();
-	std::span<Real> GetPointer(std::string);
-	std::span<int> GetPointerInt(std::string);
-	int GetValue(std::string,int&,Real&,std::string&);	
-	void PutChiKEY(std::string);
-	std::vector<std::string> KEYS;
-	ParameterStore PARAMETERS;
+	std::span<Real> GetPointer(int);
 	bool CheckInput(int);
-	void PutParameter(std::string); 
-	std::string GetValue(std::string); 
 };
 #endif

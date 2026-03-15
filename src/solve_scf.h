@@ -45,21 +45,8 @@ public:
 	Real deltamax,deltamin;
 
 	int iterationlimit;
-
-	std::vector<std::string> ints;
-	std::vector<std::string> Reals;
-	std::vector<std::string> bools;
-	std::vector<std::string> strings;
-	std::vector<Real> Reals_value;
-	std::vector<int> ints_value;
-	std::vector<bool> bools_value;
-	std::vector<std::string> strings_value;
-	void push(std::string,Real);
-	void push(std::string,int);
-	void push(std::string,bool);
-	void push(std::string,std::string);
+	ParameterStore OUTPUT;
 	void PushOutput();
-	int GetValue(std::string,int&,Real&,std::string&);
 	enum iteration_method {HESSIAN,PSEUDOHESSIAN,diis,LBFGS};
 	enum inner_iteration_method {super,proceed};
 	enum gradient_method {classical, WEAK};
@@ -72,11 +59,7 @@ public:
 	std::vector<Real> yy;
 	std::vector<int> SIGN;
 
-	std::vector<std::string> KEYS;
-	ParameterStore PARAMETERS;
 	bool CheckInput(int);
-	void PutParameter(std::string);
-	std::string GetValue(std::string);
 	void Copy(std::span<Real>,std::span<const Real>,int,int,int,int);
 	bool Guess(std::span<const Real>,std::string,std::vector<std::string>,std::vector<std::string>,bool,int,int,int,int);
 

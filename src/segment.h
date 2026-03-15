@@ -14,7 +14,6 @@ public:
 	const Input* In;
 	Lattice* lat;
 
-	std::vector<std::string> chi_name;
 	std::vector<Real> chi;
 	int n_seg;
 	int seg_nr;
@@ -38,35 +37,17 @@ public:
 	std::vector<Real>state_phibulk;
 	std::vector<Real>state_theta;
 
-	bool block;
 	bool all_segment;
 	int ns;
 
-	int n_pos;
-	std::array<int, 6> r;
 	int start;
 	int var_pos;
 	int frozen_at_bound;
-
-	std::vector<std::string> ints;
-	std::vector<std::string> Reals;
-	std::vector<std::string> bools;
-	std::vector<std::string> strings;
-	std::vector<Real> Reals_value;
-	std::vector<int> ints_value;
-	std::vector<bool> bools_value;
-	std::vector<std::string> strings_value;
-	void push(std::string,Real);
-	void push(std::string,int);
-	void push(std::string,bool);
-	void push(std::string,std::string);
+	ParameterStore OUTPUT;
 	void PushOutput();
-	std::span<Real> GetPointer(std::string);
-	std::span<int> GetPointerInt(std::string);
-	int GetValue(std::string,int&,Real&,std::string&);
+	std::span<Real> GetPointer(int);
 	bool LoadExternalPotential();
 
-	std::vector<int> P;
 	std::vector<Real> MASK;
 	std::vector<Real> G1;
 	std::vector<Real> phi;
@@ -79,16 +60,12 @@ public:
 	std::vector<Real> ALPHA; //Lagrange parameter per segement for steady state
 	int ItState;
 
-	std::vector<std::string> KEYS;
-	ParameterStore PARAMETERS;
 	bool CheckInput(int);
-	void PutChiKEY(std::string);
-	std::string GetValue(std::string);
 	Real PinnedVolume();
 	void DeAllocateMemory();
 	void AllocateMemory();
 	bool PrepareForCalculations(std::span<const Real>,bool);
-	bool ParseFreedoms(bool&);
+	bool ParseFreedoms();
 	void UpdateValence(Real*,std::span<Real>,std::span<Real>,std::span<Real>,bool);
 	int AddState(int,Real,Real,bool);
 	void SetPhiSide();

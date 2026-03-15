@@ -24,28 +24,10 @@ public:
 	
 	std::string name; 
 	const Input* In;
-	std::vector<std::string> ints;
-	std::vector<std::string> Reals;
-	std::vector<std::string> bools;
-	std::vector<std::string> strings;
-	std::vector<Real> Reals_value;
-	std::vector<int> ints_value;
-	std::vector<bool> bools_value;
-	std::vector<std::string> strings_value;
-	void push(std::string,Real);
-	void push(std::string,int);
-	void push(std::string,bool);
-	void push(std::string,std::string);
+	ParameterStore OUTPUT;
 	void PushOutput();
-	std::span<Real> GetPointer(std::string);
-	std::span<int> GetPointerInt(std::string);
-	int GetValue(std::string,int&,Real&,std::string&);	
 
-	std::vector<std::string> KEYS;
-	ParameterStore PARAMETERS;
 	bool CheckInput(int);
-	void PutParameter(std::string); 
-	std::string GetValue(std::string); 
 	Real ChemIntBulk(const State&);
 	Real pKeff();
 	Real Residual_value();

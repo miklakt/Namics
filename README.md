@@ -2,6 +2,10 @@
 
 Self-consistent field simulation code.
 
+This repository is a minimalist experimental version of Namics. It keeps only the core functionality needed for refactoring, cleanup, and experimentation, and does not aim to preserve the full original features.
+
+For the original project, see: <https://github.com/leermakers/Namics>
+
 ## Build
 
 ```bash

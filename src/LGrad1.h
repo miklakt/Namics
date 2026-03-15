@@ -16,9 +16,6 @@ class LGrad1 : public Lattice
 	Real Moment(Real*,Real,int);
 	Real MomentPlanar(Real*,int,Real);
 	Real WeightedSum(Real*);
-	bool ReadRange(int*, int*, int&, bool&, std::string, int, std::string, std::string);
-	bool ReadRangeFile(std::string,int* H_p,int&, std::string, std::string);
-	bool CreateMASK(Real*, int*, int*, int, bool);
 	Real ComputeTheta(Real*);
 	void remove_bounds(Real*);
 	void set_bounds(Real*);

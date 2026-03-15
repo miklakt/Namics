@@ -13,7 +13,6 @@ public:
 	int nbits;
 	int lineiterations,numIterationsSinceHessian,resetiteration;
 	Real linetolerance;
-	int print_hessian_at_it;
 	int linesearchlimit;
 	Real smallAlpha;
 	int maxNumSmallAlpha;
@@ -42,11 +41,7 @@ public:
 	int trouble;
 	Real normg;
 	bool e_info;
-	bool d_info;
-	bool g_info;
-	bool h_info;
 	bool hs_info;
-	bool x_info;
 	bool s_info;
 	bool t_info;
 

@@ -1,5 +1,7 @@
 #include "tools_host.h"
 #include "input.h"
+#include "input_preprocessor.h"
+#include "io_utils.h"
 #include "lattice.h"
 #include "molecule.h"
 #include "mol_branched.h"
@@ -12,6 +14,7 @@
 #include "system.h"
 #include "sfnewton.h"
 #include "solve_scf.h"
+#include <filesystem>
 #include <memory>
 
 Real e = 1.60217e-19;
@@ -47,13 +50,8 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	// If the specified filename has no extension: add the extension specified below.
-	std::string extension = "in";
-	std::ostringstream filename;
-	filename << args.back();
-	bool hasNoExtension = (filename.str().substr(filename.str().find_last_of(".") + 1) != extension);
-	if (hasNoExtension)
-		filename << "." << extension;
+	std::filesystem::path filename(args.back());
+	if (!filename.has_extension()) filename += ".in";
 
 	//If the switch -d is given, enable debug. Add new switches by copying and replacing -d and debug = true.
 	if (std::find(args.begin(), args.end(), "-d") != args.end())
@@ -86,7 +84,12 @@ int main(int argc, char *argv[])
 	std::vector<std::unique_ptr<State>> Sta;
 	std::vector<std::unique_ptr<Reaction>> Rea;
 
-	In = std::make_unique<Input>(filename.str());
+	std::string json_input_path;
+	if (!io::input::PrepareInputFile(filename.string(), json_input_path)) {
+		return 0;
+	}
+
+	In = std::make_unique<Input>(json_input_path);
 	if (In->Input_error)
 	{
 		return 0;
@@ -127,27 +130,11 @@ int main(int argc, char *argv[])
 
 		for (int i = 0; i < n_seg; i++)
 		{
-			for (int k = 0; k < n_seg; k++)
-			{
-				Seg[i]->PutChiKEY(Seg[k]->name);
-			}
-			for (int k = 0; k < n_stat; k++)
-			{
-				Seg[i]->PutChiKEY(Sta[k]->name);
-			}
 			if (!Seg[i]->CheckInput(start))
 				return 0;
 		}
 		for (int i = 0; i < n_stat; i++)
 		{
-			for (int k = 0; k < n_seg; k++)
-			{
-				Sta[i]->PutChiKEY(Seg[k]->name);
-			}
-			for (int k = 0; k < n_stat; k++)
-			{
-				Sta[i]->PutChiKEY(Sta[k]->name);
-			}
 			if (!Sta[i]->CheckInput(start))
 				return 0;
 		}

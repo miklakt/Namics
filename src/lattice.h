@@ -3,7 +3,6 @@
 
 #include "namics.h"
 #include "input.h"
-#include "io_utils.h"
 #include "tools_host.h"
 
 struct LatticeSelection {
@@ -73,39 +72,19 @@ public:
 	int fjc, FJC;
 	std::vector<Real> X;
 
-	std::vector<std::string> KEYS;
-	ParameterStore PARAMETERS;
-
-	std::vector<std::string> ints;
-	std::vector<std::string> Reals;
-	std::vector<std::string> bools;
-	std::vector<std::string> strings;
-	std::vector<Real> Reals_value;
-	std::vector<int> ints_value;
-	std::vector<bool> bools_value;
-	std::vector<std::string> strings_value;
+	ParameterStore OUTPUT;
 
 	void DeAllocateMemory(void);
 	void AllocateMemory(void);
-	void push(std::string,Real);
-	void push(std::string,int);
-	void push(std::string,bool);
-	void push(std::string,std::string);
 	void PushOutput();
-	std::span<Real> GetPointer(std::string);
-	std::span<int> GetPointerInt(std::string);
+	std::span<Real> GetPointer(int);
 	int P(int,int,int);
 	int P(int,int);
 	int P(int);
-
-	int GetValue(std::string,int&,Real&,std::string&);
-	Real GetValue(std::span<const Real>,std::string);
 	bool CheckInput(int);
 
 	bool PutSub_box(int,int,int,int);
 
-	void PutParameter(std::string);
-	std::string GetValue(std::string);
 	bool PrepareForCalculations(void);
 	void DistributeG1(std::span<const Real>, std::span<Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
 	void CollectPhi(std::span<Real>, std::span<const Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
@@ -122,9 +101,6 @@ public:
 	virtual void propagateF(Real*,Real*,Real*,int,int,int)=0;
 	virtual void propagateB(Real*,Real*,Real*,int,int,int)=0;
 	virtual void Side(Real *, Real *, int) =0;
-	virtual bool ReadRange(int*, int*, int&, bool&, std::string, int, std::string, std::string)=0;
-	virtual bool ReadRangeFile(std::string,int* H_p,int&, std::string, std::string) =0;
-	virtual bool CreateMASK(Real*, int*, int*, int, bool) =0;
 	virtual Real ComputeTheta(Real*) =0;
 	virtual void UpdateEE(Real*, Real*,Real*) =0;
 	virtual void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool)=0;

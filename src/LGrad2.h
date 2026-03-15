@@ -22,9 +22,6 @@ class LGrad2 : public Lattice
 	void UReflect(Real*,Real*,Real*);
 	virtual void propagateF(Real*,Real*,Real*, int, int,int);
 	virtual void propagateB(Real*,Real*,Real*, int, int,int);
-	bool ReadRange(int*, int*, int&, bool&, std::string, int, std::string, std::string);
-	bool ReadRangeFile(std::string,int* H_p,int&, std::string, std::string);
-	bool CreateMASK(Real*, int*, int*, int, bool);
 	Real ComputeTheta(Real*);
 	void UpdateEE(Real*, Real*,Real*);
 	void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool);

@@ -37,7 +37,7 @@ OBJEXT      := o
 #Flags, Libraries and Includes
 CFLAGS      := -Wall -O3 -std=$(CXX_STD) -march=native
 LIB         := -lm -lpthread
-INC         := -I$(SRCDIR) -Iexternal/LBFGSpp/include -I/usr/include/eigen3 -I/usr/local/include/eigen3 -I/usr/local/include -I/usr/include
+INC         := -I$(SRCDIR) -Iexternal/LBFGSpp/include -Iexternal/json/include -I/usr/include/eigen3 -I/usr/local/include/eigen3 -I/usr/local/include -I/usr/include
 
 # MacOS: add Homebrew paths for headers and libraries
 ifeq ($(UNAME_S),Darwin)

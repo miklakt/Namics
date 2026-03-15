@@ -3,7 +3,7 @@
 
 #include "namics.h"
 
-#include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 
 namespace io {
@@ -12,16 +12,11 @@ namespace json {
 class JsonWriter {
 public:
 	bool WriteProblem(const std::string& filename,
-	                  const std::string& problem_object,
-	                  const std::string& metadata_object,
+	                  const nlohmann::ordered_json& problem_object,
+	                  const nlohmann::ordered_json& metadata_object,
 	                  bool append_existing_file,
 	                  bool first_problem_of_run) const;
 };
-
-inline std::shared_ptr<JsonWriter> SharedJsonWriter() {
-	static std::shared_ptr<JsonWriter> instance = std::make_shared<JsonWriter>();
-	return instance;
-}
 
 } // namespace json
 } // namespace io

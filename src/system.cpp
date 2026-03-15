@@ -13,13 +13,7 @@ System::System(const Input* In_, Lattice* Lat_, std::span<const std::unique_ptr<
 	Rea = Rea_;
 	lat=Lat_;
 	NAMICS_DBG( "Constructor for system " << std::endl);
-	KEYS.push_back("initial_guess");
-	KEYS.push_back("guess_inputfile");
-	KEYS.push_back("write_initial_guess");
-	KEYS.push_back("X");
-	KEYS.push_back("E");
-
-		charged=false;
+	charged=false;
 	grad_epsilon = false;
 	all_system=false;
 	first_pass=true;
@@ -186,7 +180,7 @@ bool System::MakeItsLists(void) {
 		int LENGTH = Mol[i]->MolMonList.size();
 			while (j < LENGTH)
 			{
-				if (!In->InSet(SysMonList, Mol[i]->MolMonList[j]))
+				if (!ContainsValue(SysMonList, Mol[i]->MolMonList[j]))
 				{
 					SysMonList.push_back(Mol[i]->MolMonList[j]);
 					if (Seg[Mol[i]->MolMonList[j]]->state_name.size() < 1 && IsUnique(Mol[i]->MolMonList[j], -1))
@@ -219,9 +213,17 @@ bool System::CheckInput(int start_)
 	bool solvent_found = false;
 	solvent = -1; //value -1 means no solvent defined.
 	Real phibulktot = 0;
-	success = In->CheckParameters("sys", name, start, KEYS, PARAMETERS);
+	const auto& parameters = In->Parameters("sys", name, start);
+	static const std::vector<std::string> keys = {"initial_guess", "write_initial_guess", "X", "E"};
+	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
+		if (ContainsValue(keys, it.key())) continue;
+		success = false;
+		std::cout << "sys property '" << it.key() << "' is unknown. Select from: " << std::endl;
+		for (const std::string& item : keys) std::cout << item << std::endl;
+	}
 	if (success)
 	{
+		try {
 		success = CheckChi_values(In->MonList.size());
 
 			MakeItsLists();
@@ -292,34 +294,30 @@ bool System::CheckInput(int start_)
 				}
 			}
 		}
-
-			std::vector<std::string> options;
 			initial_guess = "previous_result";
-		if (GetValue("initial_guess").size() > 0)
-		{
-			options.clear();
-			options.push_back("previous_result");
-			options.push_back("file");
-			options.push_back("none");
-			ParseString(GetValue("initial_guess"), initial_guess, options, " Info about 'initial_guess' rejected;");
-			if (initial_guess == "file")
+			guess_inputfile.clear();
+			if (parameters.contains("initial_guess"))
 			{
-				if (GetValue("guess_inputfile").size() > 0)
-				{
-					guess_inputfile = In->ResolvePath(GetValue("guess_inputfile"));
-				}
-				else
-				{
+				initial_guess = parameters.at("initial_guess").get<std::string>();
+				if (initial_guess != "previous_result" && initial_guess != "file" && initial_guess != "none") {
+					std::cout << " Info about 'initial_guess' rejected;" << std::endl;
 					success = false;
-					std::cout << " When 'initial_guess' is set to 'file', you need to supply 'guess_inputfile', but this entry is missing. Problem terminated " << std::endl;
 				}
 			}
-		}
-		write_initial_guess = false;
-		if (GetValue("write_initial_guess").size() > 0) {
-			ParseBool(GetValue("write_initial_guess"),
-			          write_initial_guess,
-			          " Info about 'write_initial_guess' rejected; default: 'false' used.");
+			if (initial_guess == "file") {
+				if (In->Start(start).contains("initial_guess")) guess_inputfile = In->json_path;
+				else {
+					success = false;
+					std::cout << "When 'initial_guess' is set to 'file', the problem must contain an embedded 'initial_guess' object." << std::endl;
+				}
+			} else if (initial_guess == "previous_result" && In->Start(start).contains("initial_guess")) {
+				initial_guess = "file";
+				guess_inputfile = In->json_path;
+			}
+		write_initial_guess = parameters.value("write_initial_guess", false);
+		} catch (const nlohmann::json::exception& error) {
+			std::cout << "Invalid json type in system '" << name << "': " << error.what() << std::endl;
+			success = false;
 		}
 	}
 
@@ -365,20 +363,21 @@ bool System::CheckInput(int start_)
 		}
 	}
 
-	if (GetValue("E").size()>0)
+	if (parameters.contains("E"))
 	{
-		if ( !(GetValue("E")=="chi" || GetValue("E")=="Chi" || GetValue("E")=="CHI") ) {
+		const std::string energy_name = parameters.at("E").get<std::string>();
+		if ( !(energy_name=="chi" || energy_name=="Chi" || energy_name=="CHI") ) {
 			std::cout <<" Only the FH chi-interactions are implemented. Use 'sys : sysname : E : chi'" << std::endl;
 			std::cout <<" Only chi-contributions to E are generated." << std::endl;
 		}
 	}
-	if (GetValue("X").size() > 0)
+	if (parameters.contains("X"))
 	{
 		XmolList.clear();
 		XstateList_1.clear();
 		XstateList_2.clear();
 		Xn_1.clear();
-		std::string s = GetValue("X");
+		std::string s = parameters.at("X").get<std::string>();
 		std::vector<std::string> sub;
 		std::vector<std::string> SUB;
 		In->split(s, '-', sub);
@@ -569,89 +568,45 @@ bool System::IsUnique(int Segnr_, int Statenr_)
 	return is_unique;
 }
 
-void System::PutParameter(std::string new_param)
-{
-	NAMICS_DBG( "PutParameter for system " << std::endl);
-	KEYS.push_back(new_param);
-}
-
-std::string System::GetValue(std::string parameter)
-{
-	NAMICS_DBG( "GetValue " + parameter + " for system " << std::endl);
-	auto it = PARAMETERS.find(parameter);
-	if (it != PARAMETERS.end()) return it->second;
-	return "";
-}
-
-void System::push(std::string s, Real X)
-{
-	NAMICS_DBG( "push (Real) for system " << std::endl);
-	Reals.push_back(s);
-	Reals_value.push_back(X);
-}
-void System::push(std::string s, int X)
-{
-	NAMICS_DBG( "push (int) for system " << std::endl);
-	ints.push_back(s);
-	ints_value.push_back(X);
-}
-void System::push(std::string s, bool X)
-{
-	NAMICS_DBG( "push (bool) for system " << std::endl);
-	bools.push_back(s);
-	bools_value.push_back(X);
-}
-void System::push(std::string s, std::string X)
-{
-	NAMICS_DBG( "push (std::string) for system " << std::endl);
-	strings.push_back(s);
-	strings_value.push_back(X);
-}
 void System::PushOutput()
 {
 	NAMICS_DBG( "PushOutput for system " << std::endl);
-	strings.clear();
-	strings_value.clear();
-	bools.clear();
-	bools_value.clear();
-	Reals.clear();
-	Reals_value.clear();
-	ints.clear();
-	ints_value.clear();
-	push("e", e);
-	push("k_B", k_B);
-	push("eps0", eps0);
-	push("temperature", T);
-	push("free_energy", FreeEnergy);
-	push("grand_potential", GrandPotential);
-	push("start",start);
+	const auto& parameters = In->Parameters("sys", name, start);
+	OUTPUT = nlohmann::ordered_json::object();
+	OUTPUT["e"] = e;
+	OUTPUT["k_B"] = k_B;
+	OUTPUT["eps0"] = eps0;
+	OUTPUT["temperature"] = T;
+	OUTPUT["free_energy"] = FreeEnergy;
+	OUTPUT["grand_potential"] = GrandPotential;
+	OUTPUT["start"] = start;
 	if (lat->gradients==1) {
-		push("Laplace_pressure",-GrandPotentialDensity[lat->fjc]);
+		OUTPUT["Laplace_pressure"] = -GrandPotentialDensity[lat->fjc];
 	}
 	if (lat->gradients==2) {
 		if (lat->BC[4]=="surface") {
-			push("Laplace_pressure",-GrandPotentialDensity[lat->P(2*lat->fjc,(lat->MY+lat->fjc)/2)]);
+			OUTPUT["Laplace_pressure"] = -GrandPotentialDensity[lat->P(2*lat->fjc,(lat->MY+lat->fjc)/2)];
 		} else {
-			push("Laplace_pressure",-GrandPotentialDensity[lat->P(2*lat->fjc,lat->MY)]);
+			OUTPUT["Laplace_pressure"] = -GrandPotentialDensity[lat->P(2*lat->fjc,lat->MY)];
 		}
 	}
-	if (GetValue("E").size() >0)
+	if (parameters.contains("E"))
 	{
 		Real sumE=0;
 		int length= In->MonList.size();
 		for (int i=0; i<length; i++)
 		for (int j=i+1; j<length; j++) {
 			Real Eij=GetE(i,j);
-			push("I_"+Seg[i]->name+"_"+Seg[j]->name,Eij);
-			push("I_"+Seg[j]->name+"_"+Seg[i]->name,Eij);
+			OUTPUT["I_" + Seg[i]->name + "_" + Seg[j]->name] = Eij;
+			OUTPUT["I_" + Seg[j]->name + "_" + Seg[i]->name] = Eij;
 			sumE+=Eij*Seg[i]->chi[j];
 		}
-		push("E",sumE);
+		OUTPUT["E"] = sumE;
 	}
 	int n_seg=In->MonList.size();
 	for (int i=0; i<n_seg; i++)
 	for (int j=0; j<n_seg; j++){
-		push("chi_"+Seg[i]->name+"_"+Seg[j]->name,CHI[i * n_seg + j]);
+		OUTPUT["chi_" + Seg[i]->name + "_" + Seg[j]->name] = CHI[i * n_seg + j];
 	}
 	Real X = 0;
 	if (Xn_1.size() > 0 || XmolList.size() > 0)
@@ -691,297 +646,166 @@ void System::PushOutput()
 			}
 			X -= Seg[Sta[XstateList_1[i]]->mon_nr]->state_theta[Sta[XstateList_1[i]]->state_nr] * Xn_1[i] * mu;
 		}
-		push("X", X);
+		OUTPUT["X"] = X;
 		std::cout << " X  = " << X << std::endl;
 	}
-	if (solvent>-1) push("solvent", Mol[solvent]->name);
-	std::string s = "profile;0";
-	push("alpha", s);
-	s = "profile;1";
-	push("GrandPotentialDensity", s);
-	push("grand_potential_density", s);
-	s = "profile;2";
-	push("FreeEnergyDensity", s);
-	push("free_energy_density", s);
-	s = "profile;6";
-	push("phitot", s);
+	if (solvent > -1) OUTPUT["solvent"] = Mol[solvent]->name;
+	OUTPUT["alpha"] = {{"profile", 0}};
+	OUTPUT["GrandPotentialDensity"] = {{"profile", 1}};
+	OUTPUT["grand_potential_density"] = {{"profile", 1}};
+	OUTPUT["FreeEnergyDensity"] = {{"profile", 2}};
+	OUTPUT["free_energy_density"] = {{"profile", 2}};
+	OUTPUT["phitot"] = {{"profile", 6}};
 
 	if (charged)
 	{
-		push("Dpsi",psi[lat->M-1]-psi[0]);
-		s = "profile;3";
-		push("psi", s);
-		s = "profile;4";
-		push("q", s);
-		s = "profile;5";
-		push("eps", s);
+		OUTPUT["Dpsi"] = psi[lat->M-1] - psi[0];
+		OUTPUT["psi"] = {{"profile", 3}};
+		OUTPUT["q"] = {{"profile", 4}};
+		OUTPUT["eps"] = {{"profile", 5}};
 	}
 }
 
-std::span<Real> System::GetPointer(std::string s)
+std::span<Real> System::GetPointer(int profile)
 {
 	NAMICS_DBG( "GetPointer for system " << std::endl);
-	std::vector<std::string> sub;
-	In->split(s, ';', sub);
-	if (sub[1] == "0")
+	if (profile == 0)
 		return alpha;
-	if (sub[1] == "1")
+	if (profile == 1)
 		return GrandPotentialDensity;
-	if (sub[1] == "2")
+	if (profile == 2)
 		return FreeEnergyDensity;
-	if (sub[1] == "3")
+	if (profile == 3)
 		return psi;
-	if (sub[1] == "4")
+	if (profile == 4)
 		return q;
-	if (sub[1] == "5")
+	if (profile == 5)
 		return eps;
-	if (sub[1] == "6")
+	if (profile == 6)
 		return phitot;
 	return {};
-}
-std::span<int> System::GetPointerInt(std::string s)
-{
-	NAMICS_DBG( "GetPointerInt for system " << std::endl);
-	std::vector<std::string> sub;
-	In->split(s, ';', sub);
-	if (sub[0] == "std::array")
-	{ //set SIZE and return pointer of int std::array
-	}
-	return {};
-}
-
-int System::GetValue(std::string prop, int &int_result, Real &Real_result, std::string &string_result)
-{
-	NAMICS_DBG( "GetValue (long) for system " << std::endl);
-	int length = ints.size();
-	for (int i = 0; i < length; ++i)
-	{
-		if (prop == ints[i])
-		{
-			int_result = ints_value[i];
-			return 1;
-		}
-	}
-	length = Reals.size();
-	for (int i = 0; i < length; ++i)
-	{
-		if (prop == Reals[i])
-		{
-			Real_result = Reals_value[i];
-			return 2;
-		}
-	}
-	length = bools.size();
-	for (int i = 0; i < length; ++i)
-	{
-		if (prop == bools[i])
-		{
-			if (bools_value[i])
-				string_result = "true";
-			else
-				string_result = "false";
-			return 3;
-		}
-	}
-	length = strings.size();
-	for (int i = 0; i < length; ++i)
-	{
-		if (prop == strings[i])
-		{
-			string_result = strings_value[i];
-			return 3;
-		}
-	}
-	return 0;
 }
 
 bool System::CheckChi_values(int n_seg)
 {
 	NAMICS_DBG( "CheckChi_values for system " << std::endl);
 	bool success = true;
-	CHI.assign(n_seg * n_seg, 0);
-	for (int i = 0; i < n_seg; i++)
-		for (int k = 0; k < n_seg; k++)
-		{
-			CHI[i * n_seg + k] = ParseReal(Seg[i]->GetValue("chi_" + Seg[k]->name), 123);
-		}
-	for (int i = 0; i < n_seg; i++)
-		for (int k = 0; k < n_seg; k++)
-			if (CHI[i * n_seg + k] == 123)
-				CHI[i * n_seg + k] = CHI[k * n_seg + i];
-	for (int i = 0; i < n_seg; i++)
-		for (int k = 0; k < n_seg; k++)
-			if (CHI[i * n_seg + k] == 123)
-				CHI[i * n_seg + k] = 0;
-	for (int i = 0; i < n_seg; i++)
-	{
-		if (CHI[i * n_seg + i] != 0)
-		{
-			std::cout << "CHI-values for 'same'-segments (e.g. CHI(x,x) ) should be zero. " << std::endl;
-			success = false;
+	const int n_segments = n_seg;
+	const int n_states = In->StateList.size();
+	const int n_chi = n_segments + n_states;
+	CHI.assign(n_segments * n_segments, 0);
+	for (int i = 0; i < n_segments; i++) Seg[i]->chi.assign(n_chi, 0);
+	for (int i = 0; i < n_states; i++) Sta[i]->chi.assign(n_chi, 0);
+
+	auto read_chi = [&](const ParameterStore& parameters, const std::string& target, Real& value) {
+		const std::string chi_key = "chi_" + target;
+		if (!parameters.contains(chi_key)) return false;
+		value = parameters.at(chi_key).get<Real>();
+		return true;
+	};
+
+	for (int i = 0; i < n_segments; i++) {
+		const auto& left_parameters = In->Parameters("mon", Seg[i]->name, start);
+		for (int j = i; j < n_segments; j++) {
+			Real left = 0;
+			Real right = 0;
+			const bool has_left = read_chi(left_parameters, Seg[j]->name, left);
+			const bool has_right = read_chi(In->Parameters("mon", Seg[j]->name, start), Seg[i]->name, right);
+			Real chi = 0;
+			if (i != j) {
+				if (has_left && has_right && left != right) {
+					success = false;
+					std::cout << " conflict in chi values! chi(" << Seg[i]->name << "," << Seg[j]->name << ") != chi (" << Seg[j]->name << "," << Seg[i]->name << ")" << std::endl;
+					chi = left;
+				} else if (has_left) {
+					chi = left;
+				} else if (has_right) {
+					chi = right;
+				}
+			}
+			CHI[i * n_segments + j] = CHI[j * n_segments + i] = chi;
 		}
 	}
-		for (int i = 0; i < n_seg; i++)
-			for (int k = i + 1; k < n_seg; k++)
-				if (CHI[i * n_seg + k] != CHI[k * n_seg + i])
-				{
-					std::cout << "CHI-value symmetry violated: chi(" << Seg[i]->name << "," << Seg[k]->name << ") is not equal to chi(" << Seg[k]->name << "," << Seg[i]->name << ")" << std::endl;
+
+	std::vector<int> copy_source(n_segments);
+	for (int i = 0; i < n_segments; i++) {
+		copy_source[i] = i;
+		const std::string copy_of = In->Parameters("mon", Seg[i]->name, start).value("set_equal_to", std::string{});
+		if (copy_of.empty()) continue;
+		int segnr = -1;
+		for (int j = 0; j < n_segments; j++) {
+			if (Seg[j]->name == copy_of) {
+				segnr = j;
+				break;
+			}
+		}
+		if (segnr < 0 || segnr == i) {
+			if (segnr < 0) std::cout <<"In segment " << Seg[i]->name << " 'set_equal_to' is rejected because the segment " << copy_of << " was not found" << std::endl;
+			else std::cout <<"In segment " << Seg[i]->name << " 'set_equal_to' is rejected because the segment " << copy_of << " can not copied from itself...." << std::endl;
+			continue;
+		}
+		copy_source[i] = segnr;
+		Seg[i]->epsilon = Seg[segnr]->epsilon;
+		for (int j = 0; j < n_segments; j++) {
+			CHI[i * n_segments + j] = CHI[segnr * n_segments + j];
+			CHI[j * n_segments + i] = CHI[i * n_segments + j];
+		}
+		CHI[i * n_segments + segnr] = CHI[segnr * n_segments + i] = 0;
+		CHI[i * n_segments + i] = 0;
+	}
+
+	for (int i = 0; i < n_segments; i++) {
+		std::copy_n(CHI.begin() + i * n_segments, n_segments, Seg[i]->chi.begin());
+	}
+
+	for (int i = 0; i < n_states; i++) {
+		const auto& left_parameters = In->Parameters("state", Sta[i]->name, start);
+		for (int j = i; j < n_states; j++) {
+			Real left = 0;
+			Real right = 0;
+			const bool has_left = read_chi(left_parameters, Sta[j]->name, left);
+			const bool has_right = read_chi(In->Parameters("state", Sta[j]->name, start), Sta[i]->name, right);
+			Real chi = i == j ? 0 : Seg[Sta[i]->mon_nr]->chi[Sta[j]->mon_nr];
+			if (i != j) {
+				if (has_left && has_right && left != right) {
 					success = false;
-				}
-
-		for (int i = 0; i < n_seg; i++) {
-			std::string NAME=Seg[i]->GetValue("set_equal_to");
-			if (NAME.size()>0) {
-				int segnr = -1;
-				for (int j=0; j<n_seg; j++) {
-					if (Seg[j]->name ==NAME) segnr=j;
-				}
-				if (segnr<0 || segnr ==i) {
-					if (segnr < 0) std::cout <<"In segment " << Seg[i]->name << " 'set_to_seg' is rejected because the segment " << NAME << " was not found" << std::endl;
-					else std::cout <<"In segment " << Seg[i]->name << " 'set_to_seg' is rejected because the segment " << NAME << " can not copied from itself...." << std::endl;
-				} else {
-					Seg[i]->epsilon = Seg[segnr]->epsilon;
-					for (int k=0; k<n_seg; k++) {CHI[i*n_seg+k]=CHI[segnr*n_seg+k]; CHI[k*n_seg+i]=CHI[i*n_seg+k]; }
-					CHI[i*n_seg+segnr]=CHI[segnr*n_seg+i]=0;
+					std::cout << " conflict in chi values! chi(" << Sta[i]->name << "," << Sta[j]->name << ") != chi (" << Sta[j]->name << "," << Sta[i]->name << ")" << std::endl;
+					chi = left;
+				} else if (has_left) {
+					chi = left;
+				} else if (has_right) {
+					chi = right;
 				}
 			}
+			Sta[i]->chi[n_segments + j] = Sta[j]->chi[n_segments + i] = chi;
 		}
+	}
 
-	int n_segments = In->MonList.size();
-	int n_states = In->StateList.size();
-	if (n_states == 1)
-		n_states = 0;
-	int n_chi = n_segments + n_states;
-
-
-	for (int i = 0; i < n_segments; i++)
-		for (int j = 0; j < n_segments; j++)
-		{
-			if (Seg[i]->chi[j] == -999 && Seg[j]->chi[i] == -999)
-			{
-				Seg[i]->chi[j] = Seg[j]->chi[i] = 0;
-			}
-			else
-			{
-				if (Seg[i]->chi[j] != -999 && Seg[j]->chi[i] == -999)
-				{
-					Seg[j]->chi[i] = Seg[i]->chi[j];
-				}
-				else
-				{
-					if (Seg[i]->chi[j] == -999 && Seg[j]->chi[i] != -999)
-					{
-						Seg[i]->chi[j] = Seg[j]->chi[i];
-					}
-					else
-					{
-						if (Seg[i]->chi[j] != Seg[j]->chi[i])
-						{
-							success = false;
-							std::cout << " conflict in chi values! chi(" << Seg[i]->name << "," << Seg[j]->name << ") != chi (" << Seg[j]->name << "," << Seg[i]->name << ")" << std::endl;
-						}
-					}
-				}
-			}
-		}
-
-	for (int i = n_segments; i < n_chi; i++)
-		for (int j = n_segments; j < n_chi; j++)
-		{
-			if (Sta[i - n_segments]->chi[j] == -999 && Sta[j - n_segments]->chi[i] == -999)
-			{
-				Sta[i - n_segments]->chi[j] = Sta[j - n_segments]->chi[i] = Seg[Sta[i - n_segments]->mon_nr]->chi[Sta[j - n_segments]->mon_nr];
-			}
-			else
-			{
-				if (Sta[i - n_segments]->chi[j] != -999 && Sta[j - n_segments]->chi[i] == -999)
-				{
-					Sta[j - n_segments]->chi[i] = Sta[i - n_segments]->chi[j];
-				}
-				else
-				{
-					if (Sta[i - n_segments]->chi[j] == -999 && Sta[j - n_segments]->chi[i] != -999)
-					{
-						Sta[i - n_segments]->chi[j] = Sta[j - n_segments]->chi[i];
-					}
-					else
-					{
-						if (Sta[i - n_segments]->chi[j] != Sta[j - n_segments]->chi[i])
-						{
-							success = false;
-							std::cout << " conflict in chi values! chi(" << Sta[i - n_segments]->name << "," << Sta[j - n_segments]->name << ") != chi (" << Sta[j - n_segments]->name << "," << Sta[i - n_segments]->name << ")" << std::endl;
-						}
-					}
-				}
-			}
-		}
-
-	for (int i = 0; i < n_segments; i++)
-		for (int j = n_segments; j < n_chi; j++)
-		{
-			if (Seg[i]->chi[j] == -999 && Sta[j - n_segments]->chi[i] == -999)
-			{
-				Seg[i]->chi[j] = Sta[j - n_segments]->chi[i] = Seg[i]->chi[Sta[j - n_segments]->mon_nr];
-			}
-			else
-			{
-				if (Seg[i]->chi[j] != -999 && Sta[j - n_segments]->chi[i] == -999)
-				{
-					Sta[j - n_segments]->chi[i] = Seg[i]->chi[j];
-				}
-				else
-				{
-					if (Seg[i]->chi[j] == -999 && Sta[j - n_segments]->chi[i] != -999)
-					{
-						Seg[i]->chi[j] = Sta[j - n_segments]->chi[i];
-					}
-					else
-					{
-						if (Seg[i]->chi[j] != Sta[j - n_segments]->chi[i])
-						{
-							success = false;
-							std::cout << " conflict in chi values! chi(" << Seg[i]->name << "," << Sta[j - n_segments]->name << ") != chi (" << Sta[j - n_segments]->name << "," << Seg[i]->name << ")" << std::endl;
-						}
-					}
-				}
-			}
-		}
-
-	for (int i = n_segments; i < n_chi; i++)
-		for (int j = 0; j < n_segments; j++)
-		{
-			if (Sta[i - n_segments]->chi[j] == -999 && Seg[j]->chi[i] == -999)
-			{
-				Sta[i - n_segments]->chi[j] = Seg[j]->chi[i] = Seg[j]->chi[Sta[i - n_segments]->mon_nr];
-			}
-			else
-			{
-				if (Sta[i - n_segments]->chi[j] != -999 && Seg[j]->chi[i] == -999)
-				{
-					Seg[j]->chi[i] = Sta[i - n_segments]->chi[j];
-				}
-				else
-				{
-					if (Sta[i - n_segments]->chi[j] == -999 && Seg[j]->chi[i] != -999)
-					{
-						Sta[i - n_segments]->chi[j] = Seg[j]->chi[i];
-					}
-					else
-					{
-						if (Sta[i - n_segments]->chi[j] != Seg[j]->chi[i])
-						{
-							success = false;
-							std::cout << " conflict in chi values! chi(" << Sta[i - n_segments]->name << "," << Seg[j]->name << ") != chi (" << Seg[j]->name << "," << Sta[i - n_segments]->name << ")" << std::endl;
-						}
-					}
-				}
-			}
-			if (Sta[i - n_segments]->mon_nr == j && Seg[j]->chi[i] != 0 && Seg[j]->chi[i] != -999)
-			{
+	for (int i = 0; i < n_segments; i++) {
+		const auto& left_parameters = In->Parameters("mon", Seg[copy_source[i]]->name, start);
+		for (int j = 0; j < n_states; j++) {
+			Real left = 0;
+			Real right = 0;
+			const bool has_left = read_chi(left_parameters, Sta[j]->name, left);
+			const bool has_right = read_chi(In->Parameters("state", Sta[j]->name, start), Seg[i]->name, right);
+			Real chi = Seg[i]->chi[Sta[j]->mon_nr];
+			if (has_left && has_right && left != right) {
 				success = false;
-				std::cout << " chi between mon-type and one of its states is not allowed for chi(" << Sta[i - n_segments]->name << "," << Seg[j]->name << ")" << std::endl;
+				std::cout << " conflict in chi values! chi(" << Seg[i]->name << "," << Sta[j]->name << ") != chi (" << Sta[j]->name << "," << Seg[i]->name << ")" << std::endl;
+				chi = left;
+			} else if (has_left) {
+				chi = left;
+			} else if (has_right) {
+				chi = right;
 			}
+			if (Sta[j]->mon_nr == i && chi != 0) {
+				success = false;
+				std::cout << " chi between mon-type and one of its states is not allowed for chi(" << Sta[j]->name << "," << Seg[i]->name << ")" << std::endl;
+				chi = 0;
+			}
+			Seg[i]->chi[n_segments + j] = Sta[j]->chi[i] = chi;
 		}
+	}
 
 	return success;
 }

@@ -56,30 +56,12 @@ public:
 	std::string guess_inputfile;
 	bool write_initial_guess;
 	int start;
-
-	std::vector<std::string> ints;
-	std::vector<std::string> Reals;
-	std::vector<std::string> bools;
-	std::vector<std::string> strings;
-	std::vector<Real> Reals_value;
-	std::vector<int> ints_value;
-	std::vector<bool> bools_value;
-	std::vector<std::string> strings_value;
-	void push(std::string,Real);
-	void push(std::string,int);
-	void push(std::string,bool);
-	void push(std::string,std::string);
+	ParameterStore OUTPUT;
 	void PushOutput();
-	std::span<Real> GetPointer(std::string);
-	std::span<int> GetPointerInt(std::string);
-	int GetValue(std::string,int&,Real&,std::string&);
+	std::span<Real> GetPointer(int);
 
-	std::vector<std::string> KEYS;
-	ParameterStore PARAMETERS;
 	void DeAllocateMemory();
 	bool CheckInput(int);
-	void PutParameter(std::string);
-	std::string GetValue(std::string);
 	bool CheckChi_values(int);
 	bool MakeItsLists();
 	bool IsUnique(int,int);

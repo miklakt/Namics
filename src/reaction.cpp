@@ -2,16 +2,8 @@
 
 Reaction::Reaction(const Input* In_,std::span<const std::unique_ptr<Segment>> Seg_, std::span<const std::unique_ptr<State>> Sta_, std::string name_) {
 	In=In_; name=name_;   Sta=Sta_; Seg=Seg_;
-	KEYS.push_back("K"); 
-	KEYS.push_back("pK");
-	KEYS.push_back("equation");  
 }
 Reaction::~Reaction() = default;
-
-
-void Reaction::PutParameter(std::string new_param) {
-NAMICS_DBG("PutParameter in Reaction " + name << std::endl); KEYS.push_back(new_param); 
-}
 
 bool Reaction::CheckInput(int start) {
 NAMICS_DBG("CheckInput in Reaction " + name << std::endl);	bool success=true;
@@ -19,17 +11,25 @@ NAMICS_DBG("CheckInput in Reaction " + name << std::endl);	bool success=true;
 	pK=-100;
 	Sto.clear();
 	State_nr.clear();
-	success= In->CheckParameters("reaction",name,start, KEYS, PARAMETERS);
+	const auto& parameters = In->Parameters("reaction", name, start);
+	static const std::vector<std::string> keys = {"K", "pK", "equation"};
+	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
+		if (ContainsValue(keys, it.key())) continue;
+		success = false;
+		std::cout << "reaction property '" << it.key() << "' is unknown. Select from: " << std::endl;
+		for (const std::string& item : keys) std::cout << item << std::endl;
+	}
 	if (success) {
-		if (GetValue("K").size()==0 && GetValue("pK").size()==0)  {
+		try {
+		if (!parameters.contains("K") && !parameters.contains("pK"))  {
 			std::cout <<" reaction " << name << " has no K nor pK value" << std::endl; success=false;
 		} else {
-			if (GetValue("K").size() ==0) {
-				pK=ParseReal(GetValue("pK"),pK);
+			if (!parameters.contains("K")) {
+				pK=parameters.at("pK").get<Real>();
 				if (pK==-100) {std::cout <<" reaction " << name << " no valid pK value found " << std::endl; success=false; }
 				K=std::pow(10,-pK); 
 			} else {
-				K=ParseReal(GetValue("K"),pK);
+				K=parameters.at("K").get<Real>();
 				if (K<0) {
 					std::cout <<" reaction " << name << " has not a positive value for 'K' " << std::endl; success=false;
 				} else {
@@ -37,7 +37,7 @@ NAMICS_DBG("CheckInput in Reaction " + name << std::endl);	bool success=true;
 				}
 			}
 		}
-		equation=GetValue("equation"); 
+		equation=parameters.value("equation", std::string{});
 		if (equation.size()==0) {
 			success=false; std::cout <<" reaction " << name << " has no equation specified" <<std::endl; 
 		} else {
@@ -94,6 +94,10 @@ NAMICS_DBG("CheckInput in Reaction " + name << std::endl);	bool success=true;
 			}
 
 		} 
+		} catch (const nlohmann::json::exception& error) {
+			std::cout << "Invalid json type in reaction '" << name << "': " << error.what() << std::endl;
+			success = false;
+		}
 	}
 	int length=In->MonList.size();
 	int LENGTH=Sto.size();  
@@ -118,90 +122,12 @@ NAMICS_DBG("CheckInput in Reaction " + name << std::endl);	bool success=true;
 	}
 	return success;
 }
- 
-std::string Reaction::GetValue(std::string parameter){
-	auto it = PARAMETERS.find(parameter);
-	if (it != PARAMETERS.end()) return it->second;
-	return ""; 
-}
- 
-void Reaction::push(std::string s, Real X) {
-NAMICS_DBG("push (Real) in Reaction " + name << std::endl); Reals.push_back(s);
-	Reals_value.push_back(X); 
-}
-void Reaction::push(std::string s, int X) {
-NAMICS_DBG("push (int) in Reaction " + name << std::endl); ints.push_back(s);
-	ints_value.push_back(X); 
-}
-void Reaction::push(std::string s, bool X) {
-NAMICS_DBG("push (boool) in Reaction " + name << std::endl); bools.push_back(s);
-	bools_value.push_back(X); 
-}
-void Reaction::push(std::string s, std::string X) {
-NAMICS_DBG("push (std::string) in Reaction " + name << std::endl); strings.push_back(s);
-	strings_value.push_back(X); 	
-}
+
 void Reaction::PushOutput() {
-NAMICS_DBG("PushOutput in Reaction " + name << std::endl); strings.clear();
-	strings_value.clear();
-	bools.clear();
-	bools_value.clear();
-	Reals.clear();
-	Reals_value.clear();
-	ints.clear();
-	ints_value.clear();  
-	push("equation",equation);
-	push("pK",pK);
-}
-
-std::span<Real> Reaction::GetPointer(std::string s) {
-	(void)s;
-NAMICS_DBG("GetPointer in Reaction " + name << std::endl);	return {};
-}
-std::span<int> Reaction::GetPointerInt(std::string s) {
-	(void)s;
-NAMICS_DBG("GetPointerInt in Reaction " + name << std::endl);	return {};
-}
-
-
-int Reaction::GetValue(std::string prop,int &int_result,Real &Real_result,std::string &string_result){
-NAMICS_DBG("GetValue (long)  in Reaction " + name << std::endl);	int i=0;
-	int length = ints.size();
-	while (i<length) {
-		if (prop==ints[i]) { 
-			int_result=ints_value[i];
-			return 1;
-		}
-		i++;
-	}
-	i=0;
-	length = Reals.size();
-	while (i<length) {
-		if (prop==Reals[i]) { 
-			Real_result=Reals_value[i];
-			return 2;
-		}
-		i++;
-	}
-	i=0;
-	length = bools.size();
-	while (i<length) {
-		if (prop==bools[i]) { 
-			if (bools_value[i]) string_result="true"; else string_result="false"; 
-			return 3;
-		}
-		i++;
-	}
-	i=0;
-	length = strings.size();
-	while (i<length) {
-		if (prop==strings[i]) { 
-			string_result=strings_value[i]; 
-			return 3;
-		}
-		i++;
-	}
-	return 0; 
+NAMICS_DBG("PushOutput in Reaction " + name << std::endl);
+	OUTPUT = nlohmann::ordered_json::object();
+	OUTPUT["equation"] = equation;
+	OUTPUT["pK"] = pK;
 }
 
 Real Reaction::ChemIntBulk(const State& sta) {

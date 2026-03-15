@@ -59,7 +59,7 @@ C Copyright (2018) Wageningen University, NL.
 	numReverseDirection =0;
 	trustregion =0.0;
 	pseudohessian = samehessian = false;
-	d_info = e_info = g_info = h_info = s_info = x_info = false;
+	e_info = s_info = false;
 	newtondirection  = false ;
 	ignore_newton_direction = true;
 	i_info=1;
