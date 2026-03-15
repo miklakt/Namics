@@ -5,6 +5,9 @@ class LGrad3 : public Lattice
 {
 	public:	LGrad3(const Input& In_,const std::string& name_);
 	~LGrad3();
+	static bool Matches(const LatticeSelection& selection) {
+		return selection.gradients == 3;
+	}
 
 	void ComputeLambdas(void);
 	bool PutM();

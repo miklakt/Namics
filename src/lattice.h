@@ -6,6 +6,11 @@
 #include "io_utils.h"
 #include "tools_host.h"
 
+struct LatticeSelection {
+	int gradients = 1;
+	std::string geometry = "planar";
+};
+
 class Lattice {
 public:
 	Lattice(const Input&,const std::string&);
@@ -95,7 +100,7 @@ public:
 
 	int GetValue(std::string,int&,Real&,std::string&);
 	Real GetValue(std::span<const Real>,std::string);
-	bool CheckInput(int,bool);
+	bool CheckInput(int);
 
 	bool PutSub_box(int,int,int,int);
 
@@ -135,4 +140,9 @@ public:
 	virtual void Initiate(Real*,Real*,int,int) =0;
 	virtual void Terminate(Real*,Real*,int,int) =0;
 };
+
+namespace lattice_factory {
+std::unique_ptr<Lattice> CreateChecked(const Input&, const std::string&, int);
+}
+
 #endif

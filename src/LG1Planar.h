@@ -5,6 +5,9 @@ class LG1Planar : public LGrad1
 {
 	public:	LG1Planar(const Input& In_,const std::string& name_);
 	~LG1Planar();
+	static bool Matches(const LatticeSelection& selection) {
+		return selection.gradients == 1 && selection.geometry == "planar";
+	}
 
 	void ComputeLambdas(void);
 	Real MomentPlanar(Real*,int,Real);

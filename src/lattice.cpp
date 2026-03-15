@@ -1,23 +1,68 @@
 #include "lattice.h"
+#include "LG1Planar.h"
+#include "LG2Planar.h"
+#include "LGrad1.h"
+#include "LGrad2.h"
+#include "LGrad3.h"
+
+namespace {
+
+const std::vector<std::string>& LatticeKeys() {
+	static const std::vector<std::string> keys = {
+		"gradients", "n_layers", "offset_first_layer", "geometry",
+		"n_layers_x", "n_layers_y", "n_layers_z",
+		"lowerbound", "upperbound",
+		"lowerbound_x", "upperbound_x",
+		"lowerbound_y", "upperbound_y",
+		"lowerbound_z", "upperbound_z",
+		"bondlength", "ignore_site_fraction", "fcc_site_fraction",
+		"lattice_type", "stencil_full", "FJC_choices", "b/l"
+	};
+	return keys;
+}
+
+std::string GetParameter(const ParameterStore& parameters, const std::string& key) {
+	const auto it = parameters.find(key);
+	return it == parameters.end() ? std::string() : it->second;
+}
+
+bool ParseSelection(const Input& in, const std::string& name, int start, LatticeSelection& selection) {
+	ParameterStore parameters;
+	if (!in.CheckParameters("lat", name, start, LatticeKeys(), parameters)) return false;
+
+	selection.gradients = ParseInt(GetParameter(parameters, "gradients"), 1);
+	if (selection.gradients < 1 || selection.gradients > 3) {
+		std::cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << std::endl;
+		selection.gradients = 1;
+	}
+
+	std::vector<std::string> options = {"spherical", "cylindrical", "flat", "planar"};
+	const std::string geometry = GetParameter(parameters, "geometry");
+	if (!geometry.empty()) {
+		if (!ParseString(geometry, selection.geometry, options, "In lattice input for 'geometry' not recognized."))
+			return false;
+	} else {
+		selection.geometry = "planar";
+	}
+	if (selection.geometry == "flat") selection.geometry = "planar";
+	return true;
+}
+
+template <class T>
+std::unique_ptr<Lattice> TryCreate(const Input& in, const std::string& name, int start, const LatticeSelection& selection) {
+	if (!T::Matches(selection)) return nullptr;
+	auto lattice = std::make_unique<T>(in, name);
+	if (!lattice->CheckInput(start)) return nullptr;
+	return lattice;
+}
+
+} // namespace
 
 Lattice::Lattice(const Input& In_,const std::string& name_) :
-	BC(6) // boundary condition slots: lower/upper for x, y, z
+	BC(6), // boundary condition slots: lower/upper for x, y, z
+	KEYS(LatticeKeys())
 { //this file contains switch (gradients). In this way we keep all the lattice issues in one file!
 NAMICS_DBG("Lattice constructor" << std::endl);	In=&In_; name=name_;
-	KEYS.push_back("gradients"); KEYS.push_back("n_layers"); KEYS.push_back("offset_first_layer");
-	KEYS.push_back("geometry");
-	KEYS.push_back("n_layers_x");   KEYS.push_back("n_layers_y"); KEYS.push_back("n_layers_z");
-	KEYS.push_back("lowerbound"); KEYS.push_back("upperbound");
-	KEYS.push_back("lowerbound_x"); KEYS.push_back("upperbound_x");
-	KEYS.push_back("lowerbound_y"); KEYS.push_back("upperbound_y");
-	KEYS.push_back("lowerbound_z"); KEYS.push_back("upperbound_z");
- 	KEYS.push_back("bondlength");
-	KEYS.push_back("ignore_site_fraction");
-	KEYS.push_back("fcc_site_fraction");
-  	KEYS.push_back("lattice_type");
-	KEYS.push_back("stencil_full");
-	KEYS.push_back("FJC_choices");
-	KEYS.push_back("b/l");
 	sub_box_on = 0;
 	all_lattice = false;
 	ignore_sites=false;
@@ -30,6 +75,25 @@ NAMICS_DBG("Lattice constructor" << std::endl);	In=&In_; name=name_;
 	Markov=1;
 	subl=0;
 }
+
+namespace lattice_factory {
+
+std::unique_ptr<Lattice> CreateChecked(const Input& in, const std::string& name, int start) {
+	LatticeSelection selection;
+	if (!ParseSelection(in, name, start, selection)) return nullptr;
+
+	if (auto lattice = TryCreate<LG1Planar>(in, name, start, selection)) return lattice;
+	if (auto lattice = TryCreate<LGrad1>(in, name, start, selection)) return lattice;
+	if (auto lattice = TryCreate<LG2Planar>(in, name, start, selection)) return lattice;
+	if (auto lattice = TryCreate<LGrad2>(in, name, start, selection)) return lattice;
+	if (auto lattice = TryCreate<LGrad3>(in, name, start, selection)) return lattice;
+
+	std::cout << "No lattice implementation matches gradients=" << selection.gradients
+	          << " and geometry=" << selection.geometry << std::endl;
+	return nullptr;
+}
+
+} // namespace lattice_factory
 
 void Lattice::DeAllocateMemory(void) {
 NAMICS_DBG("DeAllocateMemory in lat " << std::endl);	if (!all_lattice) return;
@@ -241,7 +305,7 @@ bool Lattice::PutSub_box(int mx_, int my_, int mz_,int n_box_) {
 	return success;
 }
 
-bool Lattice::CheckInput(int start, bool checking) {
+bool Lattice::CheckInput(int start) {
 NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 	mx.push_back(0); my.push_back(0); mz.push_back(0); jx.push_back(0); jy.push_back(0); m.push_back(0); n_box.push_back(0);
 	std::string Value;
@@ -249,26 +313,6 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 	success = In->CheckParameters("lat",name,start, KEYS, PARAMETERS);
 	if (!success) return success;
 		std::vector<std::string> options;
-		if (checking) {
-			gradients=1;
-			gradients=ParseInt(GetValue("gradients"),1);
-			if (gradients<0||gradients>3) {std::cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << std::endl; gradients=1;}
-			options.clear();
-			options.push_back("spherical");
-			options.push_back("cylindrical");
-			options.push_back("flat");options.push_back("planar");
-
-			if (GetValue("geometry").size()>0) {
-				if (!ParseString(GetValue("geometry"),geometry,options,"In lattice input for 'geometry' not recognized."))
-					success=false;
-			} else geometry = "planar";
-			if (geometry=="flat") geometry="planar";
-
-			return success;
-		}
-
-
-
 		FJC=3;	fjc=1;
 		if (success && GetValue("FJC_choices").length()>0) {
 			if (!ParseInt(GetValue("FJC_choices"),FJC,"FJC_choices can adopt only few integer values: 3 + i*2, with i = 0, 1, 2, 3, ..."))

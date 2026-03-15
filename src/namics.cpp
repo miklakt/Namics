@@ -1,11 +1,6 @@
 #include "tools_host.h"
 #include "input.h"
 #include "lattice.h"
-#include "LGrad1.h"
-#include "LGrad2.h"
-#include "LGrad3.h"
-#include "LG1Planar.h"
-#include "LG2Planar.h"
 #include "molecule.h"
 #include "mol_branched.h"
 #include "mol_linear.h"
@@ -80,7 +75,6 @@ int main(int argc, char *argv[])
 	// Single ownership
 	std::unique_ptr<Input> In;              // Inputs read from file
 	std::unique_ptr<Lattice> Lat;
-	std::unique_ptr<Lattice> lat_p;
 	std::unique_ptr<Molecule> mol_p;
 	std::unique_ptr<Solve_scf> New;         // Solver and iteration scheme
 	std::unique_ptr<System> Sys;
@@ -113,39 +107,8 @@ int main(int argc, char *argv[])
 
 		/******** Class creation starts here ********/
 
-		lat_p = std::make_unique<LGrad1>(*In, In->LatList[0]);
-		if (!lat_p->CheckInput(start,true)) //-1 means that checkinput will stop when gradients and geometry are known.
-		{
-			return 0;
-		} else
-		{ int gradients=lat_p->gradients;
-		  std::string geometry = lat_p->geometry;
-		  bool success;
-			lat_p.reset();
-			switch (gradients) {
-				case 1:
-					if (geometry=="planar") {
-						Lat = std::make_unique<LG1Planar>(*In,In->LatList[0]);
-					} else {
-						Lat = std::make_unique<LGrad1>(*In,In->LatList[0]);
-					}
-
-					break;
-				case 2:
-					if (geometry=="planar") {
-						Lat = std::make_unique<LG2Planar>(*In,In->LatList[0]);
-					} else {
-						Lat = std::make_unique<LGrad2>(*In,In->LatList[0]);
-					}
-					break;
-				case 3:
-					Lat = std::make_unique<LGrad3>(*In,In->LatList[0]);
-					break;
-			}
-			success=Lat->CheckInput(start,false);
-
-			if (!success) return 0;
-		}
+		Lat = lattice_factory::CreateChecked(*In, In->LatList[0], start);
+		if (!Lat) return 0;
 
 		int n_seg = In->MonList.size();
 		Seg.clear();
@@ -351,7 +314,6 @@ int main(int argc, char *argv[])
 		}
 		/******** Clear all class instances ********/
 
-		lat_p.reset();
 		mol_p.reset();
 
 		Out.reset();
