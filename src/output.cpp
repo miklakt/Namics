@@ -123,7 +123,12 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 	std::vector<std::span<Real>> profile_pointer;
 	std::vector<std::string> profile_header;
 	std::vector<std::pair<std::string, json>> scalar_values;
-	json restart = {{"metadata", {{"problem", start}, {"method", New->SCF_method}, {"mx", lat->MX}, {"my", lat->MY}, {"mz", lat->MZ}, {"fjc", lat->fjc}, {"charged", false}}},
+	json restart = {{"method", New->SCF_method},
+	                {"mx", lat->MX},
+	                {"my", lat->MY},
+	                {"mz", lat->MZ},
+	                {"fjc", lat->fjc},
+	                {"charged", false},
 	                {"monlist", json::array()},
 	                {"statelist", json::array()},
 	                {"profiles", json::object()}};
@@ -178,7 +183,7 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 				restart["profiles"]["state:" + item_name] = std::vector<Real>(profile.begin(), profile.end());
 			}
 			if (key == "sys" && item_prop == "psi") {
-				restart["metadata"]["charged"] = true;
+				restart["charged"] = true;
 				restart["profiles"]["psi"] = std::vector<Real>(profile.begin(), profile.end());
 			}
 			profile_pointer.push_back(profile);
@@ -270,15 +275,12 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		if (static_cast<int>(values.size()) != expected) {
 			std::cout << "Warning: unable to serialize embedded initial guess for problem " << start << std::endl;
 		} else {
-			initial_guess["metadata"] = {
-				{"problem", start},
-				{"method", New->SCF_method},
-				{"mx", lat->MX},
-				{"my", lat->MY},
-				{"mz", lat->MZ},
-				{"fjc", lat->fjc},
-				{"charged", Sys->charged}
-			};
+			initial_guess["method"] = New->SCF_method;
+			initial_guess["mx"] = lat->MX;
+			initial_guess["my"] = lat->MY;
+			initial_guess["mz"] = lat->MZ;
+			initial_guess["fjc"] = lat->fjc;
+			initial_guess["charged"] = Sys->charged;
 			initial_guess["monlist"] = guess_monlist;
 			initial_guess["statelist"] = guess_statelist;
 			initial_guess["profiles"] = json::object();
@@ -304,7 +306,12 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 	for (size_t i = 0; i < column_names.size(); ++i) problem[column_names[i]] = column_values[i];
 	if (wrote_initial_guess) problem["initial_guess"] = std::move(initial_guess);
 	if (!wrote_initial_guess && !restart["profiles"].empty()) {
-		problem["metadata"] = std::move(restart["metadata"]);
+		problem["method"] = std::move(restart["method"]);
+		problem["mx"] = std::move(restart["mx"]);
+		problem["my"] = std::move(restart["my"]);
+		problem["mz"] = std::move(restart["mz"]);
+		problem["fjc"] = std::move(restart["fjc"]);
+		problem["charged"] = std::move(restart["charged"]);
 		problem["monlist"] = std::move(restart["monlist"]);
 		problem["statelist"] = std::move(restart["statelist"]);
 		problem["profiles"] = std::move(restart["profiles"]);

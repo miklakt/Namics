@@ -51,7 +51,12 @@ inline const json* FindLastProblemObject(const json& document) {
 inline const json* FindInitialGuessObject(const json& document) {
 	if (!document.is_object()) return nullptr;
 	if (const auto guess = document.find("initial_guess"); guess != document.end() && guess->is_object()) return &*guess;
-	if (document.contains("metadata") &&
+	if (document.contains("method") &&
+	    document.contains("mx") &&
+	    document.contains("my") &&
+	    document.contains("mz") &&
+	    document.contains("fjc") &&
+	    document.contains("charged") &&
 	    document.contains("monlist") &&
 	    document.contains("statelist") &&
 	    document.contains("profiles")) return &document;
@@ -183,13 +188,12 @@ inline bool ReadInitialGuess(const std::string& filename,
 		return false;
 	}
 	try {
-		const auto& metadata = guess->at("metadata");
-		method = metadata.at("method").get<std::string>();
-		mx = metadata.at("mx").get<int>();
-		my = metadata.at("my").get<int>();
-		mz = metadata.at("mz").get<int>();
-		fjc = metadata.at("fjc").get<int>();
-		charged = metadata.at("charged").get<bool>();
+		method = guess->at("method").get<std::string>();
+		mx = guess->at("mx").get<int>();
+		my = guess->at("my").get<int>();
+		mz = guess->at("mz").get<int>();
+		fjc = guess->at("fjc").get<int>();
+		charged = guess->at("charged").get<bool>();
 		monlist = guess->at("monlist").get<std::vector<std::string>>();
 		statelist = guess->at("statelist").get<std::vector<std::string>>();
 		if (readx == 0) return true;

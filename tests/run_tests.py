@@ -865,7 +865,7 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
             else:
                 if "initial_guess" in seed_problem:
                     raise TestError(f"ERROR: fallback seed unexpectedly contains embedded initial_guess: {seed_output}")
-                for key in ("metadata", "monlist", "statelist", "profiles"):
+                for key in ("method", "mx", "my", "mz", "fjc", "charged", "monlist", "statelist", "profiles"):
                     if key not in seed_problem:
                         raise TestError(f"ERROR: fallback seed is missing '{key}': {seed_output}")
 
