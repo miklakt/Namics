@@ -32,7 +32,6 @@ newton : isaac : iterationlimit : 600
 newton : isaac : deltamax : 0.1
 
 output : json : append : false
-output : json : filename : branched_brush_planar_1d
 json : mon : WALL : phi
 json : mon : X : phi
 json : mon : S : phi
@@ -42,5 +41,7 @@ json : mon : T : phi
 json : mon : U : phi
 json : mol : brush : phi
 json : mol : water : phi
+
+json : mon : X : u
 
 start

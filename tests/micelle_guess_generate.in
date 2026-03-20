@@ -28,9 +28,11 @@ output : json : append : false
 json : mon : A : phi
 json : mon : B : phi
 json : mol : surf : phi
+json : mon : W : u
+json : mon : B : u
+json : mon : A : u
 
 start
 
 mon : A : freedom : free
-
 sys : noname : write_initial_guess : true

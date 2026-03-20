@@ -214,7 +214,7 @@ bool System::CheckInput(int start_)
 	solvent = -1; //value -1 means no solvent defined.
 	Real phibulktot = 0;
 	const auto& parameters = In->Parameters("sys", name, start);
-	static const std::vector<std::string> keys = {"initial_guess", "write_initial_guess", "X", "E"};
+	static const std::vector<std::string> keys = {"initial_guess", "guess_inputfile", "write_initial_guess", "X", "E"};
 	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
 		if (ContainsValue(keys, it.key())) continue;
 		success = false;
@@ -305,10 +305,11 @@ bool System::CheckInput(int start_)
 				}
 			}
 			if (initial_guess == "file") {
-				if (In->Start(start).contains("initial_guess")) guess_inputfile = In->json_path;
+				if (parameters.contains("guess_inputfile")) guess_inputfile = In->ResolvePath(parameters.at("guess_inputfile").get<std::string>());
+				else if (In->Start(start).contains("initial_guess")) guess_inputfile = In->json_path;
 				else {
 					success = false;
-					std::cout << "When 'initial_guess' is set to 'file', the problem must contain an embedded 'initial_guess' object." << std::endl;
+					std::cout << "When 'initial_guess' is set to 'file', provide either 'guess_inputfile' or an embedded 'initial_guess' object." << std::endl;
 				}
 			} else if (initial_guess == "previous_result" && In->Start(start).contains("initial_guess")) {
 				initial_guess = "file";

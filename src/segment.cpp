@@ -477,10 +477,13 @@ NAMICS_DBG("PushOutput for segment " + name << std::endl);
 	if (freedom=="frozen" && parameters.contains("frozen_range")) OUTPUT["range"] = parameters.at("frozen_range");
 	OUTPUT["phi"] = {{"profile", 0}};
 	OUTPUT["G1"] = {{"profile", 1}};
+	int profile = 2;
 	if (lat->gradients==3) {
-		OUTPUT["phi[z]"] = {{"profile", 2}};
+		OUTPUT["phi[z]"] = {{"profile", profile++}};
 	}
-	int profile = lat->gradients == 3 ? 3 : 2;
+	if (ns==1) {
+		OUTPUT["u"] = {{"profile", profile++}};
+	}
 	if (ns >1) {
 		for (int i = 0; i < ns; i++) {
 			OUTPUT["phi-" + state_name[i]] = {{"profile", profile++}};
@@ -504,7 +507,8 @@ NAMICS_DBG("Get Pointer for segment " + name << std::endl);
 		return phi;
 	}
 	if (profile == 1) return G1;
-	if (profile == 2 && lat->gradients == 3) {
+	int offset = 2;
+	if (lat->gradients == 3 && profile == offset++) {
 		int MX=lat->MX;
 		int MY=lat->MY;
 		int MZ=lat->MZ;
@@ -521,8 +525,8 @@ NAMICS_DBG("Get Pointer for segment " + name << std::endl);
 		}
 		return phi_side;
 	}
+	if (ns==1 && profile == offset) return u;
 	if (ns>1) {
-		int offset = lat->gradients == 3 ? 3 : 2;
 		if (profile >= offset && profile < offset + ns) {
 			return std::span<Real>(phi_state).subspan(static_cast<size_t>(profile - offset) * M, static_cast<size_t>(M));
 		}

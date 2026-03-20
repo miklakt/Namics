@@ -69,11 +69,11 @@ json : mon : Na : phi
 json : mon : Cl : phi
 //json : mon : B : phi
 json : mon : X : phi
-json : state : AH : phi
-json : state : AM : phi
-json : state : H3O : phi
-json : state : H2O : phi
-json : state : OH : phi
+//json : state : AH : phi
+//json : state : AM : phi
+//json : state : H3O : phi
+//json : state : H2O : phi
+//json : state : OH : phi
 
 newton : isaac : tolerance : 1e-10
 newton : isaac : method : DIIS

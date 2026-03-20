@@ -49,15 +49,12 @@ inline const json* FindLastProblemObject(const json& document) {
 }
 
 inline const json* FindInitialGuessObject(const json& document) {
-	if (document.is_object() &&
-	    document.contains("metadata") &&
-	    document.contains("monlist") &&
-	    document.contains("statelist") &&
-	    document.contains("profiles")) {
-		return &document;
-	}
 	if (!document.is_object()) return nullptr;
 	if (const auto guess = document.find("initial_guess"); guess != document.end() && guess->is_object()) return &*guess;
+	if (document.contains("metadata") &&
+	    document.contains("monlist") &&
+	    document.contains("statelist") &&
+	    document.contains("profiles")) return &document;
 	if (const auto* problem = FindLastProblemObject(document)) return FindInitialGuessObject(*problem);
 	return nullptr;
 }

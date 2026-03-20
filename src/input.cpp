@@ -125,93 +125,79 @@ const ParameterStore& Input::Parameters(const std::string& keyword, const std::s
 ParameterStore Input::LoadItems(const std::string& template_) const {
 NAMICS_DBG("LoadItems in Input " << std::endl);
 	ParameterStore out = nlohmann::ordered_json::array();
-	const auto& items = (*this)[template_];
-	if (!items.is_array()) return out;
-	for (const auto& item : items) {
-		std::string key = item.value("key", "");
-		std::string name_ = item.value("name", "");
-		const std::string prop = item.value("prop", "");
-		if (prop.find('(') != std::string::npos || prop.find(')') != std::string::npos) {
-			std::cout << "Indexed json output selectors like '" << prop << "' are no longer supported." << std::endl;
-			return nlohmann::ordered_json();
-		}
-		bool key_found = false;
-		bool name_found = false;
-		bool wild_monlist = false;
-		bool wild_mollist = false;
+	const auto& sections = (*this)[template_];
+	if (!sections.is_object()) return out;
 
-		auto report_unknown_name = [&](const std::vector<std::string>& shown) {
-			std::cout << "Name '" << name_ << "' not recognised. Select from: " << std::endl;
-			for (const std::string& item : shown) std::cout << item << " ; ";
-		};
-		auto validate_name = [&](const std::vector<std::string>& search, const std::vector<std::string>* shown = nullptr) {
-			if (ContainsValue(search, name_)) return true;
-			report_unknown_name(shown == nullptr ? search : *shown);
-			return false;
-		};
-		auto validate_singleton_name = [&](const std::vector<std::string>& singleton_list) {
-			if (name_ == "*" && !singleton_list.empty()) name_ = singleton_list[0];
-			if (!singleton_list.empty() && name_ == singleton_list[0]) return true;
-			report_unknown_name(singleton_list);
-			return false;
-		};
-		auto validate_name_or_wildcard = [&](const std::vector<std::string>& search, bool& wildcard) {
-			if (name_ == "*") {
-				wildcard = true;
-				return true;
+	auto fail = []() -> ParameterStore { return nlohmann::ordered_json(); };
+	auto unknown_name = [](const std::string& name, const std::vector<std::string>& list) {
+		std::cout << "Name '" << name << "' not recognised. Select from: " << std::endl;
+		for (const std::string& item : list) std::cout << item << " ; ";
+	};
+
+	std::vector<std::string> names;
+	std::vector<std::string> props;
+	for (auto section_it = sections.begin(); section_it != sections.end(); ++section_it) {
+		if (!section_it.value().is_object()) {
+			std::cout << "json selector section '" << section_it.key() << "' must be an object." << std::endl;
+			return fail();
+		}
+		for (auto entry_it = section_it.value().begin(); entry_it != section_it.value().end(); ++entry_it) {
+			props.clear();
+			if (entry_it.value().is_string()) props.push_back(entry_it.value().get<std::string>());
+			else if (entry_it.value().is_array() && !entry_it.value().empty()) {
+				for (const auto& prop : entry_it.value()) {
+					if (!prop.is_string()) {
+						std::cout << "json selector '" << section_it.key() << "." << entry_it.key()
+						          << "' must only contain string properties." << std::endl;
+						return fail();
+					}
+					props.push_back(prop.get<std::string>());
+				}
+			} else {
+				std::cout << "json selector '" << section_it.key() << "." << entry_it.key()
+				          << "' must be a string or a non-empty array of strings." << std::endl;
+				return fail();
 			}
-			return validate_name(search);
-		};
-		auto append_entry = [&](const std::string& expanded_name) {
-			out.push_back({
-				{"key", key},
-				{"name", expanded_name},
-				{"prop", prop}
-			});
-		};
 
-		if (key == "sys") {
-			key_found = true;
-			name_found = validate_singleton_name(SysList);
-		} else if (key == "mol") {
-			key_found = true;
-			name_found = validate_name_or_wildcard(MolList, wild_mollist);
-		} else if (key == "mon") {
-			key_found = true;
-			name_found = validate_name_or_wildcard(MonList, wild_monlist);
-		} else if (key == "lat") {
-			key_found = true;
-			name_found = validate_singleton_name(LatList);
-		} else if (key == "newton") {
-			key_found = true;
-			name_found = validate_singleton_name(NewtonList);
-		} else if (key == "output") {
-			key_found = true;
-			name_found = validate_name(OutputList);
-		} else if (key == OUTPUT_INFO_KEY) {
-			key_found = true;
-			name_found = true;
-		} else if (key == "state") {
-			key_found = true;
-			name_found = ContainsValue(StateList, name_);
-		} else if (key == "reaction") {
-			key_found = true;
-			name_found = ContainsValue(ReactionList, name_);
-		}
+			const std::vector<std::string>* list = nullptr;
+			bool singleton = false;
+			bool wildcard = false;
+			if (section_it.key() == "sys") { list = &SysList; singleton = true; }
+			else if (section_it.key() == "mol") { list = &MolList; wildcard = true; }
+			else if (section_it.key() == "mon") { list = &MonList; wildcard = true; }
+			else if (section_it.key() == "lat") { list = &LatList; singleton = true; }
+			else if (section_it.key() == "newton") { list = &NewtonList; singleton = true; }
+			else if (section_it.key() == "output") list = &OutputList;
+			else if (section_it.key() == OUTPUT_INFO_KEY) names = {entry_it.key()};
+			else if (section_it.key() == "state") list = &StateList;
+			else if (section_it.key() == "reaction") list = &ReactionList;
+			else {
+				std::cout << "The selector section '" << section_it.key() << "' is not recognized." << std::endl;
+				return fail();
+			}
 
-		if (!key_found) {
-			std::cout << "The keyword '" << key << "' not recognized. Choose keywords from: " << std::endl;
-			for (const std::string& item_name : ProblemKeys()) std::cout << item_name << std::endl;
-			return nlohmann::ordered_json();
+			if (section_it.key() != OUTPUT_INFO_KEY) {
+				names.clear();
+				std::string name_ = entry_it.key();
+				if (singleton && name_ == "*" && !list->empty()) name_ = (*list)[0];
+				if (wildcard && name_ == "*") names = *list;
+				else if (ContainsValue(*list, name_)) names.push_back(name_);
+				else {
+					unknown_name(entry_it.key(), *list);
+					return fail();
+				}
+			}
+
+			for (const std::string& name_ : names) {
+				for (const std::string& prop : props) {
+					if (prop.find('(') != std::string::npos || prop.find(')') != std::string::npos) {
+						std::cout << "Indexed json output selectors like '" << prop << "' are no longer supported." << std::endl;
+						return fail();
+					}
+					out.push_back({{"key", section_it.key()}, {"name", name_}, {"prop", prop}});
+				}
+			}
 		}
-		if (!name_found) return nlohmann::ordered_json();
-		if (wild_mollist) {
-			for (const std::string& mol_name : MolList) append_entry(mol_name);
-		}
-		if (wild_monlist) {
-			for (const std::string& mon_name : MonList) append_entry(mon_name);
-		}
-		if (!(wild_monlist || wild_mollist)) append_entry(name_);
 	}
 	return out;
 }
@@ -239,8 +225,8 @@ bool Input::CheckInput() {
 				continue;
 			}
 			if (it.key() == "json") {
-				if (!it.value().is_array()) {
-					std::cout << "'json' in problem " << i + 1 << " must be an array." << std::endl;
+				if (!it.value().is_object()) {
+					std::cout << "'json' in problem " << i + 1 << " must be an object." << std::endl;
 					success = false;
 				}
 				continue;

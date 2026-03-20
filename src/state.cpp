@@ -104,11 +104,13 @@ NAMICS_DBG("PushOutput in State " + name << std::endl);
 	for (size_t i = 0; i < In->MonList.size() && i < chi.size(); i++) OUTPUT["chi_" + In->MonList[i]] = chi[i];
 	for (size_t i = 0; i < In->StateList.size() && In->MonList.size() + i < chi.size(); i++) OUTPUT["chi_" + In->StateList[i]] = chi[In->MonList.size() + i];
 	OUTPUT["phi"] = {{"profile", 0}};
+	OUTPUT["u"] = {{"profile", 1}};
 }
 
 std::span<Real> State::GetPointer(int profile) {
 NAMICS_DBG("GetPointer in State " + name << std::endl);
-	if (profile != 0) return {};
 	const int M = Seg[mon_nr]->lat->M;
-	return std::span<Real>(Seg[mon_nr]->phi_state).subspan(static_cast<size_t>(state_nr) * M, static_cast<size_t>(M));
+	if (profile == 0) return std::span<Real>(Seg[mon_nr]->phi_state).subspan(static_cast<size_t>(state_nr) * M, static_cast<size_t>(M));
+	if (profile == 1) return std::span<Real>(Seg[mon_nr]->u).subspan(static_cast<size_t>(state_nr) * M, static_cast<size_t>(M));
+	return {};
 }

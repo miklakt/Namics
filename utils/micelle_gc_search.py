@@ -134,7 +134,7 @@ def _prepare_seed_from_input(binary: Path, seed_input: Path, workdir: Path, fall
 
     seed_dir = workdir / "seed"
     runtime_input = seed_dir / "seed.in"
-    output_json = seed_dir / "seed.json"
+    output_json = runtime_input.with_suffix(".output.json")
     runtime_input.parent.mkdir(parents=True, exist_ok=True)
     runtime_input.write_text(
         seed_source.rstrip()
@@ -175,7 +175,7 @@ def _evaluate_once(
 ) -> EvalResult:
     output_stem = f"run_{eval_index:03d}"
     runtime_input = worker_dir / f"{output_stem}.in"
-    output_json = worker_dir / f"{output_stem}.json"
+    output_json = runtime_input.with_suffix(".output.json")
 
     lines = [
         template_text.rstrip(),
@@ -317,9 +317,9 @@ def main() -> int:
 
     workdir = (REPO_ROOT / "output" / args.input.stem).resolve()
     history_file = workdir / "history.tsv"
-    seed_file = workdir / "current_seed.json"
+    seed_file = workdir / "current_seed.output.json"
     result_input = workdir / "result.in"
-    result_json = workdir / "result.json"
+    result_json = workdir / "result.output.json"
     summary_file = workdir / "summary.json"
     workdir.mkdir(parents=True, exist_ok=True)
 

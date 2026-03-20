@@ -14,7 +14,6 @@ mol : water : freedom : solvent
 newton : isaac : method : pseudohessian
 
 output : json : append : false
-output : json : filename : particle_in_cyl_coordinates
 json : mon : S : phi
 json : mon : W : phi
 json : mol : water : phi

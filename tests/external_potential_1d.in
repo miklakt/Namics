@@ -17,6 +17,7 @@ mol : water : freedom : solvent
 
 output : json : append : false
 json : mon : A : phi
+json : mon : A : u
 
 newton : isaac : method : pseudohessian
 newton : isaac : tolerance : 1e-10

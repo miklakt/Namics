@@ -104,8 +104,11 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 	const auto& output_config = In->Parameters("output", name, start);
 	const std::string configured_filename = output_config.value("filename", std::string{});
 	if (configured_filename.size() > 0) {
-		std::filesystem::path configured_path(In->ResolvePath(configured_filename));
-		if (configured_path.extension() != ".json") configured_path.replace_extension(".json");
+		std::filesystem::path configured_path = In->ResolvePath(configured_filename);
+		const std::string name = configured_path.filename().string();
+		if (name.size() < 12 || name.compare(name.size() - 12, 12, ".output.json") != 0) {
+			configured_path.replace_extension(".output.json");
+		}
 		filename = configured_path.string();
 		base_name = configured_path.has_stem() ? configured_path.stem().string() : configured_path.filename().string();
 	} else {
@@ -114,12 +117,16 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		base_name = out_path.has_stem() ? out_path.stem().string() : out_path.filename().string();
 		if (base_name.size() > 6 && base_name.compare(base_name.size() - 6, 6, ".input") == 0) base_name.resize(base_name.size() - 6);
 		if (base_name.empty()) base_name = "output";
-		filename = In->GetOutputPath() + base_name + ".json";
+		filename = In->GetOutputPath() + base_name + ".output.json";
 	}
 
 	std::vector<std::span<Real>> profile_pointer;
 	std::vector<std::string> profile_header;
 	std::vector<std::pair<std::string, json>> scalar_values;
+	json restart = {{"metadata", {{"problem", start}, {"method", New->SCF_method}, {"mx", lat->MX}, {"my", lat->MY}, {"mz", lat->MZ}, {"fjc", lat->fjc}, {"charged", false}}},
+	                {"monlist", json::array()},
+	                {"statelist", json::array()},
+	                {"profiles", json::object()}};
 	for (const auto& item : items) {
 		const std::string key = item.value("key", "");
 		const std::string item_name = item.value("name", "");
@@ -162,6 +169,18 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		}
 
 		if (!profile.empty()) {
+			if (key == "mon" && item_prop == "u") {
+				restart["monlist"].push_back(item_name);
+				restart["profiles"]["mon:" + item_name] = std::vector<Real>(profile.begin(), profile.end());
+			}
+			if (key == "state" && item_prop == "u") {
+				restart["statelist"].push_back(item_name);
+				restart["profiles"]["state:" + item_name] = std::vector<Real>(profile.begin(), profile.end());
+			}
+			if (key == "sys" && item_prop == "psi") {
+				restart["metadata"]["charged"] = true;
+				restart["profiles"]["psi"] = std::vector<Real>(profile.begin(), profile.end());
+			}
 			profile_pointer.push_back(profile);
 			profile_header.push_back(label);
 			continue;
@@ -280,9 +299,16 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		{"problem", start},
 		{"name", base_name}
 	};
+	const bool wrote_initial_guess = !initial_guess.is_null();
 	for (size_t i = 0; i < scalar_values.size(); ++i) problem[scalar_values[i].first] = std::move(scalar_values[i].second);
 	for (size_t i = 0; i < column_names.size(); ++i) problem[column_names[i]] = column_values[i];
-	if (!initial_guess.is_null()) problem["initial_guess"] = std::move(initial_guess);
+	if (wrote_initial_guess) problem["initial_guess"] = std::move(initial_guess);
+	if (!wrote_initial_guess && !restart["profiles"].empty()) {
+		problem["metadata"] = std::move(restart["metadata"]);
+		problem["monlist"] = std::move(restart["monlist"]);
+		problem["statelist"] = std::move(restart["statelist"]);
+		problem["profiles"] = std::move(restart["profiles"]);
+	}
 
 	json metadata = {
 		{"name", In->json_path}

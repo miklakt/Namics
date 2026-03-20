@@ -74,11 +74,6 @@ class ReportNode:
         else:
             self.max_rss_kb = max(self.max_rss_kb, metrics.max_rss_kb)
 
-def _runtime_output_basename(runtime_input: Path) -> str:
-    stem = runtime_input.stem
-    safe = "".join(ch if (ch.isalnum() or ch == "_") else "_" for ch in stem)
-    return safe or "namics_test_output"
-
 
 def _prepare_runtime_input(
     ctx: Context,
@@ -93,9 +88,6 @@ def _prepare_runtime_input(
     shutil.copy2(source_input, runtime_input)
 
     set_setting_line(runtime_input, runtime_input, "newton : isaac : method", solver_method)
-    # Force deterministic per-variant JSON output names so each run is recoverable.
-    output_basename = _runtime_output_basename(runtime_input)
-    set_setting_line(runtime_input, runtime_input, "output : json : filename", output_basename)
 
     if settings:
         for key, value in settings.items():
@@ -106,7 +98,6 @@ def _prepare_runtime_input(
             set_commented_setting(runtime_input, runtime_input, key, value, enabled)
 
     variants: dict[str, str] = {"solver_method": solver_method}
-    variants["output : json : filename"] = output_basename
     if settings:
         variants.update(settings)
     if comment_toggles:
@@ -295,7 +286,8 @@ def _run_solver(
     require_output: bool = True,
     require_initial_guess: bool = False,
 ) -> tuple[CommandMetrics, Path]:
-    output_path = runtime_input.parent / f"{_runtime_output_basename(runtime_input)}.json"
+    output_path = runtime_input.with_suffix(".output.json")
+    preprocessed_input = runtime_input.with_suffix(".input.json")
     _prepare_runtime_input(
         ctx,
         source_input,
@@ -305,6 +297,7 @@ def _run_solver(
         comment_toggles=comment_toggles,
     )
     output_path.unlink(missing_ok=True)
+    preprocessed_input.unlink(missing_ok=True)
     metrics = run_command([str(ctx.binary), str(runtime_input)], cwd=ctx.repo_root, quiet=ctx.quiet)
     node.add_metric(metrics)
     if metrics.returncode != 0:
@@ -405,11 +398,9 @@ def _run_method_group_regression(
     method_group_label: str | None = "solver method",
     diis_optional: bool = True,
     settings: dict[str, str] | None = None,
-    pseudohessian_settings: dict[str, str] | None = None,
-    diis_settings: dict[str, str] | None = None,
     comment_toggles: list[tuple[str, str, bool]] | None = None,
     required_files: list[Path] | None = None,
-    derived_runtime_files: list[tuple[Path, str]] | None = None,
+    derived_runtime_files: list[Path] | None = None,
 ) -> ReportNode:
     root = ReportNode(label=root_label)
     method_group = root if method_group_label is None else ReportNode(label=method_group_label)
@@ -421,14 +412,19 @@ def _run_method_group_regression(
     output_dir = ctx.output_dir
     pseudo_input = output_dir / f"{runtime_stem}.pseudohessian.in"
     diis_input = output_dir / f"{runtime_stem}.diis.in"
-    pseudo_output = pseudo_input.parent / f"{_runtime_output_basename(pseudo_input)}.json"
-    diis_output = diis_input.parent / f"{_runtime_output_basename(diis_input)}.json"
-    cleanup_targets: list[Path] = [pseudo_input, pseudo_output, diis_input, diis_output]
+    pseudo_output = pseudo_input.with_suffix(".output.json")
+    diis_output = diis_input.with_suffix(".output.json")
+    cleanup_targets: list[Path] = [
+        pseudo_input,
+        pseudo_input.with_suffix(".input.json"),
+        pseudo_output,
+        diis_input,
+        diis_input.with_suffix(".input.json"),
+        diis_output,
+    ]
     label_base = label_stem or root_label
     required_files = required_files or []
     derived_runtime_files = derived_runtime_files or []
-    pseudo_settings = None if not settings and not pseudohessian_settings else {**(settings or {}), **(pseudohessian_settings or {})}
-    merged_diis_settings = None if not settings and not diis_settings else {**(settings or {}), **(diis_settings or {})}
 
     require_file(ctx.binary, executable=True)
     require_file(input_file)
@@ -436,18 +432,12 @@ def _run_method_group_regression(
         require_file(path)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    for _, suffix in derived_runtime_files:
-        cleanup_targets.extend(
-            [
-                pseudo_input.with_suffix(f".{suffix}"),
-                diis_input.with_suffix(f".{suffix}"),
-            ]
-        )
+    for source_file in derived_runtime_files:
+        cleanup_targets.append(output_dir / source_file.name)
 
     try:
-        for source_file, suffix in derived_runtime_files:
-            shutil.copy2(source_file, pseudo_input.with_suffix(f".{suffix}"))
-            shutil.copy2(source_file, diis_input.with_suffix(f".{suffix}"))
+        for source_file in derived_runtime_files:
+            shutil.copy2(source_file, output_dir / source_file.name)
 
         pseudo_leaf = ReportNode(label="pseudohessian")
         method_group.children.append(pseudo_leaf)
@@ -461,7 +451,7 @@ def _run_method_group_regression(
                 reference_file=reference_file,
                 label=f"{label_base}, mode=pseudohessian",
                 value_tol=value_tol,
-                settings=pseudo_settings,
+                settings=settings,
                 comment_toggles=comment_toggles,
             )
         except Exception as exc:
@@ -479,7 +469,7 @@ def _run_method_group_regression(
                 baseline_output=pseudo_output if pseudo_leaf.passed else None,
                 label=f"{label_base}, mode=DIIS",
                 value_tol=value_tol,
-                settings=merged_diis_settings,
+                settings=settings,
                 comment_toggles=comment_toggles,
             )
         else:
@@ -493,7 +483,7 @@ def _run_method_group_regression(
                     runtime_input=diis_input,
                     solver_method="DIIS",
                     label=f"{label_base}, mode=DIIS",
-                    settings=merged_diis_settings,
+                    settings=settings,
                     comment_toggles=comment_toggles,
                 )
                 compare_json_profiles(pseudo_output, diis_output, coord_tol=COORD_TOL, value_tol=value_tol)
@@ -551,8 +541,8 @@ def _run_homopolymer_adsorption(ctx: Context, *, enable_benchmark: bool) -> Repo
             root.children.append(chi_node)
 
             pseudohessian_input = output_dir / f"homopolymer_adsorption.chi_{chi}.pseudohessian.in"
-            pseudohessian_output = pseudohessian_input.parent / f"{_runtime_output_basename(pseudohessian_input)}.json"
-            cleanup_targets.extend([pseudohessian_input, pseudohessian_output])
+            pseudohessian_output = pseudohessian_input.with_suffix(".output.json")
+            cleanup_targets.extend([pseudohessian_input, pseudohessian_input.with_suffix(".input.json"), pseudohessian_output])
 
             pseudo_leaf = ReportNode(label="pseudohessian")
             chi_node.children.append(pseudo_leaf)
@@ -577,8 +567,8 @@ def _run_homopolymer_adsorption(ctx: Context, *, enable_benchmark: bool) -> Repo
 
             if ctx.with_save_memory:
                 save_input = output_dir / f"homopolymer_adsorption.chi_{chi}.save_memory.in"
-                save_output = save_input.parent / f"{_runtime_output_basename(save_input)}.json"
-                cleanup_targets.extend([save_input, save_output])
+                save_output = save_input.with_suffix(".output.json")
+                cleanup_targets.extend([save_input, save_input.with_suffix(".input.json"), save_output])
 
                 save_leaf = ReportNode(label="save_memory + pseudohessian")
                 chi_node.children.append(save_leaf)
@@ -608,8 +598,8 @@ def _run_homopolymer_adsorption(ctx: Context, *, enable_benchmark: bool) -> Repo
 
             if not enable_benchmark:
                 diis_input = output_dir / f"homopolymer_adsorption.chi_{chi}.diis.in"
-                diis_output = output_dir / f"{_runtime_output_basename(diis_input)}.json"
-                cleanup_targets.extend([diis_input, diis_output])
+                diis_output = diis_input.with_suffix(".output.json")
+                cleanup_targets.extend([diis_input, diis_input.with_suffix(".input.json"), diis_output])
 
                 diis_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
                 chi_node.children.append(diis_leaf)
@@ -687,9 +677,7 @@ def test_frozen_range_input_file(ctx: Context) -> ReportNode:
         runtime_stem="frozen_range_input_file",
         value_tol=1e-6,
         required_files=[source_frozen_file],
-        pseudohessian_settings={"mon : W : frozen_filename": "frozen_range_input_file.pseudohessian.frozen"},
-        diis_settings={"mon : W : frozen_filename": "frozen_range_input_file.diis.frozen"},
-        derived_runtime_files=[(source_frozen_file, "frozen")],
+        derived_runtime_files=[source_frozen_file],
     )
 
 
@@ -712,25 +700,23 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
     require_file(use_input)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    pseudo_generate_input = output_dir / "micelle_guess_generate.pseudohessian.in"
-    pseudo_generate_output = pseudo_generate_input.parent / f"{_runtime_output_basename(pseudo_generate_input)}.json"
-    pseudo_use_input = output_dir / "micelle_guess_use.pseudohessian.in"
-    pseudo_use_output = pseudo_use_input.parent / f"{_runtime_output_basename(pseudo_use_input)}.json"
+    pseudo_generate_input = output_dir / generate_input.name
+    pseudo_generate_output = pseudo_generate_input.with_suffix(".output.json")
+    pseudo_use_input = output_dir / use_input.name
+    pseudo_use_output = pseudo_use_input.with_suffix(".output.json")
 
-    diis_generate_input = output_dir / "micelle_guess_generate.diis.in"
-    diis_generate_output = diis_generate_input.parent / f"{_runtime_output_basename(diis_generate_input)}.json"
-    diis_use_input = output_dir / "micelle_guess_use.diis.in"
-    diis_use_output = diis_use_input.parent / f"{_runtime_output_basename(diis_use_input)}.json"
+    diis_generate_input = pseudo_generate_input
+    diis_generate_output = pseudo_generate_output
+    diis_use_input = pseudo_use_input
+    diis_use_output = pseudo_use_output
 
     cleanup_targets: list[Path] = [
         pseudo_generate_input,
+        pseudo_generate_input.with_suffix(".input.json"),
         pseudo_generate_output,
         pseudo_use_input,
+        pseudo_use_input.with_suffix(".input.json"),
         pseudo_use_output,
-        diis_generate_input,
-        diis_generate_output,
-        diis_use_input,
-        diis_use_output,
     ]
 
     try:
@@ -752,7 +738,6 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 runtime_input=pseudo_generate_input,
                 solver_method="pseudohessian",
                 label="micelle guess generate, mode=pseudohessian",
-                settings={"sys : noname : write_initial_guess": "true"},
                 require_initial_guess=True,
             )
             pseudo_gen_leaf.details = "embedded initial_guess generated in output JSON"
@@ -772,7 +757,6 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 reference_file=reference_file,
                 label="micelle guess use, mode=pseudohessian",
                 value_tol=1e-9,
-                settings={"sys : noname : guess_inputfile": pseudo_generate_output.name},
             )
         except Exception as exc:
             _set_failure(pseudo_use_leaf, exc)
@@ -780,6 +764,8 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
         # Re-run DIIS path from a clean output state.
         diis_generate_output.unlink(missing_ok=True)
         diis_use_output.unlink(missing_ok=True)
+        diis_generate_input.with_suffix(".input.json").unlink(missing_ok=True)
+        diis_use_input.with_suffix(".input.json").unlink(missing_ok=True)
 
         diis_gen_leaf = ReportNode(label="DIIS", passed=False, required_for_parent=False)
         generate_group.children.append(diis_gen_leaf)
@@ -797,7 +783,6 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 runtime_input=diis_generate_input,
                 solver_method="DIIS",
                 label="micelle guess generate, mode=DIIS",
-                settings={"sys : noname : write_initial_guess": "true"},
                 require_initial_guess=True,
             )
             diis_status = "embedded initial_guess generated in output JSON"
@@ -816,10 +801,9 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                     diis_use_leaf,
                     source_input=use_input,
                     runtime_input=diis_use_input,
-                    baseline_output=pseudo_use_output if pseudo_use_leaf.passed else None,
+                    baseline_output=reference_file if pseudo_use_leaf.passed else None,
                     label="micelle guess use, mode=DIIS",
                     value_tol=1e-9,
-                    settings={"sys : noname : guess_inputfile": diis_generate_output.name},
                 )
         except Exception as exc:
             _set_failure(diis_use_leaf, exc, accepted=True)
@@ -847,75 +831,105 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    seed_runtime = output_dir / "micelle_gc_seed.pseudohessian.in"
-    seed_output = seed_runtime.parent / f"{_runtime_output_basename(seed_runtime)}.json"
-    search_workdir = output_dir / "micelle_gc_search"
-    summary_file = search_workdir / "summary.json"
-    result_json = search_workdir / "result.json"
-
-    cleanup_targets: list[Path] = [seed_runtime, seed_output, search_workdir]
+    cleanup_targets: list[Path] = []
 
     try:
-        seed_output.unlink(missing_ok=True)
-        _, seed_output = _run_solver(
-            ctx,
-            root,
-            source_input=seed_input,
-            runtime_input=seed_runtime,
-            solver_method="pseudohessian",
-            label="micelle gc seed generation",
-            settings={"sys : noname : write_initial_guess": "true"},
-            require_initial_guess=True,
-        )
+        def run_case(
+            node: ReportNode,
+            seed_source: Path,
+            require_initial_guess: bool,
+            expected_x_range: tuple[float, float],
+        ) -> None:
+            label = node.label
+            seed_runtime = output_dir / f"{seed_source.stem}_{label.replace(' ', '_')}_seed.in"
+            seed_output = seed_runtime.with_suffix(".output.json")
+            search_runtime = output_dir / f"micelle_gc_search_{label.replace(' ', '_')}.in"
+            search_workdir = output_dir / search_runtime.stem
+            summary_file = search_workdir / "summary.json"
+            result_json = search_workdir / "result.output.json"
+            cleanup_targets.extend([seed_runtime, seed_runtime.with_suffix(".input.json"), seed_output, search_runtime, search_workdir])
 
-        metrics = run_command(
-            [
-                sys.executable,
-                str(utility),
-                str(search_input),
-                "--binary",
-                str(ctx.binary),
-                "--molecule",
-                "surf",
-                "--seed-json",
-                str(seed_output),
-                "--step",
-                "5",
-                "--workers",
-                "2",
-                "--max-iter",
-                "6",
-                "--gp-tol",
-                "5e-2",
-            ],
-            cwd=ctx.repo_root,
-            quiet=ctx.quiet,
-        )
-        root.add_metric(metrics)
-        if metrics.returncode != 0:
-            raise TestError(metrics.output.strip() or "ERROR: external micelle GC search failed")
-        if not summary_file.is_file():
-            raise TestError(f"ERROR: missing micelle GC summary: {summary_file}")
-        if not result_json.is_file():
-            raise TestError(f"ERROR: missing micelle GC result JSON: {result_json}")
+            _, seed_output = _run_solver(
+                ctx,
+                node,
+                source_input=seed_source,
+                runtime_input=seed_runtime,
+                solver_method="pseudohessian",
+                label=f"micelle gc seed generation ({label})",
+                require_initial_guess=require_initial_guess,
+            )
+            seed_problem = json.loads(seed_output.read_text(encoding="utf-8"))["problems"][-1]
+            if require_initial_guess:
+                if "initial_guess" not in seed_problem:
+                    raise TestError(f"ERROR: missing embedded initial_guess in seed JSON: {seed_output}")
+            else:
+                if "initial_guess" in seed_problem:
+                    raise TestError(f"ERROR: fallback seed unexpectedly contains embedded initial_guess: {seed_output}")
+                for key in ("metadata", "monlist", "statelist", "profiles"):
+                    if key not in seed_problem:
+                        raise TestError(f"ERROR: fallback seed is missing '{key}': {seed_output}")
 
-        summary = json.loads(summary_file.read_text(encoding="utf-8"))
-        x = float(summary["x"])
-        gp = float(summary["grand_potential"])
-        converged = bool(summary["converged"])
+            shutil.copy2(search_input, search_runtime)
+            metrics = run_command(
+                [
+                    sys.executable,
+                    str(utility),
+                    str(search_runtime),
+                    "--binary",
+                    str(ctx.binary),
+                    "--molecule",
+                    "surf",
+                    "--seed-json",
+                    str(seed_output),
+                    "--step",
+                    "5",
+                    "--workers",
+                    "2",
+                    "--max-iter",
+                    "6",
+                    "--gp-tol",
+                    "5e-2",
+                ],
+                cwd=ctx.repo_root,
+                quiet=ctx.quiet,
+            )
+            node.add_metric(metrics)
+            if metrics.returncode != 0:
+                raise TestError(metrics.output.strip() or f"ERROR: external micelle GC search failed ({label})")
+            if not summary_file.is_file():
+                raise TestError(f"ERROR: missing micelle GC summary: {summary_file}")
+            if not result_json.is_file():
+                raise TestError(f"ERROR: missing micelle GC result JSON: {result_json}")
 
-        if not converged:
-            raise TestError("ERROR: micelle GC search did not report convergence")
-        if abs(gp) > 0.25:
-            raise TestError(f"ERROR: micelle GC search residual too large: grand_potential={gp}")
-        if not (111.0 < x < 114.0):
-            raise TestError(f"ERROR: micelle GC search returned unexpected aggregation number: n={x}")
+            summary = json.loads(summary_file.read_text(encoding="utf-8"))
+            x = float(summary["x"])
+            gp = float(summary["grand_potential"])
+            converged = bool(summary["converged"])
 
-        payload = result_json.read_text(encoding="utf-8")
-        if '"initial_guess"' not in payload:
-            raise TestError(f"ERROR: result JSON does not contain embedded initial_guess: {result_json}")
+            if not converged:
+                raise TestError("ERROR: micelle GC search did not report convergence")
+            if abs(gp) > 0.25:
+                raise TestError(f"ERROR: micelle GC search residual too large: grand_potential={gp}")
+            if not (expected_x_range[0] < x < expected_x_range[1]):
+                raise TestError(f"ERROR: micelle GC search returned unexpected aggregation number: n={x}")
 
-        root.details = f"n={x:.6f}, gp={gp:.3e}"
+            payload = result_json.read_text(encoding="utf-8")
+            if '"initial_guess"' not in payload:
+                raise TestError(f"ERROR: result JSON does not contain embedded initial_guess: {result_json}")
+
+            node.details = f"n={x:.6f}, gp={gp:.3e}"
+
+        for label, seed_source, require_initial_guess, expected_x_range in (
+            ("embedded initial_guess seed", seed_input, True, (111.0, 114.0)),
+            ("u-profile fallback seed", search_input, False, (109.5, 110.5)),
+        ):
+            node = ReportNode(label=label)
+            root.children.append(node)
+            try:
+                run_case(node, seed_source, require_initial_guess, expected_x_range)
+            except Exception as exc:
+                _set_failure(node, exc)
+        _finalize_report_tree(root)
         return root
     finally:
         _cleanup(cleanup_targets, cleanup=ctx.clean_output)
@@ -962,18 +976,9 @@ def test_branched_brush(ctx: Context) -> ReportNode:
 def test_polE_regression(ctx: Context) -> ReportNode:
     # Keep regression inputs in tests/ so the suite stays decoupled from data/.
     input_file = ctx.tests_dir / "polE.in"
-    runtime_settings = {"sys : noname : write_initial_guess": "false"}
     # Legacy DIIS differs from pseudohessian only in the last-layer Na/Cl tail by about 5.2e-6.
     # Keep the regression aligned with historical behavior instead of failing on that known drift.
     value_tol = 1e-5
-    # The legacy binary used for the reference only supports this profile subset via .pro output.
-    legacy_subset = [
-        ("json : state : AH : phi", "", False),
-        ("json : state : AM : phi", "", False),
-        ("json : state : H3O : phi", "", False),
-        ("json : state : H2O : phi", "", False),
-        ("json : state : OH : phi", "", False),
-    ]
     return _run_method_group_regression(
         ctx,
         root_label="polE regression",
@@ -982,8 +987,6 @@ def test_polE_regression(ctx: Context) -> ReportNode:
         reference_name="polE.json.ref",
         runtime_stem="polE",
         value_tol=value_tol,
-        settings=runtime_settings,
-        comment_toggles=legacy_subset,
     )
 
 
@@ -1008,13 +1011,7 @@ def test_external_potential(ctx: Context) -> ReportNode:
             method_group_label=None,
             diis_optional=False,
             required_files=[potential_file],
-            pseudohessian_settings={
-                "mon : A : external_potential_filename": f"{runtime_stem}.pseudohessian.external_potential.json"
-            },
-            diis_settings={
-                "mon : A : external_potential_filename": f"{runtime_stem}.diis.external_potential.json"
-            },
-            derived_runtime_files=[(potential_file, "external_potential.json")],
+            derived_runtime_files=[potential_file],
         )
         root.children.append(case_node)
 

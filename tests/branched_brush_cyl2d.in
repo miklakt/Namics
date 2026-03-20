@@ -33,7 +33,6 @@ newton : isaac : iterationlimit : 600
 newton : isaac : deltamax : 0.1
 
 output : json : append : false
-output : json : filename : branched_brush_cyl2d
 json : mon : WALL : phi
 json : mon : X : phi
 json : mon : S : phi

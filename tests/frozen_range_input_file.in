@@ -7,10 +7,9 @@ mon:S:freedom:free
 mol:SOLVENT:composition:(S)1
 mol:SOLVENT:freedom:solvent
 mon:W:freedom:frozen
-mon:W:frozen_filename:frozen
+mon:W:frozen_filename:frozen_range_input_file.frozen
 newton : isaac : method : pseudohessian
 output:json:append:false
-output:json:filename:frozen_range_input_file
 json:mon:*:phi
 json:mol:*:phi
 start
