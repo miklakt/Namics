@@ -123,6 +123,38 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 	std::vector<std::span<Real>> profile_pointer;
 	std::vector<std::string> profile_header;
 	std::vector<std::pair<std::string, json>> scalar_values;
+	auto write_ranked_profile = [&](const std::string& label, const Molecule& mol) {
+		const int M = lat->M;
+		const int ranks = mol.chainlength;
+		const int a = write_bounds ? 0 : lat->fjc;
+		json ranked = json::array();
+		for (int r = 0; r < ranks; ++r) {
+			json rank = json::array();
+			for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) {
+				if (lat->gradients == 1) {
+					rank.push_back(mol.phi_ranked[static_cast<size_t>(r) * M + x]);
+					continue;
+				}
+				if (lat->gradients == 2) {
+					json row = json::array();
+					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) row.push_back(mol.phi_ranked[static_cast<size_t>(r) * M + lat->P(x, y)]);
+					rank.push_back(std::move(row));
+					continue;
+				}
+				if (lat->gradients == 3) {
+					json plane = json::array();
+					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) {
+						json row = json::array();
+						for (int z = a; z < lat->MZ + 2 * lat->fjc - a; ++z) row.push_back(mol.phi_ranked[static_cast<size_t>(r) * M + lat->P(x, y, z)]);
+						plane.push_back(std::move(row));
+					}
+					rank.push_back(std::move(plane));
+				}
+			}
+			ranked.push_back(std::move(rank));
+		}
+		scalar_values.push_back({label, std::move(ranked)});
+	};
 	json restart = {{"method", New->SCF_method},
 	                {"mx", lat->MX},
 	                {"my", lat->MY},
@@ -171,6 +203,12 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 			if (key == "mol" && source_index >= 0) profile = Mol[source_index]->GetPointer(profile_id);
 			if (key == "mon" && source_index >= 0) profile = Seg[source_index]->GetPointer(profile_id);
 			if (key == "state" && source_index >= 0) profile = Sta[source_index]->GetPointer(profile_id);
+		}
+		if (value_it->is_object() && value_it->contains("ranked_profile")) {
+			if (key == "mol" && source_index >= 0 && item_prop == "phi_ranked") {
+				write_ranked_profile(label, *Mol[source_index]);
+				continue;
+			}
 		}
 
 		if (!profile.empty()) {

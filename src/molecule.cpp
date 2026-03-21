@@ -18,6 +18,7 @@ void Molecule :: DeAllocateMemory(){
 NAMICS_DBG("DeallocateMemory for Mol " + name << std::endl);
 	if (!all_molecule) return;
 	phi.clear();
+	phi_ranked.clear();
 	phitot.clear();
 	P.clear();
 	Gg_f.clear();
@@ -53,6 +54,7 @@ NAMICS_DBG("AllocateMemory in Mol " + name << std::endl);
 	for (int i=0; i<length_; i++) {N+=n_mon[i];}
 
 	phi.assign(M * MolMonList.size(), 0);
+	if (HasOutputProperty("phi_ranked")) phi_ranked.assign(M * N, 0);
 	phitot.assign(M, 0);
 	Gg_f.assign(M * N * size, 0);
 	Gg_b.assign(2 * M * size, 0);
@@ -66,6 +68,7 @@ NAMICS_DBG("PrepareForCalculations in Mol " + name << std::endl);
 	bool success=true;
 	std::fill(phitot.begin(), phitot.end(), 0);
 	std::fill(phi.begin(), phi.end(), 0);
+	if (!phi_ranked.empty()) std::fill(phi_ranked.begin(), phi_ranked.end(), 0);
 
 
 	return success;
@@ -526,6 +529,23 @@ NAMICS_DBG("Molecule:: Charge" << std::endl);
 	return charge/chainlength;
 }
 
+bool Molecule::HasOutputProperty(const std::string& property) const {
+	const auto& problem = In->Start(start);
+	if (!problem.is_object()) return false;
+	const auto json_it = problem.find("json");
+	if (json_it == problem.end() || !json_it->is_object()) return false;
+	const auto mol_it = json_it->find("mol");
+	if (mol_it == json_it->end() || !mol_it->is_object()) return false;
+	const auto has_property = [&](ParameterStore::const_iterator it) {
+		if (it == mol_it->end()) return false;
+		const auto& value = it.value();
+		if (value.is_string()) return value.get<std::string>() == property;
+		if (value.is_array()) for (const auto& entry : value) if (entry.is_string() && entry.get<std::string>() == property) return true;
+		return false;
+	};
+	return has_property(mol_it->find(name)) || has_property(mol_it->find("*"));
+}
+
 bool Molecule::IsCharged() {
 NAMICS_DBG("IsCharged for Mol " + name << std::endl);
 	Real charge =0;
@@ -629,6 +649,7 @@ NAMICS_DBG("PushOutput for Mol " + name << std::endl);
 	OUTPUT["GN"] = GN;
 	OUTPUT["norm"] = norm;
 	OUTPUT["phi"] = {{"profile", 0}};
+	if (!phi_ranked.empty()) OUTPUT["phi_ranked"] = {{"ranked_profile", 0}};
 	for (size_t i = 0; i < MolMonList.size(); i++) {
 		OUTPUT["phi_" + Seg[MolMonList[i]]->name] = {{"profile", static_cast<int>(i) + 1}};
 	}
@@ -678,6 +699,7 @@ NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
 		}
 
 		lat->AddPhiS(phi.data()+molmon_nr[block]*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M,Markov, M);
+		if (!phi_ranked.empty()) lat->AddPhiS(phi_ranked.data()+static_cast<size_t>(s)*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M,Markov, M);
 		s--;
 	}
 }
@@ -719,6 +741,7 @@ NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
 		}
 
 		lat->AddPhiS(phi.data()+molmon_nr[block]*M, Gg_f.data()+s*M*size, Gg_b.data()+(s%2)*M*size, Markov, M);
+		if (!phi_ranked.empty()) lat->AddPhiS(phi_ranked.data()+static_cast<size_t>(s)*M, Gg_f.data()+s*M*size, Gg_b.data()+(s%2)*M*size, Markov, M);
 		s--;
 	}
 }
@@ -730,6 +753,7 @@ NAMICS_DBG("ComputePhi for Molecule " + name << std::endl); //default computatio
 	std::copy_n(Seg[mon_nr[0]]->G1.begin(), M, phi.begin());
 	GN=lat->WeightedSum(phi.data());
 	for (int __i = 0; __i < (M); ++__i) (phi)[__i] = (phi)[__i] * (Seg[mon_nr[0]]->G1)[__i];
+	if (!phi_ranked.empty()) std::copy_n(phi.begin(), M, phi_ranked.begin());
 	return success;
 }
 

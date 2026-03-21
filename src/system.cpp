@@ -1040,6 +1040,23 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 	int M= lat->M;
 	const auto slice_len = static_cast<size_t>(M);
 	auto& phitot = this->phitot;
+	const auto normalize_ranked_phi = [&](Molecule& mol, Real norm, bool divide_by_g1) {
+		if (mol.phi_ranked.empty()) return;
+		int s = 0;
+		const int blocks = mol.mon_nr.size();
+		for (int b = 0; b < blocks; ++b) {
+			auto g1 = std::span<const Real>(Seg[mol.mon_nr[b]]->G1);
+			for (int k = 0; k < mol.n_mon[b]; ++k, ++s) {
+				auto phi = std::span<Real>(mol.phi_ranked).subspan(static_cast<size_t>(s * M), slice_len);
+				if (divide_by_g1) {
+					for (int __i = 0; __i < M; ++__i) phi[__i] = g1[__i] != 0 ? phi[__i] / g1[__i] : 0;
+				}
+				if (norm > 0) {
+					for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
+				}
+			}
+		}
+	};
 	Real A=0, B=0; //A should contain sum_phi*charge; B should contain sum_phi
 	bool success=true;
 	std::fill(phitot.begin(), phitot.end(), 0.0);
@@ -1126,8 +1143,9 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 			}
 			k++;
 		}
+		if (Mol[i]->freedom != "frozen") normalize_ranked_phi(*Mol[i], norm, true);
 
-	}
+		}
 	if (charged && neutralizer > -1)
 		{
 		if (Mol[neutralizer]->Charge()==Mol[solvent]->Charge()) {
@@ -1180,9 +1198,10 @@ for (int j=0; j<n_mol; j++) {
 			}
 			k++;
 		}
-	}
-	if (charged && neutralizer > -1)
-	{
+		normalize_ranked_phi(*Mol[solvent], norm, false);
+		}
+		if (charged && neutralizer > -1)
+		{
 		int k = 0;
 		length = Mol[neutralizer]->MolMonList.size();
 		while (k < length)
@@ -1196,10 +1215,11 @@ for (int j=0; j<n_mol; j++) {
 				Real sum;
 				(sum) = 0; for (int __i = 0; __i < M; ++__i) (sum) += phi[__i];
 				NAMICS_DBG("Sumphi in mol " << neutralizer << "for mon " << k << ":" << sum << std::endl);
+				}
+				k++;
 			}
-			k++;
+			normalize_ranked_phi(*Mol[neutralizer], Mol[neutralizer]->norm, false);
 		}
-	}
 
 	for (int i = 0; i < n_mol; i++)
 	{
