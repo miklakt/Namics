@@ -9,6 +9,10 @@ class LG2Planar : public LGrad2
 		return selection.gradients == 2 && selection.geometry == "planar";
 	}
 
+	protected:
+	bool CheckLatticeInput(const ParameterStore&) override;
+
+	public:
 	void ComputeLambdas(void);
 	void Side(Real *, Real *, int);
 	void propagateF(Real*, Real*, Real*, int, int, int);

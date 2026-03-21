@@ -7,6 +7,23 @@ LGrad3::LGrad3(const Input& In_,const std::string& name_): Lattice(In_,name_) {}
 LGrad3::~LGrad3() {
 NAMICS_DBG("LGrad3 destructor " << std::endl);}
 
+bool LGrad3::CheckLatticeInput(const ParameterStore& parameters) {
+	bool success = RejectScalarBoundsInMultiD(parameters);
+	success = ReadScaledDimension(parameters, "n_layers_x", MX, 1, "In 'lat' the parameter 'n_layers_x' is required", "n_layers_x out of bounds, currently: 1..1e6; Problem terminated") && success;
+	success = ReadScaledDimension(parameters, "n_layers_y", MY, 1, "In 'lat' the parameter 'n_layers_y' is required", "n_layers_y out of bounds, currently: 1..1e6; Problem terminated") && success;
+	success = ReadScaledDimension(parameters, "n_layers_z", MZ, 1, "In 'lat' the parameter 'n_layers_z' is required", "n_layers_z out of bounds, currently: 1..1e6; Problem terminated") && success;
+
+	success = ReadBoundaryCondition(parameters, "lowerbound_x", 0, {"mirror", "periodic"}, "for 'lowerbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ") && success;
+	success = ReadBoundaryCondition(parameters, "upperbound_x", 3, {"mirror", "periodic"}, "for 'upperbound_x' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ") && success;
+	success = ReadBoundaryCondition(parameters, "lowerbound_y", 1, {"mirror", "periodic"}, "for 'lowerbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ") && success;
+	success = ReadBoundaryCondition(parameters, "upperbound_y", 4, {"mirror", "periodic"}, "for 'upperbound_y' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ") && success;
+	success = ReadBoundaryCondition(parameters, "lowerbound_z", 2, {"mirror", "periodic"}, "for 'lowerbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ") && success;
+	success = ReadBoundaryCondition(parameters, "upperbound_z", 5, {"mirror", "periodic"}, "for 'upperbound_z' boundary condition not recognized. Put 'mirror' or 'periodic' and put surface inside system. ") && success;
+	success = CheckPeriodicPair(1, 4, ("In y-direction the boundary conditions do not match:" + BC[1] + " and " + BC[4]).c_str()) && success;
+	success = CheckPeriodicPair(2, 5, ("In z-direction the boundary conditions do not match:" + BC[2] + " and " + BC[5]).c_str()) && success;
+	return success;
+}
+
 void LGrad3:: ComputeLambdas() {
 }
 

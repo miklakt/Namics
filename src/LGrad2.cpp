@@ -7,6 +7,22 @@ LGrad2::LGrad2(const Input& In_,const std::string& name_): Lattice(In_,name_) {}
 LGrad2::~LGrad2() {
 NAMICS_DBG("LGrad2 destructor " << std::endl);}
 
+bool LGrad2::CheckLatticeInput(const ParameterStore& parameters) {
+	bool success = RejectScalarBoundsInMultiD(parameters);
+	success = RejectZBoundsIn2D(parameters) && success;
+	success = ReadScaledDimension(parameters, "n_layers_x", MX, 0, "In 'lat' the parameter 'n_layers_x' is required. Problem terminated", "n_layers_x out of bounds, currently: 0.. 1e6; Problem terminated") && success;
+	success = ReadScaledDimension(parameters, "n_layers_y", MY, 0, "In 'lat' the parameter 'n_layers_y' is required. Problem terminated", "n_layers_y out of bounds, currently: 0.. 1e6; Problem terminated") && success;
+
+	geometry = parameters.value("geometry", std::string{"planar"});
+	success = AssignChoice(geometry, geometry, {"cylindrical"}, "In lattice input for 'geometry' not recognized.") && success;
+	ReadOffsetFirstLayer(parameters);
+	success = ReadBoundaryCondition(parameters, "lowerbound_x", 0, {"mirror", "surface"}, "for 'lowerbound_x' boundary condition not recognized.  ") && success;
+	success = ReadBoundaryCondition(parameters, "upperbound_x", 3, {"mirror", "surface"}, "for 'upperbound_x' boundary condition not recognized. ") && success;
+	success = ReadBoundaryCondition(parameters, "lowerbound_y", 1, {"mirror", "surface"}, "for 'lowerbound_y' boundary condition not recognized. ") && success;
+	success = ReadBoundaryCondition(parameters, "upperbound_y", 4, {"mirror", "surface"}, "for 'upperbound_Y' boundary condition not recognized. ") && success;
+	return success;
+}
+
 
 void LGrad2:: ComputeLambdas() {
 	Real r, VL, LS;

@@ -9,6 +9,10 @@ class LGrad2 : public Lattice
 		return selection.gradients == 2 && selection.geometry != "planar";
 	}
 
+	protected:
+	bool CheckLatticeInput(const ParameterStore&) override;
+
+	public:
 	void ComputeLambdas(void);
 	bool PutM();
 	void TimesL(Real*);

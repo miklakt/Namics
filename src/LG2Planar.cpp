@@ -9,6 +9,24 @@ LG2Planar::LG2Planar(const Input& In_,const std::string& name_): LGrad2(In_,name
 LG2Planar::~LG2Planar() {
 NAMICS_DBG("LG2Planar destructor " << std::endl);}
 
+bool LG2Planar::CheckLatticeInput(const ParameterStore& parameters) {
+	bool success = RejectScalarBoundsInMultiD(parameters);
+	success = RejectZBoundsIn2D(parameters) && success;
+	success = ReadScaledDimension(parameters, "n_layers_x", MX, 0, "In 'lat' the parameter 'n_layers_x' is required. Problem terminated", "n_layers_x out of bounds, currently: 0.. 1e6; Problem terminated") && success;
+	success = ReadScaledDimension(parameters, "n_layers_y", MY, 0, "In 'lat' the parameter 'n_layers_y' is required. Problem terminated", "n_layers_y out of bounds, currently: 0.. 1e6; Problem terminated") && success;
+
+	geometry = parameters.value("geometry", std::string{"planar"});
+	success = AssignChoice(geometry, geometry, {"flat", "planar"}, "In lattice input for 'geometry' not recognized.") && success;
+	if (geometry == "flat") geometry = "planar";
+	success = ReadBoundaryCondition(parameters, "lowerbound_x", 0, {"mirror", "surface", "periodic"}, "for 'lowerbound_x' boundary condition not recognized.  ") && success;
+	success = ReadBoundaryCondition(parameters, "upperbound_x", 3, {"mirror", "surface", "periodic"}, "for 'upperbound_x' boundary condition not recognized. ") && success;
+	success = ReadBoundaryCondition(parameters, "lowerbound_y", 1, {"mirror", "surface", "periodic"}, "for 'lowerbound_y' boundary condition not recognized. ") && success;
+	success = ReadBoundaryCondition(parameters, "upperbound_y", 4, {"mirror", "surface", "periodic"}, "for 'upperbound_Y' boundary condition not recognized. ") && success;
+	success = CheckPeriodicPair(0, 3, "For boundaries in x-direction: 'periodic' BC  should be set to upper and lower bounds ") && success;
+	success = CheckPeriodicPair(1, 4, "For boundaries in y-direction: 'periodic' BC should be set to upper and lower bounds ") && success;
+	return success;
+}
+
 
 void LG2Planar:: ComputeLambdas() {
 

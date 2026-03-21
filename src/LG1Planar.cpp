@@ -6,6 +6,18 @@ LG1Planar::LG1Planar(const Input& In_,const std::string& name_): LGrad1(In_,name
 LG1Planar::~LG1Planar() {
 NAMICS_DBG("LG1Planar destructor " << std::endl);}
 
+bool LG1Planar::CheckLatticeInput(const ParameterStore& parameters) {
+	bool success = ReadScaledDimension(parameters, "n_layers", MX, 0, "In 'lat' the parameter 'n_layers' is required. Problem terminated", "n_layers out of bounds, currently: 0..1e6; Problem terminated");
+	success = RejectAxisBoundsIn1D(parameters) && success;
+
+	geometry = parameters.value("geometry", std::string{"planar"});
+	success = AssignChoice(geometry, geometry, {"flat", "planar"}, "In lattice input for 'geometry' not recognized.") && success;
+	if (geometry == "flat") geometry = "planar";
+	success = ReadBoundaryCondition(parameters, "lowerbound", 0, {"mirror", "surface", "periodic"}, "For 'lowerbound' boundary condition not recognized. ") && success;
+	success = ReadBoundaryCondition(parameters, "upperbound", 3, {"mirror", "surface", "periodic"}, "For 'upperbound' boundary condition not recognized.") && success;
+	return success;
+}
+
 void LG1Planar:: ComputeLambdas() {
 	for (int i=1; i<MX+1; i++) L[i]=1;
 

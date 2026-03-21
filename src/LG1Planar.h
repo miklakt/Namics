@@ -9,6 +9,10 @@ class LG1Planar : public LGrad1
 		return selection.gradients == 1 && selection.geometry == "planar";
 	}
 
+	protected:
+	bool CheckLatticeInput(const ParameterStore&) override;
+
+	public:
 	void ComputeLambdas(void);
 	Real MomentPlanar(Real*,int,Real);
 	void Side(Real *, Real *, int);

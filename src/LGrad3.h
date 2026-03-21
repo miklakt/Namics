@@ -9,6 +9,10 @@ class LGrad3 : public Lattice
 		return selection.gradients == 3;
 	}
 
+	protected:
+	bool CheckLatticeInput(const ParameterStore&) override;
+
+	public:
 	void ComputeLambdas(void);
 	bool PutM();
 	void TimesL(Real*);

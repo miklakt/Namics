@@ -89,6 +89,20 @@ public:
 	void DistributeG1(std::span<const Real>, std::span<Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
 	void CollectPhi(std::span<Real>, std::span<const Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
 	void ComputeGN(std::span<Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, int, int);
+
+protected:
+	bool AssignChoice(const std::string&, std::string&, std::initializer_list<const char*>, const char*) const;
+	bool ReadBoundaryCondition(const ParameterStore&, const char*, int, std::initializer_list<const char*>, const char*, const char* fallback = "mirror");
+	bool ReadScaledDimension(const ParameterStore&, const char*, int&, int, const char*, const char*);
+	void ReadOffsetFirstLayer(const ParameterStore&);
+	bool RejectParameters(const ParameterStore&, std::initializer_list<std::pair<const char*, const char*>>) const;
+	bool RejectAxisBoundsIn1D(const ParameterStore&) const;
+	bool RejectScalarBoundsInMultiD(const ParameterStore&) const;
+	bool RejectZBoundsIn2D(const ParameterStore&) const;
+	bool CheckPeriodicPair(int, int, const char*) const;
+	virtual bool CheckLatticeInput(const ParameterStore&) = 0;
+
+public:
 	virtual void ComputeLambdas(void)=0;
 	virtual Real WeightedSum(Real*)=0;
 	virtual Real Moment(Real*,Real,int) =0;
