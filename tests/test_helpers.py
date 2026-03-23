@@ -148,100 +148,74 @@ def _as_problem_object(data: Any, path: Path) -> dict[str, Any]:
 
 
 def compare_json_profiles(left_path: Path, right_path: Path, coord_tol: float, value_tol: float) -> None:
-    """Compare nested JSON profiles without flattening the object tree."""
+    """Compare profile series while ignoring wrapper structure."""
     left_data = _as_problem_object(_read_json(left_path), left_path)
     right_data = _as_problem_object(_read_json(right_path), right_path)
-    left_data = {key: value for key, value in left_data.items() if key != "initial_guess"}
-    right_data = {key: value for key, value in right_data.items() if key != "initial_guess"}
-    path_key = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-
-    def render_path(path: list[str]) -> str:
-        out = ""
-        for part in path:
-            if part.isdigit():
-                out += f"[{part}]"
-            elif path_key.match(part):
-                out += f".{part}" if out else part
-            else:
-                out += f"[{json.dumps(part)}]"
-        return out or "<root>"
 
     def numeric_list(values: list[Any]) -> list[float] | None:
         out: list[float] = []
         for item in values:
-            if isinstance(item, (dict, list, tuple)):
+            if isinstance(item, dict):
                 return None
+            if isinstance(item, (list, tuple)):
+                nested = numeric_list(list(item))
+                if nested is None:
+                    return None
+                out.extend(nested)
+                continue
             try:
                 out.append(float(item))
             except (TypeError, ValueError):
                 return None
         return out
 
-    def meaningful(value: Any) -> bool:
+    def collect_series(value: Any, path: list[str], out: dict[str, tuple[str, list[float]]]) -> None:
         if isinstance(value, dict):
-            return any(meaningful(child) for child in value.values())
-        if isinstance(value, list):
-            return numeric_list(value) is not None or any(
-                meaningful(child) for child in value if isinstance(child, (dict, list))
-            )
-        return False
-
-    def walk(left: Any, right: Any, path: list[str], label: str | None) -> None:
-        if isinstance(left, dict) and isinstance(right, dict):
-            for key in left.keys() | right.keys():
-                left_value = left.get(key)
-                right_value = right.get(key)
-                left_meaningful = meaningful(left_value)
-                right_meaningful = meaningful(right_value)
-                if not left_meaningful and not right_meaningful:
+            for key, child in value.items():
+                if key == "initial_guess":
                     continue
-                if not left_meaningful or not right_meaningful:
-                    raise TestError(f"ERROR: structure mismatch at {render_path(path + [key])}")
-                walk(left_value, right_value, path + [key], key)
+                collect_series(child, path + [key], out)
             return
-        if isinstance(left, list) and isinstance(right, list):
-            left_numbers = numeric_list(left)
-            right_numbers = numeric_list(right)
-            if left_numbers is not None and right_numbers is not None:
-                if len(left_numbers) != len(right_numbers):
-                    raise TestError(
-                        f"ERROR: row count mismatch for column {render_path(path)} "
-                        f"({left_path}: {len(left_numbers)}, {right_path}: {len(right_numbers)})"
-                    )
-                tol = coord_tol if label in {"x", "y", "z"} else value_tol
-                max_diff = 0.0
-                for lv, rv in zip(left_numbers, right_numbers):
-                    diff = abs(lv - rv)
-                    if diff > max_diff:
-                        max_diff = diff
-                    if diff > tol:
-                        raise TestError(
-                            f"ERROR: numerical drift at {render_path(path)} "
-                            f"(max diff {max_diff:.3e} > tol {tol:.3e})"
-                        )
+        if isinstance(value, list):
+            numbers = numeric_list(value)
+            if numbers is not None:
+                if not path:
+                    raise TestError("ERROR: encountered numeric JSON list at root")
+                key = "_".join(path)
+                out[key] = (path[-1], numbers)
                 return
-            left_meaningful = meaningful(left)
-            right_meaningful = meaningful(right)
-            if not left_meaningful and not right_meaningful:
-                return
-            if not left_meaningful or not right_meaningful:
-                raise TestError(f"ERROR: structure mismatch at {render_path(path)}")
-            if any(isinstance(item, (dict, list)) for item in left) or any(
-                isinstance(item, (dict, list)) for item in right
-            ):
-                if len(left) != len(right):
-                    raise TestError(
-                        f"ERROR: row count mismatch for column {render_path(path)} "
-                        f"({left_path}: {len(left)}, {right_path}: {len(right)})"
-                    )
-                for idx, (left_item, right_item) in enumerate(zip(left, right)):
-                    if not meaningful(left_item) and not meaningful(right_item):
-                        continue
-                    if not meaningful(left_item) or not meaningful(right_item):
-                        raise TestError(f"ERROR: structure mismatch at {render_path(path + [str(idx)])}")
-                    walk(left_item, right_item, path + [str(idx)], label)
+            for idx, child in enumerate(value):
+                if isinstance(child, (dict, list)):
+                    collect_series(child, path + [str(idx)], out)
 
-    walk(left_data, right_data, [], None)
+    left_series: dict[str, tuple[str, list[float]]] = {}
+    right_series: dict[str, tuple[str, list[float]]] = {}
+    collect_series(left_data, [], left_series)
+    collect_series(right_data, [], right_series)
+
+    for key in left_series.keys() | right_series.keys():
+        left_entry = left_series.get(key)
+        right_entry = right_series.get(key)
+        if left_entry is None or right_entry is None:
+            raise TestError(f"ERROR: structure mismatch at {key}")
+        label, left_numbers = left_entry
+        _, right_numbers = right_entry
+        if len(left_numbers) != len(right_numbers):
+            raise TestError(
+                f"ERROR: row count mismatch for column {key} "
+                f"({left_path}: {len(left_numbers)}, {right_path}: {len(right_numbers)})"
+            )
+        tol = coord_tol if label in {"x", "y", "z"} else value_tol
+        max_diff = 0.0
+        for lv, rv in zip(left_numbers, right_numbers):
+            diff = abs(lv - rv)
+            if diff > max_diff:
+                max_diff = diff
+            if diff > tol:
+                raise TestError(
+                    f"ERROR: numerical drift at {key} "
+                    f"(max diff {max_diff:.3e} > tol {tol:.3e})"
+                )
 
 
 def run_command(cmd: list[str], cwd: Path, quiet: bool = True) -> CommandMetrics:
