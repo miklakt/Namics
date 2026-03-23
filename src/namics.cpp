@@ -191,7 +191,65 @@ int main(int argc, char *argv[])
 			CHARGED = Sys->charged;
 			const int IV = static_cast<int>(MONLIST.size() + STATELIST.size() + (CHARGED ? 1 : 0)) * Lat->M;
 			X.resize(IV);
-			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>(X), MONLIST, STATELIST, CHARGED)) {
+			Lat->AllocateMemory();
+			auto pad_profile = [&](std::vector<Real>& values) {
+				const int trimmed_size = Lat->MX * (Lat->gradients >= 2 ? Lat->MY : 1) * (Lat->gradients >= 3 ? Lat->MZ : 1);
+				if (static_cast<int>(values.size()) != trimmed_size) return false;
+				std::vector<Real> padded(static_cast<size_t>(Lat->M), 0);
+				size_t offset = 0;
+				if (Lat->gradients == 1) {
+					for (int x = Lat->fjc; x < Lat->MX + Lat->fjc; ++x) padded[x] = values[offset++];
+				} else if (Lat->gradients == 2) {
+					for (int x = Lat->fjc; x < Lat->MX + Lat->fjc; ++x) {
+						for (int y = Lat->fjc; y < Lat->MY + Lat->fjc; ++y) padded[Lat->P(x, y)] = values[offset++];
+					}
+				} else {
+					for (int x = Lat->fjc; x < Lat->MX + Lat->fjc; ++x) {
+						for (int y = Lat->fjc; y < Lat->MY + Lat->fjc; ++y) {
+							for (int z = Lat->fjc; z < Lat->MZ + Lat->fjc; ++z) padded[Lat->P(x, y, z)] = values[offset++];
+						}
+					}
+				}
+				Lat->set_bounds(padded.data());
+				values.swap(padded);
+				return true;
+			};
+			auto resolve_profile = [&](const io::detail::json& document, const std::string& key, std::vector<Real>& values) {
+				const io::detail::json* source = io::detail::FindLastProblemObject(document);
+				if (source == nullptr && document.is_object()) source = &document;
+				if (source == nullptr) return false;
+				if (key == "psi") {
+					const auto sys_section = source->find("sys");
+					if (sys_section == source->end() || !sys_section->is_object()) return false;
+					const io::detail::json* profile = io::detail::FindProfileInOutputSection(*sys_section, Sys->name, "psi");
+					if (profile == nullptr) {
+						for (auto sys = sys_section->begin(); sys != sys_section->end() && profile == nullptr; ++sys) {
+							profile = io::detail::FindProfileInOutputSection(*sys_section, sys.key(), "psi");
+						}
+					}
+					return profile != nullptr && io::detail::ReadOutputProfileArray(*profile, Lat->M, values, pad_profile);
+				}
+				const bool is_state = key.rfind("state:", 0) == 0;
+				const std::string name = key.substr(is_state ? 6 : 4);
+				const auto& section = is_state ? source->find("state") : source->find("mon");
+				if (section == source->end() || !section->is_object()) return false;
+				const io::detail::json* profile = io::detail::FindProfileInOutputSection(*section, name, "u");
+				if (profile == nullptr) {
+					if (is_state) {
+						int state_index = -1;
+						for (size_t i = 0; i < Sta.size(); ++i) if (Sta[i]->name == name) { state_index = static_cast<int>(i); break; }
+						if (state_index < 0) return false;
+						for (size_t i = 0; i < Sta.size() && profile == nullptr; ++i) if (Sta[i]->chi == Sta[state_index]->chi) profile = io::detail::FindProfileInOutputSection(*section, Sta[i]->name, "u");
+					} else {
+						int mon_index = -1;
+						for (size_t i = 0; i < Seg.size(); ++i) if (Seg[i]->name == name) { mon_index = static_cast<int>(i); break; }
+						if (mon_index < 0) return false;
+						for (size_t i = 0; i < Seg.size() && profile == nullptr; ++i) if (Seg[i]->chi == Seg[mon_index]->chi) profile = io::detail::FindProfileInOutputSection(*section, Seg[i]->name, "u");
+					}
+				}
+				return profile != nullptr && io::detail::ReadOutputProfileArray(*profile, Lat->M, values, pad_profile);
+			};
+			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>(X), MONLIST, STATELIST, CHARGED, resolve_profile)) {
 				return 1;
 			}
 		}

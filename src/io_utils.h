@@ -107,6 +107,36 @@ inline bool ReadProfileArray(const json& node, int profile_size, std::vector<Rea
 }
 
 template <typename RealT>
+inline bool FlattenProfileArray(const json& node, std::vector<RealT>& values) {
+	if (node.is_array()) {
+		for (const auto& item : node) {
+			if (!FlattenProfileArray(item, values)) return false;
+		}
+		return true;
+	}
+	try {
+		values.push_back(node.template get<RealT>());
+		return true;
+	} catch (const json::exception&) {
+		return false;
+	}
+}
+
+inline const json* FindProfileInOutputSection(const json& section, const std::string& name, const std::string& prop) {
+	const auto item = section.find(name);
+	if (item == section.end() || !item->is_object()) return nullptr;
+	const auto profile = item->find(prop);
+	return profile != item->end() ? &*profile : nullptr;
+}
+
+template <typename RealT, typename PadProfileFn>
+inline bool ReadOutputProfileArray(const json& node, int profile_size, std::vector<RealT>& values, PadProfileFn&& pad_profile) {
+	values.clear();
+	if (!FlattenProfileArray(node, values)) return false;
+	return static_cast<int>(values.size()) == profile_size || pad_profile(values);
+}
+
+template <typename RealT>
 inline bool ReadInitialGuessProfiles(const json& guess,
                                      std::span<RealT> x,
                                      const std::vector<std::string>& monlist,
@@ -151,26 +181,51 @@ inline bool ReadExternalPotentialJson(const std::string& filename, std::vector<R
 	return false;
 }
 
-template <typename RealT>
+template <typename RealT, typename ResolveProfileFn>
 inline bool ReadInitialGuess(const std::string& filename,
                              std::span<RealT> x,
                              const std::vector<std::string>& monlist,
                              const std::vector<std::string>& statelist,
-                             bool charged) {
+                             bool charged,
+                             ResolveProfileFn&& resolve_profile) {
+	const int count = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
 	detail::json document;
 	if (!detail::ReadJsonFile(filename, document)) {
 		std::cout << "Read guess for initial guess failed" << std::endl;
 		return false;
 	}
-	const auto* guess = detail::FindInitialGuessObject(document);
-	if (guess == nullptr) {
-		std::cout << "No initial_guess found in " << filename << ". Read guess for initial guess failed" << std::endl;
-		return false;
+	if (const auto* guess = detail::FindInitialGuessObject(document); guess != nullptr) {
+		if (count == 0) return x.empty();
+		if (static_cast<int>(x.size()) % count != 0) return false;
+		return detail::ReadInitialGuessProfiles(*guess, x, monlist, statelist, charged, static_cast<int>(x.size()) / count);
 	}
-	const int count = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
 	if (count == 0) return x.empty();
-	if (static_cast<int>(x.size()) % count != 0) return false;
-	return detail::ReadInitialGuessProfiles(*guess, x, monlist, statelist, charged, static_cast<int>(x.size()) / count);
+
+	detail::json guess;
+	guess["profiles"] = detail::json::object();
+	std::vector<RealT> values;
+	for (const std::string& mon_name : monlist) {
+		if (!resolve_profile(document, "mon:" + mon_name, values)) {
+			std::cout << "No initial_guess found in " << filename << ". Read guess for initial guess failed" << std::endl;
+			return false;
+		}
+		guess["profiles"]["mon:" + mon_name] = values;
+	}
+	for (const std::string& state_name : statelist) {
+		if (!resolve_profile(document, "state:" + state_name, values)) {
+			std::cout << "No initial_guess found in " << filename << ". Read guess for initial guess failed" << std::endl;
+			return false;
+		}
+		guess["profiles"]["state:" + state_name] = values;
+	}
+	if (charged) {
+		if (!resolve_profile(document, "psi", values)) {
+			std::cout << "No initial_guess found in " << filename << ". Read guess for initial guess failed" << std::endl;
+			return false;
+		}
+		guess["profiles"]["psi"] = values;
+	}
+	return detail::ReadInitialGuessProfiles(guess, x, monlist, statelist, charged, static_cast<int>(x.size()) / count);
 }
 
 } // namespace io
