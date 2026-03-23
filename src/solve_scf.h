@@ -61,7 +61,7 @@ public:
 
 	bool CheckInput(int);
 	void Copy(std::span<Real>,std::span<const Real>,int,int,int,int);
-	bool Guess(std::span<const Real>,std::string,std::vector<std::string>,std::vector<std::string>,bool,int,int,int,int);
+	bool Guess(std::span<const Real>,std::vector<std::string>,std::vector<std::string>,bool,int,int,int,int);
 
 	bool Solve(bool);
 

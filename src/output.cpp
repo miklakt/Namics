@@ -257,42 +257,19 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 
 	if (Sys->write_initial_guess) {
 		json initial_guess;
-		std::vector<std::string> guess_monlist;
-		std::vector<std::string> guess_statelist;
-		const int mon_length = Sys->ItMonList.size();
-		const int state_length = Sys->ItStateList.size();
-		guess_monlist.reserve(mon_length);
-		guess_statelist.reserve(state_length);
-		for (int i = 0; i < mon_length; ++i) guess_monlist.push_back(Seg[Sys->ItMonList[i]]->name);
-		for (int i = 0; i < state_length; ++i) guess_statelist.push_back(Sta[Sys->ItStateList[i]]->name);
 		const std::span<const Real> values = std::span<const Real>(New->xx).first(static_cast<size_t>(New->iv));
-		const int m = lat->MY == 0 ? (lat->MX + 2 * lat->fjc) :
-		             lat->MZ == 0 ? (lat->MX + 2 * lat->fjc) * (lat->MY + 2 * lat->fjc) :
-		                            (lat->MX + 2 * lat->fjc) * (lat->MY + 2 * lat->fjc) * (lat->MZ + 2 * lat->fjc);
-		const int expected = static_cast<int>(guess_monlist.size() + guess_statelist.size() + (Sys->charged ? 1 : 0)) * m;
-		if (static_cast<int>(values.size()) != expected) {
-			std::cout << "Warning: unable to serialize embedded initial guess for problem " << start << std::endl;
-		} else {
-			initial_guess["method"] = New->SCF_method;
-			initial_guess["mx"] = lat->MX;
-			initial_guess["my"] = lat->MY;
-			initial_guess["mz"] = lat->MZ;
-			initial_guess["fjc"] = lat->fjc;
-			initial_guess["charged"] = Sys->charged;
-			initial_guess["monlist"] = guess_monlist;
-			initial_guess["statelist"] = guess_statelist;
-			initial_guess["profiles"] = json::object();
-			int offset = 0;
-			for (const std::string& mon_name : guess_monlist) {
-				initial_guess["profiles"]["mon:" + mon_name] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
-				++offset;
-			}
-			for (const std::string& state_name : guess_statelist) {
-				initial_guess["profiles"]["state:" + state_name] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
-				++offset;
-			}
-			if (Sys->charged) initial_guess["profiles"]["psi"] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
+		const int m = lat->M;
+		initial_guess["profiles"] = json::object();
+		int offset = 0;
+		for (const int mon_index : Sys->ItMonList) {
+			initial_guess["profiles"]["mon:" + Seg[mon_index]->name] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
+			++offset;
 		}
+		for (const int state_index : Sys->ItStateList) {
+			initial_guess["profiles"]["state:" + Sta[state_index]->name] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
+			++offset;
+		}
+		if (Sys->charged) initial_guess["profiles"]["psi"] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
 		if (!initial_guess.is_null()) problem["initial_guess"] = std::move(initial_guess);
 	}
 

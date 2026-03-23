@@ -167,7 +167,6 @@ def _evaluate_once(
         "output : json : header_separator : _",
         f"output : json : filename : {output_stem}",
         f"json : sys : {system} : grand_potential",
-        f"sys : {system} : write_initial_guess : true",
         f"mol : {molecule} : {quantity} : {x:.15g}",
     ]
     if seed_json is None:
@@ -301,20 +300,17 @@ def main() -> int:
 
     workdir = (REPO_ROOT / "output" / args.input.stem).resolve()
     history_file = workdir / "history.tsv"
-    seed_file = workdir / "current_seed.output.json"
     result_input = workdir / "result.in"
     result_json = workdir / "result.output.json"
     summary_file = workdir / "summary.json"
     workdir.mkdir(parents=True, exist_ok=True)
 
-    current_seed = None
+    seed_json = None
     if args.seed_json is not None:
-        current_seed = seed_file
-        shutil.copy2(args.seed_json.resolve(), current_seed)
-        print(f"seed copied -> {current_seed}")
+        seed_json = args.seed_json.resolve()
+        print(f"seed -> {seed_json}")
     elif args.seed_input is not None:
-        current_seed = seed_file
-        shutil.copy2(_prepare_seed_from_input(args.binary, args.seed_input, workdir), current_seed)
+        seed_json = _prepare_seed_from_input(args.binary, args.seed_input, workdir)
 
     initial = args.initial if args.initial is not None else template_initial
     step = args.step if args.step is not None else max(1.0, 0.05 * abs(initial))
@@ -371,20 +367,17 @@ def main() -> int:
         evaluations += len(results)
         return results
 
-    center = evaluate([initial], current_seed)[0]
+    center = evaluate([initial], seed_json)[0]
     if abs(center.residual) <= args.gp_tol:
         shutil.copy2(center.runtime_input, result_input)
         shutil.copy2(center.output_json, result_json)
-        _write_summary(summary_file, result_input, result_json, current_seed, center, center, center, evaluations, True)
+        _write_summary(summary_file, result_input, result_json, seed_json, center, center, center, evaluations, True)
         print(f"converged immediately at {args.quantity}={center.x:.15g}")
         return 0
 
     best = center
     left = center
     right = center
-    if current_seed is not None or center.output_json.is_file():
-        shutil.copy2(center.output_json, seed_file)
-        current_seed = seed_file
 
     for expand_round in range(MAX_EXPAND):
         delta = step * (EXPAND_FACTOR ** expand_round)
@@ -396,20 +389,16 @@ def main() -> int:
         if right_x > best.x + X_TOL:
             trial_xs.append(right_x)
 
-        trial_results = evaluate(trial_xs, current_seed)
+        trial_results = evaluate(trial_xs, seed_json)
         bracket = find_bracket([best, *trial_results])
         if bracket is not None:
             left, right = bracket
             best = min((left, right), key=lambda result: abs(result.residual))
-            shutil.copy2(best.output_json, seed_file)
-            current_seed = seed_file
             break
 
         if not trial_results:
             break
         best = min((best, *trial_results), key=lambda result: abs(result.residual))
-        shutil.copy2(best.output_json, seed_file)
-        current_seed = seed_file
     else:
         raise SystemExit("failed to bracket the grand-potential root")
 
@@ -432,10 +421,8 @@ def main() -> int:
         if not (left.x < candidate_x < right.x) or min(candidate_x - left.x, right.x - candidate_x) < 0.1 * interval:
             candidate_x = midpoint
 
-        candidate = evaluate([candidate_x], current_seed)[0]
+        candidate = evaluate([candidate_x], seed_json)[0]
         best = min((best, candidate), key=lambda result: abs(result.residual))
-        shutil.copy2(best.output_json, seed_file)
-        current_seed = seed_file
 
         if candidate.residual == 0 or math.copysign(1.0, left.residual) != math.copysign(1.0, candidate.residual):
             right = candidate
@@ -452,7 +439,7 @@ def main() -> int:
 
     shutil.copy2(best.runtime_input, result_input)
     shutil.copy2(best.output_json, result_json)
-    _write_summary(summary_file, result_input, result_json, current_seed, best, left, right, evaluations, converged)
+    _write_summary(summary_file, result_input, result_json, seed_json, best, left, right, evaluations, converged)
 
     if converged:
         print(f"converged: {args.quantity}={best.x:.15g} gp={best.grand_potential:.15g}")

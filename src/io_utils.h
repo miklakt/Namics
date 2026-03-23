@@ -15,12 +15,6 @@ namespace detail {
 
 using json = nlohmann::ordered_json;
 
-inline int GuessProfileSize(int mx, int my, int mz, int fjc) {
-	if (my == 0) return mx + 2 * fjc;
-	if (mz == 0) return (mx + 2 * fjc) * (my + 2 * fjc);
-	return (mx + 2 * fjc) * (my + 2 * fjc) * (mz + 2 * fjc);
-}
-
 inline bool ReadJsonFile(const std::string& filename, json& document) {
 	std::ifstream input(filename.c_str());
 	if (!input.is_open()) {
@@ -51,15 +45,7 @@ inline const json* FindLastProblemObject(const json& document) {
 inline const json* FindInitialGuessObject(const json& document) {
 	if (!document.is_object()) return nullptr;
 	if (const auto guess = document.find("initial_guess"); guess != document.end() && guess->is_object()) return &*guess;
-	if (document.contains("method") &&
-	    document.contains("mx") &&
-	    document.contains("my") &&
-	    document.contains("mz") &&
-	    document.contains("fjc") &&
-	    document.contains("charged") &&
-	    document.contains("monlist") &&
-	    document.contains("statelist") &&
-	    document.contains("profiles")) return &document;
+	if (const auto profiles = document.find("profiles"); profiles != document.end() && profiles->is_object()) return &document;
 	if (const auto* problem = FindLastProblemObject(document)) return FindInitialGuessObject(*problem);
 	return nullptr;
 }
@@ -168,15 +154,9 @@ inline bool ReadExternalPotentialJson(const std::string& filename, std::vector<R
 template <typename RealT>
 inline bool ReadInitialGuess(const std::string& filename,
                              std::span<RealT> x,
-                             std::string& method,
-                             std::vector<std::string>& monlist,
-                             std::vector<std::string>& statelist,
-                             bool& charged,
-                             int& mx,
-                             int& my,
-                             int& mz,
-                             int& fjc,
-                             int readx) {
+                             const std::vector<std::string>& monlist,
+                             const std::vector<std::string>& statelist,
+                             bool charged) {
 	detail::json document;
 	if (!detail::ReadJsonFile(filename, document)) {
 		std::cout << "Read guess for initial guess failed" << std::endl;
@@ -187,21 +167,10 @@ inline bool ReadInitialGuess(const std::string& filename,
 		std::cout << "No initial_guess found in " << filename << ". Read guess for initial guess failed" << std::endl;
 		return false;
 	}
-	try {
-		method = guess->at("method").get<std::string>();
-		mx = guess->at("mx").get<int>();
-		my = guess->at("my").get<int>();
-		mz = guess->at("mz").get<int>();
-		fjc = guess->at("fjc").get<int>();
-		charged = guess->at("charged").get<bool>();
-		monlist = guess->at("monlist").get<std::vector<std::string>>();
-		statelist = guess->at("statelist").get<std::vector<std::string>>();
-		if (readx == 0) return true;
-		return detail::ReadInitialGuessProfiles(*guess, x, monlist, statelist, charged, detail::GuessProfileSize(mx, my, mz, fjc));
-	} catch (const nlohmann::json::exception& error) {
-		std::cout << "Failed to parse initial_guess in " << filename << ": " << error.what() << std::endl;
-		return false;
-	}
+	const int count = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
+	if (count == 0) return x.empty();
+	if (static_cast<int>(x.size()) % count != 0) return false;
+	return detail::ReadInitialGuessProfiles(*guess, x, monlist, statelist, charged, static_cast<int>(x.size()) / count);
 }
 
 } // namespace io

@@ -221,6 +221,7 @@ def _set_failure(node: ReportNode, detail: str | Exception, *, accepted: bool = 
 
 
 def _failure_suffix_from_detail(detail: str) -> str | None:
+    detail = detail.strip()
     match = _EXECUTION_FAILED_RE.search(detail)
     if match:
         returncode = int(match.group(1))
@@ -232,11 +233,38 @@ def _failure_suffix_from_detail(detail: str) -> str | None:
                 return f"signal:{signal.Signals(signal_number).name}"
             except ValueError:
                 return "signal"
-    cleaned = detail.strip()
-    for prefix in ("failed (accepted): ", "ERROR: "):
-        if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix):]
-    return cleaned or None
+
+    for prefix in ("failed (accepted): ", "ERROR: ", "RuntimeError: "):
+        if detail.startswith(prefix):
+            detail = detail[len(prefix) :]
+
+    lines = [line.strip() for line in detail.splitlines() if line.strip()]
+    if not lines:
+        return ""
+
+    ignored_prefixes = (
+        "Traceback (most recent call last):",
+        "File \"",
+        "sys.exit(",
+        "raise ",
+        "seed -> ",
+        "Problem nr ",
+    )
+
+    filtered: list[str] = []
+    for line in lines:
+        if line.startswith(ignored_prefixes):
+            continue
+        if set(line) == {"^"}:
+            continue
+        filtered.append(line.removeprefix("RuntimeError: ").removeprefix("ERROR: "))
+
+    for line in reversed(filtered or lines):
+        if line.startswith("No initial_guess found in ") and "Read guess for initial guess failed" in line:
+            return "Read guess for initial guess failed"
+        if line:
+            return line
+    return None
 
 
 def _failure_suffix(node: ReportNode) -> str:
@@ -306,16 +334,17 @@ def _run_solver(
             if message:
                 raise TestError(message)
         raise TestError(f"ERROR: execution failed ({metrics.returncode}) for input: {runtime_input}")
-    if require_output or require_initial_guess:
-        if not output_path.is_file() or output_path.stat().st_size == 0:
-            raise TestError(f"ERROR: expected JSON output file was not created for {label}: {output_path}")
+    if (require_output or require_initial_guess) and (not output_path.is_file() or output_path.stat().st_size == 0):
+        raise TestError(f"ERROR: expected JSON output file was not created for {label}: {output_path}")
     if require_initial_guess:
         try:
-            payload = output_path.read_text(encoding="utf-8")
+            initial_guess = json.loads(output_path.read_text(encoding="utf-8"))["problems"][-1]["initial_guess"]
         except Exception as exc:
-            raise TestError(f"ERROR: cannot read JSON output for {label}: {output_path} ({exc})") from exc
-        if "\"initial_guess\"" not in payload:
-            raise TestError(f"ERROR: JSON output does not contain embedded initial_guess for {label}: {output_path}")
+            raise TestError(f"ERROR: cannot parse embedded initial_guess for {label}: {output_path} ({exc})") from exc
+        if not isinstance(initial_guess, dict) or set(initial_guess.keys()) != {"profiles"}:
+            raise TestError(f"ERROR: initial_guess should only contain profiles: {output_path}")
+        if not isinstance(initial_guess.get("profiles"), dict) or not initial_guess["profiles"]:
+            raise TestError(f"ERROR: initial_guess is missing profile data: {output_path}")
     return metrics, output_path
 
 
@@ -820,33 +849,29 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
     tests_dir = ctx.tests_dir
     output_dir = ctx.output_dir
 
-    seed_input = tests_dir / "micelle_guess_generate.in"
     search_input = tests_dir / "micelle_gc_search.in"
     utility = ctx.repo_root / "utils" / "micelle_gc_search.py"
 
     require_file(ctx.binary, executable=True)
-    require_file(seed_input)
     require_file(search_input)
     require_file(utility)
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     cleanup_targets: list[Path] = []
+    expected_x_range = (109.5, 110.5)
 
     try:
         def run_case(
             node: ReportNode,
-            seed_source: Path,
             require_initial_guess: bool,
-            expected_x_range: tuple[float, float],
             *,
-            utility_seed: Path | None = None,
             settings: dict[str, str] | None = None,
-        ) -> Path:
-            label = node.label
-            seed_runtime = output_dir / f"{seed_source.stem}_{label.replace(' ', '_')}_seed.in"
+        ) -> None:
+            case_name = node.label.replace(" ", "_")
+            seed_runtime = output_dir / f"{search_input.stem}_{case_name}_seed.in"
             seed_output = seed_runtime.with_suffix(".output.json")
-            search_runtime = output_dir / f"micelle_gc_search_{label.replace(' ', '_')}.in"
+            search_runtime = output_dir / f"micelle_gc_search_{case_name}.in"
             search_workdir = output_dir / search_runtime.stem
             summary_file = search_workdir / "summary.json"
             result_json = search_workdir / "result.output.json"
@@ -855,18 +880,15 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
             _, seed_output = _run_solver(
                 ctx,
                 node,
-                source_input=seed_source,
+                source_input=search_input,
                 runtime_input=seed_runtime,
                 solver_method="pseudohessian",
-                label=f"micelle gc seed generation ({label})",
+                label=f"micelle gc seed generation ({node.label})",
                 settings=settings,
                 require_initial_guess=require_initial_guess,
             )
-            seed_problem = json.loads(seed_output.read_text(encoding="utf-8"))["problems"][-1]
-            if require_initial_guess:
-                if "initial_guess" not in seed_problem:
-                    raise TestError(f"ERROR: missing embedded initial_guess in seed JSON: {seed_output}")
-            else:
+            if not require_initial_guess:
+                seed_problem = json.loads(seed_output.read_text(encoding="utf-8"))["problems"][-1]
                 if "initial_guess" in seed_problem:
                     raise TestError(f"ERROR: seed JSON unexpectedly contains embedded initial_guess: {seed_output}")
                 for key in ("method", "mx", "my", "mz", "fjc", "charged", "monlist", "statelist", "profiles"):
@@ -874,7 +896,6 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
                         raise TestError(f"ERROR: unexpected fallback seed field '{key}' in output JSON: {seed_output}")
 
             shutil.copy2(search_input, search_runtime)
-            seed_json = utility_seed if utility_seed is not None else seed_output
             metrics = run_command(
                 [
                     sys.executable,
@@ -885,7 +906,7 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
                     "--molecule",
                     "surf",
                     "--seed-json",
-                    str(seed_json),
+                    str(seed_output),
                     "--step",
                     "5",
                     "--workers",
@@ -900,7 +921,7 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
             )
             node.add_metric(metrics)
             if metrics.returncode != 0:
-                raise TestError(metrics.output.strip() or f"ERROR: external micelle GC search failed ({label})")
+                raise TestError(metrics.output.strip() or f"ERROR: external micelle GC search failed ({node.label})")
             if not summary_file.is_file():
                 raise TestError(f"ERROR: missing micelle GC summary: {summary_file}")
             if not result_json.is_file():
@@ -918,47 +939,25 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
             if not (expected_x_range[0] < x < expected_x_range[1]):
                 raise TestError(f"ERROR: micelle GC search returned unexpected aggregation number: n={x}")
 
-            payload = result_json.read_text(encoding="utf-8")
-            if '"initial_guess"' not in payload:
-                raise TestError(f"ERROR: result JSON does not contain embedded initial_guess: {result_json}")
-
             node.details = f"n={x:.6f}, gp={gp:.3e}"
-            return seed_output
-
-        embedded_seed_output: Path | None = None
 
         pseudo_gen_leaf = ReportNode(label="embedded initial_guess seed")
         root.children.append(pseudo_gen_leaf)
         try:
-            embedded_seed_output = run_case(
+            run_case(
                 pseudo_gen_leaf,
-                seed_input,
                 True,
-                (111.0, 114.0),
+                settings={"sys : noname : write_initial_guess": "true"},
             )
         except Exception as exc:
             _set_failure(pseudo_gen_leaf, exc)
 
-        pseudo_use_leaf = ReportNode(label="u-profile no auto seed")
+        pseudo_use_leaf = ReportNode(label="u-profile seed")
         root.children.append(pseudo_use_leaf)
         try:
-            if embedded_seed_output is None:
-                raise TestError("ERROR: skipped because embedded initial_guess seed generation failed")
-            # Build an explicit seed from the same search input before verifying the seedless output path.
-            explicit_seed_helper = ReportNode(label="explicit search seed helper", required_for_parent=False)
-            explicit_seed_output = run_case(
-                explicit_seed_helper,
-                search_input,
-                True,
-                (109.5, 110.5),
-                settings={"sys : noname : write_initial_guess": "true"},
-            )
             run_case(
                 pseudo_use_leaf,
-                search_input,
                 False,
-                (109.5, 110.5),
-                utility_seed=explicit_seed_output,
             )
         except Exception as exc:
             _set_failure(pseudo_use_leaf, exc)

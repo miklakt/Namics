@@ -604,7 +604,7 @@ def normalize_masks(
 
 
 def find_initial_guess_object(document: Any) -> dict[str, Any] | None:
-    if isinstance(document, dict) and all(key in document for key in ("metadata", "monlist", "statelist", "profiles")):
+    if isinstance(document, dict) and isinstance(document.get("profiles"), dict):
         return document
     if not isinstance(document, dict):
         return None

@@ -292,8 +292,7 @@ void Solve_scf::Copy(std::span<Real> x, std::span<const Real> X, int MX, int MY,
 	}
 }
 
-bool Solve_scf::Guess(std::span<const Real> X, std::string METHOD, std::vector<std::string> MONLIST, std::vector<std::string> STATELIST, bool CHARGED, int MX, int MY, int MZ,int fjc_old){
-	(void)METHOD;
+bool Solve_scf::Guess(std::span<const Real> X, std::vector<std::string> MONLIST, std::vector<std::string> STATELIST, bool CHARGED, int MX, int MY, int MZ,int fjc_old){
 	NAMICS_DBG( "Guess in Solve" << std::endl);
 	int M=lat->M;
 	bool success=true;

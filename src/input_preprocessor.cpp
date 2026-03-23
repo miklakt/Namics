@@ -543,15 +543,8 @@ bool HasMaskSettings(const json& problem) {
 
 bool IsInitialGuessPayload(const json& document) {
 	return document.is_object() &&
-		document.contains("method") &&
-		document.contains("mx") &&
-		document.contains("my") &&
-		document.contains("mz") &&
-		document.contains("fjc") &&
-		document.contains("charged") &&
-		document.contains("monlist") &&
-		document.contains("statelist") &&
-		document.contains("profiles");
+		document.contains("profiles") &&
+		document.at("profiles").is_object();
 }
 
 const json* FindInitialGuessObject(const json& document) {

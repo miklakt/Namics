@@ -52,8 +52,10 @@ The script needs:
 - a single-problem search template
 - `--molecule`
 - either `--seed-json` or `--seed-input`
+- `--seed-json` must point to a JSON file with embedded `initial_guess`
 
 The system name is taken from the input if present, otherwise `noname` is used. The work directory is always `output/<input_stem>/`.
+The `--seed-input` file is copied into a temporary seed run without extra edits.
 
 Generate the first seed from an input:
 
@@ -92,19 +94,17 @@ The search template may end with a single trailing `start`. Any other `start` la
 
 ## Search Procedure
 
-1. The script gets the first `initial_guess` by copying `--seed-json` or by running `--seed-input` once.
+1. The script gets the initial guess from `--seed-json` or by running `--seed-input` once as provided.
 2. It takes the first search value from `--initial`, otherwise from `mol : <molecule> : <quantity>` in the search template.
 3. Each evaluation writes a small runtime input, asks NAMICS to emit `json : sys : <system> : grand_potential`, and reads `problems[-1]["sys_<system>_grand_potential"]` from the JSON output.
-4. After every evaluation it promotes the best JSON file to `current_seed.output.json`, so the next outer iteration starts from the best available guess.
-5. It expands left and right until the residual changes sign, then refines the bracket with a safeguarded false-position step and midpoint fallback.
-6. It stops when `abs(grand_potential) <= gp_tol` or the bracket becomes very small.
+4. It expands left and right until the residual changes sign, then refines the bracket with a safeguarded false-position step and midpoint fallback.
+5. It stops when `abs(grand_potential) <= gp_tol` or the bracket becomes very small.
 
 ## Files Written
 
 The work directory is `output/<input_stem>/`. The script keeps:
 
 - `history.tsv`
-- `current_seed.output.json`
 - `result.in`
 - `result.output.json`
 - `summary.json`

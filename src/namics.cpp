@@ -62,7 +62,6 @@ int main(int argc, char *argv[])
 	int start = 0;
 	int n_starts = 0;
 
-	std::string METHOD = "";
 	std::vector<Real> X;
 	int MX = 0, MY = 0, MZ = 0;
 	int fjc_old = 0;
@@ -187,38 +186,16 @@ int main(int argc, char *argv[])
 		{
 			MONLIST.clear();
 			STATELIST.clear();
-			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>{}, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 0))
-			{
-				return 1;
-			}
-			int nummon = MONLIST.size();
-			int numstate = STATELIST.size();
-			int m;
-			if (MY == 0) m = MX + 2*fjc_old;
-			else {
-				if (MZ == 0) {
-					m = (MX + 2*fjc_old) * (MY + 2*fjc_old);
-				} else {
-					m = (MX + 2*fjc_old) * (MY + 2*fjc_old) * (MZ + 2*fjc_old);
-				}
-			}
-			int IV = (nummon + numstate) * m;
-
-			if (CHARGED)
-				IV += m;
+			for (const int mon_index : Sys->ItMonList) MONLIST.push_back(Seg[mon_index]->name);
+			for (const int state_index : Sys->ItStateList) STATELIST.push_back(Sta[state_index]->name);
+			CHARGED = Sys->charged;
+			const int IV = static_cast<int>(MONLIST.size() + STATELIST.size() + (CHARGED ? 1 : 0)) * Lat->M;
 			X.resize(IV);
-			MONLIST.clear();
-			STATELIST.clear();
-			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>(X), METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old, 1)) {
+			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>(X), MONLIST, STATELIST, CHARGED)) {
 				return 1;
 			}
 		}
 
-		int IV_new=0;
-		int substart = 0;
-		int subloop = 0;
-		int mon_length;
-		int state_length;
 		// Prepare and create output class instance.
 		Out.reset();
 		if (In->OutputList.empty()) {
@@ -231,73 +208,39 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		while (subloop <= substart)
-		{
-			Sys->MakeItsLists();
+		Sys->MakeItsLists();
+		New->AllocateMemory();
 
-				New->AllocateMemory();
-
-				if (Sys->initial_guess != "none" && !X.empty())
-				New->Guess(X, METHOD, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
-
-				if (!New->Solve(true)) return 1;
-
-				if (Sys->initial_guess == "previous_result" || Sys->initial_guess == "file") {
-					if (New->iv == IV_new) {
-						std::copy_n(New->xx.begin(), IV_new, X.begin());
-					} else {
-						IV_new=New->iv;
-						X.resize(IV_new);
-						std::copy_n(New->xx.begin(), IV_new, X.begin());
-						MX=Lat->MX;
-						MY=Lat->MY;
-						MZ=Lat->MZ;
-						fjc_old=Lat->fjc;
-						mon_length = Sys->ItMonList.size();
-						state_length = Sys->ItStateList.size();
-						MONLIST.clear();
-						STATELIST.clear();
-						for (int i = 0; i < mon_length; i++)
-						{
-							MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
-						}
-						for (int i = 0; i < state_length; i++)
-						{
-							STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
-						}
-					}
+		if (!X.empty()) {
+			if (Sys->initial_guess == "file") {
+				if (static_cast<int>(X.size()) != New->iv) {
+					std::cout << "Input initial_guess size does not match the current system." << std::endl;
+					return 1;
 				}
-				New->PushOutput();
-
-				if (Out) Out->WriteOutput(subloop);
-
-
-				subloop++;
+				std::copy_n(X.begin(), New->iv, New->xx.begin());
+			} else if (Sys->initial_guess != "none") {
+				New->Guess(X, MONLIST, STATELIST, CHARGED, MX, MY, MZ, fjc_old);
 			}
+		}
 
-		if (Sys->initial_guess == "previous_result"|| Sys->initial_guess == "file")
+		if (!New->Solve(true)) return 1;
+		New->PushOutput();
+
+		if (Out) Out->WriteOutput(0);
+
+		if (Sys->initial_guess == "previous_result")
 		{
-			METHOD = New->SCF_method;
 			MX = Lat->MX;
 			MY = Lat->MY;
 			MZ = Lat->MZ;
 			CHARGED = Sys->charged;
-			IV_new = New->iv;
-			X.resize(IV_new);
-			std::copy_n(New->xx.begin(), IV_new, X.begin());
+			X.resize(New->iv);
+			std::copy_n(New->xx.begin(), New->iv, X.begin());
 			fjc_old = Lat->fjc;
-			mon_length = Sys->ItMonList.size();
-			state_length = Sys->ItStateList.size();
 			MONLIST.clear();
 			STATELIST.clear();
-			for (int i = 0; i < mon_length; i++)
-			{
-				MONLIST.push_back(Seg[Sys->ItMonList[i]]->name);
-			}
-			for (int i = 0; i < state_length; i++)
-			{
-				STATELIST.push_back(Sta[Sys->ItStateList[i]]->name);
-			}
+			for (const int mon_index : Sys->ItMonList) MONLIST.push_back(Seg[mon_index]->name);
+			for (const int state_index : Sys->ItStateList) STATELIST.push_back(Sta[state_index]->name);
 		}
 		/******** Clear all class instances ********/
 
