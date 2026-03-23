@@ -120,13 +120,43 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		filename = In->GetOutputPath() + base_name + ".output.json";
 	}
 
-	std::vector<std::span<Real>> profile_pointer;
-	std::vector<std::string> profile_header;
-	std::vector<std::pair<std::string, json>> scalar_values;
-	auto write_ranked_profile = [&](const std::string& label, const Molecule& mol) {
+	json problem = {
+		{"problem", start},
+		{"name", base_name}
+	};
+	const int a = write_bounds ? 0 : lat->fjc;
+	auto write_profile_json = [&](std::span<const Real> profile) {
+		json out = json::array();
+		switch (lat->gradients) {
+			case 1:
+				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) out.push_back(profile[x]);
+				break;
+			case 2:
+				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) {
+					json row = json::array();
+					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) row.push_back(profile[lat->P(x, y)]);
+					out.push_back(std::move(row));
+				}
+				break;
+			case 3:
+				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) {
+					json plane = json::array();
+					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) {
+						json row = json::array();
+						for (int z = a; z < lat->MZ + 2 * lat->fjc - a; ++z) row.push_back(profile[lat->P(x, y, z)]);
+						plane.push_back(std::move(row));
+					}
+					out.push_back(std::move(plane));
+				}
+				break;
+			default:
+				break;
+		}
+		return out;
+	};
+	auto write_ranked_profile = [&](const Molecule& mol) {
 		const int M = lat->M;
 		const int ranks = mol.chainlength;
-		const int a = write_bounds ? 0 : lat->fjc;
 		json ranked = json::array();
 		for (int r = 0; r < ranks; ++r) {
 			json rank = json::array();
@@ -153,24 +183,18 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 			}
 			ranked.push_back(std::move(rank));
 		}
-		scalar_values.push_back({label, std::move(ranked)});
+		return ranked;
 	};
-	json restart = {{"method", New->SCF_method},
-	                {"mx", lat->MX},
-	                {"my", lat->MY},
-	                {"mz", lat->MZ},
-	                {"fjc", lat->fjc},
-	                {"charged", false},
-	                {"monlist", json::array()},
-	                {"statelist", json::array()},
-	                {"profiles", json::object()}};
+	bool has_profile_output = false;
+	auto emit_output = [&](const std::string& key, const std::string& item_name, const std::string& item_prop, json value) {
+		problem[key][item_name][item_prop] = std::move(value);
+	};
 	for (const auto& item : items) {
 		const std::string key = item.value("key", "");
 		const std::string item_name = item.value("name", "");
 		const std::string item_prop = item.value("prop", "");
 		std::string label = key;
 		label.append(sep).append(item_name).append(sep).append(item_prop);
-		const std::string& value_key = item_prop;
 
 		const ParameterStore* source = nullptr;
 		int source_index = -1;
@@ -184,18 +208,18 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		if (key == "reaction" && ContainsValue(In->ReactionList, item_name, &source_index)) source = &Rea[source_index]->OUTPUT;
 		if (source == nullptr) {
 			std::cout << "Warning: unable to resolve json output quantity '" << label << "'" << std::endl;
-			scalar_values.push_back({label, nullptr});
+			emit_output(key, item_name, item_prop, nullptr);
 			continue;
 		}
 
-		auto value_it = source->find(value_key);
+		auto value_it = source->find(item_prop);
 		if (value_it == source->end()) {
 			std::cout << "Warning: unable to resolve json output quantity '" << label << "'" << std::endl;
-			scalar_values.push_back({label, nullptr});
+			emit_output(key, item_name, item_prop, nullptr);
 			continue;
 		}
 
-		std::span<Real> profile;
+		std::span<const Real> profile;
 		if (value_it->is_object() && value_it->contains("profile")) {
 			const int profile_id = value_it->at("profile").get<int>();
 			if (key == "sys") profile = Sys->GetPointer(profile_id);
@@ -206,33 +230,20 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		}
 		if (value_it->is_object() && value_it->contains("ranked_profile")) {
 			if (key == "mol" && source_index >= 0 && item_prop == "phi_ranked") {
-				write_ranked_profile(label, *Mol[source_index]);
+				emit_output(key, item_name, item_prop, write_ranked_profile(*Mol[source_index]));
 				continue;
 			}
 		}
 
 		if (!profile.empty()) {
-			if (key == "mon" && item_prop == "u") {
-				restart["monlist"].push_back(item_name);
-				restart["profiles"]["mon:" + item_name] = std::vector<Real>(profile.begin(), profile.end());
-			}
-			if (key == "state" && item_prop == "u") {
-				restart["statelist"].push_back(item_name);
-				restart["profiles"]["state:" + item_name] = std::vector<Real>(profile.begin(), profile.end());
-			}
-			if (key == "sys" && item_prop == "psi") {
-				restart["charged"] = true;
-				restart["profiles"]["psi"] = std::vector<Real>(profile.begin(), profile.end());
-			}
-			profile_pointer.push_back(profile);
-			profile_header.push_back(label);
+			emit_output(key, item_name, item_prop, write_profile_json(profile));
+			has_profile_output = true;
 			continue;
 		}
 
-		scalar_values.push_back({label, *value_it});
-	}
+		emit_output(key, item_name, item_prop, *value_it);
+	};
 
-	const int a = write_bounds ? 0 : lat->fjc;
 	const Real inv_fjc = static_cast<Real>(1.0) / static_cast<Real>(lat->fjc);
 	const auto coord_x = [&](int x) -> Real {
 		return lat->offset_first_layer * inv_fjc + static_cast<Real>(x - lat->fjc + 1) * inv_fjc - static_cast<Real>(0.5) * inv_fjc;
@@ -244,59 +255,8 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		return static_cast<Real>(z - lat->fjc + 1) * inv_fjc - static_cast<Real>(0.5) * inv_fjc;
 	};
 
-	std::vector<std::string> column_names;
-	std::vector<std::vector<Real>> column_values;
-	if (!profile_pointer.empty()) {
-		if (lat->gradients >= 1) {
-			column_names.push_back("x");
-			column_values.emplace_back();
-		}
-		if (lat->gradients >= 2) {
-			column_names.push_back("y");
-			column_values.emplace_back();
-		}
-		if (lat->gradients >= 3) {
-			column_names.push_back("z");
-			column_values.emplace_back();
-		}
-		for (size_t i = 0; i < profile_header.size(); ++i) {
-			column_names.push_back(profile_header[i]);
-			column_values.emplace_back();
-		}
-	}
-
-	auto append_row = [&](Real x, Real y, Real z, int index) {
-		size_t c = 0;
-		if (lat->gradients >= 1) column_values[c++].push_back(x);
-		if (lat->gradients >= 2) column_values[c++].push_back(y);
-		if (lat->gradients >= 3) column_values[c++].push_back(z);
-		for (size_t i = 0; i < profile_pointer.size(); ++i) column_values[c++].push_back(profile_pointer[i][index]);
-	};
-
-	if (!profile_pointer.empty()) {
-		switch (lat->gradients) {
-			case 1:
-				for (int x = a; x < lat->MX + 2 * lat->fjc - a; x++) append_row(coord_x(x), 0, 0, x);
-				break;
-			case 2:
-				for (int x = a; x < lat->MX + 2 * lat->fjc - a; x++) {
-					for (int y = a; y < lat->MY + 2 * lat->fjc - a; y++) append_row(coord_x(x), coord_y(y), 0, lat->P(x, y));
-				}
-				break;
-			case 3:
-				for (int x = a; x < lat->MX + 2 * lat->fjc - a; x++) {
-					for (int y = a; y < lat->MY + 2 * lat->fjc - a; y++) {
-						for (int z = a; z < lat->MZ + 2 * lat->fjc - a; z++) append_row(coord_x(x), coord_y(y), coord_z(z), lat->P(x, y, z));
-					}
-				}
-				break;
-			default:
-				break;
-		}
-	}
-
-	json initial_guess;
 	if (Sys->write_initial_guess) {
+		json initial_guess;
 		std::vector<std::string> guess_monlist;
 		std::vector<std::string> guess_statelist;
 		const int mon_length = Sys->ItMonList.size();
@@ -333,26 +293,43 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 			}
 			if (Sys->charged) initial_guess["profiles"]["psi"] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
 		}
+		if (!initial_guess.is_null()) problem["initial_guess"] = std::move(initial_guess);
 	}
 
-	json problem = {
-		{"problem", start},
-		{"name", base_name}
-	};
-	const bool wrote_initial_guess = !initial_guess.is_null();
-	for (size_t i = 0; i < scalar_values.size(); ++i) problem[scalar_values[i].first] = std::move(scalar_values[i].second);
-	for (size_t i = 0; i < column_names.size(); ++i) problem[column_names[i]] = column_values[i];
-	if (wrote_initial_guess) problem["initial_guess"] = std::move(initial_guess);
-	if (!wrote_initial_guess && !restart["profiles"].empty()) {
-		problem["method"] = std::move(restart["method"]);
-		problem["mx"] = std::move(restart["mx"]);
-		problem["my"] = std::move(restart["my"]);
-		problem["mz"] = std::move(restart["mz"]);
-		problem["fjc"] = std::move(restart["fjc"]);
-		problem["charged"] = std::move(restart["charged"]);
-		problem["monlist"] = std::move(restart["monlist"]);
-		problem["statelist"] = std::move(restart["statelist"]);
-		problem["profiles"] = std::move(restart["profiles"]);
+	if (has_profile_output) {
+		std::vector<Real> x_values;
+		std::vector<Real> y_values;
+		std::vector<Real> z_values;
+		switch (lat->gradients) {
+			case 1:
+				x_values.reserve(static_cast<size_t>(lat->MX + 2 * lat->fjc - 2 * a));
+				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) x_values.push_back(coord_x(x));
+				break;
+			case 2:
+				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) {
+					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) {
+						x_values.push_back(coord_x(x));
+						y_values.push_back(coord_y(y));
+					}
+				}
+				break;
+			case 3:
+				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) {
+					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) {
+						for (int z = a; z < lat->MZ + 2 * lat->fjc - a; ++z) {
+							x_values.push_back(coord_x(x));
+							y_values.push_back(coord_y(y));
+							z_values.push_back(coord_z(z));
+						}
+					}
+				}
+				break;
+			default:
+				break;
+		}
+		problem["x"] = std::move(x_values);
+		if (lat->gradients >= 2) problem["y"] = std::move(y_values);
+		if (lat->gradients >= 3) problem["z"] = std::move(z_values);
 	}
 
 	json metadata = {

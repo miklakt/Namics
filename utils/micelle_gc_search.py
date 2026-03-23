@@ -38,7 +38,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--quantity", default="n", choices=("n", "theta", "phibulk"), help="Molecule quantity.")
     parser.add_argument("--initial", type=float, default=None, help="Initial search value.")
     parser.add_argument("--seed-json", type=Path, default=None, help="JSON file with embedded initial_guess.")
-    parser.add_argument("--seed-input", type=Path, default=None, help="Input used once to generate the first seed.")
+    parser.add_argument("--seed-input", type=Path, default=None, help="Input used once to generate the first seed, copied as-is.")
     parser.add_argument("--step", type=float, default=None, help="Initial bracketing step.")
     parser.add_argument("--workers", type=int, default=1, help="Parallel workers for bracket probes.")
     parser.add_argument("--max-iter", type=int, default=10, help="Maximum polishing iterations.")
@@ -116,40 +116,24 @@ def _read_last_problem(path: Path) -> dict:
     return problems[-1]
 
 
-def _prepare_seed_from_input(binary: Path, seed_input: Path, workdir: Path, fallback_system: str) -> Path:
+def _nested_value(node: dict, *path: str):
+    for key in path:
+        if not isinstance(node, dict) or key not in node:
+            return None
+        node = node[key]
+    return node
+
+
+def _prepare_seed_from_input(binary: Path, seed_input: Path, workdir: Path) -> Path:
     seed_input = seed_input.resolve()
     if not seed_input.is_file():
         raise SystemExit(f"seed input not found: {seed_input}")
-
-    seed_source = seed_input.read_text(encoding="utf-8")
-    system = fallback_system
-    for line in seed_source.splitlines():
-        compact = line.split("//", 1)[0].replace(" ", "").replace("\t", "").strip()
-        if not compact:
-            continue
-        parts = compact.split(":")
-        if len(parts) == 4 and parts[0].lower() == "sys":
-            system = parts[1]
-            break
 
     seed_dir = workdir / "seed"
     runtime_input = seed_dir / "seed.in"
     output_json = runtime_input.with_suffix(".output.json")
     runtime_input.parent.mkdir(parents=True, exist_ok=True)
-    runtime_input.write_text(
-        seed_source.rstrip()
-        + "\n"
-        + "\n".join(
-            [
-                "output : json : append : false",
-                "output : json : header_separator : _",
-                "output : json : filename : seed",
-                f"sys : {system} : write_initial_guess : true",
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    shutil.copy2(seed_input, runtime_input)
 
     output, returncode, wall_s = _run_namics(binary, runtime_input)
     if returncode != 0:
@@ -206,14 +190,14 @@ def _evaluate_once(
         raise RuntimeError(f"NAMICS did not create {output_json} for x={x}")
 
     problem = _read_last_problem(output_json)
-    key = f"sys_{system}_grand_potential"
-    if key not in problem:
-        raise ValueError(f"JSON output does not contain '{key}': {output_json}")
+    value = _nested_value(problem, "sys", system, "grand_potential")
+    if value is None:
+        raise ValueError(f"JSON output does not contain 'sys.{system}.grand_potential': {output_json}")
 
     try:
-        grand_potential = float(problem[key])
+        grand_potential = float(value)
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"invalid '{key}' value in {output_json}") from exc
+        raise ValueError(f"invalid 'sys.{system}.grand_potential' value in {output_json}") from exc
 
     return EvalResult(
         x=x,
@@ -330,7 +314,7 @@ def main() -> int:
         print(f"seed copied -> {current_seed}")
     elif args.seed_input is not None:
         current_seed = seed_file
-        shutil.copy2(_prepare_seed_from_input(args.binary, args.seed_input, workdir, system), current_seed)
+        shutil.copy2(_prepare_seed_from_input(args.binary, args.seed_input, workdir), current_seed)
 
     initial = args.initial if args.initial is not None else template_initial
     step = args.step if args.step is not None else max(1.0, 0.05 * abs(initial))

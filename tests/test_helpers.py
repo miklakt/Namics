@@ -147,57 +147,101 @@ def _as_problem_object(data: Any, path: Path) -> dict[str, Any]:
     return data
 
 
-def _extract_numeric_arrays(obj: dict[str, Any]) -> dict[str, list[float]]:
-    arrays: dict[str, list[float]] = {}
-    for key, value in obj.items():
-        if not isinstance(value, list) or not value:
-            continue
-        numeric: list[float] = []
-        ok = True
-        for item in value:
-            if isinstance(item, (dict, list, tuple)):
-                ok = False
-                break
-            try:
-                numeric.append(float(item))
-            except (TypeError, ValueError):
-                ok = False
-                break
-        if ok:
-            arrays[str(key)] = numeric
-    return arrays
-
-
 def compare_json_profiles(left_path: Path, right_path: Path, coord_tol: float, value_tol: float) -> None:
-    """Compare numeric array columns extracted from NAMICS JSON outputs."""
+    """Compare nested JSON profiles without flattening the object tree."""
     left_data = _as_problem_object(_read_json(left_path), left_path)
     right_data = _as_problem_object(_read_json(right_path), right_path)
-    left = _extract_numeric_arrays(left_data)
-    right = _extract_numeric_arrays(right_data)
+    left_data = {key: value for key, value in left_data.items() if key != "initial_guess"}
+    right_data = {key: value for key, value in right_data.items() if key != "initial_guess"}
+    path_key = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-    required_tol = 0.0
+    def render_path(path: list[str]) -> str:
+        out = ""
+        for part in path:
+            if part.isdigit():
+                out += f"[{part}]"
+            elif path_key.match(part):
+                out += f".{part}" if out else part
+            else:
+                out += f"[{json.dumps(part)}]"
+        return out or "<root>"
 
-    for key, left_col in left.items():
-        if key not in right:
-            raise TestError(f"ERROR: output is missing column: {key}")
-        right_col = right[key]
-        if len(left_col) != len(right_col):
-            raise TestError(
-                f"ERROR: row count mismatch for column {key} "
-                f"({left_path}: {len(left_col)}, {right_path}: {len(right_col)})"
+    def numeric_list(values: list[Any]) -> list[float] | None:
+        out: list[float] = []
+        for item in values:
+            if isinstance(item, (dict, list, tuple)):
+                return None
+            try:
+                out.append(float(item))
+            except (TypeError, ValueError):
+                return None
+        return out
+
+    def meaningful(value: Any) -> bool:
+        if isinstance(value, dict):
+            return any(meaningful(child) for child in value.values())
+        if isinstance(value, list):
+            return numeric_list(value) is not None or any(
+                meaningful(child) for child in value if isinstance(child, (dict, list))
             )
-        tol = coord_tol if key in {"x", "y", "z"} else value_tol
-        for lv, rv in zip(left_col, right_col):
-            diff = abs(lv - rv)
-            if diff > tol:
-                required_tol = max(required_tol, diff)
+        return False
 
-    for key in right:
-        if key not in left:
-            raise TestError(f"ERROR: reference is missing column: {key}")
+    def walk(left: Any, right: Any, path: list[str], label: str | None) -> None:
+        if isinstance(left, dict) and isinstance(right, dict):
+            for key in left.keys() | right.keys():
+                left_value = left.get(key)
+                right_value = right.get(key)
+                left_meaningful = meaningful(left_value)
+                right_meaningful = meaningful(right_value)
+                if not left_meaningful and not right_meaningful:
+                    continue
+                if not left_meaningful or not right_meaningful:
+                    raise TestError(f"ERROR: structure mismatch at {render_path(path + [key])}")
+                walk(left_value, right_value, path + [key], key)
+            return
+        if isinstance(left, list) and isinstance(right, list):
+            left_numbers = numeric_list(left)
+            right_numbers = numeric_list(right)
+            if left_numbers is not None and right_numbers is not None:
+                if len(left_numbers) != len(right_numbers):
+                    raise TestError(
+                        f"ERROR: row count mismatch for column {render_path(path)} "
+                        f"({left_path}: {len(left_numbers)}, {right_path}: {len(right_numbers)})"
+                    )
+                tol = coord_tol if label in {"x", "y", "z"} else value_tol
+                max_diff = 0.0
+                for lv, rv in zip(left_numbers, right_numbers):
+                    diff = abs(lv - rv)
+                    if diff > max_diff:
+                        max_diff = diff
+                    if diff > tol:
+                        raise TestError(
+                            f"ERROR: numerical drift at {render_path(path)} "
+                            f"(max diff {max_diff:.3e} > tol {tol:.3e})"
+                        )
+                return
+            left_meaningful = meaningful(left)
+            right_meaningful = meaningful(right)
+            if not left_meaningful and not right_meaningful:
+                return
+            if not left_meaningful or not right_meaningful:
+                raise TestError(f"ERROR: structure mismatch at {render_path(path)}")
+            if any(isinstance(item, (dict, list)) for item in left) or any(
+                isinstance(item, (dict, list)) for item in right
+            ):
+                if len(left) != len(right):
+                    raise TestError(
+                        f"ERROR: row count mismatch for column {render_path(path)} "
+                        f"({left_path}: {len(left)}, {right_path}: {len(right)})"
+                    )
+                for idx, (left_item, right_item) in enumerate(zip(left, right)):
+                    if not meaningful(left_item) and not meaningful(right_item):
+                        continue
+                    if not meaningful(left_item) or not meaningful(right_item):
+                        raise TestError(f"ERROR: structure mismatch at {render_path(path + [str(idx)])}")
+                    walk(left_item, right_item, path + [str(idx)], label)
 
-    if required_tol > 0:
-        raise TestError(f"numerical drift, failed at tol < {required_tol}")
+    walk(left_data, right_data, [], None)
 
 
 def run_command(cmd: list[str], cwd: Path, quiet: bool = True) -> CommandMetrics:

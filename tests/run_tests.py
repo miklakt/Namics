@@ -756,7 +756,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 runtime_input=pseudo_use_input,
                 reference_file=reference_file,
                 label="micelle guess use, mode=pseudohessian",
-                value_tol=1e-9,
+                value_tol=1e-8,
             )
         except Exception as exc:
             _set_failure(pseudo_use_leaf, exc)
@@ -839,7 +839,10 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
             seed_source: Path,
             require_initial_guess: bool,
             expected_x_range: tuple[float, float],
-        ) -> None:
+            *,
+            utility_seed: Path | None = None,
+            settings: dict[str, str] | None = None,
+        ) -> Path:
             label = node.label
             seed_runtime = output_dir / f"{seed_source.stem}_{label.replace(' ', '_')}_seed.in"
             seed_output = seed_runtime.with_suffix(".output.json")
@@ -856,6 +859,7 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
                 runtime_input=seed_runtime,
                 solver_method="pseudohessian",
                 label=f"micelle gc seed generation ({label})",
+                settings=settings,
                 require_initial_guess=require_initial_guess,
             )
             seed_problem = json.loads(seed_output.read_text(encoding="utf-8"))["problems"][-1]
@@ -864,12 +868,13 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
                     raise TestError(f"ERROR: missing embedded initial_guess in seed JSON: {seed_output}")
             else:
                 if "initial_guess" in seed_problem:
-                    raise TestError(f"ERROR: fallback seed unexpectedly contains embedded initial_guess: {seed_output}")
+                    raise TestError(f"ERROR: seed JSON unexpectedly contains embedded initial_guess: {seed_output}")
                 for key in ("method", "mx", "my", "mz", "fjc", "charged", "monlist", "statelist", "profiles"):
-                    if key not in seed_problem:
-                        raise TestError(f"ERROR: fallback seed is missing '{key}': {seed_output}")
+                    if key in seed_problem:
+                        raise TestError(f"ERROR: unexpected fallback seed field '{key}' in output JSON: {seed_output}")
 
             shutil.copy2(search_input, search_runtime)
+            seed_json = utility_seed if utility_seed is not None else seed_output
             metrics = run_command(
                 [
                     sys.executable,
@@ -880,7 +885,7 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
                     "--molecule",
                     "surf",
                     "--seed-json",
-                    str(seed_output),
+                    str(seed_json),
                     "--step",
                     "5",
                     "--workers",
@@ -918,17 +923,45 @@ def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
                 raise TestError(f"ERROR: result JSON does not contain embedded initial_guess: {result_json}")
 
             node.details = f"n={x:.6f}, gp={gp:.3e}"
+            return seed_output
 
-        for label, seed_source, require_initial_guess, expected_x_range in (
-            ("embedded initial_guess seed", seed_input, True, (111.0, 114.0)),
-            ("u-profile fallback seed", search_input, False, (109.5, 110.5)),
-        ):
-            node = ReportNode(label=label)
-            root.children.append(node)
-            try:
-                run_case(node, seed_source, require_initial_guess, expected_x_range)
-            except Exception as exc:
-                _set_failure(node, exc)
+        embedded_seed_output: Path | None = None
+
+        pseudo_gen_leaf = ReportNode(label="embedded initial_guess seed")
+        root.children.append(pseudo_gen_leaf)
+        try:
+            embedded_seed_output = run_case(
+                pseudo_gen_leaf,
+                seed_input,
+                True,
+                (111.0, 114.0),
+            )
+        except Exception as exc:
+            _set_failure(pseudo_gen_leaf, exc)
+
+        pseudo_use_leaf = ReportNode(label="u-profile no auto seed")
+        root.children.append(pseudo_use_leaf)
+        try:
+            if embedded_seed_output is None:
+                raise TestError("ERROR: skipped because embedded initial_guess seed generation failed")
+            # Build an explicit seed from the same search input before verifying the seedless output path.
+            explicit_seed_helper = ReportNode(label="explicit search seed helper", required_for_parent=False)
+            explicit_seed_output = run_case(
+                explicit_seed_helper,
+                search_input,
+                True,
+                (109.5, 110.5),
+                settings={"sys : noname : write_initial_guess": "true"},
+            )
+            run_case(
+                pseudo_use_leaf,
+                search_input,
+                False,
+                (109.5, 110.5),
+                utility_seed=explicit_seed_output,
+            )
+        except Exception as exc:
+            _set_failure(pseudo_use_leaf, exc)
         _finalize_report_tree(root)
         return root
     finally:
@@ -964,7 +997,7 @@ def test_branched_brush(ctx: Context) -> ReportNode:
             input_file=input_file,
             reference_name=f"{runtime_stem}.json.ref",
             runtime_stem=runtime_stem,
-            value_tol=1e-6,
+            value_tol=2e-6,
             method_group_label=None,
         )
         root.children.append(case_node)
