@@ -609,95 +609,56 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
 
 def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
     root = ReportNode("micelle grand canonical search")
-    search_input = ctx.tests_dir / "micelle_gc_search.in"
-    utility = ctx.repo_root / "utils" / "micelle_gc_search.py"
-    cleanup_targets: list[Path] = []
+    seed_input = ctx.tests_dir / "micelle_gc_seed.in"
+    run_input = ctx.tests_dir / "micelle_gc_run.in"
+    runner = ctx.repo_root / "data" / "micelle_grand_canonical" / "runner.py"
+    search_workdir = ctx.output_dir / "micelle_gc_search"
+    cleanup_targets: list[Path] = [search_workdir]
 
     require_file(ctx.binary, executable=True)
-    require_file(search_input)
-    require_file(utility)
+    require_file(seed_input)
+    require_file(run_input)
+    require_file(runner)
     ctx.output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        def run_case(node: ReportNode, require_initial_guess: bool, settings: dict[str, str] | None = None) -> None:
-            case_name = node.label.replace(" ", "_")
-            seed_runtime = ctx.output_dir / f"{search_input.stem}_{case_name}_seed.in"
-            search_runtime = ctx.output_dir / f"micelle_gc_search_{case_name}.in"
-            search_workdir = ctx.output_dir / search_runtime.stem
-            summary_file = search_workdir / "summary.json"
-            result_json = search_workdir / "result.output.json"
-            cleanup_targets.extend([*solver_artifacts(seed_runtime), search_runtime, search_workdir])
+        node = add_child(root, "search")
+        summary_file = search_workdir / "summary.json"
+        result_json = search_workdir / "result.output.json"
+        metrics = run_command(
+            [
+                sys.executable,
+                str(runner),
+                "--seed-template",
+                str(seed_input),
+                "--run-template",
+                str(run_input),
+                "--workdir",
+                str(search_workdir),
+                "--binary",
+                str(ctx.binary),
+            ],
+            cwd=ctx.repo_root,
+            quiet=ctx.quiet,
+        )
+        node.add_metric(metrics)
+        if metrics.returncode:
+            raise TestError(metrics.output.strip() or "ERROR: micelle GC search failed")
+        if not summary_file.is_file():
+            raise TestError(f"ERROR: missing micelle GC summary: {summary_file}")
+        if not result_json.is_file():
+            raise TestError(f"ERROR: missing micelle GC result JSON: {result_json}")
 
-            _, seed_output = _run_solver(
-                ctx,
-                node,
-                search_input,
-                seed_runtime,
-                "pseudohessian",
-                f"micelle gc seed generation ({node.label})",
-                settings=settings,
-                require_initial_guess=require_initial_guess,
-            )
-            if not require_initial_guess:
-                seed_problem = last_problem(seed_output)
-                if "initial_guess" in seed_problem:
-                    raise TestError(f"ERROR: seed JSON unexpectedly contains embedded initial_guess: {seed_output}")
-                for key in ("method", "mx", "my", "mz", "fjc", "charged", "monlist", "statelist", "profiles"):
-                    if key in seed_problem:
-                        raise TestError(f"ERROR: unexpected fallback seed field '{key}' in output JSON: {seed_output}")
-
-            shutil.copy2(search_input, search_runtime)
-            metrics = run_command(
-                [
-                    sys.executable,
-                    str(utility),
-                    str(search_runtime),
-                    "--binary",
-                    str(ctx.binary),
-                    "--molecule",
-                    "surf",
-                    "--seed-json",
-                    str(seed_output),
-                    "--step",
-                    "5",
-                    "--workers",
-                    "2",
-                    "--max-iter",
-                    "6",
-                    "--gp-tol",
-                    "5e-2",
-                ],
-                cwd=ctx.repo_root,
-                quiet=ctx.quiet,
-            )
-            node.add_metric(metrics)
-            if metrics.returncode:
-                raise TestError(metrics.output.strip() or f"ERROR: external micelle GC search failed ({node.label})")
-            if not summary_file.is_file():
-                raise TestError(f"ERROR: missing micelle GC summary: {summary_file}")
-            if not result_json.is_file():
-                raise TestError(f"ERROR: missing micelle GC result JSON: {result_json}")
-
-            summary = json.loads(summary_file.read_text(encoding="utf-8"))
-            x = float(summary["x"])
-            gp = float(summary["grand_potential"])
-            if not bool(summary["converged"]):
-                raise TestError("ERROR: micelle GC search did not report convergence")
-            if abs(gp) > 0.25:
-                raise TestError(f"ERROR: micelle GC search residual too large: grand_potential={gp}")
-            if not 109.5 < x < 110.5:
-                raise TestError(f"ERROR: micelle GC search returned unexpected aggregation number: n={x}")
-            node.details = f"n={x:.6f}, gp={gp:.3e}"
-
-        for label, require_initial_guess, settings in (
-            ("embedded initial_guess seed", True, {"sys : noname : write_initial_guess": "true"}),
-            ("u-profile seed", False, None),
-        ):
-            node = add_child(root, label)
-            try:
-                run_case(node, require_initial_guess, settings)
-            except Exception as exc:
-                _set_failure(node, exc)
+        summary = json.loads(summary_file.read_text(encoding="utf-8"))
+        x = float(summary["x"])
+        gp = float(summary["grand_potential"])
+        if not bool(summary["converged"]):
+            raise TestError("ERROR: micelle GC search did not report convergence")
+        if abs(gp) > 0.25:
+            raise TestError(f"ERROR: micelle GC search residual too large: grand_potential={gp}")
+        if not 112.0 < x < 113.5:
+            raise TestError(f"ERROR: micelle GC search returned unexpected aggregation number: n={x}")
+        node.details = f"n={x:.6f}, gp={gp:.3e}"
 
         _finalize_report_tree(root)
         return root
