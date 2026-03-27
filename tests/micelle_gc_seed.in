@@ -1,11 +1,12 @@
 // this file is used to generate initial guess as a seed for the next runs
-lat : sphere : n_layers : 50
+lat : sphere : n_layers : 300
 lat : sphere : lattice_type : hexagonal
 lat : sphere : geometry : spherical
 lat : sphere : gradients : 1
 lat : sphere : FJC_choices : 5
 
-mon : A : freedom : free
+mon : A : freedom : pinned
+mon : A : pinned_range : 1;28
 mon : B : freedom : free
 mon : W : freedom : free
 mon : A : chi_W : 2.0
@@ -15,13 +16,16 @@ mon : B : chi_W : 0
 mol : water : composition : (W)1
 mol : water : freedom : solvent
 
-mol : surf : composition : (B)100(A)100
+mol : surf : composition : (B)250(A)250
 mol : surf : freedom : restricted
 mol : surf : n : 50 //THIS IS WHAT WE ITERATE, LET US CALL IT X
 
 newton : isaac : tolerance : 1e-08
 newton : isaac : method : pseudohessian
 
+start
+
+mon : A : freedom : free
 output : json : append : false
 json : mon : W : u //THIS EMMITS U-PROFILE FOR INITIAL GUESS
 json : mon : B : u //THIS EMMITS U-PROFILE FOR INITIAL GUESS

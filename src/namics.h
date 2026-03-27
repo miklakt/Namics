@@ -22,6 +22,8 @@
 #include <memory>
 #include "debug_log.h"
 
+// #define LongReal
+
 using ParameterStore = nlohmann::ordered_json;
 //these are our options.
 #ifdef LongReal

@@ -137,9 +137,11 @@ def solve(
 
     def run_once(input_path: Path, payload: dict, x: float) -> tuple[float, Path]:
         nonlocal last_output_json
-        print(f"[micelle] evaluate x={x:.15g}", flush=True)
+        nonlocal evaluations
+
         set_x(payload["problems"][-1], x)
         write_json(input_path, payload)
+
         output_name = (
             payload["problems"][-1]
             .get("output", {})
@@ -147,28 +149,42 @@ def solve(
             .get("filename", input_path.stem)
         )
         output_json = input_path.parent / f"{output_name}.output.json"
-        proc = subprocess.run(
-            [str(binary.resolve()), str(input_path.resolve())],
-            cwd=str(workdir),
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        if proc.returncode != 0:
-            if proc.stdout:
-                print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n", flush=True)
-            raise subprocess.CalledProcessError(proc.returncode, proc.args, output=proc.stdout)
-        value = get_nested(read_json(output_json)["problems"][-1], fx_path)
-        if value is None:
-            raise ValueError(f"missing F(X) at {fx_path}")
-        last_output_json = output_json
-        return float(value), output_json
+
+        probe_count = 2
+        probe_values = []
+        for _ in range(probe_count):
+            proc = subprocess.run(
+                [str(binary.resolve()), str(input_path.resolve())],
+                cwd=str(workdir),
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            if proc.returncode != 0:
+                if proc.stdout:
+                    print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n", flush=True)
+                raise subprocess.CalledProcessError(proc.returncode, proc.args, output=proc.stdout)
+
+            value = get_nested(read_json(output_json)["problems"][-1], fx_path)
+            if value is None:
+                raise ValueError(f"missing F(X) at {fx_path}")
+
+            last_output_json = output_json
+            probe_values.append(float(value))
+
+        fx = float(np.mean(probe_values[1:]))
+        evaluations += 1
+        print(f"[micelle] iteration {evaluations}: x={x:.15g} fx={fx:.15g}", flush=True)
+        return fx, output_json
+
 
     evaluations = 0
-    last_output_json = seed_input.with_name(f"{seed_payload['problems'][-1].get('output', {}).get('json', {}).get('filename', seed_input.stem)}.output.json")
+    last_output_json = seed_input.with_name(
+        f"{seed_payload['problems'][-1].get('output', {}).get('json', {}).get('filename', seed_input.stem)}.output.json"
+    )
+
     seed_fx, seed_output = run_once(seed_input, seed_payload, float(seed_x))
-    evaluations += 1
     print(f"[micelle] seed f(x)={seed_fx:.15g}", flush=True)
 
     if method == "secant":
@@ -176,57 +192,109 @@ def solve(
             raise ValueError("secant method requires X0 and X1")
 
         def f(x: float) -> float:
-            nonlocal evaluations, run_payload
+            nonlocal run_payload
             fx, _ = run_once(run_input, run_payload, float(x))
-            evaluations += 1
             return fx
 
-        result = root_scalar(f, method="secant", x0=float(X0), x1=float(X1), xtol=xtol, rtol=rtol, maxiter=maxiter)
-        root = float(result.root)
-        fun = getattr(result, "fun", None)
-        fx = float(fun) if fun is not None else f(root)
-        return SearchResult(root, fx, evaluations, seed_output, last_output_json, "secant") if return_result else root
-
-    x0 = float(seed_x if X0 is None else X0)
-    x1 = float(x0 + 1.0 if X1 is None else X1)
-
-    f0 = seed_fx if x0 == float(seed_x) else run_once(run_input, run_payload, x0)[0]
-    evaluations += 0 if x0 == float(seed_x) else 1
-    if f0 == 0.0:
-        print(f"[micelle] converged at x={x0:.15g}", flush=True)
-        return SearchResult(x0, 0.0, evaluations, seed_output, last_output_json, "brentq") if return_result else x0
-
-    f1, _ = run_once(run_input, run_payload, x1)
-    evaluations += 1
-    print(f"[micelle] bracket start x0={x0:.15g} f0={f0:.15g} x1={x1:.15g} f1={f1:.15g}", flush=True)
-    for _ in range(maxiter):
-        if f0 * f1 < 0.0:
-            break
-        step = (x1 - x0) or (1.0 if x1 == 0.0 else abs(x1) * 0.5)
-        x0, f0 = x1, f1
-        x1 = x1 + step * 2.0
-        f1, _ = run_once(run_input, run_payload, x1)
-        evaluations += 1
-        print(f"[micelle] expand bracket x1={x1:.15g} f1={f1:.15g}", flush=True)
-    else:
         result = root_scalar(
-            lambda x: run_once(run_input, run_payload, float(x))[0],
+            f,
             method="secant",
-            x0=x0,
-            x1=x1,
+            x0=float(X0),
+            x1=float(X1),
             xtol=xtol,
             rtol=rtol,
             maxiter=maxiter,
         )
         root = float(result.root)
         fun = getattr(result, "fun", None)
-        fx = float(fun) if fun is not None else float(run_once(run_input, run_payload, root)[0])
+        fx = float(fun) if fun is not None else f(root)
         return SearchResult(root, fx, evaluations, seed_output, last_output_json, "secant") if return_result else root
+
+
+    x0 = float(seed_x if X0 is None else X0)
+    x1 = float(x0 + 1.0 if X1 is None else X1)
+
+    f0 = seed_fx if x0 == float(seed_x) else run_once(run_input, run_payload, x0)[0]
+    if f0 == 0.0:
+        print(f"[micelle] converged at x={x0:.15g}", flush=True)
+        return SearchResult(x0, 0.0, evaluations, seed_output, last_output_json, "brentq") if return_result else x0
+
+    f1, _ = run_once(run_input, run_payload, x1)
+    print(f"[micelle] bracket start x0={x0:.15g} f0={f0:.15g} x1={x1:.15g} f1={f1:.15g}", flush=True)
+
+    # Work with an ordered interval [xl, xr].
+    if x0 <= x1:
+        xl, fl = x0, f0
+        xr, fr = x1, f1
+    else:
+        xl, fl = x1, f1
+        xr, fr = x0, f0
+
+    if fl * fr >= 0.0:
+        # Infer monotonicity from the initial ordered pair.
+        if fr > fl:
+            monotonic = "increasing"
+        elif fr < fl:
+            monotonic = "decreasing"
+        else:
+            monotonic = "unknown"
+
+        # Decide which side to expand.
+        if monotonic == "increasing":
+            if fl < 0.0 and fr < 0.0:
+                expand_side = "right"
+            elif fl > 0.0 and fr > 0.0:
+                expand_side = "left"
+            else:
+                expand_side = "right"
+        elif monotonic == "decreasing":
+            if fl > 0.0 and fr > 0.0:
+                expand_side = "right"
+            elif fl < 0.0 and fr < 0.0:
+                expand_side = "left"
+            else:
+                expand_side = "right"
+        else:
+            # Fallback if the first two values are identical: expand toward the endpoint
+            # whose |f| is smaller, since it is likely closer to the root.
+            expand_side = "right" if abs(fr) <= abs(fl) else "left"
+
+        for _ in range(maxiter):
+            if fl * fr < 0.0:
+                break
+
+            width = xr - xl
+            step = width if width > 0.0 else max(1.0, abs(xl), abs(xr), 1.0)
+
+            if expand_side == "right":
+                x_new = xr + 1.2 * step
+                f_new, _ = run_once(run_input, run_payload, x_new)
+                xr, fr = x_new, f_new
+                print(f"[micelle] expand bracket right xr={xr:.15g} fr={fr:.15g}", flush=True)
+            else:
+                x_new = xl - 1.2 * step
+                f_new, _ = run_once(run_input, run_payload, x_new)
+                xl, fl = x_new, f_new
+                print(f"[micelle] expand bracket left xl={xl:.15g} fl={fl:.15g}", flush=True)
+        else:
+            result = root_scalar(
+                lambda x: run_once(run_input, run_payload, float(x))[0],
+                method="secant",
+                x0=xl,
+                x1=xr,
+                xtol=xtol,
+                rtol=rtol,
+                maxiter=maxiter,
+            )
+            root = float(result.root)
+            fun = getattr(result, "fun", None)
+            fx = float(fun) if fun is not None else float(run_once(run_input, run_payload, root)[0])
+            return SearchResult(root, fx, evaluations, seed_output, last_output_json, "secant") if return_result else root
 
     result = root_scalar(
         lambda x: run_once(run_input, run_payload, float(x))[0],
         method="brentq",
-        bracket=(x0, x1),
+        bracket=(xl, xr),
         xtol=xtol,
         rtol=rtol,
         maxiter=maxiter,
