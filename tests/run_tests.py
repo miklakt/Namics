@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Callable
 
 if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from test_helpers import (  # noqa: E402
@@ -27,6 +28,7 @@ from test_helpers import (  # noqa: E402
     set_setting_line,
     utc_run_id,
 )
+from utils.search_engine import solve  # noqa: E402
 
 COORD_TOL = 1e-12
 EXECUTION_FAILED_RE = re.compile(r"execution failed \((-?\d+)\)")
@@ -607,50 +609,69 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
         _cleanup(cleanup_targets, ctx.clean_output)
 
 
-def test_micelle_grand_canonical_search(ctx: Context) -> ReportNode:
-    root = ReportNode("micelle grand canonical search")
-    seed_input = ctx.tests_dir / "micelle_gc_seed.in"
-    run_input = ctx.tests_dir / "micelle_gc_run.in"
-    runner = ctx.repo_root / "data" / "micelle_grand_canonical" / "runner.py"
-    search_workdir = ctx.output_dir / "micelle_gc_search"
+def test_micelle_zero_grand_potential(ctx: Context) -> ReportNode:
+    root = ReportNode("micelle zero grand potential")
+    seed_input = ctx.tests_dir / "micelle_zero_grand_potential_seed.in"
+    run_input = ctx.tests_dir / "micelle_zero_grand_potential_run.in"
+    search_workdir = ctx.output_dir / "micelle_zero_grand_potential_search"
     cleanup_targets: list[Path] = [search_workdir]
 
     require_file(ctx.binary, executable=True)
     require_file(seed_input)
     require_file(run_input)
-    require_file(runner)
     shutil.rmtree(search_workdir, ignore_errors=True)
     ctx.output_dir.mkdir(parents=True, exist_ok=True)
 
+    def validate_output(output_json: Path) -> str | None:
+        problem = last_problem(output_json)
+        try:
+            phi = problem["mol"]["surf"]["phi"]
+        except (KeyError, TypeError):
+            return "mol.surf.phi is missing"
+
+        if not isinstance(phi, list) or not phi:
+            return "mol.surf.phi is not a non-empty array"
+        if any(not isinstance(value, (int, float)) for value in phi):
+            return "mol.surf.phi contains non-numeric values"
+        if any(value <= 0.0 for value in phi):
+            return "mol.surf.phi must be strictly positive"
+        if phi[0] <= phi[-1]:
+            return "mol.surf.phi[0] must be greater than mol.surf.phi[-1]"
+        if phi[0] <= 0.3:
+            return "mol.surf.phi[0] must be greater than 0.3"
+        if max(phi) / phi[0] >= 1.25:
+            return "max(mol.surf.phi) / mol.surf.phi[0] must be below 1.25"
+        return None
+
     try:
         node = add_child(root, "search")
-        metrics = run_command(
-            [
-                sys.executable,
-                str(runner),
-                "--seed-template",
-                str(seed_input),
-                "--run-template",
-                str(run_input),
-                "--workdir",
-                str(search_workdir),
-                "--binary",
-                str(ctx.binary),
-            ],
-            cwd=ctx.repo_root,
-            quiet=ctx.quiet,
+        start = time.perf_counter()
+        result = solve(
+            seed_input,
+            run_input,
+            "mol.surf.n",
+            "sys.noname.grand_potential",
+            x_min=40,
+            x_max=300,
+            max_expand_step=10.0,
+            output_validation=validate_output,
+            X0=160,
+            maxiter=100,
+            binary=ctx.binary,
+            workdir=search_workdir,
+            method="secant",
+            return_result=True,
         )
-        node.add_metric(metrics)
-        if metrics.returncode == 0:
-            raise TestError("ERROR: micelle GC search unexpectedly succeeded")
-        if "GN for molecule 1 is not larger than zero" not in metrics.output and "Detected GN not larger than 0." not in metrics.output:
-            raise TestError(f"ERROR: micelle GC search aborted for an unexpected reason: {metrics.output.strip()}")
-        node.details = "aborted on unusable grand-potential step"
+        node.wall_s = time.perf_counter() - start
+        if abs(result.fx) > 1e-4:
+            raise TestError(f"ERROR: micelle zero grand potential remained too large: fx={result.fx:.6g}")
+        node.details = f"root={result.root:.6g}, fx={result.fx:.3e}"
 
         _finalize_report_tree(root)
         return root
     finally:
         _cleanup(cleanup_targets, ctx.clean_output)
+        
 def test_particle_in_cyl_coordinates(ctx: Context) -> ReportNode:
     return _run_method_group(
         ctx,
@@ -784,7 +805,7 @@ TEST_SPECS = [
     ("external-potential", "external potential", test_external_potential, True, ("external_potential",)),
     ("frozen-range-input-file", "frozen range input file", test_frozen_range_input_file, True, ("frozen_range_input_file",)),
     ("micelle-self-assembly", "micelle self assembly", test_micelle_self_assembly, True, ("micelle_self_assembly",)),
-    ("micelle-grand-canonical-search", "micelle grand canonical search", test_micelle_grand_canonical_search, True, ("micelle_grand_canonical_search",)),
+    ("micelle-zero-grand-potential", "micelle zero grand potential", test_micelle_zero_grand_potential, True, ("micelle_zero_grand_potential",)),
     ("particle-in-cyl-coordinates", "particle in cyl coordinates", test_particle_in_cyl_coordinates, True, ("particle_in_cyl_coordinates",)),
     ("branched-brush", "branched brush", test_branched_brush, True, ("branched_brush", "branched_brush_cyl2d", "branched_brush_planar_1d")),
     ("polE-regression", "polE regression", test_polE_regression, True, ("polE_regression",)),

@@ -42,7 +42,7 @@ def solve(
     x_min=None,
     x_max=None,
     max_expand_step=None,
-    output_delegate: Callable[[Path], str | None] | None = None,
+    output_validation: Callable[[Path], str | None] | None = None,
     maxiter=50,
     binary=Path("bin/namics"),
     workdir=None,
@@ -107,11 +107,17 @@ def solve(
     print(f"[search] workspace: {workdir}", flush=True)
     created_paths: set[Path] = set()
 
-    seed_source = preprocess_source(resolve_source(seed_script))
-    run_source = preprocess_source(resolve_source(run_scrtipt))
+    seed_source_raw, run_source_raw = resolve_source(seed_script), resolve_source(run_scrtipt)
+    seed_source, run_source = preprocess_source(seed_source_raw), preprocess_source(run_source_raw)
     created_paths.discard(run_source)
-    seed_payload = json.loads(seed_source.read_text(encoding="utf-8"))
-    run_payload = json.loads(run_source.read_text(encoding="utf-8"))
+    seed_payload, run_payload = json.loads(seed_source.read_text(encoding="utf-8")), json.loads(run_source.read_text(encoding="utf-8"))
+    for payload, source in ((seed_payload, seed_source_raw), (run_payload, run_source_raw)):
+        for problem in payload.get("problems", []):
+            if not isinstance(problem, dict):
+                continue
+            json_section = problem.get("output", {}).get("json")
+            if isinstance(json_section, dict) and json_section.pop("filename", None) is not None:
+                print(f"[search] warning: ignoring output:json:filename in {source}", file=sys.stderr, flush=True)
     seed_problem = seed_payload["problems"][-1]
 
     if X0 is not None:
@@ -189,15 +195,8 @@ def solve(
                     continue
                 sys_value["initial_guess"] = "file"
                 sys_value["guess_inputfile"] = str(last_output_json.resolve())
-        output_name = payload["problems"][-1].get("output", {}).get("json", {}).get("filename")
-        if output_name is None:
-            if input_path.name.endswith(".input.json"):
-                base_name = input_path.name[: -len(".input.json")]
-            else:
-                base_name = input_path.stem
-            output_json = run_dir / "output" / f"{base_name}.output.json"
-        else:
-            output_json = run_dir / f"{Path(output_name).name}.output.json"
+        base_name = input_path.name[: -len(".input.json")] if input_path.name.endswith(".input.json") else input_path.stem
+        output_json = run_dir / "output" / f"{base_name}.output.json"
         input_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         proc = subprocess.run(
             [str(binary.resolve()), str(input_path.resolve())],
@@ -213,8 +212,8 @@ def solve(
                 print(stdout, end="" if stdout.endswith("\n") else "\n", flush=True)
             raise subprocess.CalledProcessError(proc.returncode, proc.args, output=proc.stdout)
 
-        if output_delegate is not None and phase != "seed":
-            decision = output_delegate(output_json)
+        if output_validation is not None and phase != "seed":
+            decision = output_validation(output_json)
             if decision is not None:
                 raise SearchAbort(f"{phase} x={x:.15g}: {decision}")
 

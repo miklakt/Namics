@@ -96,7 +96,7 @@ Use a local custom test when the workflow has:
 Current examples:
 
 - `test_micelle_self_assembly`
-- `test_micelle_grand_canonical_search`
+- `test_micelle_zero_grand_potential`
 - `_run_homopolymer_adsorption`
 
 For those, keep helper code inside the test or next to it. Do not widen shared helpers unless at least two tests need the same thing.
