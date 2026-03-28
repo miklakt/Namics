@@ -58,6 +58,7 @@ def solve(
         if source.suffix != ".in":
             return source
         output = workdir / f"{source.stem}.input.json"
+        created_paths.add(output)
         subprocess.run(
             [sys.executable, str(Path(__file__).resolve().parent / "preprocess_input.py"), str(source), "--output", str(output)],
             check=True,
@@ -100,15 +101,15 @@ def solve(
     if not fx_path and not callable(fx_key):
         raise ValueError("F(X) path/delegate is required")
 
-    base_workdir = Path(workdir) if workdir is not None else Path.cwd() / ".tmp"
-    base_workdir.mkdir(parents=True, exist_ok=True)
-    workdir = Path(tempfile.mkdtemp(prefix="search_", dir=base_workdir))
+    workdir = Path(workdir) if workdir is not None else Path.cwd() / ".tmp"
+    workdir.mkdir(parents=True, exist_ok=True)
     binary = Path(binary)
     print(f"[search] workspace: {workdir}", flush=True)
-    final_output_json = workdir / "result.output.json"
+    created_paths: set[Path] = set()
 
     seed_source = preprocess_source(resolve_source(seed_script))
     run_source = preprocess_source(resolve_source(run_scrtipt))
+    created_paths.discard(run_source)
     seed_payload = json.loads(seed_source.read_text(encoding="utf-8"))
     run_payload = json.loads(run_source.read_text(encoding="utf-8"))
     seed_problem = seed_payload["problems"][-1]
@@ -161,8 +162,20 @@ def solve(
 
         ensure_x_in_bounds(x, phase)
         run_dir = Path(tempfile.mkdtemp(prefix=f"{phase}_{evaluations + 1:04d}_", dir=workdir))
+        created_paths.add(run_dir)
         (run_dir / "output").mkdir(exist_ok=True)
         input_path = run_dir / template_source.name
+        created_paths.add(input_path)
+        output_section = payload["problems"][-1].get("json", {})
+        if isinstance(output_section, dict):
+            sys_outputs = output_section.get("sys")
+            if isinstance(sys_outputs, dict):
+                sys_section = payload["problems"][-1].get("sys")
+                if not isinstance(sys_section, dict):
+                    sys_section = {}
+                    payload["problems"][-1]["sys"] = sys_section
+                for sys_name in sys_outputs:
+                    sys_section.setdefault(sys_name, {})
         if callable(x_key):
             x_key(payload["problems"][-1], x)
         else:
@@ -170,11 +183,11 @@ def solve(
         if phase != "seed" and last_output_json.is_file():
             sys_section = payload["problems"][-1].get("sys", {})
             for sys_value in sys_section.values():
-                if not isinstance(sys_value, dict) or sys_value.get("initial_guess") != "file":
+                if not isinstance(sys_value, dict):
                     continue
-                guess_inputfile = sys_value.get("guess_inputfile")
-                if not isinstance(guess_inputfile, str):
+                if sys_value.get("initial_guess") not in (None, "file"):
                     continue
+                sys_value["initial_guess"] = "file"
                 sys_value["guess_inputfile"] = str(last_output_json.resolve())
         output_name = payload["problems"][-1].get("output", {}).get("json", {}).get("filename")
         if output_name is None:
@@ -221,17 +234,44 @@ def solve(
         last_output_json = output_json
         return fx, output_json
 
-    def finish(root: float, fx: float, output_json: Path, method_name: str):
-        shutil.copy2(output_json, final_output_json)
-        return SearchResult(root, fx, evaluations, seed_output, final_output_json, method_name) if return_result else root
-
     evaluations = 0
     last_output_json = workdir / "result.output.json"
+    try:
+        seed_fx, seed_output = run_once(seed_source, seed_payload, float(seed_x), phase="seed")
+        print(f"[search] seed f(x)={seed_fx:.15g}", flush=True)
 
-    seed_fx, seed_output = run_once(seed_source, seed_payload, float(seed_x), phase="seed")
-    print(f"[search] seed f(x)={seed_fx:.15g}", flush=True)
+        if method == "secant":
+            x0 = float(seed_x if X0 is None else X0)
+            if X1 is None:
+                x1 = x0 + 1.0
+                if x_max is not None and x1 >= x_max:
+                    x1 = x0 - 1.0
+            else:
+                x1 = float(X1)
+            points = [
+                (x0, seed_fx if x0 == float(seed_x) else run_once(run_source, run_payload, x0, phase="run")[0]),
+                (x1, run_once(run_source, run_payload, x1, phase="run")[0]),
+            ]
+            for _ in range(maxiter):
+                if points[-1][1] == 0.0:
+                    break
+                root = line_root(points)
+                if root is None:
+                    break
+                if max_expand_step is not None:
+                    delta = root - points[-1][0]
+                    if abs(delta) > max_expand_step:
+                        root = points[-1][0] + np.copysign(max_expand_step, delta)
+                root = clamp_x(root, points[-1][0])
+                if abs(root - points[-1][0]) <= xtol + rtol * abs(root):
+                    break
+                fx, _ = run_once(run_source, run_payload, root, phase="run")
+                points.append((root, fx))
+            root, fx = points[-1]
+            final_output_json = workdir / last_output_json.name
+            shutil.copy2(last_output_json, final_output_json)
+            return SearchResult(root, fx, evaluations, seed_output, final_output_json, "secant") if return_result else root
 
-    if method == "secant":
         x0 = float(seed_x if X0 is None else X0)
         if X1 is None:
             x1 = x0 + 1.0
@@ -239,121 +279,110 @@ def solve(
                 x1 = x0 - 1.0
         else:
             x1 = float(X1)
-        points = [
-            (x0, seed_fx if x0 == float(seed_x) else run_once(run_source, run_payload, x0, phase="run")[0]),
-            (x1, run_once(run_source, run_payload, x1, phase="run")[0]),
-        ]
-        for _ in range(maxiter):
-            if points[-1][1] == 0.0:
-                break
-            root = line_root(points)
-            if root is None:
-                break
-            if max_expand_step is not None:
-                delta = root - points[-1][0]
-                if abs(delta) > max_expand_step:
-                    root = points[-1][0] + np.copysign(max_expand_step, delta)
-            root = clamp_x(root, points[-1][0])
-            if abs(root - points[-1][0]) <= xtol + rtol * abs(root):
-                break
-                fx, _ = run_once(run_source, run_payload, root, phase="run")
-                points.append((root, fx))
-        root, fx = points[-1]
-        return finish(root, fx, last_output_json, "secant")
 
+        f0 = seed_fx if x0 == float(seed_x) else run_once(run_source, run_payload, x0, phase="run")[0]
+        if f0 == 0.0:
+            print(f"[search] converged at x={x0:.15g}", flush=True)
+            final_output_json = workdir / last_output_json.name
+            shutil.copy2(last_output_json, final_output_json)
+            return SearchResult(x0, 0.0, evaluations, seed_output, final_output_json, "brentq") if return_result else x0
 
-    x0 = float(seed_x if X0 is None else X0)
-    if X1 is None:
-        x1 = x0 + 1.0
-        if x_max is not None and x1 >= x_max:
-            x1 = x0 - 1.0
-    else:
-        x1 = float(X1)
+        f1, _ = run_once(run_source, run_payload, x1, phase="run")
+        if f1 == 0.0:
+            print(f"[search] converged at x={x1:.15g}", flush=True)
+            final_output_json = workdir / last_output_json.name
+            shutil.copy2(last_output_json, final_output_json)
+            return SearchResult(x1, 0.0, evaluations, seed_output, final_output_json, "brentq") if return_result else x1
+        print(f"[search] bracket start x0={x0:.15g} f0={f0:.15g} x1={x1:.15g} f1={f1:.15g}", flush=True)
 
-    f0 = seed_fx if x0 == float(seed_x) else run_once(run_source, run_payload, x0, phase="run")[0]
-    if f0 == 0.0:
-        print(f"[search] converged at x={x0:.15g}", flush=True)
-        return finish(x0, 0.0, last_output_json, "brentq")
-
-    f1, _ = run_once(run_source, run_payload, x1, phase="run")
-    if f1 == 0.0:
-        print(f"[search] converged at x={x1:.15g}", flush=True)
-        return finish(x1, 0.0, last_output_json, "brentq")
-    print(f"[search] bracket start x0={x0:.15g} f0={f0:.15g} x1={x1:.15g} f1={f1:.15g}", flush=True)
-
-    if x0 <= x1:
-        xl, fl = x0, f0
-        xr, fr = x1, f1
-    else:
-        xl, fl = x1, f1
-        xr, fr = x0, f0
-
-    if fl * fr >= 0.0:
-        if fl == fr:
-            expand_side = "right" if abs(fr) <= abs(fl) else "left"
-        elif fl < fr:
-            expand_side = "right" if fr < 0.0 else "left"
+        if x0 <= x1:
+            xl, fl = x0, f0
+            xr, fr = x1, f1
         else:
-            expand_side = "right" if fr > 0.0 else "left"
+            xl, fl = x1, f1
+            xr, fr = x0, f0
 
-        for _ in range(maxiter):
-            if fl * fr < 0.0:
-                break
-
-            width = xr - xl
-            step = width if width > 0.0 else max(1.0, abs(xl), abs(xr))
-            if max_expand_step is not None:
-                step = min(step, max_expand_step)
-            jump = 1.2 * step
-
-            if expand_side == "right":
-                x_new = xr + jump
-                if x_max is not None and x_new >= x_max:
-                    expand_side = "left"
-                    continue
-                f_new, _ = run_once(run_source, run_payload, x_new, phase="run")
-                xr, fr = x_new, f_new
-                print(f"[search] expand bracket right xr={xr:.15g} fr={fr:.15g}", flush=True)
-                if fr == 0.0:
-                    print(f"[search] converged at x={xr:.15g}", flush=True)
-                    return finish(xr, 0.0, last_output_json, "brentq")
+        if fl * fr >= 0.0:
+            if fl == fr:
+                expand_side = "right" if abs(fr) <= abs(fl) else "left"
+            elif fl < fr:
+                expand_side = "right" if fr < 0.0 else "left"
             else:
-                x_new = xl - jump
-                if x_min is not None and x_new <= x_min:
-                    expand_side = "right"
-                    continue
-                f_new, _ = run_once(run_source, run_payload, x_new, phase="run")
-                xl, fl = x_new, f_new
-                print(f"[search] expand bracket left xl={xl:.15g} fl={fl:.15g}", flush=True)
-                if fl == 0.0:
-                    print(f"[search] converged at x={xl:.15g}", flush=True)
-                    return finish(xl, 0.0, last_output_json, "brentq")
-        else:
-            points = [(xl, fl), (xr, fr)]
-            for _ in range(maxiter):
-                root = line_root(points)
-                if root is None:
-                    break
-                root = clamp_x(root, points[-1][0])
-                if abs(root - points[-1][0]) <= xtol + rtol * abs(root):
-                    break
-                fx, _ = run_once(run_source, run_payload, root, phase="run")
-                points.append((root, fx))
-                if fx == 0.0:
-                    break
-            root, fx = points[-1]
-            return finish(root, fx, last_output_json, "secant")
+                expand_side = "right" if fr > 0.0 else "left"
 
-    result = root_scalar(
-        lambda x: run_once(run_source, run_payload, float(x), phase="run")[0],
-        method="brentq",
-        bracket=(xl, xr),
-        xtol=xtol,
-        rtol=rtol,
-        maxiter=maxiter,
-    )
-    root = float(result.root)
-    fun = getattr(result, "fun", None)
-    fx = float(fun) if fun is not None else float(run_once(run_source, run_payload, root, phase="run")[0])
-    print(f"[search] done root={root:.15g} fx={fx:.15g}", flush=True)
-    return finish(root, fx, last_output_json, "brentq")
+            for _ in range(maxiter):
+                if fl * fr < 0.0:
+                    break
+
+                width = xr - xl
+                step = width if width > 0.0 else max(1.0, abs(xl), abs(xr))
+                if max_expand_step is not None:
+                    step = min(step, max_expand_step)
+                jump = 1.2 * step
+
+                if expand_side == "right":
+                    x_new = xr + jump
+                    if x_max is not None and x_new >= x_max:
+                        expand_side = "left"
+                        continue
+                    f_new, _ = run_once(run_source, run_payload, x_new, phase="run")
+                    print(f"[search] expand bracket right xr={x_new:.15g} fr={f_new:.15g}", flush=True)
+                    if f_new == 0.0:
+                        print(f"[search] converged at x={x_new:.15g}", flush=True)
+                        final_output_json = workdir / last_output_json.name
+                        shutil.copy2(last_output_json, final_output_json)
+                        return SearchResult(x_new, 0.0, evaluations, seed_output, final_output_json, "brentq") if return_result else x_new
+                    if fr * f_new < 0.0:
+                        xl, fl = xr, fr
+                        xr, fr = x_new, f_new
+                        break
+                    xr, fr = x_new, f_new
+                else:
+                    x_new = xl - jump
+                    if x_min is not None and x_new <= x_min:
+                        expand_side = "right"
+                        continue
+                    f_new, _ = run_once(run_source, run_payload, x_new, phase="run")
+                    xl, fl = x_new, f_new
+                    print(f"[search] expand bracket left xl={xl:.15g} fl={fl:.15g}", flush=True)
+                    if fl == 0.0:
+                        print(f"[search] converged at x={xl:.15g}", flush=True)
+                        final_output_json = workdir / last_output_json.name
+                        shutil.copy2(last_output_json, final_output_json)
+                        return SearchResult(xl, 0.0, evaluations, seed_output, final_output_json, "brentq") if return_result else xl
+            else:
+                points = [(xl, fl), (xr, fr)]
+                for _ in range(maxiter):
+                    root = line_root(points)
+                    if root is None:
+                        break
+                    root = clamp_x(root, points[-1][0])
+                    if abs(root - points[-1][0]) <= xtol + rtol * abs(root):
+                        break
+                    fx, _ = run_once(run_source, run_payload, root, phase="run")
+                    points.append((root, fx))
+                    if fx == 0.0:
+                        break
+                root, fx = points[-1]
+                final_output_json = workdir / last_output_json.name
+                shutil.copy2(last_output_json, final_output_json)
+                return SearchResult(root, fx, evaluations, seed_output, final_output_json, "secant") if return_result else root
+
+        result = root_scalar(
+            lambda x: run_once(run_source, run_payload, float(x), phase="run")[0],
+            method="brentq",
+            bracket=(xl, xr),
+            xtol=xtol,
+            rtol=rtol,
+            maxiter=maxiter,
+        )
+        root = float(result.root)
+        fun = getattr(result, "fun", None)
+        fx = float(fun) if fun is not None else float(run_once(run_source, run_payload, root, phase="run")[0])
+        print(f"[search] done root={root:.15g} fx={fx:.15g}", flush=True)
+        final_output_json = workdir / last_output_json.name
+        shutil.copy2(last_output_json, final_output_json)
+        return SearchResult(root, fx, evaluations, seed_output, final_output_json, "brentq") if return_result else root
+    finally:
+        for path in sorted(created_paths, key=lambda p: len(p.parts), reverse=True):
+            shutil.rmtree(path, ignore_errors=True) if path.is_dir() else path.unlink(missing_ok=True)
