@@ -634,7 +634,14 @@ NAMICS_DBG("iterate in SFNewton" << std::endl);
 	std::vector<Real> p0(nvar, 0);
 	std::vector<Real> g0(nvar, 0);
 	mask.assign(nvar, 0);
-	std::vector<Real> h(nvar * nvar, 0);
+	const size_t h_size = static_cast<size_t>(nvar) * static_cast<size_t>(nvar);
+	constexpr size_t MAX_DENSE_HESSIAN = 100000000; // 100 million doubles = 800 MB
+	if (h_size > MAX_DENSE_HESSIAN) {
+		std::cout << "Dense Newton is not suitable for " << nvar
+		          << " variables. Use LBFGS or DIIS instead." << std::endl;
+		return false;
+	}
+	std::vector<Real> h(h_size, 0);
 
 	if (nvar<1) {std::cout << "newton has nothing to do; returning the problem" << std::endl; return false;}
 	int it=0;
