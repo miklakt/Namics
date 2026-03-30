@@ -356,10 +356,18 @@ bool ExpandLegacyRangeAlias(const std::string& alias,
 }
 
 bool ParseLegacyRange(const std::string& value,
+                      const std::string& mon_name,
+                      const std::string& key,
                       const std::string& kind,
                       const ProblemShape& shape,
                       int var_pos,
                       Coordinates& coordinates) {
+	const auto fail = [&]() {
+		std::cout << "Syntax error in " << key << " for mon " << mon_name
+			  << ": expected x1[,y1[,z1]];x2[,y2[,z2]] or an alias, got '"
+			  << value << "'." << std::endl;
+		return false;
+	};
 	std::string compact = TrimCopy(value);
 	compact.erase(std::remove(compact.begin(), compact.end(), ' '), compact.end());
 	while (!compact.empty() && compact.back() == ';') compact.pop_back();
@@ -367,7 +375,7 @@ bool ParseLegacyRange(const std::string& value,
 	std::vector<int> last;
 	if (!ExpandLegacyRangeAlias(compact, kind, shape, first, last)) {
 		const std::vector<std::string> endpoints = SplitLegacy(compact, ';');
-		if (endpoints.size() != 2) return false;
+		if (endpoints.size() != 2) return fail();
 		const auto parse_endpoint = [&](const std::string& text, std::vector<int>& point) {
 			const std::vector<std::string> parts = SplitLegacy(text, ',');
 			if (static_cast<int>(parts.size()) != shape.gradients) return false;
@@ -400,10 +408,10 @@ bool ParseLegacyRange(const std::string& value,
 			}
 			return true;
 		};
-		if (!parse_endpoint(endpoints[0], first) || !parse_endpoint(endpoints[1], last)) return false;
+		if (!parse_endpoint(endpoints[0], first) || !parse_endpoint(endpoints[1], last)) return fail();
 	}
 	for (int axis = 0; axis < shape.gradients; ++axis) {
-		if (first[static_cast<size_t>(axis)] > last[static_cast<size_t>(axis)]) return false;
+		if (first[static_cast<size_t>(axis)] > last[static_cast<size_t>(axis)]) return fail();
 	}
 	coordinates.clear();
 	for (int x = first[0]; x <= last[0]; ++x) {
@@ -424,6 +432,7 @@ bool ParseLegacyRange(const std::string& value,
 
 bool ExtractMaskCoordinates(const json& source,
                             const std::string& key,
+                            const std::string& mon_name,
                             const ProblemShape& shape,
                             const std::string& base_path,
                             int var_pos,
@@ -431,6 +440,7 @@ bool ExtractMaskCoordinates(const json& source,
 
 bool ExtractMaskCoordinatesFromJsonFile(const std::string& path,
                                         const std::string& key,
+                                        const std::string& mon_name,
                                         const ProblemShape& shape,
                                         int var_pos,
                                         Coordinates& coordinates) {
@@ -438,29 +448,30 @@ bool ExtractMaskCoordinatesFromJsonFile(const std::string& path,
 	json document;
 	if (!io::detail::ReadJsonFile(path, document)) return false;
 	if (document.is_object()) {
-		if (const auto it = document.find(key); it != document.end()) return ExtractMaskCoordinates(*it, key, shape, path, var_pos, coordinates);
+		if (const auto it = document.find(key); it != document.end()) return ExtractMaskCoordinates(*it, key, mon_name, shape, path, var_pos, coordinates);
 	}
-	return ExtractMaskCoordinates(document, key, shape, path, var_pos, coordinates);
+	return ExtractMaskCoordinates(document, key, mon_name, shape, path, var_pos, coordinates);
 }
 
 bool ExtractMaskCoordinates(const json& source,
                             const std::string& key,
+                            const std::string& mon_name,
                             const ProblemShape& shape,
                             const std::string& base_path,
                             int var_pos,
                             Coordinates& coordinates) {
 	if (source.is_string()) {
 		const std::string text = source.get<std::string>();
-		if (IsLegacyRangeText(text)) return ParseLegacyRange(text, key == "pinned_range" ? "pinned" : "frozen", shape, var_pos, coordinates);
-		return ExtractMaskCoordinatesFromJsonFile(ResolveRelativeTo(base_path, text).string(), key, shape, var_pos, coordinates);
+		if (IsLegacyRangeText(text)) return ParseLegacyRange(text, mon_name, key, key == "pinned_range" ? "pinned" : "frozen", shape, var_pos, coordinates);
+		return ExtractMaskCoordinatesFromJsonFile(ResolveRelativeTo(base_path, text).string(), key, mon_name, shape, var_pos, coordinates);
 	}
 	if (ParseCoordinateList(source, shape.gradients, coordinates)) return true;
 	if (!source.is_object()) return false;
 	if (const json* path = FindMember(source, MASK_FILE_KEYS); path != nullptr && path->is_string()) {
-		return ExtractMaskCoordinatesFromJsonFile(ResolveRelativeTo(base_path, path->get<std::string>()).string(), key, shape, var_pos, coordinates);
+		return ExtractMaskCoordinatesFromJsonFile(ResolveRelativeTo(base_path, path->get<std::string>()).string(), key, mon_name, shape, var_pos, coordinates);
 	}
 	if (const auto it = source.find(MASK_COORDINATES_KEY); it != source.end()) return ParseCoordinateList(*it, shape.gradients, coordinates);
-	if (const auto it = source.find(key); it != source.end()) return ExtractMaskCoordinates(*it, key, shape, base_path, var_pos, coordinates);
+	if (const auto it = source.find(key); it != source.end()) return ExtractMaskCoordinates(*it, key, mon_name, shape, base_path, var_pos, coordinates);
 	return false;
 }
 
@@ -501,7 +512,7 @@ bool NormalizeMasks(json& problem, const ProblemShape& shape, const std::string&
 			const auto it = mon.value().find(key);
 			if (it == mon.value().end()) return true;
 			Coordinates coordinates;
-			if (!ExtractMaskCoordinates(*it, key, shape, base_path, var_pos, coordinates)) return false;
+			if (!ExtractMaskCoordinates(*it, key, mon.key(), shape, base_path, var_pos, coordinates)) return false;
 			mon.value()[key] = CanonicalMask(coordinates);
 			return true;
 		};
