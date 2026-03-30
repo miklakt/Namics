@@ -3,7 +3,7 @@
 
 #include "namics.h"
 #include "input.h"
-#include "tools_host.h"
+#include "tools.h"
 
 struct LatticeSelection {
 	int gradients = 1;

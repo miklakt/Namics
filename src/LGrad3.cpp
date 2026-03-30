@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include "LGrad3.h"
+#include "tools.h"
 
 LGrad3::LGrad3(const Input& In_,const std::string& name_): Lattice(In_,name_) {}
 
@@ -60,50 +61,37 @@ NAMICS_DBG(" Side in LGrad3 " << std::endl);	if (ignore_sites) {
 	Real Two=2.0;
 	Real Four=4.0;
 	if (!stencil_full) {
-		for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X)[__i];
-		for (int __i = 0; __i < (M-JX); ++__i) (X_side)[__i] += (X+JX)[__i];
-		for (int __i = 0; __i < (M-JY); ++__i) (X_side+JY)[__i] += (X)[__i];
-		for (int __i = 0; __i < (M-JY); ++__i) (X_side)[__i] += (X+JY)[__i];
-		for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (X)[__i];
-		for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (X+1)[__i];
+		add_shifted(X_side + JX, X, M - JX);
+		add_shifted(X_side, X + JX, M - JX);
+		add_shifted(X_side + JY, X, M - JY);
+		add_shifted(X_side, X + JY, M - JY);
+		add_shifted(X_side + 1, X, M - 1);
+		add_shifted(X_side, X + 1, M - 1);
+		scale_span(X_side, M, lattice_type == simple_cubic ? Four : Two);
 
-		if (lattice_type == simple_cubic) {
-			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Four);
-		} else {
-			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two);
-		}
-		for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side+JX+JY)[__i] += (X)[__i];
-		for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side)[__i] += (X+JX+JY)[__i];
-		for (int __i = 0; __i < (M-JY-JX); ++__i) (X_side+JY)[__i] += (X+JX)[__i];
-		for (int __i = 0; __i < (M-JY-JX); ++__i) (X_side+JX)[__i] += (X+JY)[__i];
-		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX+1)[__i] += (X)[__i];
-		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JX+1)[__i];
-		for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X+1)[__i];
-		for (int __i = 0; __i < (M-JX); ++__i) (X_side+1)[__i] += (X+JX)[__i];
-		for (int __i = 0; __i < (M-JY-1); ++__i) (X_side+JY+1)[__i] += (X)[__i];
-		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JY+1)[__i];
-		for (int __i = 0; __i < (M-JY); ++__i) (X_side+JY)[__i] += (X+1)[__i];
-		for (int __i = 0; __i < (M-JY); ++__i) (X_side+1)[__i] += (X+JY)[__i];
-		if (lattice_type == simple_cubic) {
-			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Four);
-		} else {
-			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two);
-		}
-		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+JY+1)[__i] += (X)[__i];
-		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side)[__i] += (X+JX+JY+1)[__i];
-		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+JY)[__i] += (X+1)[__i];
-		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+1)[__i] += (X+JX+JY)[__i];
-		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+1)[__i] += (X+JY)[__i];
-		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JY)[__i] += (X+JX+1)[__i];
-		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JY+1)[__i] += (X+JX)[__i];
-		for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX)[__i] += (X+JY+1)[__i];
-		if (lattice_type == simple_cubic) {
-			Real C=1.0/152.0;
-			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
-		} else {
-			Real C=1.0/56.0;
-			for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
-		}
+		add_shifted(X_side + JX + JY, X, M - JX - JY);
+		add_shifted(X_side, X + JX + JY, M - JX - JY);
+		add_shifted(X_side + JY, X + JX, M - JY - JX);
+		add_shifted(X_side + JX, X + JY, M - JY - JX);
+		add_shifted(X_side + JX + 1, X, M - JX - 1);
+		add_shifted(X_side, X + JX + 1, M - JX - 1);
+		add_shifted(X_side + JX, X + 1, M - JX);
+		add_shifted(X_side + 1, X + JX, M - JX);
+		add_shifted(X_side + JY + 1, X, M - JY - 1);
+		add_shifted(X_side, X + JY + 1, M - JX - 1);
+		add_shifted(X_side + JY, X + 1, M - JY);
+		add_shifted(X_side + 1, X + JY, M - JY);
+		scale_span(X_side, M, lattice_type == simple_cubic ? Four : Two);
+
+		add_shifted(X_side + JX + JY + 1, X, M - JX - JY - 1);
+		add_shifted(X_side, X + JX + JY + 1, M - JX - JY - 1);
+		add_shifted(X_side + JX + JY, X + 1, M - JX - JY - 1);
+		add_shifted(X_side + 1, X + JX + JY, M - JX - JY - 1);
+		add_shifted(X_side + JX + 1, X + JY, M - JX - JY - 1);
+		add_shifted(X_side + JY, X + JX + 1, M - JX - JY - 1);
+		add_shifted(X_side + JY + 1, X + JX, M - JX - JY - 1);
+		add_shifted(X_side + JX, X + JY + 1, M - JX - JY - 1);
+		scale_span(X_side, M, lattice_type == simple_cubic ? Real(1.0 / 152.0) : Real(1.0 / 56.0));
 	} else {
 		if (lattice_type==simple_cubic) {
 			Real C=1.0/6.0;
@@ -195,69 +183,18 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			std::fill_n(gs, 12*M, 0);
 			set_bounds_x(gz0,gz11,0,0); set_bounds_x(gz1,gz10,0,0);set_bounds_x(gz2,gz9,0,0); set_bounds_x(gz3,gz8,0,0); set_bounds_x(gz4,gz7,0,0); set_bounds_x(gz5,gz6,0,0);
 
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz0)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz1)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (gz2)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz3)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz4)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz5)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz6)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz8)[__i];
-
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz3+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz4+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz5+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz6+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz7+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz8+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz9+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz10+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[0]) * (gz11+JX)[__i];
+			add_terms(gx0 + JX, M - JX, {{gz0, P[0]}, {gz1, P[0]}, {gz2, P[0]}, {gz3, P[1]}, {gz4, P[1]}, {gz5, P[1]}, {gz6, P[1]}, {gz7, P[1]}, {gz8, P[1]}});
+			add_terms(gx11, M - JX, {{gz3 + JX, P[1]}, {gz4 + JX, P[1]}, {gz5 + JX, P[1]}, {gz6 + JX, P[1]}, {gz7 + JX, P[1]}, {gz8 + JX, P[1]}, {gz9 + JX, P[0]}, {gz10 + JX, P[0]}, {gz11 + JX, P[0]}});
 
 			set_bounds_y(gz2,gz9,0,0);  set_bounds_y(gz3,gz8,0,0); set_bounds_y(gz4,gz7,0,0); set_bounds_y(gz0,gz11,0,0); set_bounds_y(gz1,gz10,0,0); set_bounds_y(gz5,gz6,0,0);
 
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz0)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz1)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz3)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz4)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz5)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz9)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz10)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz11)[__i];
-
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz0+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz1+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz2+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz6+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz7+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz8+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz9+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz10+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz11+JY)[__i];
+			add_terms(gx3 + JY, M - JY, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
+			add_terms(gx8, M - JY, {{gz0 + JY, P[1]}, {gz1 + JY, P[1]}, {gz2 + JY, P[1]}, {gz6 + JY, P[0]}, {gz7 + JY, P[0]}, {gz8 + JY, P[0]}, {gz9 + JY, P[1]}, {gz10 + JY, P[1]}, {gz11 + JY, P[1]}});
 
 			set_bounds_z(gz1,gz10,0,0); set_bounds_z(gz4,gz7,0,0); set_bounds_z(gz5,gz6,0,0); set_bounds_z(gz0,gz11,0,0); set_bounds_z(gz2,gz9,0,0); set_bounds_z(gz3,gz8,0,0);
 
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz0)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz1)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[0]) * (gz3)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[0]) * (gz4)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[0]) * (gz5)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz9)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz10)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx5+JZ)[__i] += (P[1]) * (gz11)[__i];
-
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz0+JZ)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz1+JZ)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz2+JZ)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[0]) * (gz6+JZ)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[0]) * (gz7+JZ)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[0]) * (gz8+JZ)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz9+JZ)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz10+JZ)[__i];
-			for (int __i = 0; __i < (M-JZ); ++__i) (gx6)[__i] += (P[1]) * (gz11+JZ)[__i];
+			add_terms(gx5 + JZ, M - JZ, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
+			add_terms(gx6, M - JZ, {{gz0 + JZ, P[1]}, {gz1 + JZ, P[1]}, {gz2 + JZ, P[1]}, {gz6 + JZ, P[0]}, {gz7 + JZ, P[0]}, {gz8 + JZ, P[0]}, {gz9 + JZ, P[1]}, {gz10 + JZ, P[1]}, {gz11 + JZ, P[1]}});
 
 			set_bounds_x(gz0,gz11,0,-1); set_bounds_x(gz1,gz10,0,-1);set_bounds_x(gz2,gz9,0,-1); set_bounds_x(gz3,gz8,0,-1); set_bounds_x(gz4,gz7,0,-1); set_bounds_x(gz5,gz6,0,-1);
 

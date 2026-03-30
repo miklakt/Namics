@@ -4,7 +4,7 @@
 #include <limits>
 #include <numeric>
 #include "sfnewton.h"
-#include "tools_host.h"
+#include "tools.h"
 
 
 SFNewton::SFNewton () : residual{0} {
@@ -779,10 +779,21 @@ NAMICS_DBG("DIIS in  SFNewton " << std::endl);
 	std::fill_n(x, nvar, 0);
 	posi = k-k_diis+1;
 
-  	if (posi<0)
-    	posi +=m;
+	if (posi < 0) posi += m;
 
-	Xr_times_ci(posi, k_diis, k, m, nvar, x, xR, Ci);
+	auto accumulate = [&](int coeff_idx, int row) {
+		const Real* src = xR + row * nvar;
+		const Real coeff = Ci[coeff_idx];
+		for (int i = 0; i < nvar; ++i) {
+			x[i] += coeff * src[i];
+		}
+	};
+	accumulate(0, posi);
+	for (int coeff_idx = 1; coeff_idx < k_diis; ++coeff_idx) {
+		int row = k - k_diis + 1 + coeff_idx;
+		if (row < 0) row += m;
+		accumulate(coeff_idx, row);
+	}
 	for (int i = 0; i < nvar; ++i) {
 		if (!std::isfinite(x[i])) throw -5;
 	}

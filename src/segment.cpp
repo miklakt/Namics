@@ -542,10 +542,9 @@ NAMICS_DBG("Get Pointer for segment " + name << std::endl);
 	return {};
 }
 void Segment::UpdateValence(Real*g, std::span<Real> psi, std::span<Real> q, std::span<Real> eps,bool grad_epsilon) {
-	int M=lat->M;
 	if (fixedPsi0) {
-
-		OverwriteC(psi.data(),MASK.data(),PSI0,M);
+		std::transform(psi.begin(), psi.end(), MASK.begin(), psi.begin(),
+		               [this](Real p, int mask_value) { return (mask_value == 1) ? PSI0 : p; });
 		lat->UpdateQ(g,psi.data(),q.data(),eps.data(),MASK.data(),grad_epsilon);
 	}
 

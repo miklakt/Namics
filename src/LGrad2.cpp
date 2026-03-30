@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include "LGrad2.h"
+#include "tools.h"
 
 LGrad2::LGrad2(const Input& In_,const std::string& name_): Lattice(In_,name_) {}
 
@@ -153,50 +154,50 @@ NAMICS_DBG(" Side in LGrad2 " << std::endl);	if (ignore_sites) {
 	std::fill_n(X_side, M, 0);//set_bounds(X);
 
 	if (fcc_sites) {
-		Real C1=1.0/3.0;
-		for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (C1) * (X)[__i];
-		for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X)[__i] * (fcc_lambda_1+JX)[__i];
-		for (int __i = 0; __i < (M-JX); ++__i) (X_side)[__i] += (X+JX)[__i] * (fcc_lambda1)[__i];
-		for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (C1) * (X)[__i];
-		for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (C1) * (X+1)[__i];
-		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX+1)[__i] += (X)[__i] * (fcc_lambda_1+JX+1)[__i];
-		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX)[__i] += (X+1)[__i] * (fcc_lambda_1+JX)[__i];
-		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+1)[__i] += (X+JX)[__i] * (fcc_lambda1+1)[__i];
-		for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JX+1)[__i] * (fcc_lambda1)[__i];
-		for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C1);
+		Real C1 = 1.0 / 3.0;
+		add_shifted(X_side, X, M, C1);
+		add_weighted(X_side + JX, X, fcc_lambda_1 + JX, M - JX);
+		add_weighted(X_side, X + JX, fcc_lambda1, M - JX);
+		add_shifted(X_side + 1, X, M - 1, C1);
+		add_shifted(X_side, X + 1, M - 1, C1);
+		add_weighted(X_side + JX + 1, X, fcc_lambda_1 + JX + 1, M - JX - 1);
+		add_weighted(X_side + JX, X + 1, fcc_lambda_1 + JX, M - JX - 1);
+		add_weighted(X_side + 1, X + JX, fcc_lambda1 + 1, M - JX - 1);
+		add_weighted(X_side, X + JX + 1, fcc_lambda1, M - JX - 1);
+		scale_span(X_side, M, C1);
 
 	} else {
 		if (fjc==1) {
 			if (lattice_type ==simple_cubic) {
-				Real C1=4.0/6.0;
-				Real C2=1.0/6.0;
-				Real C3=4.0;
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (C1) * (X)[__i];
-				for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X)[__i] * (lambda_1+JX)[__i];
-				for (int __i = 0; __i < (M-JX); ++__i) (X_side)[__i] += (X+JX)[__i] * (lambda1)[__i];
-				for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (C2) * (X)[__i];
-				for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (C2) * (X+1)[__i];
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C3);
-				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX+1)[__i] += (X)[__i] * (lambda_1+JX+1)[__i];
-				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX)[__i] += (X+1)[__i] * (lambda_1+JX)[__i];
-				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+1)[__i] += (X+JX)[__i] * (lambda1+1)[__i];
-				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JX+1)[__i] * (lambda1)[__i];
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C2);
+				Real C1 = 4.0 / 6.0;
+				Real C2 = 1.0 / 6.0;
+				Real C3 = 4.0;
+				add_shifted(X_side, X, M, C1);
+				add_weighted(X_side + JX, X, lambda_1 + JX, M - JX);
+				add_weighted(X_side, X + JX, lambda1, M - JX);
+				add_shifted(X_side + 1, X, M - 1, C2);
+				add_shifted(X_side, X + 1, M - 1, C2);
+				scale_span(X_side, M, C3);
+				add_weighted(X_side + JX + 1, X, lambda_1 + JX + 1, M - JX - 1);
+				add_weighted(X_side + JX, X + 1, lambda_1 + JX, M - JX - 1);
+				add_weighted(X_side + 1, X + JX, lambda1 + 1, M - JX - 1);
+				add_weighted(X_side, X + JX + 1, lambda1, M - JX - 1);
+				scale_span(X_side, M, C2);
 			} else {
-				Real C1=2.0/4.0;
-				Real C2=1.0/4.0;
-				Real C3=2.0;
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (C1) * (X)[__i];
-				for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X)[__i] * (lambda_1+JX)[__i];
-				for (int __i = 0; __i < (M-JX); ++__i) (X_side)[__i] += (X+JX)[__i] * (lambda1)[__i];
-				for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (C2) * (X)[__i];
-				for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (C2) * (X+1)[__i];
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C3);
-				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX+1)[__i] += (X)[__i] * (lambda_1+JX+1)[__i];
-				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+JX)[__i] += (X+1)[__i] * (lambda_1+JX)[__i];
-				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side+1)[__i] += (X+JX)[__i] * (lambda1+1)[__i];
-				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JX+1)[__i] * (lambda1)[__i];
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C2);
+				Real C1 = 2.0 / 4.0;
+				Real C2 = 1.0 / 4.0;
+				Real C3 = 2.0;
+				add_shifted(X_side, X, M, C1);
+				add_weighted(X_side + JX, X, lambda_1 + JX, M - JX);
+				add_weighted(X_side, X + JX, lambda1, M - JX);
+				add_shifted(X_side + 1, X, M - 1, C2);
+				add_shifted(X_side, X + 1, M - 1, C2);
+				scale_span(X_side, M, C3);
+				add_weighted(X_side + JX + 1, X, lambda_1 + JX + 1, M - JX - 1);
+				add_weighted(X_side + JX, X + 1, lambda_1 + JX, M - JX - 1);
+				add_weighted(X_side + 1, X + JX, lambda1 + 1, M - JX - 1);
+				add_weighted(X_side, X + JX + 1, lambda1, M - JX - 1);
+				scale_span(X_side, M, C2);
 			}
 		} else { //fjc>1
 			for (int block=0; block<2; block++) {
@@ -248,130 +249,36 @@ void LGrad2::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			std::fill_n(gs, 12*M, 0);
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0); set_bounds_x(gz1,gz10,0);set_bounds_x(gz2,gz9,0);set_bounds_x(gz3,gz8,0); set_bounds_x(gz4,gz7,0); set_bounds_x(gz5,gz6,0);
-
-								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz3)[__i]; //7 and 8
-
-								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz4)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz5)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz6)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz7)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz8)[__i];
-
-
-								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz3+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz4+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz5+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz6+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz7+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx11)[__i] += (P[1]) * (gz8+JX)[__i];
+			add_terms(gx0 + JX, M - JX, {{gz3, P[1]}, {gz4, P[1]}, {gz5, P[1]}, {gz6, P[1]}, {gz7, P[1]}, {gz8, P[1]}});
+			add_terms(gx11, M - JX, {{gz3 + JX, P[1]}, {gz4 + JX, P[1]}, {gz5 + JX, P[1]}, {gz6 + JX, P[1]}, {gz7 + JX, P[1]}, {gz8 + JX, P[1]}});
 
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz0)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz1)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz3)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz4)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz5)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz9)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz10)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (gz11)[__i];
-
-
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz0+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz1+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz2+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz6+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz7+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[0]) * (gz8+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz9+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz10+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (gz11+JY)[__i];
+			add_terms(gx3 + JY, M - JY, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
+			add_terms(gx8, M - JY, {{gz0 + JY, P[1]}, {gz1 + JY, P[1]}, {gz2 + JY, P[1]}, {gz6 + JY, P[0]}, {gz7 + JY, P[0]}, {gz8 + JY, P[0]}, {gz9 + JY, P[1]}, {gz10 + JY, P[1]}, {gz11 + JY, P[1]}});
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[1]) * (gz0)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[1]) * (gz1)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[0]) * (gz3)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[0]) * (gz4)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[0]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[1]) * (gz9)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[1]) * (gz10)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[1]) * (gz11)[__i];
-
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[1]) * (gz0)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[1]) * (gz1)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[0]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[0]) * (gz7)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[0]) * (gz8)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[1]) * (gz9)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[1]) * (gz10)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[1]) * (gz11)[__i];
+			add_terms(gx5, M, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
+			add_terms(gx6, M, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz6, P[0]}, {gz7, P[0]}, {gz8, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_x(gz0,gz11,0); set_bounds_x(gz1,gz10,0);set_bounds_x(gz2,gz9,0); set_bounds_x(gz3,gz8,0); set_bounds_x(gz4,gz7,0); set_bounds_x(gz5,gz6,0);
 
-								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz3)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz4)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz5)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz6)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz7)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (gz8)[__i];
-
-								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz3+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz4+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz5+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz6+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz7+JX)[__i];
-								for (int __i = 0; __i < (M-JX); ++__i) (gx10)[__i] += (P[1]) * (gz8+JX)[__i];
+			add_terms(gx1 + JX, M - JX, {{gz3, P[1]}, {gz4, P[1]}, {gz5, P[1]}, {gz6, P[1]}, {gz7, P[1]}, {gz8, P[1]}});
+			add_terms(gx10, M - JX, {{gz3 + JX, P[1]}, {gz4 + JX, P[1]}, {gz5 + JX, P[1]}, {gz6 + JX, P[1]}, {gz7 + JX, P[1]}, {gz8 + JX, P[1]}});
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 			set_bounds_y(gz0,gz11,0); set_bounds_y(gz1,gz10,0); set_bounds_y(gz5,gz6,0);
 
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[0]) * (gz0+JY)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[0]) * (gz1+JY)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[0]) * (gz2+JY)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz3+JY)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz4+JY)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz5+JY)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz6+JY)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz7+JY)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz8+JY)[__i];
-
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz3)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz4)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz5)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz6)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz7)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz8)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz9)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz10)[__i];
-								for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[0]) * (gz11)[__i];
+			add_terms(gx2, M - JY, {{gz0 + JY, P[0]}, {gz1 + JY, P[0]}, {gz2 + JY, P[0]}, {gz3 + JY, P[1]}, {gz4 + JY, P[1]}, {gz5 + JY, P[1]}, {gz6 + JY, P[1]}, {gz7 + JY, P[1]}, {gz8 + JY, P[1]}});
+			add_terms(gx9 + JY, M - JY, {{gz3, P[1]}, {gz4, P[1]}, {gz5, P[1]}, {gz6, P[1]}, {gz7, P[1]}, {gz8, P[1]}, {gz9, P[0]}, {gz10, P[0]}, {gz11, P[0]}});
 
 			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
 
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz0)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz1)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[0]) * (gz3)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[0]) * (gz4)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[0]) * (gz5)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz9)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz10)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz11)[__i];
-
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[1]) * (gz0+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[1]) * (gz1+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[1]) * (gz2+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[0]) * (gz6+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[0]) * (gz7+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[0]) * (gz8+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[1]) * (gz9+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[1]) * (gz10+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[1]) * (gz11+JY)[__i];
+			add_terms(gx4 + JY, M - JY, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
+			add_terms(gx7, M - JY, {{gz0 + JY, P[1]}, {gz1 + JY, P[1]}, {gz2 + JY, P[1]}, {gz6 + JY, P[0]}, {gz7 + JY, P[0]}, {gz8 + JY, P[0]}, {gz9 + JY, P[1]}, {gz10 + JY, P[1]}, {gz11 + JY, P[1]}});
 
 			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 
@@ -387,31 +294,14 @@ void LGrad2::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			Real *g=G1;
 
 			std::fill_n(gs, 5*M, 0);
-			LReflect(H,gz0,gz4); for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[0]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz1)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (2*P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0+JX)[__i] += (P[1]) * (gz3)[__i];
-
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz0)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[0]) * (gz1)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (2*P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz4)[__i];
-
-			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (P[1]) * (gz0)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (P[1]) * (gz1)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (P[0]) * (gz2)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (P[1]) * (gz3)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (P[1]) * (gz4)[__i];
-
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[1]) * (gz0+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (2*P[1]) * (gz2+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[0]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[1]) * (gz4+JY)[__i];
-
-			for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (P[1]) * (gz1+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (2*P[1]) * (gz2+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (P[1]) * (gz3+JX)[__i];
-			UReflect(H,gz4,gz0); for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (P[0]) * (H+JX)[__i];
+			LReflect(H,gz0,gz4);
+			add_terms(gx0 + JX, M - JX, {{H, P[0]}, {gz1, P[1]}, {gz2, 2 * P[1]}, {gz3, P[1]}});
+			add_terms(gx1 + JY, M - JY, {{gz0, P[1]}, {gz1, P[0]}, {gz2, 2 * P[1]}, {gz4, P[1]}});
+			add_terms(gx2, M, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[0]}, {gz3, P[1]}, {gz4, P[1]}});
+			add_terms(gx3, M - JY, {{gz0 + JY, P[1]}, {gz2 + JY, 2 * P[1]}, {gz3 + JY, P[0]}, {gz4 + JY, P[1]}});
+			add_terms(gx4, M - JX, {{gz1 + JX, P[1]}, {gz2 + JX, 2 * P[1]}, {gz3 + JX, P[1]}});
+			UReflect(H,gz4,gz0);
+			add_from_source(H + JX, M - JX, {{gx4, P[0]}});
 
 			for (int k=0; k<5; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		}
@@ -441,141 +331,41 @@ void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 
 			set_bounds_x(gz0,gz11,0);
 			LReflect(H,gz11,gz0);
-			for (int __i = 0; __i < (M-JX); ++__i) (gx3+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx4+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx5+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx6+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx7+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx8+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx9+JX)[__i] += (P[0]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx10+JX)[__i] += (P[0]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11+JX)[__i] += (P[0]) * (H)[__i];
+			add_from_source(H, M - JX, {{gx3 + JX, P[1]}, {gx4 + JX, P[1]}, {gx5 + JX, P[1]}, {gx6 + JX, P[1]}, {gx7 + JX, P[1]}, {gx8 + JX, P[1]}, {gx9 + JX, P[0]}, {gx10 + JX, P[0]}, {gx11 + JX, P[0]}});
 
 			UReflect(H,gz0,gz11);
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0)[__i] += (P[0]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx1)[__i] += (P[0]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx2)[__i] += (P[0]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx3)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx6)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx7)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx8)[__i] += (P[1]) * (H+JX)[__i];
+			add_from_source(H + JX, M - JX, {{gx0, P[0]}, {gx1, P[0]}, {gx2, P[0]}, {gx3, P[1]}, {gx4, P[1]}, {gx5, P[1]}, {gx6, P[1]}, {gx7, P[1]}, {gx8, P[1]}});
 
 			remove_bounds(gz0);remove_bounds(gz11);
 			set_bounds_y(gz3,gz8,0);
 
-			for (int __i = 0; __i < (M-JY); ++__i) (gx0+JY)[__i] += (P[1]) * (gz8)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz8)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx2+JY)[__i] += (P[1]) * (gz8)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx6+JY)[__i] += (P[0]) * (gz8)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7+JY)[__i] += (P[0]) * (gz8)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8+JY)[__i] += (P[0]) * (gz8)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz8)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx10+JY)[__i] += (P[1]) * (gz8)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx11+JY)[__i] += (P[1]) * (gz8)[__i];
-
-			for (int __i = 0; __i < (M-JY); ++__i) (gx0)[__i] += (P[1]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1)[__i] += (P[1]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[0]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[0]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx5)[__i] += (P[0]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx9)[__i] += (P[1]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx10)[__i] += (P[1]) * (gz3+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx11)[__i] += (P[1]) * (gz3+JY)[__i];
+			add_from_source(gz8, M - JY, {{gx0 + JY, P[1]}, {gx1 + JY, P[1]}, {gx2 + JY, P[1]}, {gx6 + JY, P[0]}, {gx7 + JY, P[0]}, {gx8 + JY, P[0]}, {gx9 + JY, P[1]}, {gx10 + JY, P[1]}, {gx11 + JY, P[1]}});
+			add_from_source(gz3 + JY, M - JY, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[0]}, {gx4, P[0]}, {gx5, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
 
 			remove_bounds(gz3);remove_bounds(gz8);
 
-			for (int __i = 0; __i < (M); ++__i) (gx0)[__i] += (P[1]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (P[1]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (P[1]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx6)[__i] += (P[0]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx7)[__i] += (P[0]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx8)[__i] += (P[0]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx9)[__i] += (P[1]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx10)[__i] += (P[1]) * (gz6)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx11)[__i] += (P[1]) * (gz6)[__i];
-
-			for (int __i = 0; __i < (M); ++__i) (gx0)[__i] += (P[1]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (P[1]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (P[1]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx3)[__i] += (P[0]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx4)[__i] += (P[0]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx5)[__i] += (P[0]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx9)[__i] += (P[1]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx10)[__i] += (P[1]) * (gz5)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx11)[__i] += (P[1]) * (gz5)[__i];
+			add_from_source(gz6, M, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx6, P[0]}, {gx7, P[0]}, {gx8, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
+			add_from_source(gz5, M, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[0]}, {gx4, P[0]}, {gx5, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
 
 			remove_bounds(gz5); remove_bounds(gz6);
 			set_bounds_x(gz1,gz10,0);
 
 			LReflect(H,gz10,gz1);
 
-			for (int __i = 0; __i < (M-JX); ++__i) (gx3+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx4+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx5+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx6+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx7+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx8+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx9+JX)[__i] += (P[0]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx10+JX)[__i] += (P[0]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx11+JX)[__i] += (P[0]) * (H)[__i];
+			add_from_source(H, M - JX, {{gx3 + JX, P[1]}, {gx4 + JX, P[1]}, {gx5 + JX, P[1]}, {gx6 + JX, P[1]}, {gx7 + JX, P[1]}, {gx8 + JX, P[1]}, {gx9 + JX, P[0]}, {gx10 + JX, P[0]}, {gx11 + JX, P[0]}});
 
 			UReflect(H,gz1,gz10);
 
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0)[__i] += (P[0]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx1)[__i] += (P[0]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx2)[__i] += (P[0]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx3)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx6)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx7)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx8)[__i] += (P[1]) * (H+JX)[__i];
+			add_from_source(H + JX, M - JX, {{gx0, P[0]}, {gx1, P[0]}, {gx2, P[0]}, {gx3, P[1]}, {gx4, P[1]}, {gx5, P[1]}, {gx6, P[1]}, {gx7, P[1]}, {gx8, P[1]}});
 
 			remove_bounds(gz1);remove_bounds(gz10);
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[1]) * (H+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[1]) * (H+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx5)[__i] += (P[1]) * (H+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx6)[__i] += (P[1]) * (H+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7)[__i] += (P[1]) * (H+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8)[__i] += (P[1]) * (H+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx9)[__i] += (P[0]) * (H+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx10)[__i] += (P[0]) * (H+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx11)[__i] += (P[0]) * (H+JY)[__i];
-
-			for (int __i = 0; __i < (M-JY); ++__i) (gx0+JY)[__i] += (P[0]) * (H)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[0]) * (H)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx2+JY)[__i] += (P[0]) * (H)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx5+JY)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx6+JY)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7+JY)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8+JY)[__i] += (P[1]) * (H)[__i];
+			add_from_source(H + JY, M - JY, {{gx3, P[1]}, {gx4, P[1]}, {gx5, P[1]}, {gx6, P[1]}, {gx7, P[1]}, {gx8, P[1]}, {gx9, P[0]}, {gx10, P[0]}, {gx11, P[0]}});
+			add_from_source(H, M - JY, {{gx0 + JY, P[0]}, {gx1 + JY, P[0]}, {gx2 + JY, P[0]}, {gx3 + JY, P[1]}, {gx4 + JY, P[1]}, {gx5 + JY, P[1]}, {gx6 + JY, P[1]}, {gx7 + JY, P[1]}, {gx8 + JY, P[1]}});
 
 			remove_bounds(gz2);remove_bounds(gz9);
 
-			for (int __i = 0; __i < (M-JY); ++__i) (gx0+JY)[__i] += (P[1]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1+JY)[__i] += (P[1]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx2+JY)[__i] += (P[1]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx6+JY)[__i] += (P[0]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx7+JY)[__i] += (P[0]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx8+JY)[__i] += (P[0]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx9+JY)[__i] += (P[1]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx10+JY)[__i] += (P[1]) * (gz7)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx11+JY)[__i] += (P[1]) * (gz7)[__i];
-
-			for (int __i = 0; __i < (M-JY); ++__i) (gx0)[__i] += (P[1]) * (gz4+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1)[__i] += (P[1]) * (gz4+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz4+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3)[__i] += (P[0]) * (gz4+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[0]) * (gz4+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx5)[__i] += (P[0]) * (gz4+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx9)[__i] += (P[1]) * (gz4+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx10)[__i] += (P[1]) * (gz4+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx11)[__i] += (P[1]) * (gz4+JY)[__i];
+			add_from_source(gz7, M - JY, {{gx0 + JY, P[1]}, {gx1 + JY, P[1]}, {gx2 + JY, P[1]}, {gx6 + JY, P[0]}, {gx7 + JY, P[0]}, {gx8 + JY, P[0]}, {gx9 + JY, P[1]}, {gx10 + JY, P[1]}, {gx11 + JY, P[1]}});
+			add_from_source(gz4 + JY, M - JY, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[0]}, {gx4, P[0]}, {gx5, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
 
 			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 
@@ -592,32 +382,16 @@ void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			std::fill_n(gs, 5*M, 0);
 
 			LReflect(H,gz4,gz0);
-			for (int __i = 0; __i < (M-JX); ++__i) (gx1+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx2+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx3+JX)[__i] += (P[1]) * (H)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx4+JX)[__i] += (P[0]) * (H)[__i];
+			add_from_source(H, M - JX, {{gx1 + JX, P[1]}, {gx2 + JX, P[1]}, {gx3 + JX, P[1]}, {gx4 + JX, P[0]}});
 
-			for (int __i = 0; __i < (M-JY); ++__i) (gx0+JY)[__i] += (P[1]) * (gz3)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx2+JY)[__i] += (P[1]) * (gz3)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx3+JY)[__i] += (P[0]) * (gz3)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4+JY)[__i] += (P[1]) * (gz3)[__i];
+			add_from_source(gz3, M - JY, {{gx0 + JY, P[1]}, {gx2 + JY, P[1]}, {gx3 + JY, P[0]}, {gx4 + JY, P[1]}});
 
-			for (int __i = 0; __i < (M); ++__i) (gx0)[__i] += (2*P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx1)[__i] += (2*P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx2)[__i] += (P[0]) * (gz2)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx3)[__i] += (2*P[1]) * (gz2)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gx4)[__i] += (2*P[1]) * (gz2)[__i];
+			add_from_source(gz2, M, {{gx0, 2 * P[1]}, {gx1, 2 * P[1]}, {gx2, P[0]}, {gx3, 2 * P[1]}, {gx4, 2 * P[1]}});
 
-			for (int __i = 0; __i < (M-JY); ++__i) (gx0)[__i] += (P[1]) * (gz1+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx1)[__i] += (P[0]) * (gz1+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx2)[__i] += (P[1]) * (gz1+JY)[__i];
-			for (int __i = 0; __i < (M-JY); ++__i) (gx4)[__i] += (P[1]) * (gz1+JY)[__i];
+			add_from_source(gz1 + JY, M - JY, {{gx0, P[1]}, {gx1, P[0]}, {gx2, P[1]}, {gx4, P[1]}});
 
 			UReflect(H,gz0,gz4);
-			for (int __i = 0; __i < (M-JX); ++__i) (gx0)[__i] += (P[0]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx1)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx2)[__i] += (P[1]) * (H+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gx3)[__i] += (P[1]) * (H+JX)[__i];
+			add_from_source(H + JX, M - JX, {{gx0, P[0]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[1]}});
 
 			for (int k=0; k<5; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
 		}
@@ -641,33 +415,33 @@ NAMICS_DBG(" propagate in LGrad2 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 			Real C1=4.0/6.0;
 			Real C2=1.0/6.0;
 			Real C3=4.0;
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] += (C1) * (gs_1)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gs+JX)[__i] += (gs_1)[__i] * (lambda_1+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gs)[__i] += (gs_1+JX)[__i] * (lambda1)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (C2) * (gs_1)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (C2) * (gs_1+1)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (C3);
-			for (int __i = 0; __i < (M-JX-1); ++__i) (gs+JX+1)[__i] += (gs_1)[__i] * (lambda_1+JX+1)[__i];
-			for (int __i = 0; __i < (M-JX-1); ++__i) (gs+JX)[__i] += (gs_1+1)[__i] * (lambda_1+JX)[__i];
-			for (int __i = 0; __i < (M-JX-1); ++__i) (gs+1)[__i] += (gs_1+JX)[__i] * (lambda1+1)[__i];
-			for (int __i = 0; __i < (M-JX-1); ++__i) (gs)[__i] += (gs_1+JX+1)[__i] * (lambda1)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (C2);
+			add_shifted(gs, gs_1, M, C1);
+			add_weighted(gs + JX, gs_1, lambda_1 + JX, M - JX);
+			add_weighted(gs, gs_1 + JX, lambda1, M - JX);
+			add_shifted(gs + 1, gs_1, M - 1, C2);
+			add_shifted(gs, gs_1 + 1, M - 1, C2);
+			scale_span(gs, M, C3);
+			add_weighted(gs + JX + 1, gs_1, lambda_1 + JX + 1, M - JX - 1);
+			add_weighted(gs + JX, gs_1 + 1, lambda_1 + JX, M - JX - 1);
+			add_weighted(gs + 1, gs_1 + JX, lambda1 + 1, M - JX - 1);
+			add_weighted(gs, gs_1 + JX + 1, lambda1, M - JX - 1);
+			scale_span(gs, M, C2);
 			for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 		} else { //9 point stencil; hexagonal
 			Real C1=0.5;
 			Real C2=0.25;
 			Real C3=2.0;
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] += (C1) * (gs_1)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gs+JX)[__i] += (gs_1)[__i] * (lambda_1+JX)[__i];
-			for (int __i = 0; __i < (M-JX); ++__i) (gs)[__i] += (gs_1+JX)[__i] * (lambda1)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (C2) * (gs_1)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (C2) * (gs_1+1)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (C3);
-			for (int __i = 0; __i < (M-JX-1); ++__i) (gs+JX+1)[__i] += (gs_1)[__i] * (lambda_1+JX+1)[__i];
-			for (int __i = 0; __i < (M-JX-1); ++__i) (gs+JX)[__i] += (gs_1+1)[__i] * (lambda_1+JX)[__i];
-			for (int __i = 0; __i < (M-JX-1); ++__i) (gs+1)[__i] += (gs_1+JX)[__i] * (lambda1+1)[__i];
-			for (int __i = 0; __i < (M-JX-1); ++__i) (gs)[__i] += (gs_1+JX+1)[__i] * (lambda1)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (C2);
+			add_shifted(gs, gs_1, M, C1);
+			add_weighted(gs + JX, gs_1, lambda_1 + JX, M - JX);
+			add_weighted(gs, gs_1 + JX, lambda1, M - JX);
+			add_shifted(gs + 1, gs_1, M - 1, C2);
+			add_shifted(gs, gs_1 + 1, M - 1, C2);
+			scale_span(gs, M, C3);
+			add_weighted(gs + JX + 1, gs_1, lambda_1 + JX + 1, M - JX - 1);
+			add_weighted(gs + JX, gs_1 + 1, lambda_1 + JX, M - JX - 1);
+			add_weighted(gs + 1, gs_1 + JX, lambda1 + 1, M - JX - 1);
+			add_weighted(gs, gs_1 + JX + 1, lambda1, M - JX - 1);
+			scale_span(gs, M, C2);
 			for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
 		}
 	} else { //fjc>1

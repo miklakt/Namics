@@ -8,7 +8,7 @@
 #include "reaction.h"
 #include "lattice.h"
 #include "molecule.h"
-#include "tools_host.h"
+#include "tools.h"
 #include "sfnewton.h"
 #include <Eigen/Core>
 #include <LBFGS.h>
