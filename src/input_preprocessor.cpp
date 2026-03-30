@@ -1,4 +1,5 @@
 #include "input_preprocessor.h"
+#include "io_utils.h"
 
 #include <algorithm>
 #include <array>
@@ -116,21 +117,6 @@ std::filesystem::path ResolveRelativeTo(const std::string& base_path, const std:
 	const std::filesystem::path base(base_path);
 	const std::filesystem::path parent = base.has_parent_path() ? base.parent_path() : std::filesystem::path(".");
 	return (parent / candidate).lexically_normal();
-}
-
-bool ReadJsonFile(const std::string& path, json& document) {
-	std::ifstream input(path.c_str());
-	if (!input.is_open()) {
-		std::cout << "Inputfile " << path << " is not found. " << std::endl;
-		return false;
-	}
-	try {
-		document = json::parse(input, nullptr, true, true);
-	} catch (const std::exception& error) {
-		std::cout << "Failed to parse JSON input file " << path << ": " << error.what() << std::endl;
-		return false;
-	}
-	return true;
 }
 
 bool LooksLikeJsonInput(const std::string& path) {
@@ -450,7 +436,7 @@ bool ExtractMaskCoordinatesFromJsonFile(const std::string& path,
                                         Coordinates& coordinates) {
 	if (!LooksLikeJsonInput(path)) return ParseLegacyMaskFile(path, shape, coordinates);
 	json document;
-	if (!ReadJsonFile(path, document)) return false;
+	if (!io::detail::ReadJsonFile(path, document)) return false;
 	if (document.is_object()) {
 		if (const auto it = document.find(key); it != document.end()) return ExtractMaskCoordinates(*it, key, shape, path, var_pos, coordinates);
 	}
@@ -541,33 +527,12 @@ bool HasMaskSettings(const json& problem) {
 	return false;
 }
 
-bool IsInitialGuessPayload(const json& document) {
-	return document.is_object() &&
-		document.contains("profiles") &&
-		document.at("profiles").is_object();
-}
-
-const json* FindInitialGuessObject(const json& document) {
-	if (IsInitialGuessPayload(document)) return &document;
-	if (!document.is_object()) return nullptr;
-	if (const auto it = document.find("initial_guess"); it != document.end() && it->is_object()) return &it.value();
-	const auto problems = document.find("problems");
-	if (problems == document.end()) return nullptr;
-	if (problems->is_object()) return FindInitialGuessObject(*problems);
-	if (!problems->is_array()) return nullptr;
-	for (auto problem = problems->rbegin(); problem != problems->rend(); ++problem) {
-		if (!problem->is_object()) continue;
-		if (const json* embedded = FindInitialGuessObject(*problem)) return embedded;
-	}
-	return nullptr;
-}
-
 bool LoadInitialGuessSource(const json& source, const std::string& base_path, json& guess) {
 	if (source.is_string()) {
 		const std::string path = ResolveRelativeTo(base_path, source.get<std::string>()).string();
 		json document;
-		if (!ReadJsonFile(path, document)) return false;
-		const json* embedded = FindInitialGuessObject(document);
+		if (!io::detail::ReadJsonFile(path, document)) return false;
+		const json* embedded = io::detail::FindInitialGuessObject(document);
 		if (embedded == nullptr) return false;
 		guess = *embedded;
 		return true;
@@ -576,7 +541,7 @@ bool LoadInitialGuessSource(const json& source, const std::string& base_path, js
 	if (const json* file = FindMember(source, MASK_FILE_KEYS); file != nullptr && file->is_string()) {
 		return LoadInitialGuessSource(*file, base_path, guess);
 	}
-	const json* embedded = FindInitialGuessObject(source);
+	const json* embedded = io::detail::FindInitialGuessObject(source);
 	if (embedded == nullptr) return false;
 	guess = *embedded;
 	return true;
@@ -648,7 +613,7 @@ namespace io::input {
 bool PrepareInputFile(const std::string& requested_path, std::string& json_path) {
 	json document;
 	if (LooksLikeJsonInput(requested_path)) {
-		if (!ReadJsonFile(requested_path, document)) return false;
+		if (!io::detail::ReadJsonFile(requested_path, document)) return false;
 	} else {
 		std::vector<std::string> entries;
 		if (!ReadLegacyEntries(requested_path, entries)) return false;

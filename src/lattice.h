@@ -106,16 +106,12 @@ public:
 	virtual void ComputeLambdas(void)=0;
 	virtual Real WeightedSum(Real*)=0;
 	virtual Real Moment(Real*,Real,int) =0;
-	virtual Real MomentPlanar(Real*,int,Real)=0;
-	virtual void TimesL(Real*) =0;
-	virtual void DivL(Real*) =0;
 	virtual bool PutMask(Real* H_MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R)=0;
 	virtual bool PutM(void)=0;
 	virtual void propagate(Real*,Real*, int, int,int)=0;
 	virtual void propagateF(Real*,Real*,Real*,int,int,int)=0;
 	virtual void propagateB(Real*,Real*,Real*,int,int,int)=0;
 	virtual void Side(Real *, Real *, int) =0;
-	virtual Real ComputeTheta(Real*) =0;
 	virtual void UpdateEE(Real*, Real*,Real*) =0;
 	virtual void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool)=0;
 	virtual void UpdateQ(Real*,Real*,Real*,Real*,Real*,bool)=0;

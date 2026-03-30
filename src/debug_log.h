@@ -23,7 +23,7 @@ extern bool debug;
  *   [DBG] <file>:<line> | <function_signature> | <message>
  *
  * Example emission:
- *   [DBG] LG1Planar.cpp:135 | virtual void LG1Planar::propagate(Real*, Real*, int, int, int) |  propagate in LG1Planar
+ *   [DBG] LGrad1.cpp:135 | virtual void LGrad1::propagate(Real*, Real*, int, int, int) |  propagate in LGrad1
  *
  * Warning:
  *   This logger is intentionally mutex-free for now.

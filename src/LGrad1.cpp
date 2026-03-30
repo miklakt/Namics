@@ -2,8 +2,6 @@
 #include <string>
 #include "LGrad1.h"
 
-//planar geometry is in LG1Planar.cpp
-
 LGrad1::LGrad1(const Input& In_,const std::string& name_): Lattice(In_,name_) {
 NAMICS_DBG("LGrad1 constructor " << std::endl);}
 
@@ -15,7 +13,8 @@ bool LGrad1::CheckLatticeInput(const ParameterStore& parameters) {
 	success = RejectAxisBoundsIn1D(parameters) && success;
 
 	geometry = parameters.value("geometry", std::string{"planar"});
-	success = AssignChoice(geometry, geometry, {"spherical", "cylindrical"}, "In lattice input for 'geometry' not recognized.") && success;
+	success = AssignChoice(geometry, geometry, {"spherical", "cylindrical", "flat", "planar"}, "In lattice input for 'geometry' not recognized.") && success;
+	if (geometry == "flat") geometry = "planar";
 	ReadOffsetFirstLayer(parameters);
 	success = ReadBoundaryCondition(parameters, "lowerbound", 0, {"mirror", "surface", "periodic"}, "For 'lowerbound' boundary condition not recognized. ") && success;
 	success = ReadBoundaryCondition(parameters, "upperbound", 3, {"mirror", "surface", "periodic"}, "For 'upperbound' boundary condition not recognized.") && success;
@@ -26,6 +25,29 @@ void LGrad1:: ComputeLambdas() {
 NAMICS_DBG("LGrad1 computeLambda's " << std::endl);
 	Real r, VL, LS;
 	Real rlow, rhigh;
+
+	if (geometry == "planar") {
+		for (int i = 1; i < MX + 1; ++i) L[i] = 1;
+		if (fjc == 1) {
+			for (int i = 1; i < MX + 1; ++i) {
+				lambda1[i] = lambda;
+				lambda_1[i] = lambda;
+				lambda0[i] = 1.0 - 2.0 * lambda;
+			}
+		} else {
+			for (int i = 0; i < M; ++i) {
+				L[i] = 1.0 / fjc;
+				LAMBDA[i] = 1.0 / (2 * (FJC - 1));
+				LAMBDA[i + (FJC - 1) * M] = 1.0 / (2 * (FJC - 1));
+				LAMBDA[i + (FJC - 1) / 2 * M] = 1.0 / (FJC - 1);
+				for (int j = 1; j < FJC / 2; j++) {
+					LAMBDA[i + j * M] = 1.0 / (FJC - 1);
+					LAMBDA[i + (FJC - j - 1) * M] = 1.0 / (FJC - 1);
+				}
+			}
+		}
+		return;
+	}
 
 	if (fcc_sites){
 		if (geometry=="cylindrical") {
@@ -195,14 +217,6 @@ NAMICS_DBG("PutM in LGrad1 " << std::endl);	bool success=true;
 	return success;
 }
 
-void LGrad1::TimesL(Real* X){
-NAMICS_DBG("TimesL in LGrad1 " << std::endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = (X)[__i] * (L)[__i];
-}
-
-void LGrad1::DivL(Real* X){
-NAMICS_DBG("DivL in LGrad1 " << std::endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = ((L)[__i] != 0) ? ((X)[__i] / (L)[__i]) : 0;
-}
-
 Real LGrad1:: Moment(Real* X,Real Xb, int n) {
 NAMICS_DBG("Moment in LGrad1 " << std::endl);	Real Result=0;
 	Real cor;
@@ -212,14 +226,6 @@ NAMICS_DBG("Moment in LGrad1 " << std::endl);	Real Result=0;
 		Result += std::pow(cor,n)*(X[i]-Xb)*L[i];
 	}
 	return Result/fjc;
-}
-
-Real LGrad1::MomentPlanar(Real* X,int n,Real Z0){
-	(void)Z0;
-	(void)n;
-	(void)X;
-	std::cout <<"MomentPlanar not implemented; kJ0 or kbar may be wrong. " << std::endl;
-	return 0;
 }
 
 Real LGrad1::WeightedSum(Real* X){
@@ -459,26 +465,24 @@ NAMICS_DBG(" propagate in LGrad1 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 }
 
 
-Real LGrad1::ComputeTheta(Real* phi) {
-	Real result=0; remove_bounds(phi);
-	if (geometry !="planar") {
-		result = 0;
-		for (int __i = 0; __i < M; ++__i) result += phi[__i] * L[__i];
-	} else {
-		if (fjc==1) {
-			result = 0;
-			for (int __i = 0; __i < M; ++__i) result += phi[__i];
-		} else {
-			result = 0;
-			for (int __i = 0; __i < M; ++__i) result += phi[__i] * L[__i];
-		}
-	}
-	return result/fjc;
-}
-
 void LGrad1::UpdateEE(Real* EE, Real* psi, Real* E) {
 	(void)E;
 	Real pf=0.5*eps0*bond_length/k_BT*(k_BT/e)*(k_BT/e); //(k_BT/e) is to convert dimensionless psi to real psi; 0.5 is needed in weighting factor.
+	if (geometry == "planar") {
+		set_M_bounds(psi);
+		std::fill_n(EE, M, 0);
+		Real Exmin, Explus;
+		pf = pf / 2.0 * fjc * fjc;
+		Explus = psi[fjc - 1] - psi[fjc];
+		Explus *= Explus;
+		for (int x = fjc; x < MX + fjc; x++) {
+			Exmin = Explus;
+			Explus = psi[x] - psi[x + 1];
+			Explus *= Explus;
+			EE[x] = pf * (Exmin + Explus);
+		}
+		return;
+	}
 	set_M_bounds(psi);
 	std::fill_n(EE, M, 0);
 	Real Exmin,Explus;
@@ -525,6 +529,41 @@ void LGrad1::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 	Real r;
 	Real epsXplus, epsXmin;
 	Real C =e*e/(eps0*k_BT*bond_length);
+
+	if (geometry == "planar") {
+		if (!fixedPsi0) {
+			C = C * 2.0 / fjc / fjc;
+			epsXplus = eps[fjc - 1] + eps[fjc];
+			a = 0; b = psi[fjc - 1]; c = psi[fjc];
+			for (x = fjc; x < MX + fjc; x++) {
+				epsXmin = epsXplus;
+				epsXplus = eps[x] + eps[x + 1];
+				if (x == fjc) a = psi[fjc - 1]; else a = X[x - 1];
+				X[x] = (epsXmin * a + C * q[x] + epsXplus * psi[x + 1]) / (epsXmin + epsXplus);
+			}
+			for (int __i = 0; __i < (M); ++__i) (g)[__i] = (g)[__i] - (X)[__i];
+		} else {
+			a = 0; b = psi[fjc - 1]; c = psi[fjc];
+			for (x = fjc; x < MX + fjc; x++) {
+				a = b; b = c; c = psi[x + 1];
+				if (Mask[x] == 0) psi[x] = 0.5 * (a + c) + q[x] * C / eps[x];
+			}
+			if (grad_epsilon) {
+				a = 0; b = psi[fjc - 1]; c = psi[fjc]; a_ = 0; b_ = eps[fjc - 1]; c_ = eps[fjc];
+				for (x = fjc; x < MX + fjc; x++) {
+					a = b; b = c; c = psi[x + 1]; a_ = b_; b_ = c_; c_ = eps[x + 1];
+					if (Mask[x] == 0) {
+						psi[x] += 0.25 * (c_ - a_) * (c - a) / eps[x] * fjc * fjc;
+					}
+				}
+			}
+			for (x = fjc; x < MX + fjc; x++)
+			if (Mask[x] == 0) {
+				g[x] -= psi[x];
+			}
+		}
+		return;
+	}
 
    if (!fixedPsi0) {
 	if (geometry=="cylindrical") {
@@ -596,6 +635,25 @@ void LGrad1::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool gra
 	Real a,b,c,a_,b_,c_;
 
 	Real C = -e*e/(eps0*k_BT*bond_length);
+	if (geometry == "planar") {
+		a = 0; b = psi[fjc - 1]; c = psi[fjc];
+		for (x = fjc; x < MX + fjc; x++) {
+			a = b; b = c; c = psi[x + 1];
+			if (Mask[x] == 1) q[x] = -0.5 * (a - 2 * b + c) * fjc * fjc * eps[x] / C;
+		}
+		if (grad_epsilon) {
+			a = 0; b = psi[fjc - 1]; c = psi[fjc]; a_ = 0; b_ = eps[fjc - 1]; c_ = eps[fjc];
+			for (x = fjc; x < MX + fjc; x++) {
+				a = b; b = c; c = psi[x + 1]; a_ = b_; b_ = c_; c_ = eps[x + 1];
+				if (Mask[x] == 1) q[x] -= 0.25 * (c_ - a_) * (c - a) * fjc * fjc / C;
+			}
+		}
+		for (x = fjc; x < MX + fjc; x++)
+		if (Mask[x] == 1) {
+			g[x] = -q[x];
+		}
+		return;
+	}
 	a=0; b=psi[fjc-1]; c=psi[fjc];
 	for (x=fjc; x<MX+fjc; x++) { //for all geometries
 		a=b; b=c; c=psi[x+1];
@@ -806,12 +864,22 @@ NAMICS_DBG("LGrad1::Terminate " << std::endl);	Real one=1.0;
 }
 
 bool LGrad1:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){
+	if (geometry == "planar") {
+		(void)R;
+		(void)pz;
+		(void)py;
+		(void)px;
+		(void)MASK;
+		bool success=true;
+		std::cout <<"PutMask does not make sence in planar 1 gradient system " << std::endl;
+		return success;
+	}
 	(void)R;
 	(void)pz;
 	(void)py;
 	(void)px;
 	(void)MASK;
 	bool success=false;
-	std::cout <<"PutMask does not make sence in 1 gradient system " << std::endl;
+	std::cout <<"PutMask does not make sense in 1 gradient system " << std::endl;
 	return success;
 }

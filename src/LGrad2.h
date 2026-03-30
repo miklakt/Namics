@@ -6,7 +6,7 @@ class LGrad2 : public Lattice
 	public:	LGrad2(const Input& In_,const std::string& name_);
 	~LGrad2();
 	static bool Matches(const LatticeSelection& selection) {
-		return selection.gradients == 2 && selection.geometry != "planar";
+		return selection.gradients == 2;
 	}
 
 	protected:
@@ -15,10 +15,7 @@ class LGrad2 : public Lattice
 	public:
 	void ComputeLambdas(void);
 	bool PutM();
-	void TimesL(Real*);
-	void DivL(Real*);
 	Real Moment(Real*,Real,int);
-	Real MomentPlanar(Real*,int,Real);
 	Real WeightedSum(Real*);
 	void Side(Real *, Real *, int);
 	void propagate(Real*,Real*, int, int,int);
@@ -26,7 +23,6 @@ class LGrad2 : public Lattice
 	void UReflect(Real*,Real*,Real*);
 	virtual void propagateF(Real*,Real*,Real*, int, int,int);
 	virtual void propagateB(Real*,Real*,Real*, int, int,int);
-	Real ComputeTheta(Real*);
 	void UpdateEE(Real*, Real*,Real*);
 	void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool);
 	void UpdateQ(Real*,Real*,Real*,Real*,Real*,bool);

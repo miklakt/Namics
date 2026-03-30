@@ -6,7 +6,7 @@ class LGrad1 : public Lattice
 	public: LGrad1(const Input& In_,const std::string& name_);
 	virtual ~LGrad1();
 	static bool Matches(const LatticeSelection& selection) {
-		return selection.gradients == 1 && selection.geometry != "planar";
+		return selection.gradients == 1;
 	}
 
 	protected:
@@ -15,12 +15,8 @@ class LGrad1 : public Lattice
 	public:
 
 	bool PutM();
-	void TimesL(Real*);
-	void DivL(Real*);
 	Real Moment(Real*,Real,int);
-	Real MomentPlanar(Real*,int,Real);
 	Real WeightedSum(Real*);
-	Real ComputeTheta(Real*);
 	void remove_bounds(Real*);
 	void set_bounds(Real*);
 	void set_bounds(Real*,Real*);

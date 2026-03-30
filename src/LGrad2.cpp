@@ -14,7 +14,8 @@ bool LGrad2::CheckLatticeInput(const ParameterStore& parameters) {
 	success = ReadScaledDimension(parameters, "n_layers_y", MY, 0, "In 'lat' the parameter 'n_layers_y' is required. Problem terminated", "n_layers_y out of bounds, currently: 0.. 1e6; Problem terminated") && success;
 
 	geometry = parameters.value("geometry", std::string{"planar"});
-	success = AssignChoice(geometry, geometry, {"cylindrical"}, "In lattice input for 'geometry' not recognized.") && success;
+	success = AssignChoice(geometry, geometry, {"cylindrical", "flat", "planar"}, "In lattice input for 'geometry' not recognized.") && success;
+	if (geometry == "flat") geometry = "planar";
 	ReadOffsetFirstLayer(parameters);
 	success = ReadBoundaryCondition(parameters, "lowerbound_x", 0, {"mirror", "surface"}, "for 'lowerbound_x' boundary condition not recognized.  ") && success;
 	success = ReadBoundaryCondition(parameters, "upperbound_x", 3, {"mirror", "surface"}, "for 'upperbound_x' boundary condition not recognized. ") && success;
@@ -107,14 +108,6 @@ NAMICS_DBG("PutM in LGrad2 " << std::endl);	bool success=true;
 
 	Accesible_volume=volume;
 	return success;
-}
-
-void LGrad2::TimesL(Real* X){
-NAMICS_DBG("TimesL in LGrad2 " << std::endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = (X)[__i] * (L)[__i];
-}
-
-void LGrad2::DivL(Real* X){
-NAMICS_DBG("DivL in LGrad2 " << std::endl); if (geometry!="planar") for (int __i = 0; __i < (M); ++__i) (X)[__i] = ((L)[__i] != 0) ? ((X)[__i] / (L)[__i]) : 0;
 }
 
 Real LGrad2:: Moment(Real* X,Real Xb, int n) {
@@ -700,26 +693,32 @@ NAMICS_DBG(" propagate in LGrad2 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 }
 
 
-Real LGrad2::ComputeTheta(Real* phi) {
-	Real result=0; remove_bounds(phi);
-	if (geometry !="planar") {
-		result = 0;
-		for (int __i = 0; __i < M; ++__i) result += phi[__i] * L[__i];
-	} else {
-		if (fjc==1) {
-			result = 0;
-			for (int __i = 0; __i < M; ++__i) result += phi[__i];
-		} else {
-			result = 0;
-			for (int __i = 0; __i < M; ++__i) result += phi[__i] * L[__i];
-		}
-	}
-	return result;
-}
-
 void LGrad2::UpdateEE(Real* EE, Real* psi, Real* E) {
 	(void)E;
 	Real pf=0.5*eps0*bond_length/k_BT*(k_BT/e)*(k_BT/e); //(k_BT/e) is to convert dimensionless psi to real psi; 0.5 is needed in weighting factor.
+	if (geometry == "planar") {
+		set_M_bounds(psi);
+		std::fill_n(EE, M, 0);
+		Real Exmin,Explus,Eymin,Eyplus;
+		int x,y,z;
+
+		pf = pf / 2.0;
+		for (x=fjc; x<MX+fjc; x++) {
+			for (y=fjc; y<MY+fjc; y++) {
+				z=x*JX+y;
+				Exmin=psi[z]-psi[z-JX];
+				Exmin*=Exmin;
+				Explus=psi[z]-psi[z+JX];
+				Explus*=Explus;
+				Eymin=psi[z]-psi[z-1];
+				Eymin*=Eymin;
+				Eyplus=psi[z]-psi[z+1];
+				Eyplus*=Eyplus;
+				EE[x*JX+y]=pf*(Exmin+Explus+Eymin+Eyplus);
+			}
+		}
+		return;
+	}
 	set_M_bounds(psi);
 	std::fill_n(EE, M, 0);
 	Real Exmin,Explus,Eymin,Eyplus;
@@ -755,6 +754,52 @@ void LGrad2::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 	Real C =e*e/(eps0*k_BT*bond_length);
 	Real a=0;
 	Real b=0;
+	if (geometry == "planar") {
+		if (!fixedPsi0) {
+			C = C * 2.0 / fjc / fjc;
+			for (x=fjc; x<MX+fjc; x++) {
+				for (y=fjc; y<MY+fjc; y++) {
+					i=x*JX+y;
+					Real epsXmin=eps[i]+eps[i-JX];
+					Real epsXplus=eps[i]+eps[i+JX];
+					Real epsYmin=eps[i]+eps[i-1];
+					Real epsYplus=eps[i]+eps[i+1];
+					if (x==fjc) a=psi[i-JX]; else a=X[i-JX];
+					if (y==fjc) b=psi[i-1]; else b=X[i-1];
+					X[i]= (C*q[i]+epsXmin*a+epsXplus*psi[i+JX]+epsYmin*b+epsYplus*psi[i+1])/
+					(epsXmin+epsXplus+epsYmin+epsYplus);
+				}
+			}
+			for (int __i = 0; __i < (M); ++__i) (g)[__i] = (g)[__i] - (X)[__i];
+		} else {
+			for (x=fjc; x<MX+fjc; x++) {
+				for (y=fjc; y<MY+fjc; y++){
+					if (Mask[x*JX+y] == 0)
+					X[x*JX+y]=0.25*(psi[(x-1)*JX+y]+psi[(x+1)*JX+y]
+				        +psi[x*JX+y-1]  +psi[x*JX+y+1])
+					 +0.5*q[x*JX+y]*C/eps[x*JX+y];
+				}
+			}
+
+			if (grad_epsilon) {
+				for (x=fjc; x<MX+fjc; x++) {
+					for (y=fjc; y<MY+fjc; y++) {
+						if (Mask[x*JX+y] == 0) {
+							X[x*JX+y]+=0.25*(eps[(x+1)*JX+y]-eps[(x-1)*JX+y])*(psi[(x+1)*JX+y]-psi[(x-1)*JX+y]+
+                                              eps[x*JX+y+1]  -eps[x*JX+y-1])  *(psi[x*JX+y+1]  -psi[x*JX+y-1])/
+					           eps[x*JX+y]*fjc*fjc;
+						}
+					}
+				}
+			}
+			for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++)
+			if (Mask[x*JX+y] == 0) {
+				psi[x*JX+y]=X[x*JX+y];
+				g[x*JX+y]-=psi[x*JX+y];
+			}
+		}
+		return;
+	}
 	if (!fixedPsi0) {
 		C=C/2/fjc/fjc;
 		r=offset_first_layer*fjc;
@@ -816,6 +861,31 @@ void LGrad2::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool gra
 	int x,y;
 
 	Real C = -e*e/(eps0*k_BT*bond_length);
+	if (geometry == "planar") {
+		for (x=fjc; x<MX+fjc; x++) {
+			for (y=fjc; y<MY+fjc; y++){ //for all geometries
+				if (Mask[x*JX+y] == 1)
+				q[x*JX+y]=-0.5*(psi[(x-1)*JX+y]+psi[(x+1)*JX+y]
+				        +psi[x*JX+y-1]  +psi[x*JX+y+1]
+					 -4*psi[x*JX+y])*fjc*fjc*eps[x*JX+y]/C;
+			}
+		}
+
+		if (grad_epsilon) {
+			for (x=fjc; x<MX+fjc; x++) {
+				for (y=fjc; y<MY+fjc; y++) {
+					if (Mask[x*JX+y] == 1)
+					q[x*JX+y]-=0.25*(eps[(x+1)*JX+y]-eps[(x-1)*JX+y])*(psi[(x+1)*JX+y]-psi[(x-1)*JX+y]+
+                                  		   eps[x*JX+y+1]  -eps[x*JX+y-1])  *(psi[x*JX+y+1]  -psi[x*JX+y-1])*fjc*fjc/C;
+					}
+			}
+		}
+		for (x=fjc; x<MX+fjc; x++) for (y=fjc; y<MY+fjc; y++)
+		if (Mask[x*JX+y] == 1) {
+			g[x*JX+y]=-q[x*JX+y];
+		}
+		return;
+	}
 	for (x=fjc; x<MX+fjc; x++) {
 		for (y=fjc; y<MY+fjc; y++){ //for all geometries
 			if (Mask[x*JX+y] == 1)
@@ -1233,6 +1303,15 @@ NAMICS_DBG("LGrad2:: terminate " << std::endl);	if (Markov==2) {
 bool LGrad2:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){
 	(void)pz;
 NAMICS_DBG("PutMask in LGrad2 " << std::endl);	//R*=fjc; //is already done in segment
+	if (geometry == "planar") {
+		(void)R;
+		(void)py;
+		(void)px;
+		(void)MASK;
+		bool success=false;
+		std::cout <<"PutMask does not make sense in planar 2 gradient system " << std::endl;
+		return success;
+	}
 	bool success=true;
 	int length =px.size();
 	int X,Y;
@@ -1270,12 +1349,4 @@ NAMICS_DBG("PutMask in LGrad2 " << std::endl);	//R*=fjc; //is already done in se
 		}
 	}
 	return success;
-}
-
-Real LGrad2::MomentPlanar(Real* X,int n,Real Z0){
-	(void)Z0;
-	(void)n;
-	(void)X;
-	std::cout <<"MomentPlanar not implemented; kJ0 or kbar may be wrong. " << std::endl;
-	return 0;
 }

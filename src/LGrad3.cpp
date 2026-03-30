@@ -36,14 +36,6 @@ NAMICS_DBG("PutM in LGrad3 " << std::endl);	bool success=true;
 	return success;
 }
 
-void LGrad3::TimesL(Real* X){
-	(void)X;
-NAMICS_DBG("TimesL in LGrad3 " << std::endl);}
-
-void LGrad3::DivL(Real* X){
-	(void)X;
-NAMICS_DBG("DivL in LGrad3 " << std::endl);}
-
 Real LGrad3:: Moment(Real* X,Real Xb, int n) {
 	(void)n;
 	(void)Xb;
@@ -53,9 +45,10 @@ NAMICS_DBG("Moment in LGrad3 " << std::endl);	Real Result=0;
 }
 
 Real LGrad3::WeightedSum(Real* X){
-NAMICS_DBG("weighted sum in LGrad3 " << std::endl);	Real sum{0};
+NAMICS_DBG("weighted sum in LGrad3 " << std::endl);
 	remove_bounds(X);
-	(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i];
+	Real sum{0};
+	for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i];
 	return sum;
 }
 
@@ -737,13 +730,6 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 			}
 		}
 	}
-}
-
-
-Real LGrad3::ComputeTheta(Real* phi) {
-	Real result=0; remove_bounds(phi);
-	(result) = 0; for (int __i = 0; __i < (M); ++__i) (result) += (phi)[__i] * (L)[__i];
-	return result;
 }
 
 void LGrad3::UpdateEE(Real* EE, Real* psi, Real* E) {
@@ -1470,12 +1456,4 @@ bool LGrad3:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vect
 	}
 
 	return success;
-}
-
-Real LGrad3::MomentPlanar(Real* X,int n,Real Z0){
-	(void)Z0;
-	(void)n;
-	(void)X;
-	std::cout <<"MomentPlanar not implemented; kJ0 or kbar may be wrong. " << std::endl;
-	return 0;
 }

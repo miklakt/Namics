@@ -1,9 +1,9 @@
 #include "lattice.h"
-#include "LG1Planar.h"
-#include "LG2Planar.h"
 #include "LGrad1.h"
 #include "LGrad2.h"
 #include "LGrad3.h"
+
+#include <string_view>
 
 namespace {
 
@@ -52,6 +52,32 @@ bool ParseSelection(const Input& in, const std::string& name, int start, Lattice
 	return true;
 }
 
+template <typename VecFn1, typename VecFn2, typename VecFn3>
+void AssignBoundary(std::string_view bc,
+                    int fjc,
+                    int& single,
+                    std::vector<int>& vector,
+                    int mirror_single,
+                    int periodic_single,
+                    int surface_single,
+                    VecFn1 mirror_vec,
+                    VecFn2 periodic_vec,
+                    VecFn3 surface_vec) {
+	if (fjc == 1) {
+		if (bc == "mirror") single = mirror_single;
+		else if (bc == "periodic") single = periodic_single;
+		else if (bc == "surface") single = surface_single;
+		return;
+	}
+	if (bc == "mirror") {
+		for (int k = 0; k < fjc; ++k) vector[k] = mirror_vec(k);
+	} else if (bc == "periodic") {
+		for (int k = 0; k < fjc; ++k) vector[k] = periodic_vec(k);
+	} else if (bc == "surface") {
+		for (int k = 0; k < fjc; ++k) vector[k] = surface_vec(k);
+	}
+}
+
 template <class T>
 std::unique_ptr<Lattice> TryCreate(const Input& in, const std::string& name, int start, const LatticeSelection& selection) {
 	if (!T::Matches(selection)) return nullptr;
@@ -85,9 +111,7 @@ std::unique_ptr<Lattice> CreateChecked(const Input& in, const std::string& name,
 	LatticeSelection selection;
 	if (!ParseSelection(in, name, start, selection)) return nullptr;
 
-	if (auto lattice = TryCreate<LG1Planar>(in, name, start, selection)) return lattice;
 	if (auto lattice = TryCreate<LGrad1>(in, name, start, selection)) return lattice;
-	if (auto lattice = TryCreate<LG2Planar>(in, name, start, selection)) return lattice;
 	if (auto lattice = TryCreate<LGrad2>(in, name, start, selection)) return lattice;
 	if (auto lattice = TryCreate<LGrad3>(in, name, start, selection)) return lattice;
 
@@ -142,105 +166,36 @@ NAMICS_DBG("AllocateMemory in lat " << std::endl);
 
 	switch (gradients) {
 		case 3:
-			if (BC[2]=="mirror") {
-				if (fjc==1) BZ1=1; else {
-					for (int k=0; k<fjc; k++) B_Z1[k]=2*fjc-1-k;
-				}
-			}
-			if (BC[2]=="periodic") {
-				if (fjc==1) BZ1=MZ; else {
-					for (int k=0; k<fjc; k++) B_Z1[k]=MZ+k;
-				}
-			}
-			if (BC[2]=="surface") {
-				if (fjc==1) BZ1=0; else {
-					for (int k=0; k<fjc; k++) B_Z1[k]=k;
-				}
-			}
-
-			if (BC[5]=="mirror") {
-				if (fjc==1) BZM=MZ; else {
-					for (int k=0; k<fjc; k++) B_ZM[k]=MZ+fjc-k-1;
-				}
-			}
-			if (BC[5]=="periodic") {
-				if (fjc==1) BZM=1; else {
-					for (int k=0; k<fjc; k++) B_ZM[k]=fjc+k;
-				}
-			}
-			if (BC[5]=="surface") {
-				if (fjc==1) BZM=MZ+1; else {
-					for (int k=0; k<fjc; k++) B_ZM[k]=MZ+fjc+k;
-				}
-			}
+			AssignBoundary(BC[2], fjc, BZ1, B_Z1, 1, MZ, 0,
+				[&](int k) { return 2 * fjc - 1 - k; },
+				[&](int k) { return MZ + k; },
+				[&](int k) { return k; });
+			AssignBoundary(BC[5], fjc, BZM, B_ZM, MZ, 1, MZ + 1,
+				[&](int k) { return MZ + fjc - k - 1; },
+				[&](int k) { return fjc + k; },
+				[&](int k) { return MZ + fjc + k; });
 
 			//Fall through
 		case 2:
-			if (BC[1]=="mirror") {
-				if (fjc==1) BY1=1; else {
-					for (int k=0; k<fjc; k++) B_Y1[k]=2*fjc-1-k;
-				}
-			}
-			if (BC[1]=="periodic") {
-				if (fjc==1) BY1=MY; else {
-					for (int k=0; k<fjc; k++) B_Y1[k]=MY+k;
-				}
-			}
-			if (BC[1]=="surface") {
-				if (fjc==1) BY1=0; else {
-					for (int k=0; k<fjc; k++) B_Y1[k]=k;
-				}
-			}
-
-			if (BC[4]=="mirror") {
-				if (fjc==1) BYM=MY; else {
-					for (int k=0; k<fjc; k++) B_YM[k]=MY+fjc-k-1;
-				}
-			}
-			if (BC[4]=="periodic") {
-				if (fjc==1) BYM=1; else {
-					for (int k=0; k<fjc; k++) B_YM[k]=fjc+k;
-				}
-			}
-			if (BC[4]=="surface") {
-				if (fjc==1) BYM=MY+1; else { //std::cout <<"surface ub" << std::endl;
-					for (int k=0; k<fjc; k++) B_YM[k]=MY+fjc+k;
-				}
-			}
+			AssignBoundary(BC[1], fjc, BY1, B_Y1, 1, MY, 0,
+				[&](int k) { return 2 * fjc - 1 - k; },
+				[&](int k) { return MY + k; },
+				[&](int k) { return k; });
+			AssignBoundary(BC[4], fjc, BYM, B_YM, MY, 1, MY + 1,
+				[&](int k) { return MY + fjc - k - 1; },
+				[&](int k) { return fjc + k; },
+				[&](int k) { return MY + fjc + k; });
 
 			//Fall through
 		case 1:
-			if (BC[0]=="mirror") {
-				if (fjc==1) BX1=1; else {
-					for (int k=0; k<fjc; k++) B_X1[k]=2*fjc-1-k;
-				}
-			}
-			if (BC[0]=="periodic") {
-				if (fjc==1) BX1=MX;else {
-					for (int k=0; k<fjc; k++) B_X1[k]=MX+k;
-				}
-			}
-			if (BC[0]=="surface") {
-				if (fjc==1) BX1=0; else {
-					for (int k=0; k<fjc; k++) B_X1[k]=k;
-				}
-			}
-
-			if (BC[3]=="mirror") {
-				if (fjc==1) BXM=MX;else {
-					for (int k=0; k<fjc; k++) B_XM[k]=MX+fjc-k-1;
-				}
-			}
-			if (BC[3]=="periodic") {
-				if (fjc==1) BXM=1; else {
-					for (int k=0; k<fjc; k++) B_XM[k]=fjc+k;
-				}
-			}
-			if (BC[3]=="surface") {
-				if (fjc==1) BXM=MX+1; else {
-					for (int k=0; k<fjc; k++) B_XM[k]=MX+fjc+k;
-				}
-			}
+			AssignBoundary(BC[0], fjc, BX1, B_X1, 1, MX, 0,
+				[&](int k) { return 2 * fjc - 1 - k; },
+				[&](int k) { return MX + k; },
+				[&](int k) { return k; });
+			AssignBoundary(BC[3], fjc, BXM, B_XM, MX, 1, MX + 1,
+				[&](int k) { return MX + fjc - k - 1; },
+				[&](int k) { return fjc + k; },
+				[&](int k) { return MX + fjc + k; });
 
 	}
 	if (fcc_sites) {

@@ -2,6 +2,7 @@
 #define IO_UTILSxH
 
 #include <algorithm>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -31,6 +32,12 @@ inline bool ReadJsonFile(const std::string& filename, json& document) {
 }
 
 inline const json* FindLastProblemObject(const json& document) {
+	if (document.is_array()) {
+		for (auto it = document.rbegin(); it != document.rend(); ++it) {
+			if (it->is_object()) return &*it;
+		}
+		return nullptr;
+	}
 	if (!document.is_object()) return nullptr;
 	const auto problems = document.find("problems");
 	if (problems == document.end()) return nullptr;
@@ -43,6 +50,12 @@ inline const json* FindLastProblemObject(const json& document) {
 }
 
 inline const json* FindInitialGuessObject(const json& document) {
+	if (document.is_array()) {
+		for (auto it = document.rbegin(); it != document.rend(); ++it) {
+			if (const auto* guess = FindInitialGuessObject(*it)) return guess;
+		}
+		return nullptr;
+	}
 	if (!document.is_object()) return nullptr;
 	if (const auto guess = document.find("initial_guess"); guess != document.end() && guess->is_object()) return &*guess;
 	if (const auto profiles = document.find("profiles"); profiles != document.end() && profiles->is_object()) return &document;
@@ -51,7 +64,13 @@ inline const json* FindInitialGuessObject(const json& document) {
 }
 
 inline const json* FindExternalPotentialNode(const json& document) {
-	if (document.is_array()) return &document;
+	if (document.is_array()) {
+		if (std::none_of(document.begin(), document.end(), [](const json& item) { return item.is_object(); })) return &document;
+		for (auto it = document.rbegin(); it != document.rend(); ++it) {
+			if (const auto* node = FindExternalPotentialNode(*it)) return node;
+		}
+		return nullptr;
+	}
 	if (document.is_object()) {
 		if (const auto values = document.find("external_potential"); values != document.end() && values->is_array()) return &*values;
 		if (const auto profiles = document.find("profiles"); profiles != document.end() && profiles->is_object()) {
@@ -134,6 +153,30 @@ inline bool ReadOutputProfileArray(const json& node, int profile_size, std::vect
 	values.clear();
 	if (!FlattenProfileArray(node, values)) return false;
 	return static_cast<int>(values.size()) == profile_size || pad_profile(values);
+}
+
+template <typename RealT>
+inline bool WriteInitialGuessProfiles(json& guess,
+                                     std::span<const RealT> values,
+                                     const std::vector<std::string>& monlist,
+                                     const std::vector<std::string>& statelist,
+                                     bool charged,
+                                     int profile_size) {
+	const int count = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
+	if (static_cast<int>(values.size()) != count * profile_size) return false;
+	guess = json::object();
+	guess["profiles"] = json::object();
+	size_t offset = 0;
+	const auto write_profile = [&](const std::string& key) {
+		guess["profiles"][key] = std::vector<RealT>(
+			values.begin() + static_cast<std::ptrdiff_t>(offset * static_cast<size_t>(profile_size)),
+			values.begin() + static_cast<std::ptrdiff_t>((offset + 1) * static_cast<size_t>(profile_size)));
+		++offset;
+	};
+	for (const std::string& mon_name : monlist) write_profile("mon:" + mon_name);
+	for (const std::string& state_name : statelist) write_profile("state:" + state_name);
+	if (charged) write_profile("psi");
+	return true;
 }
 
 template <typename RealT>

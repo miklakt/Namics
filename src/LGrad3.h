@@ -15,16 +15,12 @@ class LGrad3 : public Lattice
 	public:
 	void ComputeLambdas(void);
 	bool PutM();
-	void TimesL(Real*);
-	void DivL(Real*);
 	Real Moment(Real*,Real,int);
-	Real MomentPlanar(Real*,int,Real);
 	Real WeightedSum(Real*);
 	void Side(Real *, Real *, int);
 	void propagate(Real*,Real*, int, int,int);
 	void propagateF(Real*,Real*,Real*, int, int,int);
 	void propagateB(Real*,Real*,Real*, int, int,int);
-	Real ComputeTheta(Real*);
 	void UpdateEE(Real*, Real*,Real*);
 	void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool);
 	void UpdateQ(Real*,Real*,Real*,Real*,Real*,bool);

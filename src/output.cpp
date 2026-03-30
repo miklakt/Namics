@@ -1,4 +1,5 @@
 #include "output.h"
+#include "io_utils.h"
 
 #include <filesystem>
 #include <nlohmann/json.hpp>
@@ -258,19 +259,15 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 	if (Sys->write_initial_guess) {
 		json initial_guess;
 		const std::span<const Real> values = std::span<const Real>(New->xx).first(static_cast<size_t>(New->iv));
-		const int m = lat->M;
-		initial_guess["profiles"] = json::object();
-		int offset = 0;
-		for (const int mon_index : Sys->ItMonList) {
-			initial_guess["profiles"]["mon:" + Seg[mon_index]->name] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
-			++offset;
+		std::vector<std::string> monlist;
+		std::vector<std::string> statelist;
+		monlist.reserve(Sys->ItMonList.size());
+		statelist.reserve(Sys->ItStateList.size());
+		for (const int mon_index : Sys->ItMonList) monlist.push_back(Seg[mon_index]->name);
+		for (const int state_index : Sys->ItStateList) statelist.push_back(Sta[state_index]->name);
+		if (io::detail::WriteInitialGuessProfiles(initial_guess, values, monlist, statelist, Sys->charged, lat->M)) {
+			problem["initial_guess"] = std::move(initial_guess);
 		}
-		for (const int state_index : Sys->ItStateList) {
-			initial_guess["profiles"]["state:" + Sta[state_index]->name] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
-			++offset;
-		}
-		if (Sys->charged) initial_guess["profiles"]["psi"] = std::vector<Real>(values.begin() + offset * m, values.begin() + (offset + 1) * m);
-		if (!initial_guess.is_null()) problem["initial_guess"] = std::move(initial_guess);
 	}
 
 	if (has_profile_output) {
