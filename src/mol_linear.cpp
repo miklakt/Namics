@@ -16,20 +16,13 @@ NAMICS_DBG("ComputePhi in mol_linear " << std::endl);
 	int bN = last_b[0];
 	int M=lat->M;
 	bool success=true;
-	int unity=0;
 	int s=0;
 	Real* Glast=NULL;
-	if (Markov ==2)
-		for (int b = b0; b<=bN ; ++b) Glast=propagate_forward(Seg[mon_nr[b]]->G1.data(),s,b,P.data(),0,M);
-	else
-		for (int b = b0; b<=bN ; ++b) Glast=propagate_forward(Seg[mon_nr[b]]->G1.data(),s,b,0,M);
+	for (int b = b0; b<=bN ; ++b) Glast=propagate_forward(Seg[mon_nr[b]]->G1.data(),s,b,0,M);
 
-	GN=lat->ComputeGN(Glast,Markov,M);
+	GN=lat->ComputeGN(Glast,M);
 
 	s--;
-	if (Markov==2)
-		for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1.data(),s,b,P.data(),unity,M);
-	else
-		for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1.data(),s,b,0,M);
+	for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1.data(),s,b,M);
 	return success;
 }

@@ -19,8 +19,6 @@ class LGrad3 : public Lattice
 	Real WeightedSum(Real*);
 	void Side(Real *, Real *, int);
 	void propagate(Real*,Real*, int, int,int);
-	void propagateF(Real*,Real*,Real*, int, int,int);
-	void propagateB(Real*,Real*,Real*, int, int,int);
 	void UpdateEE(Real*, Real*,Real*);
 	void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool);
 	void UpdateQ(Real*,Real*,Real*,Real*,Real*,bool);
@@ -29,11 +27,11 @@ class LGrad3 : public Lattice
 	void set_M_bounds(Real*);
 	void remove_bounds(int*);
 	void set_bounds(int*);
-	Real ComputeGN(Real*,int,int);
-	void AddPhiS(Real*,Real*,Real*,int,int);
-	void AddPhiS(Real*,Real*,Real*,Real,int,int);
-	void Initiate(Real*,Real*,int,int);
-	void Terminate(Real*,Real*,int,int);
+	Real ComputeGN(Real*,int);
+	void AddPhiS(Real*,Real*,Real*);
+	void AddPhiS(Real*,Real*,Real*,Real);
+	void Initiate(Real*,Real*);
+	void Terminate(Real*,Real*);
 	void set_bounds_x(Real*,Real*,int,int);
 	void set_bounds_y(Real*,Real*,int,int);
 	void set_bounds_z(Real*,Real*,int,int);

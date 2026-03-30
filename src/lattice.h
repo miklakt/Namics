@@ -26,10 +26,6 @@ public:
 	std::vector<int> jx;
 	std::vector<int> jy;
 	std::vector<int> n_box;
-	std::vector<Real> l1;
-	std::vector<Real> l11;
-	std::vector<Real> l_1;
-	std::vector<Real> l_11;
 	std::vector<Real> H;
 	std::vector<std::string> BC;
 	int BX1,BY1,BZ1,BXM,BYM,BZM;
@@ -49,8 +45,6 @@ public:
 	int subl;
 	Real volume;
 	Real Accesible_volume;
-	int Markov;
-	Real k_stiff;
 
 	LatticeType lattice_type;
 	int gradients;
@@ -67,8 +61,6 @@ public:
 	std::vector<Real> lambda1;
 	std::vector<Real> fcc_lambda1;
 	std::vector<Real> LAMBDA;
-	std::vector<Real> LABDA;
-	std::vector<Real> LABDA_1;
 	int fjc, FJC;
 	std::vector<Real> X;
 
@@ -109,8 +101,6 @@ public:
 	virtual bool PutMask(Real* H_MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R)=0;
 	virtual bool PutM(void)=0;
 	virtual void propagate(Real*,Real*, int, int,int)=0;
-	virtual void propagateF(Real*,Real*,Real*,int,int,int)=0;
-	virtual void propagateB(Real*,Real*,Real*,int,int,int)=0;
 	virtual void Side(Real *, Real *, int) =0;
 	virtual void UpdateEE(Real*, Real*,Real*) =0;
 	virtual void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool)=0;
@@ -120,11 +110,11 @@ public:
 	virtual void remove_bounds(int*)=0;
 	virtual void set_bounds(int*)=0;
 	virtual void set_M_bounds(Real*)=0;
-	virtual Real ComputeGN(Real*,int, int)=0;
-	virtual void AddPhiS(Real*,Real*,Real*,int,int) =0;
-	virtual void AddPhiS(Real*,Real*,Real*,Real,int,int) =0;
-	virtual void Initiate(Real*,Real*,int,int) =0;
-	virtual void Terminate(Real*,Real*,int,int) =0;
+	virtual Real ComputeGN(Real*, int)=0;
+	virtual void AddPhiS(Real*,Real*,Real*) =0;
+	virtual void AddPhiS(Real*,Real*,Real*,Real) =0;
+	virtual void Initiate(Real*,Real*) =0;
+	virtual void Terminate(Real*,Real*) =0;
 };
 
 namespace lattice_factory {

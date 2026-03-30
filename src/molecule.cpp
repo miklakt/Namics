@@ -5,7 +5,6 @@ Molecule::Molecule(const Input* In_,Lattice* Lat_,std::span<const std::unique_pt
 NAMICS_DBG("Constructor for Mol " + name << std::endl);
 	lat=Lat_;
 	all_molecule=false;
-	Markov =1;
 	B=1;
 
 }
@@ -20,7 +19,6 @@ NAMICS_DBG("DeallocateMemory for Mol " + name << std::endl);
 	phi.clear();
 	phi_ranked.clear();
 	phitot.clear();
-	P.clear();
 	Gg_f.clear();
 	Gg_b.clear();
 	UNITY.clear();
@@ -28,27 +26,9 @@ NAMICS_DBG("DeallocateMemory for Mol " + name << std::endl);
 }
 
 void Molecule:: AllocateMemory() {
-NAMICS_DBG("AllocateMemory in Mol " + name << std::endl);
+	NAMICS_DBG("AllocateMemory in Mol " + name << std::endl);
 	DeAllocateMemory();
 	int M=lat->M;
-	if (Markov==2){// && lat->lattice_type == simple_cubic) {
-		int FJC = lat->FJC;
-		P.assign(FJC, 0);
-		Real Q=0;
-		KStiff=k_stiff;
-		for (int k=0; k<FJC-1; k++) {
-			P[k]=std::exp(-0.5*KStiff*(k*PIE/(FJC-1))*(k*PIE/(FJC-1)) ); //alternative to put U(theta)=-k(1-cos(theta))
-			if (k>0) {
-				if (lat->lattice_type==hexagonal) Q+= 2*P[k]; else Q+= 4*P[k]; //alternative is to use u_bend = Kstiff(1-cos(theta)), persistence length is l_p = b/ln <cos (theta)>
-			} else Q=P[k];
-		}
-		P[FJC-1]=0; //Q+=P[FJC-1];
-		if (lat->lattice_type==hexagonal&& !lat->stencil_full) Q*=2.0;
-		for (int k=0; k<FJC; k++) { P[k]/=Q;
-			std::cout << "P["<<k<<"] = " << P[k] << std::endl;
-		}
-	}
-
 	N=0;
 	int length_ = mon_nr.size();
 	for (int i=0; i<length_; i++) {N+=n_mon[i];}
@@ -56,9 +36,9 @@ NAMICS_DBG("AllocateMemory in Mol " + name << std::endl);
 	phi.assign(M * MolMonList.size(), 0);
 	if (HasOutputProperty("phi_ranked")) phi_ranked.assign(M * N, 0);
 	phitot.assign(M, 0);
-	Gg_f.assign(M * N * size, 0);
-	Gg_b.assign(2 * M * size, 0);
-	UNITY.assign(M * size, 0);
+	Gg_f.assign(M * N, 0);
+	Gg_b.assign(2 * M, 0);
+	UNITY.assign(M, 0);
 	all_molecule=true;
 }
 
@@ -84,7 +64,7 @@ NAMICS_DBG("Molecule:: CheckInput for mol " << name << std::endl);
 NAMICS_DBG("CheckInput for Mol " + name << std::endl);
 	bool success=true;
 	const auto& parameters = In->Parameters("mol", name, start);
-	static const std::vector<std::string> keys = {"freedom", "composition", "theta", "phibulk", "n", "Markov", "k_stiff", "B"};
+	static const std::vector<std::string> keys = {"freedom", "composition", "theta", "phibulk", "n", "B"};
 	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
 		if (ContainsValue(keys, it.key())) continue;
 		success = false;
@@ -187,55 +167,6 @@ NAMICS_DBG("CheckInput for Mol " + name << std::endl);
 			success = false;
 		}
 	}
-	Markov=1;
-	if (parameters.contains("Markov")) Markov=parameters.at("Markov").get<int>();
-	if (Markov<1 || Markov>2) {
-		std::cout <<" Integer value for 'Markov' is by default 1 and may be set to 2 for some mol_types and fjc-choices only. Markov value out of bounds. Proceed with caution. " << std::endl;
-		success = false;
-	}
-	if (Markov==2) lat->Markov=2;
-	k_stiff=lat->k_stiff; //pick up 'default' value from lattice.
-	if (parameters.contains("k_stiff")) {
-		k_stiff=parameters.at("k_stiff").get<Real>();
-		if (k_stiff<0 || k_stiff>10) {
-			success =false;
-			std::cout <<" Real value for 'k_stiff' out of bounds (0 < k_stiff < 10). " << std::endl;
-			std::cout <<" For Markov == 2: u_bend (theta) = 0.5 k_stiff theta^2, where 'theta' is angle for bond direction deviating from the straight direction. " <<std::endl;
-			std::cout <<" You may interpret 'k_stiff' as the molecular 'persistence length' " << std::endl;
-			std::cout <<" k_stiff is a 'default value'. Use molecular specific values to overrule the default when appropriate (future implementation....) " << std::endl;
-		}
-		if (lat->fjc>1 && lat->gradients>1) {
-			success=false;
-			std::cout <<" Work in progress.... Currently, Markov == 2 is implemented in gradients>1 for FJC_choices = 3 " << std::endl;
-		}
-	}
-	size=0;
-	if (Markov ==2) {
-		if (lat->gradients==1) size = lat->FJC;
-		if (lat->gradients==2) { //assume fjc=1...
-		    if (lat->stencil_full) {
-				lat->stencil_full=false; std::cout <<"Warning: stencil_full is set to false" << std::endl;
-			}
-			if (lat->lattice_type==hexagonal ) size =  12;
-			if (lat->lattice_type==simple_cubic ) size = 2*lat->FJC-1;
-			if (lat->lattice_type==hexagonal) { success=false;
-				std::cout <<"Warning: Markov = 2 & gradients=2 lattice_type = hexagonal...not certified. Caution recommended, even without obvious error messages..." << std::endl;
-			}
-		}
-		if (lat->gradients==3) {
-		    if (lat->stencil_full) {
-				lat->stencil_full=false; std::cout <<"Warning: stencil_full is set to false" << std::endl;
-			}
-
-			if (lat->lattice_type==hexagonal) size=12;
-			if (lat->lattice_type==simple_cubic) size = 6;
-			if (lat->lattice_type==hexagonal) { success=false;
-				std::cout <<"Warning: Markov = 2 & gradients=3 lattice_type = hexagonal...not certified!!!. Caution recommended, even without obvious error messages...." << std::endl;
-			}
-		}
-	} else size = 1;
-	if (size==0) {success=false; std::cout <<"Attention: size in molecule is not set; combination gradients (1,2,3),  Markov=2, stencil_full (true,false), lattice_type (hexagonal, simple_cubic) not implemented" << std::endl;}
-
 	return success;
 }
 
@@ -572,8 +503,6 @@ NAMICS_DBG("PushOutput for Mol " + name << std::endl);
 	OUTPUT["composition"] = parameters.value("composition", std::string{});
 	OUTPUT["freedom"] = freedom;
 	if (freedom == "free") theta = lat->WeightedSum(phitot.data());
-	OUTPUT["Markov"] = Markov;
-	OUTPUT["k_stiff"] = k_stiff;
 	if (lat->gradients==3) {
 		int MZ=lat->MZ;
 		int MY=lat->MY;
@@ -587,11 +516,6 @@ NAMICS_DBG("PushOutput for Mol " + name << std::endl);
 			}
 			phiz /= MX*MY;
 			OUTPUT["phiz[" + std::to_string(z) + "]"] = phiz;
-		}
-	}
-	if (Markov == 2) {
-		for (int k = 0; k < size && k < 5; k++) {
-			OUTPUT["P[" + std::to_string(k) + "]"] = P[k];
 		}
 	}
 	OUTPUT["Rg"] = std::pow((lat->Moment(phitot.data(),0.0,2) / chainlength), 0.5);
@@ -678,7 +602,7 @@ NAMICS_DBG("1. propagate_forward for Mol " + name << std::endl);
 		if (s>first_s[generation]) {
 			lat->propagate(Gg_f.data(),G1,s-1,s,M);
 		} else {
-			lat->Initiate(Gg_f.data()+first_s[generation]*M,G1,Markov,M);
+			lat->Initiate(Gg_f.data()+first_s[generation]*M,G1);
 		}
 		s++;
 	}
@@ -686,8 +610,7 @@ NAMICS_DBG("1. propagate_forward for Mol " + name << std::endl);
 
 }
 
-void Molecule::propagate_backward(Real* G1, int &s, int block, int unity, int M) {
-	(void)unity;
+void Molecule::propagate_backward(Real* G1, int &s, int block, int M) {
 NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
 
 	int N= n_mon[block];
@@ -695,53 +618,11 @@ NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
 		if (s<chainlength-1) {
 			lat->propagate(Gg_b.data(),G1,(s+1)%2,s%2,M);
 		} else {
-			lat->Initiate(Gg_b.data()+(s%2)*M,G1,Markov,M);
+			lat->Initiate(Gg_b.data()+(s%2)*M,G1);
 		}
 
-		lat->AddPhiS(phi.data()+molmon_nr[block]*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M,Markov, M);
-		if (!phi_ranked.empty()) lat->AddPhiS(phi_ranked.data()+static_cast<size_t>(s)*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M,Markov, M);
-		s--;
-	}
-}
-
-
-
-Real* Molecule::propagate_forward(Real* G1, int &s, int block, Real* P, int generation, int M) {
-NAMICS_DBG("1. propagate_forward for Mol " + name << std::endl);
-
-	int N= n_mon[block];
-	for (int k=0; k<N; k++) {
-		if (s>first_s[generation]) {
-			lat->propagateF(Gg_f.data(),G1,P,s-1,s,M);
-		} else {
-			lat->Initiate(Gg_f.data()+first_s[generation]*M*size,G1,Markov,M);
-		}
-		s++;
-	}
-	return Gg_f.data()+(s-1)*M*size;
-
-}
-
-void Molecule::propagate_backward(Real* G1, int &s, int block, Real* P, int& unity, int M) {
-NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
-	int N= n_mon[block];
-	for (int k=0; k<N; k++) {
-		if (s<chainlength-1) {
-			if (unity==-1) {
-				unity=0;
-				std::vector<Real> GB(2 * M, 0);
-				lat->Terminate(GB.data(),Gg_b.data()+((s+1)%2)*M*size,Markov,M);
-				lat->propagate(GB.data(),G1,0,1,M); //first step is freely joined
-				lat->Initiate(Gg_b.data()+(s%2)*M*size,GB.data()+M,Markov,M);
-			} else {
-				lat->propagateB(Gg_b.data(),G1,P,(s+1)%2,s%2,M);
-			}
-		} else {
-			lat->Initiate(Gg_b.data()+(s%2)*M*size,G1,Markov,M);
-		}
-
-		lat->AddPhiS(phi.data()+molmon_nr[block]*M, Gg_f.data()+s*M*size, Gg_b.data()+(s%2)*M*size, Markov, M);
-		if (!phi_ranked.empty()) lat->AddPhiS(phi_ranked.data()+static_cast<size_t>(s)*M, Gg_f.data()+s*M*size, Gg_b.data()+(s%2)*M*size, Markov, M);
+		lat->AddPhiS(phi.data()+molmon_nr[block]*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M);
+		if (!phi_ranked.empty()) lat->AddPhiS(phi_ranked.data()+static_cast<size_t>(s)*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M);
 		s--;
 	}
 }

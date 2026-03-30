@@ -58,6 +58,35 @@ Interpretation note:
 
 ## Solver And Search Features
 
+### `Markov == 2` semiflexible-chain mode
+
+- Removed in: current pruning pass
+- Type: legacy molecule and lattice propagation mode
+- User-facing surface:
+  - molecule input keys `Markov` and `k_stiff`
+  - Markov-dependent output fields `Markov`, `k_stiff`, and `P[...]`
+- What it did:
+  - turned the chain model from a single propagation state into a multi-state bond-direction model
+  - used a stiffness weight table to bias transitions between contour directions
+  - carried extra forward and backward propagator arrays for the different direction states
+  - specialized the 1d, 2d, and 3d gradient kernels so they could combine those states differently depending on geometry and lattice type
+  - had special handling for branched molecules, where the branch bookkeeping had to propagate the stiff-state information through both backbone and side branches
+
+- What was deleted:
+  - all input parsing for `Markov` and `k_stiff`
+  - molecule-side stiffness bookkeeping, including the old `P` table
+  - buffer allocation for the multi-state forward/backward propagators
+  - the Markov-2 overloads of `propagate_forward`, `propagate_backward`, `ComputeGN`, `AddPhiS`, `Initiate`, and `Terminate`
+  - lattice-side state buffers and coefficients such as `l1`, `l11`, `l_1`, `l_11`, `LABDA`, and `LABDA_1`
+  - the `propagateF` and `propagateB` implementations in `LGrad1`, `LGrad2`, and `LGrad3`
+  - the Markov-2 branches inside `ComputeLambdas` that filled the stiffness coefficient tables
+  - all `Markov == 2` output writing and the old warning branches that tried to keep unsupported combinations running
+
+- Why this matters for restoration:
+  - restoring the mode means rebuilding the full state-space model across the solver, not just accepting the old input keys again
+  - the old code was tightly coupled to geometry-specific and lattice-specific branch logic, so the reimplementation should be treated as a fresh feature with dedicated tests
+  - any future restoration should first define the intended physics for each geometry and lattice combination, then reintroduce the supporting buffers and propagation kernels in a consistent way
+
 ### `find_local_solution`
 
 - Removed in: Seventh Sweep

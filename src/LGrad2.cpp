@@ -32,24 +32,17 @@ void LGrad2:: ComputeLambdas() {
 
 
 	//	}
-	if (fjc==1) {
-		for (int x=1; x<MX+1; x++)
-		for (int y=1; y<MY+1; y++) {
-			r=offset_first_layer + 1.0*x;
-			lambda1[P(x,y)]=2.0*PIE*r/L[P(x,y)]*lambda;
-			lambda_1[P(x,y)]=2.0*PIE*(r-1)/L[P(x,y)]*lambda;
-			lambda0[P(x,y)]=1.0-2.0*lambda;
-			if (fcc_sites) {
+		if (fjc==1) {
+			for (int x=1; x<MX+1; x++)
+			for (int y=1; y<MY+1; y++) {
+				r=offset_first_layer + 1.0*x;
+				lambda1[P(x,y)]=2.0*PIE*r/L[P(x,y)]*lambda;
+				lambda_1[P(x,y)]=2.0*PIE*(r-1)/L[P(x,y)]*lambda;
+				lambda0[P(x,y)]=1.0-2.0*lambda;
+				if (fcc_sites) {
+				}
 			}
 		}
-		if (Markov ==2) {
-			for (int i=0; i<M; i++) {
-				l1[i]=lambda1[i]/lambda; l11[i]=1.0-l1[i];
-				l_1[i]=lambda_1[i]/lambda; l_11[i]=1.0-l_1[i];
-			}
-		}
-
-	}
 	if (fjc>1) {
 		for (int y=fjc; y<MY+fjc; y++) {
 			for (int x = fjc; x < MX+fjc; x++) {
@@ -219,190 +212,6 @@ NAMICS_DBG(" Side in LGrad2 " << std::endl);	if (ignore_sites) {
 	}
 }
 
-
-void LGrad2::LReflect(Real *H, Real *P, Real *Q) {
-	Real* l_1 = this->l_1.data();
-	Real* l_11 = this->l_11.data();
-	for (int __i = 0; __i < (M-JX); ++__i) (H)[__i] = (l_1+JX)[__i] * (P)[__i];
-	for (int __i = 0; __i < (M-JX); ++__i) (H)[__i] += (l_11+JX)[__i] * (Q+JX)[__i];
-}
-
-void LGrad2::UReflect(Real *H, Real *P, Real *Q) {
-	Real* l1 = this->l1.data();
-	Real* l11 = this->l11.data();
-	for (int __i = 0; __i < (M-JX); ++__i) (H+JX)[__i] = (l1)[__i] * (P+JX)[__i];
-	for (int __i = 0; __i < (M-JX); ++__i) (H+JX)[__i] += (l11)[__i] * (Q)[__i];
-}
-
-
-void LGrad2::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) {
-	Real* H = this->H.data();
-	if (!stencil_full) {
-		if (lattice_type == hexagonal) {
-			Real *gs=G+M*12*s_to;
-			Real *gs_1=G+M*12*s_from;
-
-			Real *gz0=gs_1, *gz1=gs_1+M, *gz2=gs_1+2*M, *gz3=gs_1+3*M, *gz4=gs_1+4*M, *gz5=gs_1+5*M, *gz6=gs_1+6*M, *gz7=gs_1+7*M, *gz8=gs_1+8*M, *gz9=gs_1+9*M, *gz10=gs_1+10*M, *gz11=gs_1+11*M;
-			Real *gx0=gs,   *gx1=gs+M, *gx2=gs+2*M, *gx3=gs+3*M, *gx4=gs+4*M, *gx5=gs+5*M, *gx6=gs+6*M, *gx7=gs+7*M, *gx8=gs+8*M, *gx9=gs+9*M, *gx10=gs+10*M, *gx11=gs+11*M;
-			Real *g=G1;
-
-			std::fill_n(gs, 12*M, 0);
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-			set_bounds_x(gz0,gz11,0); set_bounds_x(gz1,gz10,0);set_bounds_x(gz2,gz9,0);set_bounds_x(gz3,gz8,0); set_bounds_x(gz4,gz7,0); set_bounds_x(gz5,gz6,0);
-			add_terms(gx0 + JX, M - JX, {{gz3, P[1]}, {gz4, P[1]}, {gz5, P[1]}, {gz6, P[1]}, {gz7, P[1]}, {gz8, P[1]}});
-			add_terms(gx11, M - JX, {{gz3 + JX, P[1]}, {gz4 + JX, P[1]}, {gz5 + JX, P[1]}, {gz6 + JX, P[1]}, {gz7 + JX, P[1]}, {gz8 + JX, P[1]}});
-
-
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-
-			add_terms(gx3 + JY, M - JY, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
-			add_terms(gx8, M - JY, {{gz0 + JY, P[1]}, {gz1 + JY, P[1]}, {gz2 + JY, P[1]}, {gz6 + JY, P[0]}, {gz7 + JY, P[0]}, {gz8 + JY, P[0]}, {gz9 + JY, P[1]}, {gz10 + JY, P[1]}, {gz11 + JY, P[1]}});
-
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-
-			add_terms(gx5, M, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
-			add_terms(gx6, M, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz6, P[0]}, {gz7, P[0]}, {gz8, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
-
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-			set_bounds_x(gz0,gz11,0); set_bounds_x(gz1,gz10,0);set_bounds_x(gz2,gz9,0); set_bounds_x(gz3,gz8,0); set_bounds_x(gz4,gz7,0); set_bounds_x(gz5,gz6,0);
-
-			add_terms(gx1 + JX, M - JX, {{gz3, P[1]}, {gz4, P[1]}, {gz5, P[1]}, {gz6, P[1]}, {gz7, P[1]}, {gz8, P[1]}});
-			add_terms(gx10, M - JX, {{gz3 + JX, P[1]}, {gz4 + JX, P[1]}, {gz5 + JX, P[1]}, {gz6 + JX, P[1]}, {gz7 + JX, P[1]}, {gz8 + JX, P[1]}});
-
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-			set_bounds_y(gz0,gz11,0); set_bounds_y(gz1,gz10,0); set_bounds_y(gz5,gz6,0);
-
-			add_terms(gx2, M - JY, {{gz0 + JY, P[0]}, {gz1 + JY, P[0]}, {gz2 + JY, P[0]}, {gz3 + JY, P[1]}, {gz4 + JY, P[1]}, {gz5 + JY, P[1]}, {gz6 + JY, P[1]}, {gz7 + JY, P[1]}, {gz8 + JY, P[1]}});
-			add_terms(gx9 + JY, M - JY, {{gz3, P[1]}, {gz4, P[1]}, {gz5, P[1]}, {gz6, P[1]}, {gz7, P[1]}, {gz8, P[1]}, {gz9, P[0]}, {gz10, P[0]}, {gz11, P[0]}});
-
-			remove_bounds(gz0);remove_bounds(gz1);remove_bounds(gz2);remove_bounds(gz3);remove_bounds(gz4);remove_bounds(gz5);remove_bounds(gz6);remove_bounds(gz7);remove_bounds(gz8);remove_bounds(gz9);remove_bounds(gz10);remove_bounds(gz11);
-
-			add_terms(gx4 + JY, M - JY, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
-			add_terms(gx7, M - JY, {{gz0 + JY, P[1]}, {gz1 + JY, P[1]}, {gz2 + JY, P[1]}, {gz6 + JY, P[0]}, {gz7 + JY, P[0]}, {gz8 + JY, P[0]}, {gz9 + JY, P[1]}, {gz10 + JY, P[1]}, {gz11 + JY, P[1]}});
-
-			for (int k=0; k<12; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-
-
-
-		} else {//simple _cubic should work
-			Real *gs=G+M*5*s_to;
-			Real *gs_1=G+M*5*s_from;
-			Real *gz0=gs_1, *gz1=gs_1+M, *gz2=gs_1+2*M, *gz3=gs_1+3*M,*gz4=gs_1+4*M;
-			set_bounds_x(gz0,gz4,0); set_bounds_x(gz1,0); set_bounds_x(gz2,0); set_bounds_x(gz3,0);
-			set_bounds_y(gz1,gz3,0); set_bounds_y(gz0,0); set_bounds_y(gz2,0); set_bounds_y(gz4,0);
-			Real *gx0=gs, *gx1=gs+M, *gx2=gs+2*M, *gx3=gs+3*M,*gx4=gs+4*M;
-			Real *g=G1;
-
-			std::fill_n(gs, 5*M, 0);
-			LReflect(H,gz0,gz4);
-			add_terms(gx0 + JX, M - JX, {{H, P[0]}, {gz1, P[1]}, {gz2, 2 * P[1]}, {gz3, P[1]}});
-			add_terms(gx1 + JY, M - JY, {{gz0, P[1]}, {gz1, P[0]}, {gz2, 2 * P[1]}, {gz4, P[1]}});
-			add_terms(gx2, M, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[0]}, {gz3, P[1]}, {gz4, P[1]}});
-			add_terms(gx3, M - JY, {{gz0 + JY, P[1]}, {gz2 + JY, 2 * P[1]}, {gz3 + JY, P[0]}, {gz4 + JY, P[1]}});
-			add_terms(gx4, M - JX, {{gz1 + JX, P[1]}, {gz2 + JX, 2 * P[1]}, {gz3 + JX, P[1]}});
-			UReflect(H,gz4,gz0);
-			add_from_source(H + JX, M - JX, {{gx4, P[0]}});
-
-			for (int k=0; k<5; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-		}
-	} else {
-		if (lattice_type==hexagonal) {
-			std::cout <<"stencil_full, hexagonal, Markov 2, cyl coordinates not implemented" << std::endl;
-		} else {
-			std::cout <<"stencil_full, simple_cubic, Markov 2, cyl coordinates not implemented" << std::endl;
-		}
-	}
-}
-
-void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) {
-	Real* H = this->H.data();
-
-	if (!stencil_full) {
-		if (lattice_type==hexagonal) {
-			Real *gs=G+M*12*s_to;
-			Real *gs_1=G+M*12*s_from;
-
-			Real *gz0=gs_1, *gz1=gs_1+M, *gz2=gs_1+2*M, *gz3=gs_1+3*M, *gz4=gs_1+4*M, *gz5=gs_1+5*M, *gz6=gs_1+6*M, *gz7=gs_1+7*M, *gz8=gs_1+8*M, *gz9=gs_1+9*M, *gz10=gs_1+10*M, *gz11=gs_1+11*M;
-			Real *gx0=gs, *gx1=gs+M, *gx2=gs+2*M, *gx3=gs+3*M, *gx4=gs+4*M, *gx5=gs+5*M, *gx6=gs+6*M, *gx7=gs+7*M, *gx8=gs+8*M, *gx9=gs+9*M, *gx10=gs+10*M, *gx11=gs+11*M;
-			Real *g=G1;
-
-			std::fill_n(gs, 12*M, 0);
-			for (int k=0; k<12; k++) remove_bounds(gs_1+k*M);
-
-			set_bounds_x(gz0,gz11,0);
-			LReflect(H,gz11,gz0);
-			add_from_source(H, M - JX, {{gx3 + JX, P[1]}, {gx4 + JX, P[1]}, {gx5 + JX, P[1]}, {gx6 + JX, P[1]}, {gx7 + JX, P[1]}, {gx8 + JX, P[1]}, {gx9 + JX, P[0]}, {gx10 + JX, P[0]}, {gx11 + JX, P[0]}});
-
-			UReflect(H,gz0,gz11);
-			add_from_source(H + JX, M - JX, {{gx0, P[0]}, {gx1, P[0]}, {gx2, P[0]}, {gx3, P[1]}, {gx4, P[1]}, {gx5, P[1]}, {gx6, P[1]}, {gx7, P[1]}, {gx8, P[1]}});
-
-			remove_bounds(gz0);remove_bounds(gz11);
-			set_bounds_y(gz3,gz8,0);
-
-			add_from_source(gz8, M - JY, {{gx0 + JY, P[1]}, {gx1 + JY, P[1]}, {gx2 + JY, P[1]}, {gx6 + JY, P[0]}, {gx7 + JY, P[0]}, {gx8 + JY, P[0]}, {gx9 + JY, P[1]}, {gx10 + JY, P[1]}, {gx11 + JY, P[1]}});
-			add_from_source(gz3 + JY, M - JY, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[0]}, {gx4, P[0]}, {gx5, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
-
-			remove_bounds(gz3);remove_bounds(gz8);
-
-			add_from_source(gz6, M, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx6, P[0]}, {gx7, P[0]}, {gx8, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
-			add_from_source(gz5, M, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[0]}, {gx4, P[0]}, {gx5, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
-
-			remove_bounds(gz5); remove_bounds(gz6);
-			set_bounds_x(gz1,gz10,0);
-
-			LReflect(H,gz10,gz1);
-
-			add_from_source(H, M - JX, {{gx3 + JX, P[1]}, {gx4 + JX, P[1]}, {gx5 + JX, P[1]}, {gx6 + JX, P[1]}, {gx7 + JX, P[1]}, {gx8 + JX, P[1]}, {gx9 + JX, P[0]}, {gx10 + JX, P[0]}, {gx11 + JX, P[0]}});
-
-			UReflect(H,gz1,gz10);
-
-			add_from_source(H + JX, M - JX, {{gx0, P[0]}, {gx1, P[0]}, {gx2, P[0]}, {gx3, P[1]}, {gx4, P[1]}, {gx5, P[1]}, {gx6, P[1]}, {gx7, P[1]}, {gx8, P[1]}});
-
-			remove_bounds(gz1);remove_bounds(gz10);
-			add_from_source(H + JY, M - JY, {{gx3, P[1]}, {gx4, P[1]}, {gx5, P[1]}, {gx6, P[1]}, {gx7, P[1]}, {gx8, P[1]}, {gx9, P[0]}, {gx10, P[0]}, {gx11, P[0]}});
-			add_from_source(H, M - JY, {{gx0 + JY, P[0]}, {gx1 + JY, P[0]}, {gx2 + JY, P[0]}, {gx3 + JY, P[1]}, {gx4 + JY, P[1]}, {gx5 + JY, P[1]}, {gx6 + JY, P[1]}, {gx7 + JY, P[1]}, {gx8 + JY, P[1]}});
-
-			remove_bounds(gz2);remove_bounds(gz9);
-
-			add_from_source(gz7, M - JY, {{gx0 + JY, P[1]}, {gx1 + JY, P[1]}, {gx2 + JY, P[1]}, {gx6 + JY, P[0]}, {gx7 + JY, P[0]}, {gx8 + JY, P[0]}, {gx9 + JY, P[1]}, {gx10 + JY, P[1]}, {gx11 + JY, P[1]}});
-			add_from_source(gz4 + JY, M - JY, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[0]}, {gx4, P[0]}, {gx5, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
-
-			for (int k=0; k<12; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-
-
-		} else { //simple_cubic should work
-			Real *gs=G+M*5*s_to;
-			Real *gs_1=G+M*5*s_from;
-			Real *gz0=gs_1, *gz1=gs_1+M, *gz2=gs_1+2*M, *gz3=gs_1+3*M, *gz4=gs_1+4*M;
-			set_bounds_x(gz0,gz4,0); set_bounds_x(gz1,0); set_bounds_x(gz2,0); set_bounds_x(gz3,0);
-			set_bounds_y(gz1,gz3,0); set_bounds_y(gz0,0); set_bounds_y(gz2,0); set_bounds_y(gz4,0);
-			Real *gx0=gs, *gx1=gs+M, *gx2=gs+2*M, *gx3=gs+3*M, *gx4=gs+4*M;
-			Real *g=G1;
-
-			std::fill_n(gs, 5*M, 0);
-
-			LReflect(H,gz4,gz0);
-			add_from_source(H, M - JX, {{gx1 + JX, P[1]}, {gx2 + JX, P[1]}, {gx3 + JX, P[1]}, {gx4 + JX, P[0]}});
-
-			add_from_source(gz3, M - JY, {{gx0 + JY, P[1]}, {gx2 + JY, P[1]}, {gx3 + JY, P[0]}, {gx4 + JY, P[1]}});
-
-			add_from_source(gz2, M, {{gx0, 2 * P[1]}, {gx1, 2 * P[1]}, {gx2, P[0]}, {gx3, 2 * P[1]}, {gx4, 2 * P[1]}});
-
-			add_from_source(gz1 + JY, M - JY, {{gx0, P[1]}, {gx1, P[0]}, {gx2, P[1]}, {gx4, P[1]}});
-
-			UReflect(H,gz0,gz4);
-			add_from_source(H + JX, M - JX, {{gx0, P[0]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[1]}});
-
-			for (int k=0; k<5; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-		}
-	} else {
-		if (lattice_type==hexagonal) {
-			std::cout <<"stencil_full, cyl coordinates, hexagonal, Markov 2 not implemented" << std::endl;
-		} else {
-			std::cout <<"stencil_full, cyl coordinates, simple_cubic, Markov 2 not implemented" << std::endl;
-		}
-	}
-}
 
 void LGrad2::propagate(Real *G, Real *G1, int s_from, int s_to,int M) {
 NAMICS_DBG(" propagate in LGrad2 " << std::endl); Real *gs = G+M*(s_to), *gs_1 = G+M*(s_from);
@@ -966,112 +775,24 @@ NAMICS_DBG("set_bounds in LGrad2 " << std::endl);	int x,y;
 	}
 }
 
-Real LGrad2::ComputeGN(Real* G,int Markov, int M){
-	Real GN=0;
-	if (Markov==2) {
-		if (lattice_type == hexagonal && !stencil_full) {
-			for (int k=0; k<12; k++) {
-				GN += WeightedSum(G+k*M);
-			}
-			GN /=12.0;
-		} else {
-			if (lattice_type==simple_cubic) {
-				for (int k=0; k<5; k++) {
-					if (k== 2)
-						GN += 2*WeightedSum(G+k*M);
-					else
-						GN += WeightedSum(G+k*M);
-				}
-				GN /=6.0;
-			} else {
-				for (int k=0; k<12; k++) {
-					GN += WeightedSum(G+k*M);
-				}
-				GN /=12.0;
-			}
-		}
-	} else GN = WeightedSum(G);
-	return GN;
-}
-void LGrad2::AddPhiS(Real* phi,Real* Gf,Real* Gb,int Markov, int M){
-	if (Markov==2) {
-		if (lattice_type == hexagonal&& !stencil_full) {
-			Real C=1.0/12.0;
-			for (int k=0; k<12; k++) {
-				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-			}
-			} else {
-			if (lattice_type==simple_cubic) {
-				Real C1=1.0/3.0;
-				Real C2=1.0/6.0;
-				for (int k=0; k<5; k++) {
-					if (k==2)
-						for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-					else
-						for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C2) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-				}
-			} else { //hexagonal
-				Real C=1.0/12.0;
-				for (int k=0; k<12; k++) {
-					for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-				}
-			}
-		}
-	} else for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (Gf)[__i] * (Gb)[__i];
-}
-void LGrad2::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real degeneracy, int Markov, int M){
-	if (Markov==2) {
-		if (lattice_type == hexagonal&& !stencil_full) {
-			for (int k=0; k<12; k++) {
-				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/12.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-			}
-			} else {
-			if (lattice_type==simple_cubic) {
-				for (int k=0; k<5; k++)
-				if (k==2)
-					for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/3.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-				else
-					for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/6.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-			} else {
-				for (int k=0; k<12; k++) {
-					for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/12.0) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-				}
-			}
-		}
-	} else for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy) * (Gf)[__i] * (Gb)[__i];
-}
-void LGrad2::Initiate(Real* G,Real* Gz,int Markov, int M){
-	if (Markov==2) {
-		if (lattice_type == hexagonal&& !stencil_full) {
-			for (int k=0; k<12; k++) std::copy_n(Gz, M, G+k*M);
-		} else {
-			if (lattice_type==simple_cubic) {
-				for (int k=0; k<5; k++) std::copy_n(Gz, M, G+k*M);
-			} else {
-				for (int k=0; k<12; k++) std::copy_n(Gz, M, G+k*M);
-			}
-		}
-	} else std::copy_n(Gz, M, G);
+Real LGrad2::ComputeGN(Real* G, int M){
+	return WeightedSum(G);
 }
 
-void LGrad2::Terminate(Real* Gz,Real* G,int Markov, int M){
-NAMICS_DBG("LGrad2:: terminate " << std::endl);	if (Markov==2) {
-		std::cout <<"terminate in markov==2 is not tested" << std::endl;
-		std::fill_n(Gz, M, 0);
-		if (lattice_type == hexagonal&& !stencil_full) {
-			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (Gz)[__i] += (G+k*M)[__i];
-		} else {
-			Real C=1.0/6.0;
-			if (lattice_type==simple_cubic) {
-				for (int k=0; k<5; k++) for (int __i = 0; __i < (M); ++__i) (Gz)[__i] += (G+k*M)[__i];
-				for (int __i = 0; __i < (M); ++__i) (Gz)[__i] *= (C);  //dit is in ieder geval ook niet goed.
-			} else {
-				for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (Gz)[__i] += (G+k*M)[__i];
-				for (int __i = 0; __i < (M); ++__i) (Gz)[__i] *= (C);
-			}
-		}
-		std::cout <<"possible problem in LGrad2::Terminate " << std::endl;
-	} else std::copy_n(G, M, Gz);
+void LGrad2::AddPhiS(Real* phi,Real* Gf,Real* Gb){
+	for (int __i = 0; __i < M; ++__i) (phi)[__i] += (Gf)[__i] * (Gb)[__i];
+}
+
+void LGrad2::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real degeneracy){
+	for (int __i = 0; __i < M; ++__i) (phi)[__i] += degeneracy * (Gf)[__i] * (Gb)[__i];
+}
+
+void LGrad2::Initiate(Real* G,Real* Gz){
+	std::copy_n(Gz, M, G);
+}
+
+void LGrad2::Terminate(Real* Gz,Real* G){
+	std::copy_n(G, M, Gz);
 }
 
 bool LGrad2:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){

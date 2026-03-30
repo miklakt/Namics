@@ -89,13 +89,6 @@ NAMICS_DBG("LGrad1 computeLambda's " << std::endl);
 
 			}
 		}
-		if (Markov==2) {
-			for (int i=1; i<MX+1; i++) {
-				l1[i]=lambda1[i]/lambda; l11[i]=1.0-l1[i];
-				l_1[i]=lambda_1[i]/lambda; l_11[i]=1.0-l_1[i];
-			}
-		}
-
 	}
 
 	if (fjc>1) {
@@ -190,18 +183,6 @@ NAMICS_DBG("LGrad1 computeLambda's " << std::endl);
 				LAMBDA[i+(FJC/2)*M] += 1.0-LS;
 			}
 		}
-		if (Markov==2) {
-			for (int i = fjc; i < M - fjc; i++) {
-				LABDA[i]=LAMBDA[i]*8.0;
-				LABDA_1[i]=1.0-LABDA[i];
-				for (int j=1; j<FJC-1; j++) {
-					LABDA[i+j*M]=LAMBDA[i+j*M]*4.0;
-					LABDA_1[i+j*M]=1.0-LABDA[i+j*M];
-				}
-				LABDA[i+(FJC-1)*M]=LAMBDA[i+(FJC-1)*M]*8.0;
-				LABDA_1[i+(FJC-1)*M]=1.0-LABDA[i+(FJC-1)*M];
-			}
-		}
 	}
 }
 
@@ -276,160 +257,6 @@ NAMICS_DBG(" Side in LGrad1 " << std::endl);
 	}
 }
 
-
-
-void LGrad1::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) {
-	Real* H = this->H.data();
-	Real* l_1 = this->l_1.data();
-	Real* l_11 = this->l_11.data();
-	Real* l1 = this->l1.data();
-	Real* l11 = this->l11.data();
-	Real* LABDA = this->LABDA.data();
-	Real* LABDA_1 = this->LABDA_1.data();
-	Real *gs=G+FJC*M*(s_to);
-	Real *gs_1=G+FJC*M*(s_from);
-	Real *g =G1;
-
-	std::fill_n(gs, M*FJC, 0);
-	for (int k=0; k<(FJC-1)/2; k++) set_bounds(gs_1+k*M,gs_1+(FJC-k-1)*M);
-	set_bounds(gs_1+(FJC-1)/2*M);
-
-	if (fjc==1) {
-		Real *gz0=gs_1, *gz1=gs_1+M, *gz2=gs_1+2*M;
-		Real *gx0=gs, *gx1=gs+M, *gx2=gs+2*M;
-
-		if (lattice_type==hexagonal) {
-
-			int a,b; Real c;
-			for (int p=0; p<FJC; p++){
-				a=p-fjc; if (a<0) {b=0; a=-a; } else {b=a; a=0;}
-				for (int q=0; q<FJC; q++) {
-					c=P[std::abs(-p+q)];
-					if (q>0 && q<FJC-1) c+= P[FJC-1-std::abs(FJC-1-p-q)];
-					if (a>0) {
-						for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (l_1+a)[__i] * (gs_1+q*M+b)[__i];
-				  		for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (l_11+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
-					}
-					if (b>0) {
-						for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (l1+a)[__i] * (gs_1+q*M+b)[__i];
-				  		for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (l11+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
-					}
-					if (a+b>0){
-				  		if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (H+b)[__i];
-					} else {
-						if (c!=0) for (int __i = 0; __i < (M); ++__i) (gs+p*M)[__i] += (c) * (gs_1+q*M)[__i];
-					}
-				}
-			}
-			for (int k=0; k<FJC; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-		} else {
-			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] = (l_1 +1)[__i] * (gz0)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] += (l_11+1)[__i] * (gz2+1)[__i];
-			add_from_source(H, M - 1, {{gx0 + 1, P[0]}});
-
-			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] = (l_1 +1)[__i] * (gz1)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] += (l_11+1)[__i] * (gz1+1)[__i];
-			add_from_source(H, M - 1, {{gx0 + 1, 4 * P[1]}});
-
-			add_terms(gx1, M, {{gz0, P[1]}, {gz1, 2 * P[1] + P[0]}, {gz2, P[1]}});
-
-			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] = (l1)[__i] * (gz1+1)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] += (l11)[__i] * (gz1)[__i];
-			add_from_source(H + 1, M - 1, {{gx2, 4 * P[1]}});
-			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] = (l1)[__i] * (gz2+1)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] += (l11)[__i] * (gz0)[__i];
-			add_from_source(H + 1, M - 1, {{gx2, P[0]}});
-			for (int k=0; k<FJC; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-		}
-	} else {
-		int a,b; Real c;
-		for (int p=0; p<FJC; p++){
-			a=p-fjc; if (a<0) {b=0; a=-a; } else {b=a; a=0;}
-			for (int q=0; q<FJC; q++) {
-				c=P[std::abs(-p+q)];
-				if (q>0 && q<FJC-1) c+= P[FJC-1-std::abs(FJC-1-p-q)];
-				for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (LABDA+p*M+a)[__i] * (gs_1+q*M+b)[__i];
-				for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (LABDA_1+p*M+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
-				if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (H+b)[__i];
-			}
-		}
-		for (int k=0; k<FJC; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-	}
-}
-
-void LGrad1::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) {
-	Real* H = this->H.data();
-	Real* l_1 = this->l_1.data();
-	Real* l_11 = this->l_11.data();
-	Real* l1 = this->l1.data();
-	Real* l11 = this->l11.data();
-	Real* LABDA = this->LABDA.data();
-	Real* LABDA_1 = this->LABDA_1.data();
-	Real *gs=G+FJC*M*(s_to);
-	Real *gs_1=G+FJC*M*(s_from);
-	Real *g =G1;
-
-	std::fill_n(gs, M*FJC, 0);
-	for (int k=0; k<(FJC-1)/2; k++) set_bounds(gs_1+k*M,gs_1+(FJC-k-1)*M);
-	set_bounds(gs_1+(FJC-1)/2*M);
-
-	if (fjc==1) {
-		Real *gz0=gs_1, *gz1=gs_1+M, *gz2=gs_1+2*M;
-		Real *gx0=gs,   *gx1=gs+M,   *gx2=gs+2*M;
-		if (lattice_type==hexagonal) {
-			int a,b; Real c;
-
-			for (int q=FJC-1; q>-1; q--){
-				a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
-				if (a>0) {
-					for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (l_1+a)[__i] * (gs_1+q*M+b)[__i];
-					for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (l_11+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
-				}
-				if (b>0) {
-					for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (l1+a)[__i] * (gs_1+q*M+b)[__i];
-					for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (l11+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
-				}
-				for (int p=FJC-1; p>-1; p--) {
-					c=P[std::abs(-p+q)];
-					if (q>0 && q<FJC-1) c+= P[FJC-1-std::abs(FJC-1-p-q)];
-					if (a+b>0) {
-						if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (H+b)[__i];
-					} else {
-						if (c!=0) for (int __i = 0; __i < (M); ++__i) (gs+p*M)[__i] += (c) * (gs_1+q*M)[__i];
-					}
-				}
-			}
-			for (int k=0; k<FJC; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-		} else {
-			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] = (l_1 +1)[__i] * (gz2)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (H)[__i] += (l_11+1)[__i] * (gz0+1)[__i];
-			add_from_source(H, M - 1, {{gx1 + 1, P[1]}, {gx2 + 1, P[0]}});
-
-			add_terms(gx0, M, {{gz1, 4 * P[1]}});
-			add_terms(gx1, M, {{gz1, 2 * P[1] + P[0]}});
-			add_terms(gx2, M, {{gz1, 4 * P[1]}});
-
-			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] = (l1)[__i] * (gz0+1)[__i];
-			for (int __i = 0; __i < (M-1); ++__i) (H+1)[__i] += (l11)[__i] * (gz2)[__i];
-			add_from_source(H + 1, M - 1, {{gx0, P[0]}, {gx1, P[1]}});
-			for (int k=0; k<FJC; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-		}
-	} else {
-		int a,b; Real c;
-
-		for (int q=FJC-1; q>-1; q--){
-			a=q-fjc; if (a>0) {b=0;} else {b=-a; a=0;}
-			for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] = (LABDA+(FJC-1-q)*M+a)[__i] * (gs_1+q*M+b)[__i];
-			for (int __i = 0; __i < (M-a-b); ++__i) (H+b)[__i] += (LABDA_1+(FJC-1-q)*M+a)[__i] * (gs_1+(FJC-1-q)*M+a)[__i];
-			for (int p=FJC-1; p>-1; p--) {
-				c=P[std::abs(-p+q)];
-				if (q>0 && q<FJC-1) c+= P[FJC-1-std::abs(FJC-1-p-q)];
-				if (c!=0) for (int __i = 0; __i < (M-a-b); ++__i) (gs+p*M+a)[__i] += (c) * (H+b)[__i];
-			}
-		}
-		for (int k=0; k<FJC; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
-	}
-}
 
 
 void LGrad1::propagate(Real *G, Real *G1, int s_from, int s_to,int M) {
@@ -768,94 +595,25 @@ NAMICS_DBG("set_bounds in LGrad1 " << std::endl);	int k=0;
 	}
 }
 
-Real LGrad1::ComputeGN(Real* G,int Markov, int M){
-	Real GN=0;
-	if (Markov==2) {
-		GN=WeightedSum(G);
-		for (int k=1; k<FJC-1; k++) {
-			if (lattice_type == hexagonal) GN += 2.0*WeightedSum(G+k*M); else GN +=4.0*WeightedSum(G+k*M);
-		}
-		GN+=WeightedSum(G+(FJC-1)*M);
-		if (lattice_type == hexagonal) GN /= 4.0*fjc; else GN /= 6.0;
-	} else GN=WeightedSum(G);
-	return GN;
+Real LGrad1::ComputeGN(Real* G, int M){
+	(void)M;
+	return WeightedSum(G);
 }
 
-void LGrad1::AddPhiS(Real* phi,Real* Gf,Real* Gb,int Markov, int M){
-	NAMICS_DBG("AddPhiS_markov " << std::endl);	if (Markov==2) {
-
-
-		if (lattice_type ==hexagonal) {
-			if (fjc==1) {
-				Real C1=1.0/4.0;
-				Real C2=2.0/4.0;
-				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf)[__i] * (Gb)[__i];
-				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C2) * (Gf+1*M)[__i] * (Gb+1*M)[__i];
-				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf+2*M)[__i] * (Gb+2*M)[__i];
-			} else {
-				Real C1=0.5/(FJC-1.0);
-				Real C2=1.0/(FJC-1.0);
-				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf)[__i] * (Gb)[__i];
-				for (int k=1; k<FJC-1; k++) for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C2) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-				for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf+(FJC-1)*M)[__i] * (Gb+(FJC-1)*M)[__i];
-			}
-		} else { //markov=2 cubic fjc=1
-			Real C1=1.0/6.0;
-			Real C2=4.0/6.0;
-			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf)[__i] * (Gb)[__i];
-			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C2) * (Gf+1*M)[__i] * (Gb+1*M)[__i];
-			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (C1) * (Gf+2*M)[__i] * (Gb+2*M)[__i];
-		}
-	} else {
-		for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (Gf)[__i] * (Gb)[__i];
-	}
+void LGrad1::AddPhiS(Real* phi,Real* Gf,Real* Gb){
+	for (int __i = 0; __i < M; ++__i) (phi)[__i] += (Gf)[__i] * (Gb)[__i];
 }
 
-void LGrad1::AddPhiS(Real* phi,Real* Gf,Real* Gb, Real degeneracy, int Markov, int M){
-NAMICS_DBG("AddPhiS_degeneracy markov " << std::endl);	if (Markov==2) {
-		if (lattice_type ==hexagonal) {
-			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy*0.5/(FJC-1.0)) * (Gf)[__i] * (Gb)[__i];
-			for (int k=1; k<FJC-1; k++) for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/(FJC-1.0)) * (Gf+k*M)[__i] * (Gb+k*M)[__i];
-			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy*0.5/(FJC-1.0)) * (Gf+(FJC-1)*M)[__i] * (Gb+(FJC-1)*M)[__i];
-		} else {
-			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/6.0) * (Gf)[__i] * (Gb)[__i];
-			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy*4.0/6.0) * (Gf+1*M)[__i] * (Gb+1*M)[__i];
-			for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy/6.0) * (Gf+2*M)[__i] * (Gb+2*M)[__i];
-		}
-	} else {
-		for (int __i = 0; __i < (M); ++__i) (phi)[__i] += (degeneracy) * (Gf)[__i] * (Gb)[__i];
-	}
+void LGrad1::AddPhiS(Real* phi,Real* Gf,Real* Gb, Real degeneracy){
+	for (int __i = 0; __i < M; ++__i) (phi)[__i] += (degeneracy) * (Gf)[__i] * (Gb)[__i];
 }
 
-void LGrad1::Initiate(Real* G,Real* Gz,int Markov, int M){
-	if (Markov==2) {
-		for (int k=0; k<FJC; k++) std::copy_n(Gz, M, G+k*M);
-	} else {
-		std::copy_n(Gz, M, G);
-	}
+void LGrad1::Initiate(Real* G,Real* Gz){
+	std::copy_n(Gz, M, G);
 }
 
-void LGrad1::Terminate(Real* Gz ,Real* G, int Markov, int M){
-NAMICS_DBG("LGrad1::Terminate " << std::endl);	Real one=1.0;
-	if (Markov==2) {
-		std::fill_n(Gz, M, 0);
-		if (lattice_type == simple_cubic) {
-			add_shifted(Gz, G + M, M);
-			scale_span(Gz, M, 4.0 * one);
-			add_shifted(Gz, G, M);
-			add_shifted(Gz, G + 2 * M, M);
-			scale_span(Gz, M, 1.0 / 6.0 * one);
-		} else {
-			add_shifted(Gz, G + M, M);
-			scale_span(Gz, M, 2.0 * one);
-			add_shifted(Gz, G, M);
-			add_shifted(Gz, G + 2 * M, M);
-			scale_span(Gz, M, 1.0 / 4.0 * one);
-
-		}
-	} else {
-		std::copy_n(G, M, Gz);
-	}
+void LGrad1::Terminate(Real* Gz ,Real* G){
+	std::copy_n(G, M, Gz);
 }
 
 bool LGrad1:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){

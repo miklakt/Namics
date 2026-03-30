@@ -17,7 +17,6 @@ virtual ~Molecule();
 	Lattice* lat;
 	std::vector<int> MolMonList;
 	int start;
-	Real KStiff;
 	Real Mu;
 	Real theta;
 	Real phibulk;
@@ -36,16 +35,12 @@ virtual ~Molecule();
 	std::vector<int> n_mon;
 	std::vector<int> molmon_nr;
 	std::vector<Real> mu_state;
-	Real k_stiff;
 	std::vector<Real> phi;
 	std::vector<Real> phi_ranked;
 	std::vector<Real> phitot;
 	std::vector<Real> Gg_f;
 	std::vector<Real> Gg_b;
 	std::vector<Real> UNITY;
-	std::vector<Real> P;
-	int size;
-    int Markov;
 	Real B;
 	ParameterStore OUTPUT;
 	void PushOutput();
@@ -68,9 +63,7 @@ virtual ~Molecule();
 	virtual Real fraction(int);
 
 	Real* propagate_forward(Real*,int&,int,int,int);
-	void propagate_backward(Real*,int&,int,int,int);
-	Real* propagate_forward(Real*,int&,int,Real*,int,int);
-	void propagate_backward(Real*,int&,int,Real*,int&,int);
+	void propagate_backward(Real*,int&,int,int);
 
 };
 

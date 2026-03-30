@@ -10,10 +10,8 @@ class mol_branched : public Molecule
 	public: mol_branched(const Input*,Lattice*,std::span<const std::unique_ptr<Segment>>,std::string);
 	~mol_branched();
 
-	Real* ForwardBra(Real*, int generation, int &s);
-	void BackwardBra(Real*, int, int&);
-	Real* ForwardBra2ndO(Real*,int generation, int &s);
-	void BackwardBra2ndO(Real*, int, int&, int&);
+	Real* ForwardBra(int generation, int &s);
+	void BackwardBra(int generation, int &s);
 
 
 

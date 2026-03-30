@@ -101,7 +101,6 @@ NAMICS_DBG("Lattice constructor" << std::endl);	In=&In_; name=name_;
 	fjc=1;
 	MX=MY=MZ=0;
 	offset_first_layer=0;
-	Markov=1;
 	subl=0;
 }
 
@@ -125,10 +124,6 @@ std::unique_ptr<Lattice> CreateChecked(const Input& in, const std::string& name,
 void Lattice::DeAllocateMemory(void) {
 NAMICS_DBG("DeAllocateMemory in lat " << std::endl);	if (!all_lattice) return;
 	all_lattice=false;
-	l1.clear();
-	l11.clear();
-	l_1.clear();
-	l_11.clear();
 	H.clear();
 	B_X1.clear();
 	B_Y1.clear();
@@ -144,8 +139,6 @@ NAMICS_DBG("DeAllocateMemory in lat " << std::endl);	if (!all_lattice) return;
 	lambda1.clear();
 	fcc_lambda1.clear();
 	LAMBDA.clear();
-	LABDA.clear();
-	LABDA_1.clear();
 	X.clear();
 }
 
@@ -215,20 +208,7 @@ NAMICS_DBG("AllocateMemory in lat " << std::endl);
 		L.assign(M, 0);
 		LAMBDA.assign(FJC * M, 0);
 	}
-	if (Markov==2) {
-		if (fjc==1) {
-			l1.assign(M, 0);
-			l_1.assign(M, 0);
-			l11.assign(M, 0);
-			l_11.assign(M, 0);
-		} else {
-			LABDA.assign(FJC * M, 0);
-			LABDA_1.assign(FJC * M, 0);
-		}
-		H.assign(M, 0);
-	}
-
-
+	H.assign(M, 0);
 	X.assign(M, 0);
 	ComputeLambdas();
 }
@@ -428,7 +408,6 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 			if (gradients<3 && stencil_full) std::cout << "untested territory for 'stencil_full' " << std::endl;
 		}
 		PutM();
-		Markov=1;
 	} catch (const nlohmann::json::exception& error) {
 		std::cout << "Invalid json type in lat '" << name << "': " << error.what() << std::endl;
 		success = false;
