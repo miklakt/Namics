@@ -13,7 +13,7 @@ class LGrad3 : public Lattice
 	bool CheckLatticeInput(const ParameterStore&) override;
 
 	public:
-	void ComputeLambdas(void);
+	void ComputeLambdas(void) override;
 	bool PutM();
 	Real Moment(Real*,Real,int);
 	Real WeightedSum(Real*);

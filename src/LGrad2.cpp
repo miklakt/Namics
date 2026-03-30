@@ -135,9 +135,9 @@ Real LGrad2::WeightedSum(Real* X){
 NAMICS_DBG("weighted sum in LGrad2 " << std::endl);	Real sum{0};
 	remove_bounds(X);
 	if (geometry=="planar") {
-		(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i]; sum = sum/(fjc*fjc);
+		sum = std::accumulate(X, X + M, Real{0}) / (fjc * fjc);
 	} else	{
-		(sum) = 0; for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i] * (L)[__i];
+		sum = std::inner_product(X, X + M, L.begin(), Real{0});
 	}
 	return sum;
 }
@@ -213,7 +213,7 @@ NAMICS_DBG(" Side in LGrad2 " << std::endl);	if (ignore_sites) {
 						for (int __i = 0; __i < (M-a-b); ++__i) (X_side+a)[__i] += (X+b)[__i] * (LAMBDA+(fjc+x)*M+a)[__i];
 					}
 				}
-				if (block !=1) for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (2.0); else for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
+				if (block !=1) scale_span(X_side, M, 2.0); else scale_span(X_side, M, C);
 			}
 		}
 	}
@@ -280,7 +280,7 @@ void LGrad2::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			add_terms(gx4 + JY, M - JY, {{gz0, P[1]}, {gz1, P[1]}, {gz2, P[1]}, {gz3, P[0]}, {gz4, P[0]}, {gz5, P[0]}, {gz9, P[1]}, {gz10, P[1]}, {gz11, P[1]}});
 			add_terms(gx7, M - JY, {{gz0 + JY, P[1]}, {gz1 + JY, P[1]}, {gz2 + JY, P[1]}, {gz6 + JY, P[0]}, {gz7 + JY, P[0]}, {gz8 + JY, P[0]}, {gz9 + JY, P[1]}, {gz10 + JY, P[1]}, {gz11 + JY, P[1]}});
 
-			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
+			for (int k=0; k<12; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
 
 
 
@@ -303,7 +303,7 @@ void LGrad2::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			UReflect(H,gz4,gz0);
 			add_from_source(H + JX, M - JX, {{gx4, P[0]}});
 
-			for (int k=0; k<5; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
+			for (int k=0; k<5; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
 		}
 	} else {
 		if (lattice_type==hexagonal) {
@@ -367,7 +367,7 @@ void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			add_from_source(gz7, M - JY, {{gx0 + JY, P[1]}, {gx1 + JY, P[1]}, {gx2 + JY, P[1]}, {gx6 + JY, P[0]}, {gx7 + JY, P[0]}, {gx8 + JY, P[0]}, {gx9 + JY, P[1]}, {gx10 + JY, P[1]}, {gx11 + JY, P[1]}});
 			add_from_source(gz4 + JY, M - JY, {{gx0, P[1]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[0]}, {gx4, P[0]}, {gx5, P[0]}, {gx9, P[1]}, {gx10, P[1]}, {gx11, P[1]}});
 
-			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
+			for (int k=0; k<12; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
 
 
 		} else { //simple_cubic should work
@@ -393,7 +393,7 @@ void LGrad2::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			UReflect(H,gz0,gz4);
 			add_from_source(H + JX, M - JX, {{gx0, P[0]}, {gx1, P[1]}, {gx2, P[1]}, {gx3, P[1]}});
 
-			for (int k=0; k<5; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
+			for (int k=0; k<5; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
 		}
 	} else {
 		if (lattice_type==hexagonal) {
@@ -426,7 +426,7 @@ NAMICS_DBG(" propagate in LGrad2 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 			add_weighted(gs + 1, gs_1 + JX, lambda1 + 1, M - JX - 1);
 			add_weighted(gs, gs_1 + JX + 1, lambda1, M - JX - 1);
 			scale_span(gs, M, C2);
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
+			std::transform(gs, gs + M, G1, gs, [](auto a, auto b) { return a * b; });
 		} else { //9 point stencil; hexagonal
 			Real C1=0.5;
 			Real C2=0.25;
@@ -442,7 +442,7 @@ NAMICS_DBG(" propagate in LGrad2 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 			add_weighted(gs + 1, gs_1 + JX, lambda1 + 1, M - JX - 1);
 			add_weighted(gs, gs_1 + JX + 1, lambda1, M - JX - 1);
 			scale_span(gs, M, C2);
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
+			std::transform(gs, gs + M, G1, gs, [](auto a, auto b) { return a * b; });
 		}
 	} else { //fjc>1
 		for (int block=0; block<2; block++) {
@@ -460,7 +460,7 @@ NAMICS_DBG(" propagate in LGrad2 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 			}
 			if (block !=1) for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (2.0); else for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (C);
 		}
-		for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
+		std::transform(gs, gs + M, G1, gs, [](auto a, auto b) { return a * b; });
 
 
 	}
@@ -544,7 +544,7 @@ void LGrad2::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 					(epsXmin+epsXplus+epsYmin+epsYplus);
 				}
 			}
-			for (int __i = 0; __i < (M); ++__i) (g)[__i] = (g)[__i] - (X)[__i];
+			std::transform(g, g + M, X.data(), g, [](auto a, auto b) { return a - b; });
 		} else {
 			for (x=fjc; x<MX+fjc; x++) {
 				for (y=fjc; y<MY+fjc; y++){
@@ -593,7 +593,7 @@ void LGrad2::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 				//(epsXmin+epsXplus+epsYmin+epsYplus);
 			}
 		}
-		for (int __i = 0; __i < (M); ++__i) (g)[__i] = (g)[__i] - (X)[__i];
+		std::transform(g, g + M, X.data(), g, [](auto a, auto b) { return a - b; });
   	 } else { //fixedPsi0 is true
 		for (x=fjc; x<MX+fjc; x++) {
 			for (y=fjc; y<MY+fjc; y++) {

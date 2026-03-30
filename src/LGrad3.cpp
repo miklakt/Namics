@@ -8,6 +8,9 @@ LGrad3::LGrad3(const Input& In_,const std::string& name_): Lattice(In_,name_) {}
 LGrad3::~LGrad3() {
 NAMICS_DBG("LGrad3 destructor " << std::endl);}
 
+void LGrad3::ComputeLambdas() {
+}
+
 bool LGrad3::CheckLatticeInput(const ParameterStore& parameters) {
 	bool success = RejectScalarBoundsInMultiD(parameters);
 	success = ReadScaledDimension(parameters, "n_layers_x", MX, 1, "In 'lat' the parameter 'n_layers_x' is required", "n_layers_x out of bounds, currently: 1..1e6; Problem terminated") && success;
@@ -23,9 +26,6 @@ bool LGrad3::CheckLatticeInput(const ParameterStore& parameters) {
 	success = CheckPeriodicPair(1, 4, ("In y-direction the boundary conditions do not match:" + BC[1] + " and " + BC[4]).c_str()) && success;
 	success = CheckPeriodicPair(2, 5, ("In z-direction the boundary conditions do not match:" + BC[2] + " and " + BC[5]).c_str()) && success;
 	return success;
-}
-
-void LGrad3:: ComputeLambdas() {
 }
 
 bool LGrad3::PutM() {
@@ -48,9 +48,7 @@ NAMICS_DBG("Moment in LGrad3 " << std::endl);	Real Result=0;
 Real LGrad3::WeightedSum(Real* X){
 NAMICS_DBG("weighted sum in LGrad3 " << std::endl);
 	remove_bounds(X);
-	Real sum{0};
-	for (int __i = 0; __i < (M); ++__i) (sum) += (X)[__i];
-	return sum;
+	return std::accumulate(X, X + M, Real{0});
 }
 
 void LGrad3::Side(Real *X_side, Real *X, int M) { //this procedure should use the lambda's according to 'lattice_type'-, 'lambda'- or 'Z'-info;
@@ -101,19 +99,19 @@ NAMICS_DBG(" Side in LGrad3 " << std::endl);	if (ignore_sites) {
 			for (int __i = 0; __i < (M-JY); ++__i) (X_side)[__i] += (X+JY)[__i];
 			for (int __i = 0; __i < (M-JZ); ++__i) (X_side+JZ)[__i] += (X)[__i];
 			for (int __i = 0; __i < (M-JZ); ++__i) (X_side)[__i] += (X+JZ)[__i];
-	 		for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
+	 		scale_span(X_side, M, C);
 		} else { //hexagonal
 			if (fjc==1) {
 				Real Two=2.0;
 				Real C=1.0/40.0;
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] += (Two) * (X)[__i];
+				add_shifted(X_side, X, M, Two);
 				for (int __i = 0; __i < (M-JX); ++__i) (X_side+JX)[__i] += (X)[__i];
 				for (int __i = 0; __i < (M-JX); ++__i) (X_side)[__i] += (X+JX)[__i];
 				for (int __i = 0; __i < (M-JY); ++__i) (X_side+JY)[__i] += (X)[__i];
 				for (int __i = 0; __i < (M-JY); ++__i) (X_side)[__i] += (X+JY)[__i];
 				for (int __i = 0; __i < (M-1); ++__i) (X_side+1)[__i] += (X)[__i];
 				for (int __i = 0; __i < (M-1); ++__i) (X_side)[__i] += (X+1)[__i];
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two);
+				scale_span(X_side, M, Two);
 
 				for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side+JX+JY)[__i] += (X)[__i];
 				for (int __i = 0; __i < (M-JX-JY); ++__i) (X_side)[__i] += (X+JX+JY)[__i];
@@ -127,7 +125,7 @@ NAMICS_DBG(" Side in LGrad3 " << std::endl);	if (ignore_sites) {
 				for (int __i = 0; __i < (M-JX-1); ++__i) (X_side)[__i] += (X+JX+1)[__i];
 				for (int __i = 0; __i < (M-JY-1); ++__i) (X_side+JY)[__i] += (X+1)[__i];
 				for (int __i = 0; __i < (M-JY-1); ++__i) (X_side)[__i] += (X+JY+1)[__i];
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two);
+				scale_span(X_side, M, Two);
 
 				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX+JY+1)[__i] += (X)[__i];
 				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side)[__i] += (X+JX+JY+1)[__i];
@@ -138,7 +136,7 @@ NAMICS_DBG(" Side in LGrad3 " << std::endl);	if (ignore_sites) {
 				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JY+1)[__i] += (X+JX)[__i];
 				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (X_side+JX)[__i] += (X+JY+1)[__i];
 
-				for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
+				scale_span(X_side, M, C);
 
 
 			} else { //fjc==2
@@ -159,7 +157,7 @@ NAMICS_DBG(" Side in LGrad3 " << std::endl);	if (ignore_sites) {
 							for (int __i = 0; __i < (M-a-b); ++__i) (X_side+a)[__i] += (X+b)[__i];
 						}
 					}
-					if (block !=3) for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (Two); else for (int __i = 0; __i < (M); ++__i) (X_side)[__i] *= (C);
+					if (block !=3) scale_span(X_side, M, Two); else scale_span(X_side, M, C);
 
 				}
 			}
@@ -263,7 +261,7 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz10+JY)[__i];
 			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx7+JZ)[__i] += (P[1]) * (gz11+JY)[__i];
 
-			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
+			for (int k=0; k<12; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
 		} else {
 			Real *gs=G+M*6*s_to;
 			Real *gs_1=G+M*6*s_from;
@@ -312,7 +310,7 @@ void LGrad3::propagateF(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[1]) * (gz4+JX)[__i];
 			for (int __i = 0; __i < (M-JX); ++__i) (gx5)[__i] += (P[0]) * (gz5+JX)[__i];
 
-			for (int k=0; k<6; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
+			for (int k=0; k<6; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
 		}
 	} else {
 		if (lattice_type ==simple_cubic) {
@@ -473,7 +471,7 @@ void LGrad3::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx10+JZ)[__i] += (P[1]) * (gz4+JY)[__i];
 			for (int __i = 0; __i < (M-JY-JZ); ++__i) (gx11+JZ)[__i] += (P[1]) * (gz4+JY)[__i];
 
-			for (int k=0; k<12; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
+			for (int k=0; k<12; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
 
 		} else {
 			Real *gs=G+M*6*s_to;
@@ -525,7 +523,7 @@ void LGrad3::propagateB(Real *G, Real *G1, Real* P, int s_from, int s_to,int M) 
 			for (int __i = 0; __i < (M-JX); ++__i) (gx3)[__i] += (P[1]) * (gz0+JX)[__i];
 			for (int __i = 0; __i < (M-JX); ++__i) (gx4)[__i] += (P[1]) * (gz0+JX)[__i];
 
-			for (int k=0; k<6; k++) for (int __i = 0; __i < (M); ++__i) (gs+k*M)[__i] = (gs+k*M)[__i] * (g)[__i];
+			for (int k=0; k<6; k++) std::transform(gs+k*M, gs+(k+1)*M, g, gs+k*M, [](auto a, auto b) { return a * b; });
 		}
 	} else {
 		if (lattice_type==simple_cubic) {
@@ -555,11 +553,8 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 		for (int __i = 0; __i < (M-JY_); ++__i) (gs)[__i] += (gs_1+JY_)[__i];
 		for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (gs_1)[__i];
 		for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (gs_1+1)[__i];
-		if (lattice_type == simple_cubic) {
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (4.0);
-		} else {
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (2.0);
-		}
+		if (lattice_type == simple_cubic) scale_span(gs, M, 4.0);
+		else scale_span(gs, M, 2.0);
 		for (int __i = 0; __i < (M-JX_-JY_); ++__i) (gs+JX_+JY_)[__i] += (gs_1)[__i];
 		for (int __i = 0; __i < (M-JX_-JY_); ++__i) (gs)[__i] += (gs_1+JX_+JY_)[__i];
 		for (int __i = 0; __i < (M-JY_-JX_); ++__i) (gs+JY_)[__i] += (gs_1+JX)[__i];
@@ -572,11 +567,8 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 		for (int __i = 0; __i < (M-JX_-1); ++__i) (gs)[__i] += (gs_1+JY_+1)[__i];
 		for (int __i = 0; __i < (M-JY_); ++__i) (gs+JY_)[__i] += (gs_1+1)[__i];
 		for (int __i = 0; __i < (M-JY_); ++__i) (gs+1)[__i] += (gs_1+JY_)[__i];
-		if (lattice_type == simple_cubic) {
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (4.0);
-		} else {
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (2.0);
-		}
+		if (lattice_type == simple_cubic) scale_span(gs, M, 4.0);
+		else scale_span(gs, M, 2.0);
 		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JX_+JY_+1)[__i] += (gs_1)[__i];
 		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs)[__i] += (gs_1+JX_+JY_+1)[__i];
 		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JX_+JY_)[__i] += (gs_1+1)[__i];
@@ -585,12 +577,9 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JY_)[__i] += (gs_1+JX_+1)[__i];
 		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JY_+1)[__i] += (gs_1+JX_)[__i];
 		for (int __i = 0; __i < (M-JX_-JY_-1); ++__i) (gs+JX_)[__i] += (gs_1+JY_+1)[__i];
-		if (lattice_type == simple_cubic) {
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (1.0/152.0);
-		} else {
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (1.0/56.0);
-		}
-		for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
+		if (lattice_type == simple_cubic) scale_span(gs, M, 1.0 / 152.0);
+		else scale_span(gs, M, 1.0 / 56.0);
+		std::transform(gs, gs + M, G1, gs, [](auto a, auto b) { return a * b; });
 	} else {
 		if (lattice_type==simple_cubic) {
 			for (int __i = 0; __i < (M-JX_); ++__i) (gs+JX_)[__i] += (gs_1)[__i];
@@ -599,20 +588,20 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 			for (int __i = 0; __i < (M-JY_); ++__i) (gs)[__i] += (gs_1+JY_)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (gs_1)[__i];
 			for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (gs_1+1)[__i];
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (1.0/6.0);
-			for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
+			scale_span(gs, M, 1.0 / 6.0);
+			std::transform(gs, gs + M, G1, gs, [](auto a, auto b) { return a * b; });
 		} else { //hexagonal
 			if (fjc==1) {
 				Real Two=2.0;
 				Real C=1.0/40.0;
-				for (int __i = 0; __i < (M); ++__i) (gs)[__i] += (Two) * (gs_1)[__i];
+				add_shifted(gs, gs_1, M, Two);
 				for (int __i = 0; __i < (M-JX); ++__i) (gs+JX)[__i] += (gs_1)[__i];
 				for (int __i = 0; __i < (M-JX); ++__i) (gs)[__i] += (gs_1+JX)[__i];
 				for (int __i = 0; __i < (M-JY); ++__i) (gs+JY)[__i] += (gs_1)[__i];
 				for (int __i = 0; __i < (M-JY); ++__i) (gs)[__i] += (gs_1+JY)[__i];
 				for (int __i = 0; __i < (M-1); ++__i) (gs+1)[__i] += (gs_1)[__i];
 				for (int __i = 0; __i < (M-1); ++__i) (gs)[__i] += (gs_1+1)[__i];
-				for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (Two);
+				scale_span(gs, M, Two);
 
 				for (int __i = 0; __i < (M-JX-JY); ++__i) (gs+JX+JY)[__i] += (gs_1)[__i];
 				for (int __i = 0; __i < (M-JX-JY); ++__i) (gs)[__i] += (gs_1+JX+JY)[__i];
@@ -626,7 +615,7 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 				for (int __i = 0; __i < (M-JX-1); ++__i) (gs)[__i] += (gs_1+JX+1)[__i];
 				for (int __i = 0; __i < (M-JY-1); ++__i) (gs+JY)[__i] += (gs_1+1)[__i];
 				for (int __i = 0; __i < (M-JY-1); ++__i) (gs)[__i] += (gs_1+JY+1)[__i];
-				for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (Two);
+				scale_span(gs, M, Two);
 
 				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JX+JY+1)[__i] += (gs_1)[__i];
 				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs)[__i] += (gs_1+JX+JY+1)[__i];
@@ -637,8 +626,8 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JY+1)[__i] += (gs_1+JX)[__i];
 				for (int __i = 0; __i < (M-JX-JY-1); ++__i) (gs+JX)[__i] += (gs_1+JY+1)[__i];
 
-				for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (C);
-				for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
+				scale_span(gs, M, C);
+				std::transform(gs, gs + M, G1, gs, [](auto a, auto b) { return a * b; });
 
 
 			} else { //hexagonal and fjc=2 ; deze code moet ook werken voor FJC_choices > 5
@@ -658,10 +647,10 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 							for (int __i = 0; __i < (M-a-b); ++__i) (gs+a)[__i] += (gs_1+b)[__i];
 						}
 					}
-					if (block !=3) for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (2.0); else for (int __i = 0; __i < (M); ++__i) (gs)[__i] *= (1.0/8.0/((FJC-2)*(FJC-2)*(FJC-2)+3*(FJC-2)*(FJC-2)+3*(FJC-2)+1));
+					if (block !=3) scale_span(gs, M, 2.0); else scale_span(gs, M, 1.0 / 8.0 / ((FJC-2)*(FJC-2)*(FJC-2)+3*(FJC-2)*(FJC-2)+3*(FJC-2)+1));
 
 				}
-				for (int __i = 0; __i < (M); ++__i) (gs)[__i] = (gs)[__i] * (G1)[__i];
+				std::transform(gs, gs + M, G1, gs, [](auto a, auto b) { return a * b; });
 
 
 			}
@@ -678,7 +667,7 @@ void LGrad3::UpdateEE(Real* EE, Real* psi, Real* E) {
 	for (int __i = 0; __i < (M-2); ++__i) (EE+1)[__i] += std::pow((psi)[__i]-(psi+1)[__i],2) + std::pow((psi+1)[__i]-(psi+2)[__i],2);
 	for (int __i = 0; __i < (M-2*JX); ++__i) (EE+JX)[__i] += std::pow((psi)[__i]-(psi+JX)[__i],2) + std::pow((psi+JX)[__i]-(psi+2*JX)[__i],2);
 	for (int __i = 0; __i < (M-2*JY); ++__i) (EE+JY)[__i] += std::pow((psi)[__i]-(psi+JY)[__i],2) + std::pow((psi+JY)[__i]-(psi+2*JY)[__i],2);
-	for (int __i = 0; __i < (M); ++__i) (EE)[__i] *= (pf);
+	scale_span(EE, M, pf);
 
 
 }
