@@ -391,7 +391,7 @@ NAMICS_DBG("Solve in  Solve_scf " << std::endl);
 			control = proceed;
 		}
 
-		switch(solver) {
+	switch(solver) {
 		case HESSIAN:
 			success=iterate(xx.data(),iv,iterationlimit,tolerance,deltamax,deltamin,true);
 		break;
@@ -401,7 +401,7 @@ NAMICS_DBG("Solve in  Solve_scf " << std::endl);
 		case diis:
 			success=iterate_DIIS(xx.data(),iv,m,iterationlimit,tolerance,deltamax,restart_DIIS);
 		break;
-		case LBFGS:
+	case LBFGS:
 			success=true;
 			{
 			SCF_LBFGS fun(In,lat,Seg,Sta,Rea,Mol,Sys);
@@ -421,6 +421,18 @@ NAMICS_DBG("Solve in  Solve_scf " << std::endl);
 			std::cout <<std::endl <<"Problem solved: " << iterations << " iterations,  |g|: " << res <<  std::endl;
 			}
 		break;
+	}
+	if (success) {
+		bool final_pass_needed = false;
+		for (const auto& mol : Mol) {
+			if (!mol->phi_ranked.empty()) {
+				final_pass_needed = true;
+				break;
+			}
+		}
+		if (final_pass_needed) {
+			Sys->ComputePhis(std::span<const Real>(xx.data(), static_cast<size_t>(iv)), false, 0.0, true);
+		}
 	}
 	success=Sys->CheckResults(report_errors);
 	return success;

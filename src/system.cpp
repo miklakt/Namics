@@ -851,11 +851,11 @@ void System::DoElectrostatics(std::span<Real> g, std::span<const Real> x)
 	}
 }
 
-void System:: ComputePhis(std::span<const Real> x,bool first_time, Real residual) {
-	NAMICS_DBG("ComputPhis in  system " << std::endl);
+void System:: ComputePhis(std::span<const Real> x,bool first_time, Real residual, bool final_pass) {
+NAMICS_DBG("ComputPhis in  system " << std::endl);
 	PutU(x);
 	PrepareForCalculations(first_time);
-	ComputePhis(residual);
+	ComputePhis(residual, final_pass);
 }
 
 bool System:: PutU(std::span<const Real> xx) {
@@ -955,7 +955,7 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 	int itstatelistlength=ItStateList.size();
 
 	std::copy(x.begin(), x.end(), g.begin());
-	ComputePhis(x,iterations==0,residual);
+	ComputePhis(x,iterations==0,residual,false);
  	std::fill(alpha.begin(), alpha.end(), 0.0);
 
 	for (i=0; i<itmonlistlength; i++) {
@@ -1035,16 +1035,15 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 }
 
 
-bool System::ComputePhis(Real residual){
+bool System::ComputePhis(Real residual, bool final_pass){
 NAMICS_DBG("ComputePhis in system" << std::endl);
 	int M= lat->M;
 	const auto slice_len = static_cast<size_t>(M);
 	auto& phitot = this->phitot;
 	const auto normalize_ranked_phi = [&](Molecule& mol, Real norm, bool divide_by_g1) {
-		if (mol.phi_ranked.empty()) return;
+		if (!final_pass || mol.phi_ranked.empty()) return;
 		int s = 0;
-		const int blocks = mol.mon_nr.size();
-		for (int b = 0; b < blocks; ++b) {
+		for (size_t b = 0; b < mol.mon_nr.size(); ++b) {
 			auto g1 = std::span<const Real>(Seg[mol.mon_nr[b]]->G1);
 			for (int k = 0; k < mol.n_mon[b]; ++k, ++s) {
 				auto phi = std::span<Real>(mol.phi_ranked).subspan(static_cast<size_t>(s * M), slice_len);
@@ -1057,6 +1056,21 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 			}
 		}
 	};
+	const auto normalize_molecule = [&](Molecule& mol, Real norm, bool normalize_ranked, bool divide_by_g1) {
+		if (mol.freedom == "frozen") return;
+		for (size_t k = 0; k < mol.MolMonList.size(); ++k) {
+			const int seg = mol.MolMonList[k];
+			auto phi = std::span<Real>(mol.phi).subspan(static_cast<size_t>(k * M), slice_len);
+			auto g1 = std::span<const Real>(Seg[seg]->G1);
+			if (divide_by_g1) {
+				for (int __i = 0; __i < M; ++__i) phi[__i] = g1[__i] != 0 ? phi[__i] / g1[__i] : 0;
+			}
+			if (norm > 0) {
+				for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
+			}
+		}
+		if (normalize_ranked) normalize_ranked_phi(mol, norm, divide_by_g1);
+	};
 	Real A=0, B=0; //A should contain sum_phi*charge; B should contain sum_phi
 	bool success=true;
 	std::fill(phitot.begin(), phitot.end(), 0.0);
@@ -1067,177 +1081,106 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 	}
 
 	for (int i=0; i<n_mol; i++) {
-		success = Mol[i]->ComputePhi();
+		if (final_pass && !Mol[i]->phi_ranked.empty()) {
+			std::fill(Mol[i]->phi_ranked.begin(), Mol[i]->phi_ranked.end(), 0);
+		}
+		success = Mol[i]->ComputePhi(final_pass);
 	}
 
-	for (int i = 0; i < n_mol; i++)
-	{
+	for (int i = 0; i < n_mol; i++) {
+		auto& mol = *Mol[i];
 		Real norm = 0;
-		if (Mol[i]->freedom == "free")
-		{
-			norm = Mol[i]->phibulk / Mol[i]->chainlength;
-			Mol[i]->n = norm * Mol[i]->GN;
+		if (mol.freedom == "free") {
+			norm = mol.phibulk / mol.chainlength;
+			mol.n = norm * mol.GN;
 
-			A += Mol[i]->phibulk * Mol[i]->Charge();
-			B += Mol[i]->phibulk;
-		}
-
-		if (Mol[i]->freedom == "restricted")
-		{
-			if (Mol[i]->GN > 0)
-			{
-				norm = Mol[i]->n / Mol[i]->GN;
-				if (Mol[i]->IsPinned())
-				{
-					Mol[i]->phibulk = 0;
+			A += mol.phibulk * mol.Charge();
+			B += mol.phibulk;
+		} else if (mol.freedom == "restricted") {
+			if (mol.GN > 0) {
+				norm = mol.n / mol.GN;
+				if (mol.IsPinned()) {
+					mol.phibulk = 0;
+				} else {
+					mol.phibulk = mol.chainlength * norm;
+					A += mol.phibulk * mol.Charge();
+					B += mol.phibulk;
 				}
-				else
-				{
-					Mol[i]->phibulk = Mol[i]->chainlength * norm;
-					A += Mol[i]->phibulk * Mol[i]->Charge();
-					B += Mol[i]->phibulk;
-				}
+			} else {
+				norm = 0;
+				std::cout << "GN for molecule " << i << " is not larger than zero..." << std::endl;
+				std::cout << "Consider compiling with LongReal enabled if this is an overflow issue." << std::endl;
+				throw - 1;
 			}
-			else
-				{
-					norm = 0;
-					std::cout << "GN for molecule " << i << " is not larger than zero..." << std::endl;
-					std::cout << "Consider compiling with LongReal enabled if this is an overflow issue." << std::endl;
-					throw - 1;
-				}
 		}
 
-		if (Mol[i]->IsPinned())
-		{
-			if (Mol[i]->GN > 0){
-				if (Mol[i]->n ==0) Mol[i]->n =1;
-				norm = Mol[i]->n / Mol[i]->GN;
-			} else
-			{
+		if (mol.IsPinned()) {
+			if (mol.GN > 0) {
+				if (mol.n == 0) mol.n = 1;
+				norm = mol.n / mol.GN;
+			} else {
 				norm = 0;
 				std::cout << "GN for molecule " << i << " is not larger than zero..." << std::endl;
 			}
-			Mol[i]->phibulk = 0;
+			mol.phibulk = 0;
 		}
-		int k = 0;
-		Mol[i]->norm = norm;
-		int length = Mol[i]->MolMonList.size();
-
-		while (k < length)
-		{
-			if (Mol[i]->freedom != "frozen")
-			{
-				auto phi = std::span<Real>(Mol[i]->phi).subspan(static_cast<size_t>(k * M), slice_len);
-				auto g1 = std::span<const Real>(Seg[Mol[i]->MolMonList[k]]->G1);
-				for (int __i = 0; __i < M; ++__i) phi[__i] = g1[__i] != 0 ? phi[__i] / g1[__i] : 0;
-				if (norm > 0) {
-					for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
-				}
-
-				if (debug)
-				{
-					Real sum;
-					(sum) = 0; for (int __i = 0; __i < M; ++__i) (sum) += phi[__i];
-					NAMICS_DBG("Sumphi in mol " << i << " for mon " << Mol[i]->MolMonList[k] << ": " << sum << std::endl);
-				}
-			}
-			k++;
-		}
-		if (Mol[i]->freedom != "frozen") normalize_ranked_phi(*Mol[i], norm, true);
-
-		}
-	if (charged && neutralizer > -1)
-		{
-		if (Mol[neutralizer]->Charge()==Mol[solvent]->Charge()) {
+		mol.norm = norm;
+		normalize_molecule(mol, norm, true, true);
+	}
+	if (charged && neutralizer > -1) {
+		auto& neutral = *Mol[neutralizer];
+		const Real solvent_charge = Mol[solvent]->Charge();
+		const Real neutral_charge = neutral.Charge();
+		if (neutral_charge == solvent_charge) {
 			std::cout << "WARNING: solvent charge equals neutralizer charge; outcome problematic...." << std::endl;
-		} else Mol[neutralizer]->phibulk= ((B-1.0)*Mol[solvent]->Charge() -A)/(Mol[neutralizer]->Charge()-Mol[solvent]->Charge());
-
-		if (Mol[neutralizer]->phibulk<0) {
-			std::cout << "WARNING: neutralizer has negative phibulk. Consider changing neutralizer...: outcome problematic...." << std::endl;
-std::cout <<"A is " << A << std::endl;
-for (int j=0; j<n_mol; j++) {
-	std::cout << " mol : " << Mol[j]->name << " phibulk " << Mol[j]->phibulk << std::endl;
-
-}
-
-
+		} else {
+			neutral.phibulk = ((B - 1.0) * solvent_charge - A) / (neutral_charge - solvent_charge);
 		}
-		B += Mol[neutralizer]->phibulk;
-		Real norm = Mol[neutralizer]->phibulk / Mol[neutralizer]->chainlength;
-		Mol[neutralizer]->n = norm * Mol[neutralizer]->GN;
-		Mol[neutralizer]->theta = Mol[neutralizer]->n * Mol[neutralizer]->chainlength;
-		Mol[neutralizer]->norm = norm;
+
+		if (neutral.phibulk < 0) {
+			std::cout << "WARNING: neutralizer has negative phibulk. Consider changing neutralizer...: outcome problematic...." << std::endl;
+			std::cout << "A is " << A << std::endl;
+			for (int j = 0; j < n_mol; j++) {
+				std::cout << " mol : " << Mol[j]->name << " phibulk " << Mol[j]->phibulk << std::endl;
+			}
+		}
+
+		B += neutral.phibulk;
+		Real norm = neutral.phibulk / neutral.chainlength;
+		neutral.n = norm * neutral.GN;
+		neutral.theta = neutral.n * neutral.chainlength;
+		neutral.norm = norm;
+		normalize_molecule(neutral, norm, true, false);
 	}
 
-	if (solvent>-1) {
-		Mol[solvent]->phibulk = 1.0 - B;
-		if (Mol[solvent]->phibulk < 0)
-		{
+	if (solvent > -1) {
+		auto& solvent_mol = *Mol[solvent];
+		solvent_mol.phibulk = 1.0 - B;
+		if (solvent_mol.phibulk < 0) {
 			std::cout << "WARNING: solvent has negative phibulk. outcome problematic " << std::endl;
 			throw - 4;
 		}
 
-		Real norm = Mol[solvent]->phibulk / Mol[solvent]->chainlength;
-		Mol[solvent]->n = norm * Mol[solvent]->GN;
-		Mol[solvent]->theta = Mol[solvent]->n * Mol[solvent]->chainlength;
-		Mol[solvent]->norm = norm;
+		Real norm = solvent_mol.phibulk / solvent_mol.chainlength;
+		solvent_mol.n = norm * solvent_mol.GN;
+		solvent_mol.theta = solvent_mol.n * solvent_mol.chainlength;
+		solvent_mol.norm = norm;
+		normalize_molecule(solvent_mol, norm, true, false);
+	}
 
-		int k = 0;
-
-		length = Mol[solvent]->MolMonList.size();
-		while (k < length) {
-			auto phi = std::span<Real>(Mol[solvent]->phi).subspan(static_cast<size_t>(k * M), slice_len);
-			if (norm > 0) {
-				for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
-			}
-			if (debug)
-			{
-				Real sum;
-				(sum) = 0; for (int __i = 0; __i < M; ++__i) (sum) += phi[__i];
-				NAMICS_DBG("Sumphi in mol " << solvent << "for mon " << k << ":" << sum << std::endl);
-			}
-			k++;
-		}
-		normalize_ranked_phi(*Mol[solvent], norm, false);
-		}
-		if (charged && neutralizer > -1)
-		{
-		int k = 0;
-		length = Mol[neutralizer]->MolMonList.size();
-		while (k < length)
-		{
-			auto phi = std::span<Real>(Mol[neutralizer]->phi).subspan(static_cast<size_t>(k * M), slice_len);
-			if (Mol[neutralizer]->norm > 0) {
-				for (int __i = 0; __i < M; ++__i) phi[__i] *= Mol[neutralizer]->norm;
-			}
-			if (debug)
-			{
-				Real sum;
-				(sum) = 0; for (int __i = 0; __i < M; ++__i) (sum) += phi[__i];
-				NAMICS_DBG("Sumphi in mol " << neutralizer << "for mon " << k << ":" << sum << std::endl);
-				}
-				k++;
-			}
-			normalize_ranked_phi(*Mol[neutralizer], Mol[neutralizer]->norm, false);
-		}
-
-	for (int i = 0; i < n_mol; i++)
-	{
-
-		int length = Mol[i]->MolMonList.size();
-		int k = 0;
-		while (k < length)
-		{
-			auto& phi_mon = Seg[Mol[i]->MolMonList[k]]->phi;
-			auto& mol_phitot = Mol[i]->phitot;
-			auto phi_molmon = std::span<const Real>(Mol[i]->phi).subspan(static_cast<size_t>(k * M), slice_len);
+	for (int i = 0; i < n_mol; i++) {
+		auto& mol = *Mol[i];
+		for (size_t k = 0; k < mol.MolMonList.size(); ++k) {
+			const int seg = mol.MolMonList[k];
+			auto& phi_mon = Seg[seg]->phi;
+			auto& mol_phitot = mol.phitot;
+			auto phi_molmon = std::span<const Real>(mol.phi).subspan(static_cast<size_t>(k * M), slice_len);
 			for (int __i = 0; __i < M; ++__i) phi_mon[__i] += phi_molmon[__i];
 			for (int __i = 0; __i < M; ++__i) phitot[__i] += phi_molmon[__i];
 			for (int __i = 0; __i < M; ++__i) mol_phitot[__i] += phi_molmon[__i];
-			Seg[Mol[i]->MolMonList[k]]->phibulk += Mol[i]->fraction(Mol[i]->MolMonList[k]) * Mol[i]->phibulk;
-			k++;
+			Seg[seg]->phibulk += mol.fraction(seg) * mol.phibulk;
 		}
-		}
+	}
 
 	int n_seg = In->MonList.size();
 	for (int i = 0; i < n_seg; i++) {

@@ -468,7 +468,6 @@ NAMICS_DBG("PrepareForCalculations in Mol " + name << std::endl);
 	std::copy(KSAM.begin(), KSAM.end(), UNITY.begin());
 	std::fill(phitot.begin(), phitot.end(), 0);
 	std::fill(phi.begin(), phi.end(), 0);
-	if (!phi_ranked.empty()) std::fill(phi_ranked.begin(), phi_ranked.end(), 0);
 	return true;
 }
 
@@ -622,7 +621,7 @@ NAMICS_DBG("PushOutput for Mol " + name << std::endl);
 	OUTPUT["norm"] = norm;
 	OUTPUT["phi"] = {{"profile", 0}};
 	if (!phi_ranked.empty()) OUTPUT["phi_ranked"] = {{"ranked_profile", 0}};
-	for (size_t i = 0; i < MolMonList.size(); i++) {
+	for (size_t i = 0; i < MolMonList.size(); ++i) {
 		OUTPUT["phi_" + Seg[MolMonList[i]]->name] = {{"profile", static_cast<int>(i) + 1}};
 	}
 }
@@ -658,7 +657,7 @@ NAMICS_DBG("1. propagate_forward for Mol " + name << std::endl);
 
 }
 
-void Molecule::propagate_backward(Real* G1, int &s, int block, int M) {
+void Molecule::propagate_backward(Real* G1, int &s, int block, int M, bool final_pass) {
 NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
 
 	int N= n_mon[block];
@@ -670,18 +669,18 @@ NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
 		}
 
 		lat->AddPhiS(phi.data()+molmon_nr[block]*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M);
-		if (!phi_ranked.empty()) lat->AddPhiS(phi_ranked.data()+static_cast<size_t>(s)*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M);
+		if (final_pass && !phi_ranked.empty()) lat->AddPhiS(phi_ranked.data()+static_cast<size_t>(s)*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M);
 		s--;
 	}
 }
 
-bool Molecule::ComputePhi(){
+bool Molecule::ComputePhi(bool final_pass){
 NAMICS_DBG("ComputePhi for Molecule " + name << std::endl); // Default computation for a monomer.
 	int M=lat->M;
 	std::copy_n(Seg[mon_nr[0]]->G1.begin(), M, phi.begin());
 	GN=lat->WeightedSum(phi.data());
 	for (int __i = 0; __i < (M); ++__i) (phi)[__i] = (phi)[__i] * (Seg[mon_nr[0]]->G1)[__i];
-	if (!phi_ranked.empty()) std::copy_n(phi.begin(), M, phi_ranked.begin());
+	if (final_pass && !phi_ranked.empty()) std::copy_n(phi.begin(), M, phi_ranked.begin());
 	return true;
 }
 

@@ -5,7 +5,7 @@ mol_branched::mol_branched(const Input* In_,Lattice* Lat_,std::span<const std::u
 
 }
 
-void mol_branched::BackwardBranch(int generation, int &s){
+void mol_branched::BackwardBranch(int generation, int &s, bool final_pass){
 NAMICS_DBG("BackwardBranch in mol_branched " << std::endl);
 
 	int b0 = first_b[generation];
@@ -45,12 +45,12 @@ NAMICS_DBG("BackwardBranch in mol_branched " << std::endl);
 				std::copy_n(GS.data()+2*M, M, gg_b.begin());
 				std::copy_n(GS.data()+2*M, M, gg_b.begin()+M);
 				if (i<length-1) {
-					BackwardBranch(Br[i],s);
+					BackwardBranch(Br[i],s,final_pass);
 				}
 			}
 			k++;
 		} else {
-			propagate_backward(Seg[mon_nr[k]]->G1.data(),s,k,M);
+			propagate_backward(Seg[mon_nr[k]]->G1.data(),s,k,M,final_pass);
 		}
 
 	}
@@ -100,7 +100,7 @@ NAMICS_DBG("ForwardBranch in mol_branched " << std::endl);
 
 
 
-bool mol_branched::ComputePhi() {
+bool mol_branched::ComputePhi(bool final_pass) {
 NAMICS_DBG("ComputePhi in mol_branched " << std::endl);
 
 	int M=lat->M;
@@ -115,7 +115,7 @@ NAMICS_DBG("ComputePhi in mol_branched " << std::endl);
 		GN=lat->ComputeGN(Glast,M);
 
 		s--;
-		for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1.data(),s,b,M);
+		for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1.data(),s,b,M,final_pass);
 		return true;
 	}
 
@@ -124,7 +124,7 @@ NAMICS_DBG("ComputePhi in mol_branched " << std::endl);
 	Real* G=ForwardBranch(generation,s);
 	GN=lat->ComputeGN(G,M);
 	s--;
-	BackwardBranch(generation,s);
+	BackwardBranch(generation,s,final_pass);
 
 	return true;
 }

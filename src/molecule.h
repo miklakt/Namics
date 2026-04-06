@@ -52,11 +52,11 @@ virtual ~Molecule();
 	void DeAllocateMemory(void);
 	void AllocateMemory(void);
 	bool PrepareForCalculations(std::span<const Real>);
-	virtual bool ComputePhi();
+	virtual bool ComputePhi(bool final_pass = false);
 	virtual Real fraction(int);
 
 	Real* propagate_forward(Real*,int&,int,int,int);
-	void propagate_backward(Real*,int&,int,int);
+	void propagate_backward(Real*,int&,int,int,bool);
 
 };
 
