@@ -27,8 +27,7 @@ mol : water : composition : (W)1
 mol : water : freedom : solvent
 
 newton : isaac : method : pseudohessian
-newton : isaac : i_info : 20
-newton : isaac : tolerance : 1e-8
+newton : isaac : tolerance : 1e-6
 
 output : json : append : false
 json : mon : WALL : phi
