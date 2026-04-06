@@ -23,6 +23,7 @@ This file is the preferred pattern for extending [run_tests.py](/home/ml/Namics/
 If the test is just "run NAMICS on one input and compare the output JSON profiles to a reference", use `_run_method_group`.
 
 Important: the core does not inject `pseudohessian` or `DIIS` leaves for you anymore. The leaf list belongs to the test unit.
+Every leaf failure counts toward the parent result.
 
 ```python
 def test_my_case(ctx: Context) -> ReportNode:
@@ -35,8 +36,8 @@ def test_my_case(ctx: Context) -> ReportNode:
         value_tol=1e-6,
         copied_inputs=[ctx.tests_dir / "my_case_table.json"],  # only if needed
         leaves=[
-            ("pseudohessian", "pseudohessian", "reference", True, False),
-            ("DIIS", "DIIS", "pseudohessian", False, True),
+            ("pseudohessian", "pseudohessian", "reference"),
+            ("DIIS", "DIIS", "pseudohessian"),
         ],
     )
 ```
@@ -46,8 +47,6 @@ Leaf tuple fields:
 - printed leaf label
 - solver method written into the runtime input
 - what to compare against: `"reference"`, another earlier leaf label, or `None`
-- whether the leaf is required for the parent result
-- whether failures are accepted at the leaf level
 
 What `_run_method_group` still gives you:
 
@@ -58,28 +57,15 @@ What `_run_method_group` still gives you:
 Common patterns:
 
 ```python
-leaves=[("pseudohessian", "pseudohessian", "reference", True, False)]
+leaves=[("pseudohessian", "pseudohessian", "reference")]
 ```
-
-Only one required leaf.
 
 ```python
 leaves=[
-    ("pseudohessian", "pseudohessian", "reference", True, False),
-    ("DIIS", "DIIS", "pseudohessian", False, True),
+    ("pseudohessian", "pseudohessian", "reference"),
+    ("DIIS", "DIIS", "pseudohessian"),
 ]
 ```
-
-Required pseudohessian plus optional accepted DIIS.
-
-```python
-leaves=[
-    ("pseudohessian", "pseudohessian", "reference", True, False),
-    ("DIIS", "DIIS", "pseudohessian", True, False),
-]
-```
-
-Required pseudohessian plus required DIIS.
 
 ## When To Use A Local Custom Test
 
@@ -104,7 +90,7 @@ For those, keep helper code inside the test or next to it. Do not widen shared h
 The intended split is:
 
 - `_run_method_group` for "one input, local leaf list, standard compare flow"
-- local test code for anything with phases, seeds, custom extraction, or custom acceptance rules
+- local test code for anything with phases, seeds, custom extraction, or custom validation rules
 
 ## If The Reference Is A Few Scalars
 

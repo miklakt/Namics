@@ -2,7 +2,7 @@ lat : flat : gradients : 1
 lat : flat : geometry : planar
 lat : flat : lattice_type : hexagonal
 lat : flat : FJC_choices : 5
-lat : flat : n_layers : 600
+lat : flat : n_layers : 400
 lat : flat : lowerbound : surface
 
 mon : WALL : freedom : frozen
@@ -20,7 +20,7 @@ mon : W : freedom : free
 
 mol : brush : composition : (X)1(S)298(B)1[(A)299(T)1][(A)299(T)1][(A)299(T)1](U)1
 mol : brush : freedom : restricted
-mol : brush : theta : 30
+mol : brush : n : 0.01
 
 mol : water : composition : (W)1
 mol : water : freedom : solvent
@@ -28,8 +28,6 @@ mol : water : freedom : solvent
 newton : isaac : method : pseudohessian
 newton : isaac : i_info : 20
 newton : isaac : tolerance : 1e-6
-newton : isaac : iterationlimit : 600
-newton : isaac : deltamax : 0.1
 
 output : json : append : false
 json : mon : WALL : phi

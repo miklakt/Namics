@@ -2,15 +2,15 @@ lat : cyl : gradients : 2
 lat : cyl : geometry : cylindrical
 lat : cyl : lattice_type : hexagonal
 lat : cyl : FJC_choices : 5
-lat : cyl : n_layers_x : 24
-lat : cyl : n_layers_y : 120
+lat : cyl : n_layers_x : 8
+lat : cyl : n_layers_y : 400
 lat : cyl : lowerbound_y : surface
 
 mon : WALL : freedom : frozen
 mon : WALL : frozen_range : lowerbound_y
 
 mon : X : freedom : pinned
-mon : X : pinned_range : 1,1;24,1
+mon : X : pinned_range : 1,1;8,1
 
 mon : S : freedom : free
 mon : B : freedom : free
@@ -21,16 +21,14 @@ mon : W : freedom : free
 
 mol : brush : composition : (X)1(S)298(B)1[(A)299(T)1][(A)299(T)1][(A)299(T)1](U)1
 mol : brush : freedom : restricted
-mol : brush : theta : 30
+mol : brush : n : 4.272566004000002 // scaled to match the 1d x-averaged brush amount
 
 mol : water : composition : (W)1
 mol : water : freedom : solvent
 
 newton : isaac : method : pseudohessian
 newton : isaac : i_info : 20
-newton : isaac : tolerance : 1e-6
-newton : isaac : iterationlimit : 600
-newton : isaac : deltamax : 0.1
+newton : isaac : tolerance : 1e-8
 
 output : json : append : false
 json : mon : WALL : phi
@@ -41,6 +39,7 @@ json : mon : A : phi
 json : mon : T : phi
 json : mon : U : phi
 json : mol : brush : phi
+json : mol : brush : phi_ranked
 json : mol : water : phi
 
 start

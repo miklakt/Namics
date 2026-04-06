@@ -51,7 +51,6 @@ class Context:
 class ReportNode:
     label: str
     passed: bool = True
-    required_for_parent: bool = True
     wall_s: float = 0.0
     max_rss_kb: float | None = None
     details: str = ""
@@ -129,15 +128,14 @@ def _finalize_report_tree(node: ReportNode) -> None:
         return
     for child in node.children:
         _finalize_report_tree(child)
-    required = [child for child in node.children if child.required_for_parent]
-    node.passed = all(child.passed for child in required) if required else True
+    node.passed = all(child.passed for child in node.children)
     node.wall_s = sum(child.wall_s for child in node.children)
     node.max_rss_kb = max((child.max_rss_kb for child in node.children if child.max_rss_kb is not None), default=None)
 
 
-def _set_failure(node: ReportNode, detail: str | Exception, *, accepted: bool = False) -> str:
+def _set_failure(node: ReportNode, detail: str | Exception) -> str:
     node.passed = False
-    node.details = f"failed (accepted): {detail}" if accepted else str(detail)
+    node.details = str(detail)
     return node.details
 
 def _failure_suffix_from_detail(detail: str) -> str | None:
@@ -153,7 +151,7 @@ def _failure_suffix_from_detail(detail: str) -> str | None:
                 return f"signal:{signal.Signals(signal_number).name}"
             except ValueError:
                 return "signal"
-    for prefix in ("failed (accepted): ", "ERROR: ", "RuntimeError: "):
+    for prefix in ("ERROR: ", "RuntimeError: "):
         detail = detail.removeprefix(prefix)
     lines = [line.strip() for line in detail.splitlines() if line.strip()]
     filtered = [
@@ -250,7 +248,6 @@ def _run_leaf(
     compare: Callable[[Path], str | None] | None = None,
     settings: dict[str, str] | None = None,
     comment_toggles: list[tuple[str, str, bool]] | None = None,
-    accepted: bool = False,
     require_output: bool = True,
     require_initial_guess: bool = False,
 ) -> tuple[Path | None, CommandMetrics | None]:
@@ -270,7 +267,7 @@ def _run_leaf(
         node.details = compare(output) if compare else detail
         return output, metrics
     except Exception as exc:
-        _set_failure(node, exc, accepted=accepted)
+        _set_failure(node, exc)
         return None, None
 
 
@@ -291,7 +288,7 @@ def _run_method_group(
     settings: dict[str, str] | None = None,
     comment_toggles: list[tuple[str, str, bool]] | None = None,
     copied_inputs: list[Path] | None = None,
-    leaves: list[tuple[str, str, str | None, bool, bool]] | None = None,
+    leaves: list[tuple[str, str, str | None]] | None = None,
 ) -> ReportNode:
     root = ReportNode(root_label)
     group = root if method_group_label is None else add_child(root, method_group_label)
@@ -314,8 +311,8 @@ def _run_method_group(
             cleanup_targets.append(target)
 
         outputs: dict[str, Path | None] = {}
-        for leaf_label, solver_method, compare_to, required_for_parent, accepted in leaf_specs:
-            leaf = add_child(group, leaf_label, required_for_parent=required_for_parent)
+        for leaf_label, solver_method, compare_to in leaf_specs:
+            leaf = add_child(group, leaf_label)
             runtime_input = ctx.output_dir / f"{runtime_stem}.{_leaf_stem(leaf_label)}.in"
             try:
                 _, output = _run_solver(
@@ -327,38 +324,25 @@ def _run_method_group(
                     f"{label_base}, mode={leaf_label}",
                     settings=settings,
                     comment_toggles=comment_toggles,
-                    require_output=not accepted,
+                    require_output=True,
                 )
             except Exception as exc:
                 outputs[leaf_label] = None
-                _set_failure(leaf, exc, accepted=accepted)
+                _set_failure(leaf, exc)
                 continue
 
             outputs[leaf_label] = output
             try:
-                if accepted and (not output.is_file() or not output.stat().st_size):
-                    leaf.passed = False
-                    leaf.details = "completed but JSON output file is missing (accepted)"
-                elif compare_to == "reference":
+                if compare_to == "reference":
                     leaf.details = expect_profiles(reference_file, output, value_tol)
                 elif compare_to:
                     baseline = outputs.get(compare_to)
                     if baseline is None or not baseline.is_file() or not baseline.stat().st_size:
-                        leaf.details = (
-                            f"completed but no {compare_to} baseline was available (accepted)"
-                            if accepted
-                            else _set_failure(leaf, f"ERROR: skipped because {compare_to} failed")
-                        )
-                        leaf.passed = False if accepted else leaf.passed
+                        leaf.details = _set_failure(leaf, f"ERROR: skipped because {compare_to} failed")
                     else:
-                        leaf.details = expect_profiles(
-                            baseline,
-                            output,
-                            value_tol,
-                            ("passed and matched " if accepted else "matched ") + compare_to,
-                        )
+                        leaf.details = expect_profiles(baseline, output, value_tol, f"matched {compare_to}")
             except Exception as exc:
-                _set_failure(leaf, exc, accepted=accepted)
+                _set_failure(leaf, exc)
         _finalize_report_tree(root)
         return root
     finally:
@@ -447,7 +431,7 @@ def _run_homopolymer_adsorption(ctx: Context, benchmark: bool) -> ReportNode:
             if not benchmark:
                 diis_input = ctx.output_dir / f"homopolymer_adsorption.chi_{chi}.diis.in"
                 cleanup_targets.extend(solver_artifacts(diis_input))
-                diis_leaf = add_child(case, "DIIS", required_for_parent=False)
+                diis_leaf = add_child(case, "DIIS")
                 diis_output, _ = _run_leaf(
                     ctx,
                     diis_leaf,
@@ -456,17 +440,16 @@ def _run_homopolymer_adsorption(ctx: Context, benchmark: bool) -> ReportNode:
                     solver_method="DIIS",
                     label=f"chi_Si={chi}, mode=DIIS",
                     settings=settings,
-                    accepted=True,
                     require_output=False,
                 )
                 diis_status = diis_leaf.details
                 if diis_output:
                     if not diis_output.is_file() or not diis_output.stat().st_size:
                         diis_leaf.passed = False
-                        diis_status = diis_leaf.details = "completed but JSON output file is missing (accepted)"
+                        diis_status = diis_leaf.details = "completed but JSON output file is missing"
                     elif not pseudo_leaf.passed or pseudo_output is None or not pseudo_output.is_file() or not pseudo_output.stat().st_size:
                         diis_leaf.passed = False
-                        diis_status = diis_leaf.details = "completed but no pseudohessian baseline was available (accepted)"
+                        diis_status = diis_leaf.details = "completed but no pseudohessian baseline was available"
                     else:
                         try:
                             diis_status = diis_leaf.details = expect_profiles(
@@ -476,7 +459,7 @@ def _run_homopolymer_adsorption(ctx: Context, benchmark: bool) -> ReportNode:
                                 "passed and matched pseudohessian",
                             )
                         except Exception as exc:
-                            diis_status = _set_failure(diis_leaf, exc, accepted=True)
+                            diis_status = _set_failure(diis_leaf, exc)
                 diis_notes.append(
                     f"chi={chi}:{diis_status}"
                 )
@@ -512,7 +495,7 @@ def test_frozen_range_input_file(ctx: Context) -> ReportNode:
         runtime_stem="frozen_range_input_file",
         value_tol=1e-6,
         copied_inputs=[ctx.tests_dir / "frozen_range_input_file.frozen"],
-        leaves=[("pseudohessian", "pseudohessian", "reference", True, False), ("DIIS", "DIIS", "pseudohessian", False, True)],
+        leaves=[("pseudohessian", "pseudohessian", "reference"), ("DIIS", "DIIS", "pseudohessian")],
     )
 
 
@@ -560,7 +543,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 compare=lambda out: expect_profiles(reference_file, out, 1e-8),
             )
 
-        diis_gen = add_child(generate_group, "DIIS", required_for_parent=False)
+        diis_gen = add_child(generate_group, "DIIS")
         diis_generate_output, _ = _run_leaf(
             ctx,
             diis_gen,
@@ -569,13 +552,12 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
             solver_method="DIIS",
             label="micelle guess generate, mode=DIIS",
             detail="embedded initial_guess generated in output JSON",
-            accepted=True,
             require_initial_guess=True,
         )
 
-        diis_use = add_child(use_group, "DIIS", required_for_parent=False)
+        diis_use = add_child(use_group, "DIIS")
         if not diis_generate_output:
-            diis_status = _set_failure(diis_use, "skipped because DIIS guess generation failed", accepted=True)
+            diis_status = _set_failure(diis_use, "skipped because DIIS guess generation failed")
         else:
             diis_use_output, _ = _run_leaf(
                 ctx,
@@ -584,7 +566,6 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 runtime_input=runtime_use,
                 solver_method="DIIS",
                 label="micelle guess use, mode=DIIS",
-                accepted=True,
                 require_output=False,
             )
             diis_status = diis_use.details
@@ -592,15 +573,15 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
                 pass
             elif not diis_use_output.is_file() or not diis_use_output.stat().st_size:
                 diis_use.passed = False
-                diis_status = diis_use.details = "completed but JSON output file is missing (accepted)"
+                diis_status = diis_use.details = "completed but JSON output file is missing"
             elif not pseudo_use.passed or not reference_file.is_file() or not reference_file.stat().st_size:
                 diis_use.passed = False
-                diis_status = diis_use.details = "completed but no pseudohessian baseline was available (accepted)"
+                diis_status = diis_use.details = "completed but no pseudohessian baseline was available"
             else:
                 try:
                     diis_status = diis_use.details = expect_profiles(reference_file, diis_use_output, 1e-9, "passed and matched pseudohessian")
                 except Exception as exc:
-                    diis_status = _set_failure(diis_use, exc, accepted=True)
+                    diis_status = _set_failure(diis_use, exc)
 
         root.details = f"diis={diis_status}"
         _finalize_report_tree(root)
@@ -680,29 +661,248 @@ def test_particle_in_cyl_coordinates(ctx: Context) -> ReportNode:
         reference_name="particle_in_cyl_coordinates.json.ref",
         runtime_stem="particle_in_cyl_coordinates",
         value_tol=1e-6,
-        leaves=[("pseudohessian", "pseudohessian", "reference", True, False), ("DIIS", "DIIS", "pseudohessian", False, True)],
+        leaves=[("pseudohessian", "pseudohessian", "reference"), ("DIIS", "DIIS", "pseudohessian")],
     )
 
 
 def test_branched_brush(ctx: Context) -> ReportNode:
     root = ReportNode("branched brush")
-    leaves = [("pseudohessian", "pseudohessian", "reference", True, False), ("DIIS", "DIIS", "pseudohessian", False, True)]
-    for case_label, runtime_stem in (("2d cylindrical", "branched_brush_cyl2d"), ("1d planar", "branched_brush_planar_1d")):
-        root.children.append(
-            _run_method_group(
-                ctx,
-                root_label=case_label,
-                label_stem=f"branched brush {case_label}",
-                input_file=ctx.tests_dir / f"{runtime_stem}.in",
-                reference_name=f"{runtime_stem}.json.ref",
-                runtime_stem=runtime_stem,
-                value_tol=2e-6,
-                method_group_label=None,
-                leaves=leaves,
-            )
+    planar_case = add_child(root, "1d planar")
+    cylindrical_case = add_child(root, "2d cylindrical")
+    reference_file = ctx.reference_dir / "branched_brush_planar_1d.json.ref"
+    value_tol = 2e-6
+    cleanup_targets = [
+        *solver_artifacts(ctx.output_dir / "branched_brush_planar_1d.pseudohessian.in"),
+        *solver_artifacts(ctx.output_dir / "branched_brush_cyl2d.diis.in"),
+    ]
+
+    require_file(ctx.binary, executable=True)
+    require_file(ctx.tests_dir / "branched_brush_planar_1d.in")
+    require_file(ctx.tests_dir / "branched_brush_cyl2d.in")
+    require_file(reference_file)
+    ctx.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def flatten_numeric_list(values: list[object]) -> list[float] | None:
+        flattened: list[float] = []
+        for value in values:
+            if isinstance(value, dict):
+                return None
+            if isinstance(value, list):
+                nested = flatten_numeric_list(value)
+                if nested is None:
+                    return None
+                flattened.extend(nested)
+                continue
+            try:
+                flattened.append(float(value))
+            except (TypeError, ValueError):
+                return None
+        return flattened
+
+    def _resample_series(source_axis: list[float], source_values: list[float], target_axis: list[float]) -> list[float]:
+        if len(source_axis) != len(source_values):
+            raise TestError("ERROR: axis/value length mismatch while resampling profile")
+        if not source_axis:
+            return []
+        if len(source_axis) == 1:
+            return [source_values[0] for _ in target_axis]
+
+        resampled: list[float] = []
+        last_index = len(source_axis) - 1
+        for target in target_axis:
+            if target <= source_axis[0]:
+                resampled.append(source_values[0])
+                continue
+            if target >= source_axis[-1]:
+                resampled.append(source_values[-1])
+                continue
+            left_index = 0
+            while left_index + 1 < len(source_axis) and source_axis[left_index + 1] < target:
+                left_index += 1
+            if left_index >= last_index:
+                resampled.append(source_values[-1])
+                continue
+            left = source_axis[left_index]
+            right = source_axis[left_index + 1]
+            weight = 0.0 if right == left else (target - left) / (right - left)
+            resampled.append(source_values[left_index] * (1.0 - weight) + source_values[left_index + 1] * weight)
+        return resampled
+
+    def branched_brush_profile(source: Path, *, average_over_x: bool, target_axis: list[float]) -> dict[str, list[float]]:
+        problem = last_problem(source)
+
+        if average_over_x:
+            x_values = problem.get("x")
+            y_values = problem.get("y")
+            if not isinstance(x_values, list) or not isinstance(y_values, list) or not x_values or not y_values:
+                raise TestError(f"ERROR: cylindrical branched-brush output is missing x/y grids: {source}")
+            first_x = x_values[0]
+            y_block = next((index for index, value in enumerate(x_values[1:], start=1) if value != first_x), len(x_values))
+            if y_block <= 0 or len(x_values) % y_block:
+                raise TestError(f"ERROR: cylindrical branched-brush grid is not rectangular: {source}")
+            x_block = len(x_values) // y_block
+            if len(y_values) < y_block:
+                raise TestError(f"ERROR: cylindrical branched-brush y grid is too short: {source}")
+
+            source_axis = y_values[:y_block]
+            rendered: dict[str, list[float]] = {"x": target_axis}
+            stack: list[tuple[list[str], object]] = [([], problem)]
+            while stack:
+                path, value = stack.pop()
+                if isinstance(value, dict):
+                    for key, child in value.items():
+                        if key == "initial_guess":
+                            continue
+                        stack.append((path + [key], child))
+                    continue
+                if not isinstance(value, list) or not value:
+                    continue
+                series = flatten_numeric_list(value)
+                if series is None:
+                    continue
+                if not path or path[0] in {"x", "y"}:
+                    continue
+                if len(series) != x_block * y_block:
+                    continue
+                averaged = [0.0 for _ in range(y_block)]
+                for x_index in range(x_block):
+                    offset = x_index * y_block
+                    for y_index in range(y_block):
+                        averaged[y_index] += series[offset + y_index]
+                rendered["_".join(path)] = _resample_series(source_axis, [value / x_block for value in averaged], target_axis)
+        else:
+            x_values = problem.get("x")
+            if not isinstance(x_values, list) or not x_values:
+                raise TestError(f"ERROR: planar branched-brush output is missing x grid: {source}")
+            source_axis = x_values
+            rendered = {"x": target_axis}
+            stack = [([], problem)]
+            while stack:
+                path, value = stack.pop()
+                if isinstance(value, dict):
+                    for key, child in value.items():
+                        if key == "initial_guess":
+                            continue
+                        stack.append((path + [key], child))
+                    continue
+                if not isinstance(value, list) or not value:
+                    continue
+                series = flatten_numeric_list(value)
+                if series is None:
+                    continue
+                if not path or path[0] == "x":
+                    continue
+                if len(series) != len(source_axis):
+                    continue
+                rendered["_".join(path)] = _resample_series(source_axis, series, target_axis)
+
+        return rendered
+
+    def compare_profile_dicts(
+        left: dict[str, list[float]],
+        right: dict[str, list[float]],
+        *,
+        value_tol: float,
+        ignore_keys: set[str] | None = None,
+    ) -> None:
+        keys = (left.keys() | right.keys()) - (ignore_keys or set())
+        for key in keys:
+            left_values = left.get(key)
+            right_values = right.get(key)
+            if left_values is None or right_values is None:
+                raise TestError(f"ERROR: structure mismatch at {key}")
+            if len(left_values) != len(right_values):
+                raise TestError(f"ERROR: row count mismatch for column {key} ({len(left_values)} vs {len(right_values)})")
+            tol = COORD_TOL if key == "x" else value_tol
+            max_diff = 0.0
+            for lv, rv in zip(left_values, right_values):
+                diff = abs(lv - rv)
+                if diff > max_diff:
+                    max_diff = diff
+                if diff > tol:
+                    raise TestError(f"ERROR: numerical drift at {key} (max diff {max_diff:.3e} > tol {tol:.3e})")
+
+    reference_profile = json.loads(reference_file.read_text(encoding="utf-8"))
+
+    try:
+        planar_pseudo_leaf = add_child(planar_case, "pseudohessian")
+        _run_leaf(
+            ctx,
+            planar_pseudo_leaf,
+            source_input=ctx.tests_dir / "branched_brush_planar_1d.in",
+            runtime_input=ctx.output_dir / "branched_brush_planar_1d.pseudohessian.in",
+            solver_method="pseudohessian",
+            label="branched brush 1d planar, mode=pseudohessian",
+            compare=lambda out: expect_profiles(reference_file, out, value_tol),
         )
-    _finalize_report_tree(root)
-    return root
+
+        planar_diis_leaf = add_child(planar_case, "DIIS")
+        _run_leaf(
+            ctx,
+            planar_diis_leaf,
+            source_input=ctx.tests_dir / "branched_brush_planar_1d.in",
+            runtime_input=ctx.output_dir / "branched_brush_planar_1d.diis.in",
+            solver_method="DIIS",
+            label="branched brush 1d planar, mode=DIIS",
+            compare=lambda out: expect_profiles(reference_file, out, value_tol, "matched planar reference"),
+        )
+
+        cylindrical_pseudo_leaf = add_child(cylindrical_case, "DIIS")
+
+        def compare_cylindrical(out: Path) -> str:
+            problem = last_problem(out)
+            x_values = problem.get("x")
+            y_values = problem.get("y")
+            if not isinstance(x_values, list) or not isinstance(y_values, list) or not x_values or not y_values:
+                raise TestError(f"ERROR: cylindrical branched-brush output is missing x/y grids: {out}")
+            first_x = x_values[0]
+            y_block = next((index for index, value in enumerate(x_values[1:], start=1) if value != first_x), len(x_values))
+            if y_block <= 0 or len(x_values) % y_block:
+                raise TestError(f"ERROR: cylindrical branched-brush grid is not rectangular: {out}")
+            x_block = len(x_values) // y_block
+            max_rel_std = 0.0
+            stack: list[tuple[list[str], object]] = [([], problem)]
+            while stack:
+                path, value = stack.pop()
+                if isinstance(value, dict):
+                    for key, child in value.items():
+                        if key == "initial_guess":
+                            continue
+                        stack.append((path + [key], child))
+                    continue
+                if not isinstance(value, list) or not value:
+                    continue
+                series = flatten_numeric_list(value)
+                if series is None or not path or path[0] in {"x", "y"} or len(series) != x_block * y_block:
+                    continue
+                for x_index in range(x_block):
+                    offset = x_index * y_block
+                    slice_values = series[offset : offset + y_block]
+                    mean = sum(slice_values) / y_block
+                    scale = sum(abs(item) for item in slice_values) / y_block
+                    if scale:
+                        variance = sum((item - mean) ** 2 for item in slice_values) / y_block
+                        max_rel_std = max(max_rel_std, (variance ** 0.5) / scale)
+
+            folded = branched_brush_profile(out, average_over_x=True, target_axis=reference_profile["x"])
+            compare_profile_dicts(reference_profile, folded, value_tol=value_tol, ignore_keys={"mon_X_u"})
+            print(f"branched brush radial max_rel_std={max_rel_std:.3e}")
+            return "passed and matched planar profile"
+
+        _run_leaf(
+            ctx,
+            cylindrical_pseudo_leaf,
+            source_input=ctx.tests_dir / "branched_brush_cyl2d.in",
+            runtime_input=ctx.output_dir / "branched_brush_cyl2d.diis.in",
+            solver_method="DIIS",
+            label="branched brush 2d cylindrical, mode=DIIS",
+            compare=compare_cylindrical,
+        )
+
+        _finalize_report_tree(root)
+        return root
+    finally:
+        _cleanup(cleanup_targets, ctx.clean_output)
 
 
 def test_polE_regression(ctx: Context) -> ReportNode:
@@ -714,13 +914,13 @@ def test_polE_regression(ctx: Context) -> ReportNode:
         reference_name="polE.json.ref",
         runtime_stem="polE",
         value_tol=1e-5,
-        leaves=[("pseudohessian", "pseudohessian", "reference", True, False), ("DIIS", "DIIS", "pseudohessian", False, True)],
+        leaves=[("pseudohessian", "pseudohessian", "reference"), ("DIIS", "DIIS", "pseudohessian")],
     )
 
 
 def test_external_potential(ctx: Context) -> ReportNode:
     root = ReportNode("external potential")
-    leaves = [("pseudohessian", "pseudohessian", "reference", True, False), ("DIIS", "DIIS", "pseudohessian", True, False)]
+    leaves = [("pseudohessian", "pseudohessian", "reference"), ("DIIS", "DIIS", "pseudohessian")]
     for axis in ("1d", "2d", "3d"):
         stem = f"external_potential_{axis}"
         root.children.append(
