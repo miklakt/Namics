@@ -40,11 +40,12 @@ NAMICS_DBG("Load in output " << std::endl);
 		}
 		const std::string prefix = wildcard.substr(0, star);
 		const std::string suffix = wildcard.substr(star + 1);
-		for (size_t j=0; j<Mol[molnr]->MolMonList.size(); j++) {
+		const auto monomers = Mol[molnr]->SegmentIndices();
+		for (int seg : monomers) {
 			expanded.push_back({
 				{"key", "mol"},
 				{"name", mol_name},
-				{"prop", prefix + Seg[Mol[molnr]->MolMonList[j]]->name + suffix}
+				{"prop", prefix + Seg[seg]->name + suffix}
 			});
 		}
 	}
@@ -157,18 +158,20 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 	};
 	auto write_ranked_profile = [&](const Molecule& mol) {
 		const int M = lat->M;
-		const int ranks = mol.chainlength;
+		const size_t ranks = mol.chainlength;
+		const size_t stride = M;
 		json ranked = json::array();
-		for (int r = 0; r < ranks; ++r) {
+		for (size_t r = 0; r < ranks; ++r) {
 			json rank = json::array();
+			const size_t base = r * stride;
 			for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) {
 				if (lat->gradients == 1) {
-					rank.push_back(mol.phi_ranked[static_cast<size_t>(r) * M + x]);
+					rank.push_back(mol.phi_ranked[base + static_cast<size_t>(x)]);
 					continue;
 				}
 				if (lat->gradients == 2) {
 					json row = json::array();
-					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) row.push_back(mol.phi_ranked[static_cast<size_t>(r) * M + lat->P(x, y)]);
+					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) row.push_back(mol.phi_ranked[base + static_cast<size_t>(lat->P(x, y))]);
 					rank.push_back(std::move(row));
 					continue;
 				}
@@ -176,7 +179,7 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 					json plane = json::array();
 					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) {
 						json row = json::array();
-						for (int z = a; z < lat->MZ + 2 * lat->fjc - a; ++z) row.push_back(mol.phi_ranked[static_cast<size_t>(r) * M + lat->P(x, y, z)]);
+						for (int z = a; z < lat->MZ + 2 * lat->fjc - a; ++z) row.push_back(mol.phi_ranked[base + static_cast<size_t>(lat->P(x, y, z))]);
 						plane.push_back(std::move(row));
 					}
 					rank.push_back(std::move(plane));

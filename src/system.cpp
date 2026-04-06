@@ -176,20 +176,14 @@ bool System::MakeItsLists(void) {
 	int i = 0;
 	while (i < length)
 	{
-		int j = 0;
-		int LENGTH = Mol[i]->MolMonList.size();
-			while (j < LENGTH)
-			{
-				if (!ContainsValue(SysMonList, Mol[i]->MolMonList[j]))
-				{
-					SysMonList.push_back(Mol[i]->MolMonList[j]);
-					if (Seg[Mol[i]->MolMonList[j]]->state_name.size() < 1 && IsUnique(Mol[i]->MolMonList[j], -1))
-					{
-						ItMonList.push_back(Mol[i]->MolMonList[j]);
-					}
-				}
-				j++;
+		const auto monomers = Mol[i]->SegmentIndices();
+		for (int seg : monomers) {
+			if (ContainsValue(SysMonList, seg)) continue;
+			SysMonList.push_back(seg);
+			if (Seg[seg]->state_name.size() < 1 && IsUnique(seg, -1)) {
+				ItMonList.push_back(seg);
 			}
+		}
 		i++;
 	}
 	for (int j = 0; j < statelength; j++)
@@ -627,7 +621,7 @@ void System::PushOutput()
 			{
 				if (Mol[k]->chainlength == 1)
 				{
-					int seg = Mol[k]->MolMonList[0];
+					const int seg = Mol[k]->SegmentIndices()[0];
 					if (Seg[seg]->ns > 1)
 					{
 						for (int j = 0; j < Seg[seg]->ns; j++)
@@ -1038,13 +1032,13 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 bool System::ComputePhis(){
 NAMICS_DBG("ComputePhis in system" << std::endl);
 	int M= lat->M;
-	const auto slice_len = static_cast<size_t>(M);
+	const size_t slice_len = M;
 	auto& phitot = this->phitot;
 	const auto normalize_molecule = [&](Molecule& mol, Real norm, bool divide_by_g1) {
 		if (mol.freedom == "frozen") return;
-		for (size_t k = 0; k < mol.MolMonList.size(); ++k) {
-			const int seg = mol.MolMonList[k];
-			auto phi = std::span<Real>(mol.phi).subspan(static_cast<size_t>(k * M), slice_len);
+		size_t offset = 0;
+		for (int seg : mol.SegmentIndices()) {
+			auto phi = std::span<Real>(mol.phi).subspan(offset, slice_len);
 			auto g1 = std::span<const Real>(Seg[seg]->G1);
 			if (divide_by_g1) {
 				for (int __i = 0; __i < M; ++__i) phi[__i] = g1[__i] != 0 ? phi[__i] / g1[__i] : 0;
@@ -1052,6 +1046,7 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 			if (norm > 0) {
 				for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
 			}
+			offset += slice_len;
 		}
 	};
 	Real A=0, B=0; //A should contain sum_phi*charge; B should contain sum_phi
@@ -1150,15 +1145,16 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 
 	for (int i = 0; i < n_mol; i++) {
 		auto& mol = *Mol[i];
-		for (size_t k = 0; k < mol.MolMonList.size(); ++k) {
-			const int seg = mol.MolMonList[k];
+		size_t offset = 0;
+		for (int seg : mol.SegmentIndices()) {
 			auto& phi_mon = Seg[seg]->phi;
 			auto& mol_phitot = mol.phitot;
-			auto phi_molmon = std::span<const Real>(mol.phi).subspan(static_cast<size_t>(k * M), slice_len);
+			auto phi_molmon = std::span<const Real>(mol.phi).subspan(offset, slice_len);
 			for (int __i = 0; __i < M; ++__i) phi_mon[__i] += phi_molmon[__i];
 			for (int __i = 0; __i < M; ++__i) phitot[__i] += phi_molmon[__i];
 			for (int __i = 0; __i < M; ++__i) mol_phitot[__i] += phi_molmon[__i];
 			Seg[seg]->phibulk += mol.fraction(seg) * mol.phibulk;
+			offset += slice_len;
 		}
 	}
 
@@ -1211,8 +1207,10 @@ bool System::CheckResults(bool e_info_)
 				return false;
 			}
 		}
-		const int n_molmon = Mol[i]->MolMonList.size();
-		for (int j = 0; j < n_molmon * M; ++j) {
+		const auto monomers = Mol[i]->SegmentIndices();
+		const size_t msize = M;
+		const size_t phi_len = monomers.size() * msize;
+		for (size_t j = 0; j < phi_len; ++j) {
 			if (!std::isfinite(Mol[i]->phi[j])) {
 				std::cerr << "Detected invalid phi in computed solver state for molecule " << Mol[i]->name << "." << std::endl;
 				return false;
@@ -1238,14 +1236,16 @@ bool System::CheckResults(bool e_info_)
 		std::cout << "grand potential (F - n*mu)  = " << FreeEnergy - n_times_mu << std::endl<<std::endl;;
 		for (int i = 0; i < n_mol; i++)
 		{
-			int n_molmon = Mol[i]->MolMonList.size();
+			const auto monomers = Mol[i]->SegmentIndices();
 			Real theta_tot = Mol[i]->n * Mol[i]->chainlength;
-			for (int j = 0; j < n_molmon; j++)
-			{
-				Real FRACTION = Mol[i]->fraction(Mol[i]->MolMonList[j]);
-				auto phi = std::span<Real>(Mol[i]->phi).subspan(static_cast<size_t>(j * M), static_cast<size_t>(M));
+			size_t offset = 0;
+			const size_t Msize = M;
+			for (int seg : monomers) {
+				Real FRACTION = Mol[i]->fraction(seg);
+				auto phi = std::span<Real>(Mol[i]->phi).subspan(offset, Msize);
 				Real THETA = lat->WeightedSum(phi.data());
-				std::cout << "MOL " << Mol[i]->name << " Fraction " << Seg[Mol[i]->MolMonList[j]]->name << ": " << FRACTION << "=?=" << THETA / theta_tot << " or " << THETA << " of " << theta_tot << std::endl;
+				std::cout << "MOL " << Mol[i]->name << " Fraction " << Seg[seg]->name << ": " << FRACTION << "=?=" << THETA / theta_tot << " or " << THETA << " of " << theta_tot << std::endl;
+				offset += Msize;
 			}
 		}
 	}
@@ -1414,13 +1414,13 @@ Real System::GetFreeEnergy(void)
 	for (int i = 0; i < n_mol; i++)
 	{
 		constant = 0;
-		int n_molmon = Mol[i]->MolMonList.size();
-		for (int j = 0; j < n_molmon; j++)
-			for (int k = 0; k < n_molmon; k++)
+		const auto monomers = Mol[i]->SegmentIndices();
+		for (int segA : monomers)
+			for (int segB : monomers)
 			{
-				Real fA = Mol[i]->fraction(Mol[i]->MolMonList[j]);
-				Real fB = Mol[i]->fraction(Mol[i]->MolMonList[k]);
-				Real chi = CHI[Mol[i]->MolMonList[j] * n_mon + Mol[i]->MolMonList[k]] / 2;
+				Real fA = Mol[i]->fraction(segA);
+				Real fB = Mol[i]->fraction(segB);
+				Real chi = CHI[segA * n_mon + segB] / 2;
 				constant -= fA * fB * chi;
 			}
 		auto phi = std::span<const Real>(Mol[i]->phitot);
