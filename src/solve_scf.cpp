@@ -422,18 +422,7 @@ NAMICS_DBG("Solve in  Solve_scf " << std::endl);
 			}
 		break;
 	}
-	if (success) {
-		bool final_pass_needed = false;
-		for (const auto& mol : Mol) {
-			if (!mol->phi_ranked.empty()) {
-				final_pass_needed = true;
-				break;
-			}
-		}
-		if (final_pass_needed) {
-			Sys->ComputePhis(std::span<const Real>(xx.data(), static_cast<size_t>(iv)), false, 0.0, true);
-		}
-	}
+	if (success) Sys->FinalizeOutputs();
 	success=Sys->CheckResults(report_errors);
 	return success;
 }

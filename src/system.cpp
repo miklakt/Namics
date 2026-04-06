@@ -851,11 +851,11 @@ void System::DoElectrostatics(std::span<Real> g, std::span<const Real> x)
 	}
 }
 
-void System:: ComputePhis(std::span<const Real> x,bool first_time, Real residual, bool final_pass) {
+void System:: ComputePhis(std::span<const Real> x,bool first_time) {
 NAMICS_DBG("ComputPhis in  system " << std::endl);
 	PutU(x);
 	PrepareForCalculations(first_time);
-	ComputePhis(residual, final_pass);
+	ComputePhis();
 }
 
 bool System:: PutU(std::span<const Real> xx) {
@@ -955,7 +955,7 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 	int itstatelistlength=ItStateList.size();
 
 	std::copy(x.begin(), x.end(), g.begin());
-	ComputePhis(x,iterations==0,residual,false);
+	ComputePhis(x,iterations==0);
  	std::fill(alpha.begin(), alpha.end(), 0.0);
 
 	for (i=0; i<itmonlistlength; i++) {
@@ -1035,28 +1035,12 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 }
 
 
-bool System::ComputePhis(Real residual, bool final_pass){
+bool System::ComputePhis(){
 NAMICS_DBG("ComputePhis in system" << std::endl);
 	int M= lat->M;
 	const auto slice_len = static_cast<size_t>(M);
 	auto& phitot = this->phitot;
-	const auto normalize_ranked_phi = [&](Molecule& mol, Real norm, bool divide_by_g1) {
-		if (!final_pass || mol.phi_ranked.empty()) return;
-		int s = 0;
-		for (size_t b = 0; b < mol.mon_nr.size(); ++b) {
-			auto g1 = std::span<const Real>(Seg[mol.mon_nr[b]]->G1);
-			for (int k = 0; k < mol.n_mon[b]; ++k, ++s) {
-				auto phi = std::span<Real>(mol.phi_ranked).subspan(static_cast<size_t>(s * M), slice_len);
-				if (divide_by_g1) {
-					for (int __i = 0; __i < M; ++__i) phi[__i] = g1[__i] != 0 ? phi[__i] / g1[__i] : 0;
-				}
-				if (norm > 0) {
-					for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
-				}
-			}
-		}
-	};
-	const auto normalize_molecule = [&](Molecule& mol, Real norm, bool normalize_ranked, bool divide_by_g1) {
+	const auto normalize_molecule = [&](Molecule& mol, Real norm, bool divide_by_g1) {
 		if (mol.freedom == "frozen") return;
 		for (size_t k = 0; k < mol.MolMonList.size(); ++k) {
 			const int seg = mol.MolMonList[k];
@@ -1069,7 +1053,6 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 				for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
 			}
 		}
-		if (normalize_ranked) normalize_ranked_phi(mol, norm, divide_by_g1);
 	};
 	Real A=0, B=0; //A should contain sum_phi*charge; B should contain sum_phi
 	bool success=true;
@@ -1081,10 +1064,7 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 	}
 
 	for (int i=0; i<n_mol; i++) {
-		if (final_pass && !Mol[i]->phi_ranked.empty()) {
-			std::fill(Mol[i]->phi_ranked.begin(), Mol[i]->phi_ranked.end(), 0);
-		}
-		success = Mol[i]->ComputePhi(final_pass);
+		success = Mol[i]->ComputePhi();
 	}
 
 	for (int i = 0; i < n_mol; i++) {
@@ -1125,7 +1105,7 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 			mol.phibulk = 0;
 		}
 		mol.norm = norm;
-		normalize_molecule(mol, norm, true, true);
+		normalize_molecule(mol, norm, true);
 	}
 	if (charged && neutralizer > -1) {
 		auto& neutral = *Mol[neutralizer];
@@ -1150,7 +1130,7 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 		neutral.n = norm * neutral.GN;
 		neutral.theta = neutral.n * neutral.chainlength;
 		neutral.norm = norm;
-		normalize_molecule(neutral, norm, true, false);
+		normalize_molecule(neutral, norm, false);
 	}
 
 	if (solvent > -1) {
@@ -1165,7 +1145,7 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 		solvent_mol.n = norm * solvent_mol.GN;
 		solvent_mol.theta = solvent_mol.n * solvent_mol.chainlength;
 		solvent_mol.norm = norm;
-		normalize_molecule(solvent_mol, norm, true, false);
+		normalize_molecule(solvent_mol, norm, false);
 	}
 
 	for (int i = 0; i < n_mol; i++) {
@@ -1191,6 +1171,10 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 		Seg[i]->SetPhiSide();
 	}
 	return success;
+}
+
+void System::FinalizeOutputs() {
+	for (auto& mol : Mol) mol->FinalizeOutputs();
 }
 
 bool System::CheckResults(bool e_info_)

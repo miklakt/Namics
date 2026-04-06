@@ -471,6 +471,10 @@ NAMICS_DBG("PrepareForCalculations in Mol " + name << std::endl);
 	return true;
 }
 
+void Molecule::FinalizeOutputs() {
+	if (!phi_ranked.empty()) std::copy_n(phi.begin(), phi.size(), phi_ranked.begin());
+}
+
 bool Molecule::IsPinned() {
 NAMICS_DBG("IsPinned for Mol " + name << std::endl);
 	int length=MolMonList.size();
@@ -657,7 +661,7 @@ NAMICS_DBG("1. propagate_forward for Mol " + name << std::endl);
 
 }
 
-void Molecule::propagate_backward(Real* G1, int &s, int block, int M, bool final_pass) {
+void Molecule::propagate_backward(Real* G1, int &s, int block, int M, std::span<Real> ranked_phi) {
 NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
 
 	int N= n_mon[block];
@@ -669,18 +673,17 @@ NAMICS_DBG("propagate_backward for Mol " + name << std::endl);
 		}
 
 		lat->AddPhiS(phi.data()+molmon_nr[block]*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M);
-		if (final_pass && !phi_ranked.empty()) lat->AddPhiS(phi_ranked.data()+static_cast<size_t>(s)*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M);
+		if (!ranked_phi.empty()) lat->AddPhiS(ranked_phi.data()+static_cast<size_t>(s)*M, Gg_f.data()+(s*M), Gg_b.data()+(s%2)*M);
 		s--;
 	}
 }
 
-bool Molecule::ComputePhi(bool final_pass){
+bool Molecule::ComputePhi(){
 NAMICS_DBG("ComputePhi for Molecule " + name << std::endl); // Default computation for a monomer.
 	int M=lat->M;
 	std::copy_n(Seg[mon_nr[0]]->G1.begin(), M, phi.begin());
 	GN=lat->WeightedSum(phi.data());
 	for (int __i = 0; __i < (M); ++__i) (phi)[__i] = (phi)[__i] * (Seg[mon_nr[0]]->G1)[__i];
-	if (final_pass && !phi_ranked.empty()) std::copy_n(phi.begin(), M, phi_ranked.begin());
 	return true;
 }
 

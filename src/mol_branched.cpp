@@ -5,7 +5,7 @@ mol_branched::mol_branched(const Input* In_,Lattice* Lat_,std::span<const std::u
 
 }
 
-void mol_branched::BackwardBranch(int generation, int &s, bool final_pass){
+void mol_branched::BackwardBranch(int generation, int &s, std::span<Real> ranked_phi){
 NAMICS_DBG("BackwardBranch in mol_branched " << std::endl);
 
 	int b0 = first_b[generation];
@@ -45,12 +45,12 @@ NAMICS_DBG("BackwardBranch in mol_branched " << std::endl);
 				std::copy_n(GS.data()+2*M, M, gg_b.begin());
 				std::copy_n(GS.data()+2*M, M, gg_b.begin()+M);
 				if (i<length-1) {
-					BackwardBranch(Br[i],s,final_pass);
+					BackwardBranch(Br[i],s,ranked_phi);
 				}
 			}
 			k++;
 		} else {
-			propagate_backward(Seg[mon_nr[k]]->G1.data(),s,k,M,final_pass);
+			propagate_backward(Seg[mon_nr[k]]->G1.data(),s,k,M,ranked_phi);
 		}
 
 	}
@@ -100,7 +100,11 @@ NAMICS_DBG("ForwardBranch in mol_branched " << std::endl);
 
 
 
-bool mol_branched::ComputePhi(bool final_pass) {
+bool mol_branched::ComputePhi() {
+	return ComputePhiRanked({});
+}
+
+bool mol_branched::ComputePhiRanked(std::span<Real> ranked_phi) {
 NAMICS_DBG("ComputePhi in mol_branched " << std::endl);
 
 	int M=lat->M;
@@ -115,7 +119,7 @@ NAMICS_DBG("ComputePhi in mol_branched " << std::endl);
 		GN=lat->ComputeGN(Glast,M);
 
 		s--;
-		for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1.data(),s,b,M,final_pass);
+		for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1.data(),s,b,M,ranked_phi);
 		return true;
 	}
 
@@ -124,7 +128,25 @@ NAMICS_DBG("ComputePhi in mol_branched " << std::endl);
 	Real* G=ForwardBranch(generation,s);
 	GN=lat->ComputeGN(G,M);
 	s--;
-	BackwardBranch(generation,s,final_pass);
+	BackwardBranch(generation,s,ranked_phi);
 
 	return true;
+}
+
+void mol_branched::FinalizeOutputs() {
+	if (phi_ranked.empty()) return;
+	std::fill(phi_ranked.begin(), phi_ranked.end(), 0);
+	ComputePhiRanked(std::span<Real>(phi_ranked));
+	int M = lat->M;
+	int s = 0;
+	for (size_t b = 0; b < mon_nr.size(); ++b) {
+		auto g1 = std::span<const Real>(Seg[mon_nr[b]]->G1);
+		for (int k = 0; k < n_mon[b]; ++k, ++s) {
+			auto phi = std::span<Real>(phi_ranked).subspan(static_cast<size_t>(s * M), static_cast<size_t>(M));
+			for (int __i = 0; __i < M; ++__i) phi[__i] = g1[__i] != 0 ? phi[__i] / g1[__i] : 0;
+			if (norm > 0) {
+				for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
+			}
+		}
+	}
 }

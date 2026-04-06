@@ -68,8 +68,9 @@ public:
 	void AllocateMemory();
 	bool PrepareForCalculations(bool);
 	bool generate_mask();
-	bool ComputePhis(Real,bool);
-	void ComputePhis(std::span<const Real>,bool,Real,bool);
+	bool ComputePhis();
+	void ComputePhis(std::span<const Real>,bool);
+	void FinalizeOutputs();
 	bool PutU(std::span<const Real>);
 	void Classical_residual(std::span<const Real>,std::span<Real>,Real,int);
 
