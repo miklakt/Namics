@@ -42,7 +42,6 @@ extern Real k_B;
 extern Real k_BT;
 extern Real PIE;
 extern Real eps0;
-enum MoleculeType {monomer, linear, branched};
 enum transfer {to_segment, to_bm, reset};
 enum EngineType {SCF};
 enum LatticeType {simple_cubic, hexagonal};

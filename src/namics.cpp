@@ -4,8 +4,6 @@
 #include "io_utils.h"
 #include "lattice.h"
 #include "molecule.h"
-#include "mol_branched.h"
-#include "mol_linear.h"
 #include "namics.h"
 #include "output.h"
 #include "segment.h"
@@ -72,7 +70,6 @@ int main(int argc, char *argv[])
 	// Single ownership
 	std::unique_ptr<Input> In;              // Inputs read from file
 	std::unique_ptr<Lattice> Lat;
-	std::unique_ptr<Molecule> mol_p;
 	std::unique_ptr<Solve_scf> New;         // Solver and iteration scheme
 	std::unique_ptr<System> Sys;
 
@@ -154,21 +151,9 @@ int main(int argc, char *argv[])
 		Mol.reserve(n_mol);
 		for (int i = 0; i < n_mol; i++)
 		{
-			mol_p = std::make_unique<Molecule>(In.get(), Lat.get(), Seg, In->MolList[i]);
-			if (!mol_p->CheckInput(start,true)) //'true' here means that checkinput can stop wehn Moltype and freedom are known.
-			{
-				return 0;
-			} else {
-				if (mol_p->MolType == monomer) {
-					Mol.push_back(std::make_unique<Molecule>(In.get(), Lat.get(), Seg, In->MolList[i]));
-				} else if (mol_p->MolType == linear) {
-					Mol.push_back(std::make_unique<mol_linear>(In.get(), Lat.get(), Seg, In->MolList[i]));
-				} else {
-					Mol.push_back(std::make_unique<mol_branched>(In.get(), Lat.get(), Seg, In->MolList[i]));
-				}
-				mol_p.reset();
-				if (!Mol[i]->CheckInput(start,false)) return 0;
-			}
+			auto molecule = molecule_factory::CreateChecked(*In, Lat.get(), Seg, In->MolList[i], start);
+			if (!molecule) return 0;
+			Mol.push_back(std::move(molecule));
 		}
 
 		Sys = std::make_unique<System>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, In->SysList[0]);
@@ -301,8 +286,6 @@ int main(int argc, char *argv[])
 			for (const int state_index : Sys->ItStateList) STATELIST.push_back(Sta[state_index]->name);
 		}
 		/******** Clear all class instances ********/
-
-		mol_p.reset();
 
 		Out.reset();
 		New.reset();

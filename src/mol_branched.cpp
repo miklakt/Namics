@@ -1,4 +1,3 @@
-#include "molecule.h"
 #include "mol_branched.h"
 
 
@@ -6,11 +5,8 @@ mol_branched::mol_branched(const Input* In_,Lattice* Lat_,std::span<const std::u
 
 }
 
-
-mol_branched::~mol_branched() { }
-
-void mol_branched::BackwardBra(int generation, int &s){
-NAMICS_DBG("BackwardBr in mol_branched " << std::endl);
+void mol_branched::BackwardBranch(int generation, int &s){
+NAMICS_DBG("BackwardBranch in mol_branched " << std::endl);
 
 	int b0 = first_b[generation];
 	int bN = last_b[generation];
@@ -49,7 +45,7 @@ NAMICS_DBG("BackwardBr in mol_branched " << std::endl);
 				std::copy_n(GS.data()+2*M, M, gg_b.begin());
 				std::copy_n(GS.data()+2*M, M, gg_b.begin()+M);
 				if (i<length-1) {
-					BackwardBra(Br[i],s);
+					BackwardBranch(Br[i],s);
 				}
 			}
 			k++;
@@ -60,8 +56,8 @@ NAMICS_DBG("BackwardBr in mol_branched " << std::endl);
 	}
 }
 
-Real* mol_branched::ForwardBra(int generation, int &s) {
-NAMICS_DBG("ForwardBra in mol_branched " << std::endl);
+Real* mol_branched::ForwardBranch(int generation, int &s) {
+NAMICS_DBG("ForwardBranch in mol_branched " << std::endl);
 	int b0 = first_b[generation];
 	int bN = last_b[generation];
 	std::vector<int> Br;
@@ -81,7 +77,7 @@ NAMICS_DBG("ForwardBra in mol_branched " << std::endl);
 				std::copy_n(Glast, M, GS.begin());
 				while (Gnr[k] !=generation) {
 					Br.push_back(Gnr[k]);
-					Gb.push_back(std::span<Real>(ForwardBra(Gnr[k],s), static_cast<size_t>(M)));
+					Gb.push_back(std::span<Real>(ForwardBranch(Gnr[k],s), static_cast<size_t>(M)));
 					k+=(last_b[Gnr[k]]-first_b[Gnr[k]]+1);
 				}
 				int length=Br.size();
@@ -108,14 +104,27 @@ bool mol_branched::ComputePhi() {
 NAMICS_DBG("ComputePhi in mol_branched " << std::endl);
 
 	int M=lat->M;
-	bool success=true;
+	if (last_b.size() == 1) {
+		// A single generation means an unbranched polymer, so the simple sweep is enough.
+		int b0 = first_b[0];
+		int bN = last_b[0];
+		int s=0;
+		Real* Glast=NULL;
+		for (int b = b0; b<=bN ; ++b) Glast=propagate_forward(Seg[mon_nr[b]]->G1.data(),s,b,0,M);
+
+		GN=lat->ComputeGN(Glast,M);
+
+		s--;
+		for (int b = bN ; b >= b0 ; b--) propagate_backward(Seg[mon_nr[b]]->G1.data(),s,b,M);
+		return true;
+	}
+
 	int generation=0;
 	int s=0;
-
-	Real* G=ForwardBra(generation,s);
+	Real* G=ForwardBranch(generation,s);
 	GN=lat->ComputeGN(G,M);
 	s--;
-	BackwardBra(generation,s);
+	BackwardBranch(generation,s);
 
-	return success;
+	return true;
 }

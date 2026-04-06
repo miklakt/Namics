@@ -21,7 +21,6 @@ virtual ~Molecule();
 	Real theta;
 	Real phibulk;
 	std::string freedom;
-	MoleculeType MolType;
 	Real n;
 	Real GN;
 	Real norm;
@@ -46,12 +45,6 @@ virtual ~Molecule();
 	void PushOutput();
 	std::span<Real> GetPointer(int);
 
-	bool CheckInput(int,bool);
-	bool ExpandBrackets(std::string&);
-	bool Interpret(std::string,int);
-	bool GenerateTree(std::string,int,int&,std::vector<int>,std::vector<int>);
-	bool Decomposition(std::string);
-	bool MakeMonList(void);
 	bool IsPinned(void);
 	bool IsCharged(void);
 	Real Charge(void);
@@ -66,5 +59,9 @@ virtual ~Molecule();
 	void propagate_backward(Real*,int&,int,int);
 
 };
+
+namespace molecule_factory {
+std::unique_ptr<Molecule> CreateChecked(const Input&, Lattice*, std::span<const std::unique_ptr<Segment>>, const std::string&, int);
+}
 
 #endif
