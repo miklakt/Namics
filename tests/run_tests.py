@@ -9,6 +9,7 @@ import shutil
 import signal
 import sys
 import tempfile
+import textwrap
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -180,17 +181,16 @@ def _failure_suffix_from_detail(detail: str) -> str | None:
 def _failure_suffix(node: ReportNode) -> str:
     if node.passed:
         return ""
+    if node.children:
+        return ""
     mode = _failure_suffix_from_detail(node.details)
-    if mode:
-        return mode
-    child_modes = sorted({mode for child in node.children if not child.passed for mode in [_failure_suffix(child)] if mode})
-    return child_modes[0] if len(child_modes) == 1 else ("mixed" if child_modes else "unexpected")
+    return mode or "unexpected"
 
-def _flatten_nodes(nodes: list[ReportNode]) -> list[tuple[int, bool, str, ReportNode]]:
-    out: list[tuple[int, bool, str, ReportNode]] = []
+def _flatten_nodes(nodes: list[ReportNode]) -> list[tuple[int, bool, str, str, ReportNode]]:
+    out: list[tuple[int, bool, str, str, ReportNode]] = []
 
     def walk(root_index: int, node: ReportNode, label_prefix: str, child_prefix: str, is_root: bool) -> None:
-        out.append((root_index, is_root, f"{label_prefix}{node.label}", node))
+        out.append((root_index, is_root, f"{label_prefix}{node.label}", child_prefix, node))
         for idx, child in enumerate(node.children):
             is_last = idx == len(node.children) - 1
             walk(
@@ -952,9 +952,10 @@ def _print_table(results: list[ReportNode]) -> None:
                 f"{node.wall_s:.3f}",
                 "NA" if node.max_rss_kb is None else f"{node.max_rss_kb / 1024.0:.1f}",
             ],
+            label_continuation,
             _failure_suffix(node),
         )
-        for root_index, is_root, label, node in _flatten_nodes(results)
+        for root_index, is_root, label, label_continuation, node in _flatten_nodes(results)
     ]
     headers = ["#", "Test", "Status", "Wall\n(s)", "MaxRSS\n(MiB)"]
     total_row = [
@@ -966,9 +967,16 @@ def _print_table(results: list[ReportNode]) -> None:
         if not [node.max_rss_kb for node in results if node.max_rss_kb is not None]
         else f"{max(node.max_rss_kb for node in results if node.max_rss_kb is not None) / 1024.0:.1f}",
     ]
-    widths = [max(len(part) for cell in column for part in cell.splitlines()) for column in zip(headers, *[row for _, row, _ in rows], total_row)]
+    widths = [max(len(part) for cell in column for part in cell.splitlines()) for column in zip(headers, *[row for _, row, _, _ in rows], total_row)]
+    terminal_width = shutil.get_terminal_size(fallback=(80, 24)).columns
 
-    def print_row(parts: list[str], aligns: list[str], suffix: str = "") -> None:
+    def wrap_suffix(prefix_width: int, suffix: str) -> list[str]:
+        if not suffix:
+            return []
+        available = max(10, terminal_width - prefix_width)
+        return textwrap.wrap(suffix, width=available, break_long_words=False, break_on_hyphens=False) or [suffix]
+
+    def print_row(parts: list[str], aligns: list[str], suffix: str = "", label_continuation: str = "") -> None:
         wrapped = [part.splitlines() for part in parts]
         for line_idx in range(max(len(cell) for cell in wrapped)):
             cells = []
@@ -982,7 +990,16 @@ def _print_table(results: list[ReportNode]) -> None:
                     else text.ljust(widths[col_idx])
                 )
             line = "│ " + " │ ".join(cells) + " │"
-            print(line + (f"  {suffix}" if suffix and line_idx == 0 else ""))
+            if suffix and line_idx == 0:
+                suffix_lines = wrap_suffix(len(line) + 2, suffix)
+                print(line + f"  {suffix_lines[0]}")
+                continuation_cells = [" " * width for width in widths]
+                continuation_cells[1] = label_continuation.ljust(widths[1])
+                continuation_line = "│ " + " │ ".join(continuation_cells) + " │"
+                for continuation in suffix_lines[1:]:
+                    print(continuation_line + f"  {continuation}")
+            else:
+                print(line)
 
     def border(left: str, mid: str, right: str) -> str:
         return left + mid.join("─" * (width + 2) for width in widths) + right
@@ -990,10 +1007,10 @@ def _print_table(results: list[ReportNode]) -> None:
     print(border("┌", "┬", "┐"))
     print_row(headers, ["center"] * len(headers))
     print(border("├", "┼", "┤"))
-    for idx, (root_index, row, mode) in enumerate(rows):
+    for idx, (root_index, row, label_continuation, mode) in enumerate(rows):
         if idx and root_index != rows[idx - 1][0]:
             print(border("├", "┼", "┤"))
-        print_row(row, ["center", "left", "center", "right", "right"], mode)
+        print_row(row, ["center", "left", "center", "right", "right"], mode, label_continuation)
     print(border("├", "┼", "┤"))
     print_row(total_row, ["center", "left", "center", "right", "right"])
     print(border("└", "┴", "┘"))
