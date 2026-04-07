@@ -13,19 +13,28 @@ public:
 		int repeat = 1;
 		std::vector<std::vector<Node>> branches;
 	};
+	struct SegmentOccurrence {
+		int segment = -1;
+		int segment_type_index = -1;
+		std::vector<int> children;
+	};
+	struct OutputRequest {
+		bool segment_density = false;
+		bool ranked_density = false;
+		bool any() const { return segment_density || ranked_density; }
+	};
 	using Topology = std::vector<Node>;
 
-	Molecule(const Input*,Lattice*,std::span<const std::unique_ptr<Segment>>,std::string);
-	virtual ~Molecule();
+	Molecule(Lattice*,std::span<const std::unique_ptr<Segment>>,std::string);
+	~Molecule();
 
 	std::string name;
+	std::string composition;
 	bool all_molecule;
-	const Input* In;
 	std::span<const std::unique_ptr<Segment>> Seg;
 	Lattice* lat;
 	Topology topology; // parsed molecule graph
-	std::vector<int> MolMonList;
-	int start;
+	std::vector<int> segment_types;
 	Real Mu;
 	Real theta;
 	Real phibulk;
@@ -33,56 +42,56 @@ public:
 	Real n;
 	Real GN;
 	Real norm;
-	int chainlength,N;
-	std::vector<int> Gnr; //generation-number
-	std::vector<int> first_s;
-	std::vector<int> last_s;
-	std::vector<int> first_b;
-	std::vector<int> last_b;
-	std::vector<int> mon_nr;
-	std::vector<int> n_mon;
-	std::vector<int> molmon_nr;
+	int chainlength;
+	std::vector<SegmentOccurrence> segment_path;
 	std::vector<Real> mu_state;
 	std::vector<Real> phi;
 	std::vector<Real> phi_ranked;
 	std::vector<Real> phitot;
-	std::vector<Real> Gg_f;
-	std::vector<Real> Gg_b;
-	std::vector<Real> UNITY;
+	std::vector<Real> q_forward;
+	std::vector<Real> G_unity;
 	Real B;
+	OutputRequest output_request;
 	ParameterStore OUTPUT;
-	std::span<const int> SegmentIndices() const noexcept { return MolMonList; }
+	std::span<const int> SegmentTypes() const noexcept { return segment_types; }
 	template<typename F>
-	void ForEachNode(F&& f) const { WalkNode(topology, 0, f); }
+	void ForEachNode(F&& f) const { WalkNode(topology, f); }
+	template<typename F>
+	void ForEachOccurrence(F&& f) const { WalkOccurrence(topology, f); }
 	void PushOutput();
 	std::span<Real> GetPointer(int);
 
 	bool IsPinned(void);
 	bool IsCharged(void);
 	Real Charge(void);
-	bool HasOutputProperty(const std::string&) const;
 	void DeAllocateMemory(void);
 	void AllocateMemory(void);
 	bool PrepareForCalculations(std::span<const Real>);
-	virtual bool ComputePhi();
-	virtual void FinalizeOutputs();
-	virtual Real fraction(int);
-
-	Real* propagate_forward(Real*,int&,int,int,int);
-	void propagate_backward(Real*,int&,int,int,std::span<Real> ranked_phi = {});
+	bool ComputeGN();
+	void FinalizeOutputs();
+	Real fraction(int);
+	void AccumulateDensity(std::span<Real> system_phitot);
 
 private:
 	template<typename F>
-	static void WalkNode(const Topology& chain, int depth, F&& f) {
+	static void WalkNode(const Topology& chain, F&& f) {
 		for (const auto& node : chain) {
-			f(node, depth);
-			for (const auto& branch : node.branches) WalkNode(branch, depth + 1, f);
+			f(node);
+			for (const auto& branch : node.branches) WalkNode(branch, f);
+		}
+	}
+	template<typename F>
+	static void WalkOccurrence(const Topology& chain, F&& f) {
+		for (const auto& node : chain) {
+			for (int repeat = 0; repeat < node.repeat; ++repeat) f(node);
+			for (const auto& branch : node.branches) WalkOccurrence(branch, f);
 		}
 	}
 
-	Real* ForwardBranch(int generation, int &s);
-	void BackwardBranch(int generation, int &s, std::span<Real> ranked_phi = {});
-	bool ComputePhiRanked(std::span<Real> ranked_phi);
+	void AddSegmentDensity(int, std::span<const Real>, bool, std::span<Real>, std::span<Real>);
+	void PropagateForward();
+	void PropagateBackward(int, std::span<const Real>, bool, std::span<Real>, std::span<Real>);
+	bool AccumulateDensity(bool, std::span<Real>, std::span<Real>);
 };
 
 namespace molecule_factory {

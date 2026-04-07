@@ -176,8 +176,8 @@ bool System::MakeItsLists(void) {
 	int i = 0;
 	while (i < length)
 	{
-		const auto monomers = Mol[i]->SegmentIndices();
-		for (int seg : monomers) {
+		const auto segment_types = Mol[i]->SegmentTypes();
+		for (int seg : segment_types) {
 			if (ContainsValue(SysMonList, seg)) continue;
 			SysMonList.push_back(seg);
 			if (Seg[seg]->state_name.size() < 1 && IsUnique(seg, -1)) {
@@ -621,7 +621,7 @@ void System::PushOutput()
 			{
 				if (Mol[k]->chainlength == 1)
 				{
-					const int seg = Mol[k]->SegmentIndices()[0];
+					const int seg = Mol[k]->SegmentTypes()[0];
 					if (Seg[seg]->ns > 1)
 					{
 						for (int j = 0; j < Seg[seg]->ns; j++)
@@ -1032,23 +1032,7 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 bool System::ComputePhis(){
 NAMICS_DBG("ComputePhis in system" << std::endl);
 	int M= lat->M;
-	const size_t slice_len = M;
 	auto& phitot = this->phitot;
-	const auto normalize_molecule = [&](Molecule& mol, Real norm, bool divide_by_g1) {
-		if (mol.freedom == "frozen") return;
-		size_t offset = 0;
-		for (int seg : mol.SegmentIndices()) {
-			auto phi = std::span<Real>(mol.phi).subspan(offset, slice_len);
-			auto g1 = std::span<const Real>(Seg[seg]->G1);
-			if (divide_by_g1) {
-				for (int __i = 0; __i < M; ++__i) phi[__i] = g1[__i] != 0 ? phi[__i] / g1[__i] : 0;
-			}
-			if (norm > 0) {
-				for (int __i = 0; __i < M; ++__i) phi[__i] *= norm;
-			}
-			offset += slice_len;
-		}
-	};
 	Real A=0, B=0; //A should contain sum_phi*charge; B should contain sum_phi
 	bool success=true;
 	std::fill(phitot.begin(), phitot.end(), 0.0);
@@ -1059,7 +1043,7 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 	}
 
 	for (int i=0; i<n_mol; i++) {
-		success = Mol[i]->ComputePhi();
+		success = Mol[i]->ComputeGN() && success;
 	}
 
 	for (int i = 0; i < n_mol; i++) {
@@ -1100,7 +1084,6 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 			mol.phibulk = 0;
 		}
 		mol.norm = norm;
-		normalize_molecule(mol, norm, true);
 	}
 	if (charged && neutralizer > -1) {
 		auto& neutral = *Mol[neutralizer];
@@ -1125,7 +1108,6 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 		neutral.n = norm * neutral.GN;
 		neutral.theta = neutral.n * neutral.chainlength;
 		neutral.norm = norm;
-		normalize_molecule(neutral, norm, false);
 	}
 
 	if (solvent > -1) {
@@ -1140,21 +1122,13 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 		solvent_mol.n = norm * solvent_mol.GN;
 		solvent_mol.theta = solvent_mol.n * solvent_mol.chainlength;
 		solvent_mol.norm = norm;
-		normalize_molecule(solvent_mol, norm, false);
 	}
 
 	for (int i = 0; i < n_mol; i++) {
 		auto& mol = *Mol[i];
-		size_t offset = 0;
-		for (int seg : mol.SegmentIndices()) {
-			auto& phi_mon = Seg[seg]->phi;
-			auto& mol_phitot = mol.phitot;
-			auto phi_molmon = std::span<const Real>(mol.phi).subspan(offset, slice_len);
-			for (int __i = 0; __i < M; ++__i) phi_mon[__i] += phi_molmon[__i];
-			for (int __i = 0; __i < M; ++__i) phitot[__i] += phi_molmon[__i];
-			for (int __i = 0; __i < M; ++__i) mol_phitot[__i] += phi_molmon[__i];
+		mol.AccumulateDensity(phitot);
+		for (int seg : mol.SegmentTypes()) {
 			Seg[seg]->phibulk += mol.fraction(seg) * mol.phibulk;
-			offset += slice_len;
 		}
 	}
 
@@ -1207,15 +1181,17 @@ bool System::CheckResults(bool e_info_)
 				return false;
 			}
 		}
-		const auto monomers = Mol[i]->SegmentIndices();
-		const size_t msize = M;
-		const size_t phi_len = monomers.size() * msize;
-		for (size_t j = 0; j < phi_len; ++j) {
-			if (!std::isfinite(Mol[i]->phi[j])) {
-				std::cerr << "Detected invalid phi in computed solver state for molecule " << Mol[i]->name << "." << std::endl;
-				return false;
+			if (!Mol[i]->phi.empty()) {
+				const auto segment_types = Mol[i]->SegmentTypes();
+				const size_t msize = M;
+				const size_t phi_len = segment_types.size() * msize;
+				for (size_t j = 0; j < phi_len; ++j) {
+					if (!std::isfinite(Mol[i]->phi[j])) {
+						std::cerr << "Detected invalid phi in computed solver state for molecule " << Mol[i]->name << "." << std::endl;
+						return false;
+					}
+				}
 			}
-		}
 	}
 
 	if (e_info && first_pass)
@@ -1234,13 +1210,14 @@ bool System::CheckResults(bool e_info_)
 	{
 		std::cout << "free energy     (GP + n*mu) = " << GrandPotential + n_times_mu << std::endl;
 		std::cout << "grand potential (F - n*mu)  = " << FreeEnergy - n_times_mu << std::endl<<std::endl;;
-		for (int i = 0; i < n_mol; i++)
-		{
-			const auto monomers = Mol[i]->SegmentIndices();
-			Real theta_tot = Mol[i]->n * Mol[i]->chainlength;
+			for (int i = 0; i < n_mol; i++)
+			{
+				const auto segment_types = Mol[i]->SegmentTypes();
+				if (Mol[i]->phi.empty()) continue;
+				Real theta_tot = Mol[i]->n * Mol[i]->chainlength;
 			size_t offset = 0;
 			const size_t Msize = M;
-			for (int seg : monomers) {
+			for (int seg : segment_types) {
 				Real FRACTION = Mol[i]->fraction(seg);
 				auto phi = std::span<Real>(Mol[i]->phi).subspan(offset, Msize);
 				Real THETA = lat->WeightedSum(phi.data());
@@ -1414,9 +1391,9 @@ Real System::GetFreeEnergy(void)
 	for (int i = 0; i < n_mol; i++)
 	{
 		constant = 0;
-		const auto monomers = Mol[i]->SegmentIndices();
-		for (int segA : monomers)
-			for (int segB : monomers)
+		const auto segment_types = Mol[i]->SegmentTypes();
+		for (int segA : segment_types)
+			for (int segB : segment_types)
 			{
 				Real fA = Mol[i]->fraction(segA);
 				Real fB = Mol[i]->fraction(segB);

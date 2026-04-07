@@ -40,8 +40,8 @@ NAMICS_DBG("Load in output " << std::endl);
 		}
 		const std::string prefix = wildcard.substr(0, star);
 		const std::string suffix = wildcard.substr(star + 1);
-		const auto monomers = Mol[molnr]->SegmentIndices();
-		for (int seg : monomers) {
+		const auto segment_types = Mol[molnr]->SegmentTypes();
+		for (int seg : segment_types) {
 			expanded.push_back({
 				{"key", "mol"},
 				{"name", mol_name},
@@ -127,35 +127,6 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		{"name", base_name}
 	};
 	const int a = write_bounds ? 0 : lat->fjc;
-	auto write_profile_json = [&](std::span<const Real> profile) {
-		json out = json::array();
-		switch (lat->gradients) {
-			case 1:
-				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) out.push_back(profile[x]);
-				break;
-			case 2:
-				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) {
-					json row = json::array();
-					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) row.push_back(profile[lat->P(x, y)]);
-					out.push_back(std::move(row));
-				}
-				break;
-			case 3:
-				for (int x = a; x < lat->MX + 2 * lat->fjc - a; ++x) {
-					json plane = json::array();
-					for (int y = a; y < lat->MY + 2 * lat->fjc - a; ++y) {
-						json row = json::array();
-						for (int z = a; z < lat->MZ + 2 * lat->fjc - a; ++z) row.push_back(profile[lat->P(x, y, z)]);
-						plane.push_back(std::move(row));
-					}
-					out.push_back(std::move(plane));
-				}
-				break;
-			default:
-				break;
-		}
-		return out;
-	};
 	auto write_ranked_profile = [&](const Molecule& mol) {
 		const int M = lat->M;
 		const size_t ranks = mol.chainlength;
@@ -216,6 +187,37 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 			continue;
 		}
 
+		if (key == "mol" && source_index >= 0) {
+			auto& mol = *Mol[source_index];
+			if (item_prop == "Gamma") {
+				if (lat->gradients == 3) {
+					Real volume_particles = 0;
+					for (const auto& seg : Seg) {
+						if (seg->freedom != "frozen") continue;
+						for (int i = 0; i < lat->M; ++i) volume_particles += seg->MASK[i];
+					}
+					const Real true_volume = lat->MX * lat->MY * lat->MZ;
+					emit_output(key, item_name, item_prop, mol.theta - (true_volume - volume_particles) * mol.phibulk);
+				} else {
+					emit_output(key, item_name, item_prop, nullptr);
+				}
+				continue;
+			}
+			if (item_prop.size() > 6 && item_prop.rfind("phiz[", 0) == 0 && item_prop.back() == ']') {
+				const int z = ParseInt(item_prop.substr(5, item_prop.size() - 6), -1);
+				if (lat->gradients == 3 && z >= 1 && z <= lat->MZ && z <= 20) {
+					lat->set_bounds(mol.phitot.data());
+					Real phiz = 0;
+					for (int x = 1; x < lat->MX + 1; ++x) for (int y = 1; y < lat->MY + 1; ++y) phiz += mol.phitot[x * lat->JX + y * lat->JY + z];
+					lat->remove_bounds(mol.phitot.data());
+					emit_output(key, item_name, item_prop, phiz / (lat->MX * lat->MY));
+				} else {
+					emit_output(key, item_name, item_prop, nullptr);
+				}
+				continue;
+			}
+		}
+
 		auto value_it = source->find(item_prop);
 		if (value_it == source->end()) {
 			std::cout << "Warning: unable to resolve json output quantity '" << label << "'" << std::endl;
@@ -223,7 +225,7 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 			continue;
 		}
 
-		std::span<const Real> profile;
+		std::span<Real> profile;
 		if (value_it->is_object() && value_it->contains("profile")) {
 			const int profile_id = value_it->at("profile").get<int>();
 			if (key == "sys") profile = Sys->GetPointer(profile_id);
@@ -240,7 +242,9 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		}
 
 		if (!profile.empty()) {
-			emit_output(key, item_name, item_prop, write_profile_json(profile));
+			if (key == "mol") lat->set_bounds(profile.data());
+			emit_output(key, item_name, item_prop, lat->FormatProfile(std::span<const Real>(profile), write_bounds));
+			if (key == "mol") lat->remove_bounds(profile.data());
 			has_profile_output = true;
 			continue;
 		}

@@ -362,69 +362,66 @@ public:
 
 bool Solve_scf::Solve(bool report_errors_) { //going SCF here
 NAMICS_DBG("Solve in  Solve_scf " << std::endl);
-	bool success=false;
-	bool report_errors=report_errors_;
+	bool success = false;
 	int niv = In->ReactionList.size();
 	if (niv>0) {
-		int i_solver=0;
-		if (solver==HESSIAN) i_solver=1;
-			if (solver==PSEUDOHESSIAN) i_solver=2;
-			if (solver==diis) i_solver=3;
-			if (solver==LBFGS) i_solver=4;
-		bool ee_info, ss_info;
-		if (e_info) ee_info=true; else ee_info=false; e_info=false;
-		if (s_info) ss_info=true; else ss_info=false; s_info=false;
+		const iteration_method saved_solver = solver;
+		const gradient_method saved_gradient = gradient;
+		const inner_iteration_method saved_control = control;
+		const bool saved_pseudohessian = pseudohessian;
+		const bool saved_hessian = hessian;
+		const bool saved_e_info = e_info;
+		const bool saved_s_info = s_info;
+		e_info = false;
+		s_info = false;
 		gradient = WEAK;
-		control= super;
-		pseudohessian=false; hessian =true;
+		control = super;
+		pseudohessian = false;
+		hessian = true;
 
-		success=iterate(yy.data(),niv,100,1e-8,1,0.0000001,true);
+		success = iterate(yy.data(), niv, 100, 1e-8, 1, 0.0000001, true);
 		std::cout << iterations << " iterations to find alphabulk values. " <<std::endl;
 		if (!success) std::cout <<"iteration for alphabulk values for internal states failed. Check eqns. " << std::endl;
-		e_info=ee_info;
-		s_info=ss_info;
-		if (i_solver==1) solver=HESSIAN;
-			if (i_solver==2) {solver=PSEUDOHESSIAN; pseudohessian=true;}
-			if (i_solver==3) solver=diis;
-			if (i_solver==4) solver=LBFGS;
-			gradient = classical;
-			control = proceed;
-		}
+		solver = saved_solver;
+		gradient = saved_gradient;
+		control = saved_control;
+		pseudohessian = saved_pseudohessian;
+		hessian = saved_hessian;
+		e_info = saved_e_info;
+		s_info = saved_s_info;
+	}
 
 	switch(solver) {
 		case HESSIAN:
-			success=iterate(xx.data(),iv,iterationlimit,tolerance,deltamax,deltamin,true);
-		break;
 		case PSEUDOHESSIAN:
-			success=iterate(xx.data(),iv,iterationlimit,tolerance,deltamax,deltamin,true);
+			success = iterate(xx.data(), iv, iterationlimit, tolerance, deltamax, deltamin, true);
 		break;
 		case diis:
-			success=iterate_DIIS(xx.data(),iv,m,iterationlimit,tolerance,deltamax,restart_DIIS);
+			success = iterate_DIIS(xx.data(), iv, m, iterationlimit, tolerance, deltamax, restart_DIIS);
 		break;
-	case LBFGS:
-			success=true;
+		case LBFGS:
+			success = true;
 			{
-			SCF_LBFGS fun(In,lat,Seg,Sta,Rea,Mol,Sys);
-			LBFGSParam<Real> param;
-			param.epsilon=tolerance;
-			param.m=m;
-			param.max_iterations =iterationlimit;
-			if (deltamax > 0) param.max_step = deltamax;
-			if (deltamin > 0 && deltamax > deltamin) param.min_step = deltamin;
-			LBFGSSolver<Real> mysolver(param);
-			Real fx=0;
-			std::cout <<std::endl <<"LBFGS has been notified" << std::endl;
-			Vector x_vec = Eigen::Map<Vector>(xx.data(), iv);
-			iterations =mysolver.minimize(fun, x_vec, fx);
-			std::copy_n(x_vec.data(), iv, xx.begin());
-			Real res = mysolver.final_grad_norm();
-			std::cout <<std::endl <<"Problem solved: " << iterations << " iterations,  |g|: " << res <<  std::endl;
+				SCF_LBFGS fun(In,lat,Seg,Sta,Rea,Mol,Sys);
+				LBFGSParam<Real> param;
+				param.epsilon = tolerance;
+				param.m = m;
+				param.max_iterations = iterationlimit;
+				if (deltamax > 0) param.max_step = deltamax;
+				if (deltamin > 0 && deltamax > deltamin) param.min_step = deltamin;
+				LBFGSSolver<Real> mysolver(param);
+				Real fx = 0;
+				std::cout <<std::endl <<"LBFGS has been notified" << std::endl;
+				Vector x_vec = Eigen::Map<Vector>(xx.data(), iv);
+				iterations = mysolver.minimize(fun, x_vec, fx);
+				std::copy_n(x_vec.data(), iv, xx.begin());
+				Real res = mysolver.final_grad_norm();
+				std::cout <<std::endl <<"Problem solved: " << iterations << " iterations,  |g|: " << res <<  std::endl;
 			}
 		break;
 	}
 	if (success) Sys->FinalizeOutputs();
-	success=Sys->CheckResults(report_errors);
-	return success;
+	return Sys->CheckResults(report_errors_);
 }
 
 
