@@ -232,17 +232,6 @@ int Lattice::P(int x) {
 	return x; //x+fjc-1;
 }
 
-
-bool Lattice::PutSub_box(int mx_, int my_, int mz_,int n_box_) {
-	bool success = true;
-	if (mx_<1 || my_<1 || mz_<1 || mx_>MX || my_>MY || mz_>MZ) {std::cout <<"subbox size out of bound: mx= " << mx_ << " my = " << my_ << " mz = " << mz_ << ", while MX = " << MX << " MY = " << MY << " MZ = " << MZ  << std::endl; success=false; }
-	mx.push_back(mx_); my.push_back(my_); mz.push_back(mz_);
-	m.push_back((mx_+2)*(my_+2)*(mz_+2));
-	jx.push_back((mx_+2)*(my_+2)); jy.push_back(my_+2);
-	n_box.push_back(n_box_);
-	return success;
-}
-
 bool Lattice::AssignChoice(const std::string& value, std::string& target, std::initializer_list<const char*> allowed, const char* error) const {
 	for (const char* option : allowed) {
 		if (value != option) continue;
@@ -417,14 +406,45 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 }
 
 bool Lattice::PrepareForCalculations(void) {
-NAMICS_DBG("PrepareForCalculations in lattice" << std::endl);	bool success=true;
-	return success;
+NAMICS_DBG("PrepareForCalculations in lattice" << std::endl);
+	return true;
 }
 
 std::span<Real> Lattice::GetPointer(int profile) {
 NAMICS_DBG("GetPointer for lattice " + name << std::endl);
 	if (profile == 0) return L;
 	return {};
+}
+
+ParameterStore Lattice::FormatProfile(std::span<const Real> profile, bool write_bounds) {
+	const int a = write_bounds ? 0 : fjc;
+	ParameterStore out = ParameterStore::array();
+	switch (gradients) {
+		case 1:
+			for (int x = a; x < MX + 2 * fjc - a; ++x) out.push_back(profile[x]);
+			break;
+		case 2:
+			for (int x = a; x < MX + 2 * fjc - a; ++x) {
+				ParameterStore row = ParameterStore::array();
+				for (int y = a; y < MY + 2 * fjc - a; ++y) row.push_back(profile[P(x, y)]);
+				out.push_back(std::move(row));
+			}
+			break;
+		case 3:
+			for (int x = a; x < MX + 2 * fjc - a; ++x) {
+				ParameterStore plane = ParameterStore::array();
+				for (int y = a; y < MY + 2 * fjc - a; ++y) {
+					ParameterStore row = ParameterStore::array();
+					for (int z = a; z < MZ + 2 * fjc - a; ++z) row.push_back(profile[P(x, y, z)]);
+					plane.push_back(std::move(row));
+				}
+				out.push_back(std::move(plane));
+			}
+			break;
+		default:
+			break;
+	}
+	return out;
 }
 
 void Lattice::PushOutput() {
@@ -458,19 +478,3 @@ NAMICS_DBG("PushOutput in lat " << std::endl);
 
 
 
-
-void Lattice::DistributeG1(std::span<const Real> G1, std::span<Real> g1, std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int n_box) {
-	int k=sub_box_on;
-	tools::DistributeG1(G1, g1, Bx, By, Bz, m[k], n_box, mx[k], my[k], mz[k], MX, MY, MZ, jx[k], jy[k], JX, JY);
-}
-
-void Lattice::CollectPhi(std::span<Real> phi, std::span<const Real> GN, std::span<const Real> rho, std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int n_box) {
-	int k=sub_box_on;
-	tools::CollectPhi(phi, GN, rho, Bx, By, Bz, m[k], n_box, mx[k], my[k], mz[k], MX, MY, MZ, jx[k], jy[k], JX, JY);
-}
-
-void Lattice::ComputeGN(std::span<Real> GN, std::span<const Real> Gg_f, std::span<const int> H_Bx, std::span<const int> H_By, std::span<const int> H_Bz, std::span<const int> H_Px2, std::span<const int> H_Py2, std::span<const int> H_Pz2, int N, int n_box) {
-	int k=sub_box_on;
-	for (int p=0; p<n_box; p++) GN[p] = Gg_f[n_box*m[k]*N + p*m[k] + jx[k]*(H_Px2[p]-H_Bx[p]) + jy[k]*(H_Py2[p]-H_By[p]) + (H_Pz2[p]-H_Bz[p])];
-
-}

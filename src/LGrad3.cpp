@@ -931,20 +931,8 @@ Real LGrad3::ComputeGN(Real* G, int M){
 	return WeightedSum(G);
 }
 
-void LGrad3::AddPhiS(Real* phi,Real* Gf,Real* Gb){
-	for (int __i = 0; __i < M; ++__i) (phi)[__i] += (Gf)[__i] * (Gb)[__i];
-}
-
-void LGrad3::AddPhiS(Real* phi,Real* Gf,Real* Gb,Real degeneracy){
-	for (int __i = 0; __i < M; ++__i) (phi)[__i] += degeneracy * (Gf)[__i] * (Gb)[__i];
-}
-
 void LGrad3::Initiate(Real* G,Real* Gz){
 	std::copy_n(Gz, M, G);
-}
-
-void LGrad3::Terminate(Real* Gz,Real* G){
-	std::copy_n(G, M, Gz);
 }
 
 bool LGrad3:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){

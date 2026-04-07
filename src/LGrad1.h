@@ -31,10 +31,7 @@ class LGrad1 : public Lattice
 	virtual void Side(Real *, Real *, int);
 	virtual void propagate(Real*,Real*, int, int,int);
 	virtual Real ComputeGN(Real*, int);
-	virtual void AddPhiS(Real*,Real*,Real*);
-	virtual void AddPhiS(Real*,Real*,Real*,Real);
 	virtual void Initiate(Real*,Real*);
-	virtual void Terminate(Real*,Real*);
 	bool PutMask(Real* ,std::vector<int>,std::vector<int>,std::vector<int>,int);
 };
 #endif

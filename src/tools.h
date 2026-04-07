@@ -116,35 +116,6 @@ inline void for_each_box_site(std::span<const int> Bx, std::span<const int> By, 
 	}
 }
 
-namespace tools {
-
-template<typename T>
-void DistributeG1(std::span<const T> G1, std::span<Real> g1, std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int M, int n_box, int Mx, int My, int Mz, int MX, int MY, int MZ, int jx, int jy, int JX, int JY) {
-	assert(Bx.size() >= static_cast<size_t>(n_box));
-	assert(By.size() >= static_cast<size_t>(n_box));
-	assert(Bz.size() >= static_cast<size_t>(n_box));
-	assert(g1.size() >= static_cast<size_t>(n_box * M));
-	for_each_box_site(Bx, By, Bz, M, n_box, Mx, My, Mz, MX, MY, MZ, jx, jy, JX, JY,
-	                  [&g1, &G1](int, int local, int global) {
-		g1[local] = G1[global];
-	});
-}
-
-template<typename T>
-void CollectPhi(std::span<T> phi, std::span<const Real> GN, std::span<const Real> rho, std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int M, int n_box, int Mx, int My, int Mz, int MX, int MY, int MZ, int jx, int jy, int JX, int JY) {
-	assert(Bx.size() >= static_cast<size_t>(n_box));
-	assert(By.size() >= static_cast<size_t>(n_box));
-	assert(Bz.size() >= static_cast<size_t>(n_box));
-	assert(GN.size() >= static_cast<size_t>(n_box));
-	assert(rho.size() >= static_cast<size_t>(n_box * M));
-	for_each_box_site(Bx, By, Bz, M, n_box, Mx, My, Mz, MX, MY, MZ, jx, jy, JX, JY,
-	                  [&phi, &GN, &rho](int p, int local, int global) {
-		phi[global] += rho[local] / GN[p];
-	});
-}
-
-}
-
 template <typename T>
 inline void add_shifted(T* dst, const T* src, int n, T scale = T{1}) {
 	for (int i = 0; i < n; ++i) dst[i] += scale * src[i];

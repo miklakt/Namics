@@ -69,18 +69,14 @@ public:
 	void DeAllocateMemory(void);
 	void AllocateMemory(void);
 	void PushOutput();
+	ParameterStore FormatProfile(std::span<const Real>, bool);
 	std::span<Real> GetPointer(int);
 	int P(int,int,int);
 	int P(int,int);
 	int P(int);
 	bool CheckInput(int);
 
-	bool PutSub_box(int,int,int,int);
-
 	bool PrepareForCalculations(void);
-	void DistributeG1(std::span<const Real>, std::span<Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
-	void CollectPhi(std::span<Real>, std::span<const Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, int);
-	void ComputeGN(std::span<Real>, std::span<const Real>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, std::span<const int>, int, int);
 
 protected:
 	bool AssignChoice(const std::string&, std::string&, std::initializer_list<const char*>, const char*) const;
@@ -111,10 +107,7 @@ public:
 	virtual void set_bounds(int*)=0;
 	virtual void set_M_bounds(Real*)=0;
 	virtual Real ComputeGN(Real*, int)=0;
-	virtual void AddPhiS(Real*,Real*,Real*) =0;
-	virtual void AddPhiS(Real*,Real*,Real*,Real) =0;
 	virtual void Initiate(Real*,Real*) =0;
-	virtual void Terminate(Real*,Real*) =0;
 };
 
 namespace lattice_factory {

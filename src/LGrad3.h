@@ -28,10 +28,7 @@ class LGrad3 : public Lattice
 	void remove_bounds(int*);
 	void set_bounds(int*);
 	Real ComputeGN(Real*,int);
-	void AddPhiS(Real*,Real*,Real*);
-	void AddPhiS(Real*,Real*,Real*,Real);
 	void Initiate(Real*,Real*);
-	void Terminate(Real*,Real*);
 	void set_bounds_x(Real*,Real*,int,int);
 	void set_bounds_y(Real*,Real*,int,int);
 	void set_bounds_z(Real*,Real*,int,int);
