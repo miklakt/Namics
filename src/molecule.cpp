@@ -334,38 +334,19 @@ NAMICS_DBG("Molecule:: ConfigureFromConfig for mol " << mol.name << std::endl);
 
 } // namespace
 
-Molecule::Molecule(Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_, std::string name_) {
-	Seg=Seg_; name=name_;
+Molecule::Molecule(Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_, std::string name_)
+	: name(name_), Seg(Seg_), lat(Lat_) {
 NAMICS_DBG("Constructor for Mol " + name << std::endl);
-	lat=Lat_;
-	all_molecule=false;
-	B=1;
-
-}
-
-Molecule::~Molecule() {
-	DeAllocateMemory();
-}
-
-void Molecule :: DeAllocateMemory(){
-NAMICS_DBG("DeallocateMemory for Mol " + name << std::endl);
-	if (!all_molecule) return;
-	phi.clear();
-	phi_ranked.clear();
-	phitot.clear();
-	q_forward.clear();
-	G_unity.clear();
-	all_molecule=false;
 }
 
 void Molecule:: AllocateMemory() {
 	NAMICS_DBG("AllocateMemory in Mol " + name << std::endl);
-	DeAllocateMemory();
 	const int M = lat->M;
+	phi.clear();
+	phi_ranked.clear();
 	phitot.assign(M, 0);
 	q_forward.assign(static_cast<size_t>(M) * static_cast<size_t>(chainlength), 0);
 	G_unity.assign(M, 0);
-	all_molecule=true;
 }
 
 bool Molecule:: PrepareForCalculations(std::span<const Real> KSAM) {

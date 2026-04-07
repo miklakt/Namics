@@ -26,23 +26,21 @@ public:
 	using Topology = std::vector<Node>;
 
 	Molecule(Lattice*,std::span<const std::unique_ptr<Segment>>,std::string);
-	~Molecule();
 
 	std::string name;
 	std::string composition;
-	bool all_molecule;
 	std::span<const std::unique_ptr<Segment>> Seg;
-	Lattice* lat;
+	Lattice* lat = nullptr;
 	Topology topology; // parsed molecule graph
 	std::vector<int> segment_types;
-	Real Mu;
-	Real theta;
-	Real phibulk;
+	Real Mu = 0;
+	Real theta = 0;
+	Real phibulk = 0;
 	std::string freedom;
-	Real n;
-	Real GN;
-	Real norm;
-	int chainlength;
+	Real n = 0;
+	Real GN = 0;
+	Real norm = 0;
+	int chainlength = 0;
 	std::vector<SegmentOccurrence> segment_path;
 	std::vector<Real> mu_state;
 	std::vector<Real> phi;
@@ -50,7 +48,7 @@ public:
 	std::vector<Real> phitot;
 	std::vector<Real> q_forward;
 	std::vector<Real> G_unity;
-	Real B;
+	Real B = 1;
 	OutputRequest output_request;
 	ParameterStore OUTPUT;
 	std::span<const int> SegmentTypes() const noexcept { return segment_types; }
@@ -64,7 +62,6 @@ public:
 	bool IsPinned(void);
 	bool IsCharged(void);
 	Real Charge(void);
-	void DeAllocateMemory(void);
 	void AllocateMemory(void);
 	bool PrepareForCalculations(std::span<const Real>);
 	bool ComputeGN();
