@@ -5,13 +5,11 @@
 #include "segment.h"
 #include "state.h"
 
-#include <cmath>
-
 class Reaction {
 public:
 	Reaction(const Input*,std::span<const std::unique_ptr<Segment>>,std::span<const std::unique_ptr<State>>,std::string);
 
-	~Reaction();
+	~Reaction() = default;
 	std::span<const std::unique_ptr<State>> Sta;
 	std::span<const std::unique_ptr<Segment>> Seg;
 	std::vector<int> Sto;
@@ -28,10 +26,9 @@ public:
 	void PushOutput();
 
 	bool CheckInput(int);
-	Real ChemIntBulk(const State&);
 	Real pKeff();
 	Real Residual_value();
 	bool GuessAlpha();
-	bool PutAlpha(Real);
+	void PutAlpha(Real);
 };
 #endif

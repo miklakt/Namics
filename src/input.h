@@ -1,6 +1,7 @@
 #ifndef INPUTxH
 #define INPUTxH
 #include "namics.h"
+#include <cctype>
 
 template <typename T>
 inline bool ParseStrict(const std::string& s, T& value) {
@@ -8,6 +9,23 @@ inline bool ParseStrict(const std::string& s, T& value) {
 	std::istringstream stream(s);
 	stream >> std::noskipws >> value;
 	return !stream.fail() && stream.eof();
+}
+
+template <>
+inline bool ParseStrict<bool>(const std::string& s, bool& value) {
+	std::string lowered = s;
+	std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
+	if (lowered == "true") {
+		value = true;
+		return true;
+	}
+	if (lowered == "false") {
+		value = false;
+		return true;
+	}
+	return false;
 }
 
 template <typename T>
@@ -28,7 +46,7 @@ class Input {
 public:
 	Input(const std::string&);
 
-	~Input();
+	~Input() = default;
 
 	std::string json_path;
 	bool Input_error;
@@ -47,21 +65,13 @@ public:
 
 
 	std::vector<std::string>& split(const std::string&, char, std::vector<std::string>&) const;
-	int GetNumStarts(void) const;
 	const ParameterStore& Parameters(const std::string&, const std::string&, int) const;
 	ParameterStore LoadItems(const std::string&) const;
 	bool CheckInput(void);
-	bool EvenBrackets(const std::string&, std::vector<int>&, std::vector<int>&) const;
-	bool EvenSquareBrackets(const std::string&, std::vector<int>&, std::vector<int>&) const;
 	bool MakeLists(int);
-	const std::string& GetOutputPath() const;
 	std::string ResolvePath(const std::string&) const;
 	const ParameterStore& operator[](const std::string&) const;
 	const ParameterStore& Start(int) const;
-
-private:
-	void UpdateOutputPath();
-	bool OutputPathExists() const;
 };
 
 #endif

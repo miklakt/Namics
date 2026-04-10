@@ -1,30 +1,12 @@
 #include "molecule.h"
 
 #include <cctype>
+#include <unordered_map>
 
 namespace {
 
-const std::vector<std::string>& MoleculeKeys() {
-	static const std::vector<std::string> keys = {"freedom", "composition", "theta", "phibulk", "n", "B"};
-	return keys;
-}
-
 using Topology = Molecule::Topology;
 using Node = Molecule::Node;
-
-struct MoleculeConfig {
-	Molecule::OutputRequest output_request;
-	std::string composition;
-	std::string freedom;
-	bool has_theta = false;
-	bool has_n = false;
-	bool has_phibulk = false;
-	bool has_B = false;
-	Real theta = 0;
-	Real n = 0;
-	Real phibulk = 0;
-	Real B = 1;
-};
 
 void SkipWhitespace(const std::string& s, size_t& pos) {
 	while (pos < s.size() && std::isspace(static_cast<unsigned char>(s[pos]))) ++pos;
@@ -39,30 +21,7 @@ bool ParseRepeat(const std::string& s, size_t& pos, int& repeats) {
 	return repeats > 0;
 }
 
-int SegmentIndex(const std::unordered_map<std::string, int>& lookup, const std::string& name) {
-	const auto it = lookup.find(name);
-	return it != lookup.end() ? it->second : -1;
-}
-
 bool ParseChain(const Molecule& mol, const std::string& s, size_t& pos, char terminator, Topology& chain, const std::unordered_map<std::string, int>& lookup);
-
-bool ParseRawSegment(const Molecule& mol, const std::string& s, size_t& pos, Node& node, const std::unordered_map<std::string, int>& lookup) {
-	const size_t start = pos;
-	while (pos < s.size() && s[pos] != ')') {
-		if (s[pos] == '(' || s[pos] == '[' || s[pos] == ']') return false;
-		++pos;
-	}
-	if (pos >= s.size() || s[pos] != ')') return false;
-	const std::string segname = s.substr(start, pos - start);
-	++pos;
-	const int seg_index = SegmentIndex(lookup, segname);
-	if (seg_index < 0) {
-		std::cerr << "In composition of mol '" + mol.name + "', segment name '" + segname + "' is not recognised" << std::endl;
-		return false;
-	}
-	node.segment = seg_index;
-	return true;
-}
 
 bool ParseChain(const Molecule& mol, const std::string& s, size_t& pos, char terminator, Topology& chain, const std::unordered_map<std::string, int>& lookup) {
 	while (pos < s.size()) {
@@ -119,10 +78,21 @@ bool ParseChain(const Molecule& mol, const std::string& s, size_t& pos, char ter
 			for (int i = 0; i < repeats; ++i) chain.insert(chain.end(), group.begin(), group.end());
 			continue;
 		}
-		if (!ParseRawSegment(mol, s, pos, node, lookup)) {
-			std::cout << "In composition of mol '" + mol.name + "' an invalid token was found: " << s << std::endl;
+		const size_t start = pos;
+		while (pos < s.size() && s[pos] != ')') {
+			if (s[pos] == '(' || s[pos] == '[' || s[pos] == ']') return false;
+			++pos;
+		}
+		if (pos >= s.size() || s[pos] != ')') return false;
+		const std::string segname = s.substr(start, pos - start);
+		++pos;
+		const auto seg_it = lookup.find(segname);
+		const int seg_index = seg_it != lookup.end() ? seg_it->second : -1;
+		if (seg_index < 0) {
+			std::cerr << "In composition of mol '" + mol.name + "', segment name '" + segname + "' is not recognised" << std::endl;
 			return false;
 		}
+		node.segment = seg_index;
 		int repeats = 0;
 		if (!ParseRepeat(s, pos, repeats)) {
 			std::cout << "In composition of mol '" + mol.name + "' the number of repeats should have values larger than unity " << std::endl;
@@ -134,7 +104,8 @@ bool ParseChain(const Molecule& mol, const std::string& s, size_t& pos, char ter
 	return terminator == '\0';
 }
 
-bool ParseTopology(Molecule& mol, const std::string& composition) {
+bool BuildComposition(Molecule& mol, const std::string& composition){
+NAMICS_DBG("BuildComposition for Mol " + mol.name << std::endl);
 	mol.topology.clear();
 	mol.segment_path.clear();
 	mol.segment_types.clear();
@@ -150,12 +121,6 @@ bool ParseTopology(Molecule& mol, const std::string& composition) {
 		std::cout << "In composition of mol '" + mol.name + "' an invalid token was found: " << composition.substr(pos) << std::endl;
 		return false;
 	}
-	return true;
-}
-
-bool BuildComposition(Molecule& mol, const std::string& composition){
-NAMICS_DBG("BuildComposition for Mol " + mol.name << std::endl);
-	if (!ParseTopology(mol, composition)) return false;
 	std::vector<int> segment_type_index(mol.Seg.size(), -1);
 	mol.segment_types.reserve(mol.Seg.size());
 	const auto add_occurrence = [&](int segment, int parent) {
@@ -191,147 +156,6 @@ NAMICS_DBG("BuildComposition for Mol " + mol.name << std::endl);
 	return mol.chainlength > 0;
 }
 
-bool ParseConfig(const Input& input, const std::string& name, int start, MoleculeConfig& config) {
-	const auto& parameters = input.Parameters("mol", name, start);
-	bool success = true;
-	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
-		if (ContainsValue(MoleculeKeys(), it.key())) continue;
-		success = false;
-		std::cout << "mol property '" << it.key() << "' is unknown. Select from: " << std::endl;
-		for (const std::string& item : MoleculeKeys()) std::cout << item << std::endl;
-	}
-	if (!success) return false;
-
-	try {
-		config.composition = parameters.value("composition", std::string{});
-		config.freedom = parameters.value("freedom", std::string{});
-		config.has_theta = parameters.contains("theta");
-		config.has_n = parameters.contains("n");
-		config.has_phibulk = parameters.contains("phibulk");
-		config.has_B = parameters.contains("B");
-		if (config.has_theta) config.theta = parameters.at("theta").get<Real>();
-		if (config.has_n) config.n = parameters.at("n").get<Real>();
-		if (config.has_phibulk) config.phibulk = parameters.at("phibulk").get<Real>();
-		if (config.has_B) config.B = parameters.at("B").get<Real>();
-	} catch (const nlohmann::json::exception& error) {
-		std::cout << "Invalid json type in mol '" << name << "': " << error.what() << std::endl;
-		return false;
-	}
-	return true;
-}
-
-bool HasMolOutputProperty(const Input& input, const std::string& name, int start, const std::string& property) {
-	const auto& problem = input.Start(start);
-	if (!problem.is_object()) return false;
-	const auto json_it = problem.find("json");
-	if (json_it == problem.end() || !json_it->is_object()) return false;
-	const auto mol_it = json_it->find("mol");
-	if (mol_it == json_it->end() || !mol_it->is_object()) return false;
-	const auto has_property = [&](ParameterStore::const_iterator it) {
-		if (it == mol_it->end()) return false;
-		const auto& value = it.value();
-		if (value.is_string()) return value.get<std::string>() == property;
-		if (value.is_array()) {
-			for (const auto& entry : value) {
-				if (entry.is_string() && entry.get<std::string>() == property) return true;
-			}
-		}
-		return false;
-	};
-	return has_property(mol_it->find(name)) || has_property(mol_it->find("*"));
-}
-
-void ParseOutputRequests(const Input& input, const Molecule& mol, int start, MoleculeConfig& config) {
-	config.output_request.ranked_density = HasMolOutputProperty(input, mol.name, start, "phi_ranked");
-	for (int seg : mol.SegmentTypes()) {
-		if (HasMolOutputProperty(input, mol.name, start, "phi_" + mol.Seg[seg]->name)) {
-			config.output_request.segment_density = true;
-			return;
-		}
-	}
-}
-
-bool ConfigureFromConfig(Molecule& mol, const MoleculeConfig& config) {
-NAMICS_DBG("Molecule:: ConfigureFromConfig for mol " << mol.name << std::endl);
-	mol.composition = config.composition;
-	mol.phibulk = 0;
-	mol.n = 0;
-	mol.theta = 0;
-	mol.norm = 0;
-	if (config.composition.empty()) {
-		std::cout << "For mol '" + mol.name + "' the definition of 'composition' is required" << std::endl;
-		return false;
-	}
-	if (!BuildComposition(mol, config.composition)) {
-		std::cout << "For mol '" + mol.name + "' the composition is rejected. " << std::endl;
-		return false;
-	}
-	const bool pinned = mol.IsPinned();
-	if (config.freedom.empty()) {
-		if (pinned) {
-			std::cout <<"For mol " + mol.name + " the setting for 'freedom' was not set" << std::endl;
-			return false;
-		}
-		std::cout <<"For mol " + mol.name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' . Problem terminated " << std::endl;
-		return false;
-	}
-	const bool allowed_freedom = config.freedom == "restricted" || (!pinned && (config.freedom == "free" || config.freedom == "solvent" || config.freedom == "neutralizer"));
-	if (!allowed_freedom) {
-		std::cout << "In mol " + mol.name + " the value for 'freedom' is not recognised " << std::endl;
-		std::cout << "Select from: " << std::endl;
-		if (!pinned) std::cout << "free ; solvent ; neutralizer ; ";
-		std::cout << "restricted ; " << std::endl;
-		return false;
-	}
-	mol.freedom = config.freedom;
-	if (mol.freedom == "neutralizer" && !mol.IsCharged()) {
-		std::cout << "Mol '" + mol.name + "' is not 'charged' and therefore this molecule can not be the neutralizer" << std::endl;
-		return false;
-	}
-	if (mol.freedom == "free") {
-		if (!config.has_phibulk) {
-			std::cout <<"In mol " + mol.name + ", the setting 'freedom = free' should be combined with a value for 'phibulk'. "<<std::endl;
-			return false;
-		}
-		mol.phibulk = config.phibulk;
-		if (mol.phibulk < 0 || mol.phibulk > 1) {
-			std::cout << "In mol " + mol.name + ", the value of 'phibulk' is out of range 0 .. 1." << std::endl;
-			return false;
-		}
-	}
-	mol.B = 1;
-	if (!pinned && config.has_B) {
-		mol.B = config.B;
-		if (mol.B < 1e-9) {
-			std::cout <<"for Mol" + mol.name + " mobility B should have a posititve value. Default value B=1 is chosen. " << std::endl;
-			mol.B = 1;
-		}
-	}
-	if (mol.freedom == "restricted") {
-		if (!config.has_theta && !config.has_n) {
-			std::cout <<"In mol " + mol.name + ", the setting 'freedom = restricted' should be combined with a value for 'theta' or 'n'; do not use both settings! "<<std::endl;
-			return false;
-		}
-		if (config.has_theta && config.has_n) {
-			std::cout <<"In mol " + mol.name + ", the setting 'freedom = restricted' does not allow both 'n' and 'theta' "<<std::endl;
-			return false;
-		}
-		if (config.has_n) {
-			mol.n = config.n;
-			mol.theta = mol.n * mol.chainlength;
-		}
-		if (config.has_theta) {
-			mol.theta = config.theta;
-			mol.n = mol.theta / mol.chainlength;
-		}
-		if (mol.theta < 0 || (!pinned && mol.theta > mol.lat->volume)) {
-			std::cout << "In mol " + mol.name + ", the value of 'n' or 'theta' is out of range." << std::endl;
-			return false;
-		}
-	}
-	return true;
-}
-
 } // namespace
 
 Molecule::Molecule(Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_, std::string name_)
@@ -349,18 +173,17 @@ void Molecule:: AllocateMemory() {
 	G_unity.assign(M, 0);
 }
 
-bool Molecule:: PrepareForCalculations(std::span<const Real> KSAM) {
+void Molecule:: PrepareForCalculations(std::span<const Real> KSAM) {
 NAMICS_DBG("PrepareForCalculations in Mol " + name << std::endl);
 	std::copy(KSAM.begin(), KSAM.end(), G_unity.begin());
 	std::fill(phitot.begin(), phitot.end(), 0);
-	return true;
 }
 
 void Molecule::FinalizeOutputs() {
 	const size_t M = static_cast<size_t>(lat->M);
 	phi.clear();
 	phi_ranked.clear();
-	if (!output_request.any()) return;
+	if (!output_request.segment_density && !output_request.ranked_density) return;
 	if (output_request.segment_density) phi.assign(M * SegmentTypes().size(), 0);
 	if (output_request.ranked_density) phi_ranked.assign(M * static_cast<size_t>(chainlength), 0);
 	AccumulateDensity(false, {}, {});
@@ -390,12 +213,133 @@ NAMICS_DBG("Molecule:: Charge" << std::endl);
 namespace molecule_factory {
 
 std::unique_ptr<Molecule> CreateChecked(const Input& input, Lattice* lat, std::span<const std::unique_ptr<Segment>> segments, const std::string& name, int start) {
-	MoleculeConfig config;
-	if (!ParseConfig(input, name, start, config)) return nullptr;
+	const auto& parameters = input.Parameters("mol", name, start);
+	static const std::vector<std::string> keys = {"freedom", "composition", "theta", "phibulk", "n"};
+	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
+		if (ContainsValue(keys, it.key())) continue;
+		std::cout << "mol property '" << it.key() << "' is unknown. Select from: " << std::endl;
+		for (const std::string& item : keys) std::cout << item << std::endl;
+		return nullptr;
+	}
+
+	std::string composition;
+	std::string freedom;
+	bool has_theta = false;
+	bool has_n = false;
+	bool has_phibulk = false;
+	Real theta = 0;
+	Real n = 0;
+	Real phibulk = 0;
+	try {
+		composition = parameters.value("composition", std::string{});
+		freedom = parameters.value("freedom", std::string{});
+		has_theta = parameters.contains("theta");
+		has_n = parameters.contains("n");
+		has_phibulk = parameters.contains("phibulk");
+		if (has_theta) theta = parameters.at("theta").get<Real>();
+		if (has_n) n = parameters.at("n").get<Real>();
+		if (has_phibulk) phibulk = parameters.at("phibulk").get<Real>();
+	} catch (const nlohmann::json::exception& error) {
+		std::cout << "Invalid json type in mol '" << name << "': " << error.what() << std::endl;
+		return nullptr;
+	}
+
 	std::unique_ptr<Molecule> molecule = std::make_unique<Molecule>(lat, segments, name);
-	if (!ConfigureFromConfig(*molecule, config)) return nullptr;
-	ParseOutputRequests(input, *molecule, start, config);
-	molecule->output_request = config.output_request;
+	molecule->composition = composition;
+	molecule->phibulk = 0;
+	molecule->n = 0;
+	molecule->theta = 0;
+	molecule->norm = 0;
+	if (composition.empty()) {
+		std::cout << "For mol '" + molecule->name + "' the definition of 'composition' is required" << std::endl;
+		return nullptr;
+	}
+	if (!BuildComposition(*molecule, composition)) {
+		std::cout << "For mol '" + molecule->name + "' the composition is rejected. " << std::endl;
+		return nullptr;
+	}
+	const bool pinned = molecule->IsPinned();
+	if (freedom.empty()) {
+		if (pinned) std::cout <<"For mol " + molecule->name + " the setting for 'freedom' was not set" << std::endl;
+		else std::cout <<"For mol " + molecule->name + " the setting 'freedom' is expected: options: 'free' 'restricted' 'solvent' 'neutralizer' . Problem terminated " << std::endl;
+		return nullptr;
+	}
+	const bool allowed_freedom = freedom == "restricted" || (!pinned && (freedom == "free" || freedom == "solvent" || freedom == "neutralizer"));
+	if (!allowed_freedom) {
+		std::cout << "In mol " + molecule->name + " the value for 'freedom' is not recognised " << std::endl;
+		std::cout << "Select from: " << std::endl;
+		if (!pinned) std::cout << "free ; solvent ; neutralizer ; ";
+		std::cout << "restricted ; " << std::endl;
+		return nullptr;
+	}
+	molecule->freedom = freedom;
+	if (molecule->freedom == "neutralizer" && !molecule->IsCharged()) {
+		std::cout << "Mol '" + molecule->name + "' is not 'charged' and therefore this molecule can not be the neutralizer" << std::endl;
+		return nullptr;
+	}
+	if (molecule->freedom == "free") {
+		if (!has_phibulk) {
+			std::cout <<"In mol " + molecule->name + ", the setting 'freedom = free' should be combined with a value for 'phibulk'. "<<std::endl;
+			return nullptr;
+		}
+		molecule->phibulk = phibulk;
+		if (molecule->phibulk < 0 || molecule->phibulk > 1) {
+			std::cout << "In mol " + molecule->name + ", the value of 'phibulk' is out of range 0 .. 1." << std::endl;
+			return nullptr;
+		}
+	}
+	if (molecule->freedom == "restricted") {
+		if (!has_theta && !has_n) {
+			std::cout <<"In mol " + molecule->name + ", the setting 'freedom = restricted' should be combined with a value for 'theta' or 'n'; do not use both settings! "<<std::endl;
+			return nullptr;
+		}
+		if (has_theta && has_n) {
+			std::cout <<"In mol " + molecule->name + ", the setting 'freedom = restricted' does not allow both 'n' and 'theta' "<<std::endl;
+			return nullptr;
+		}
+		if (has_n) {
+			molecule->n = n;
+			molecule->theta = molecule->n * molecule->chainlength;
+		}
+		if (has_theta) {
+			molecule->theta = theta;
+			molecule->n = molecule->theta / molecule->chainlength;
+		}
+		if (molecule->theta < 0 || (!pinned && molecule->theta > molecule->lat->volume)) {
+			std::cout << "In mol " + molecule->name + ", the value of 'n' or 'theta' is out of range." << std::endl;
+			return nullptr;
+		}
+	}
+	const auto& problem = input.Start(start);
+	if (problem.is_object()) {
+		const auto json_it = problem.find("json");
+		if (json_it != problem.end() && json_it->is_object()) {
+			const auto mol_it = json_it->find("mol");
+			if (mol_it != json_it->end() && mol_it->is_object()) {
+				const auto has_property = [&](const std::string& property) {
+					const auto matches = [&](ParameterStore::const_iterator it) {
+						if (it == mol_it->end()) return false;
+						const auto& value = it.value();
+						if (value.is_string()) return value.get<std::string>() == property;
+						if (value.is_array()) {
+							for (const auto& entry : value) {
+								if (entry.is_string() && entry.get<std::string>() == property) return true;
+							}
+						}
+						return false;
+					};
+					return matches(mol_it->find(molecule->name)) || matches(mol_it->find("*"));
+				};
+				molecule->output_request.ranked_density = has_property("phi_ranked");
+				for (int seg : molecule->SegmentTypes()) {
+					if (has_property("phi_" + molecule->Seg[seg]->name)) {
+						molecule->output_request.segment_density = true;
+						break;
+					}
+				}
+			}
+		}
+	}
 	return molecule;
 }
 
@@ -528,12 +472,10 @@ NAMICS_DBG("PropagateForward for Molecule " + name << std::endl);
 	}
 }
 
-bool Molecule::ComputeGN(){
+void Molecule::ComputeGN(){
 NAMICS_DBG("ComputeGN for Molecule " + name << std::endl);
 	PropagateForward();
-	const int M = lat->M;
-	GN = lat->ComputeGN(q_forward.data(), M);
-	return true;
+	GN = lat->ComputeGN(q_forward.data());
 }
 
 void Molecule::AccumulateDensity(std::span<Real> system_phitot) {
@@ -599,9 +541,8 @@ void Molecule::PropagateBackward(int segment_index, std::span<const Real> q_back
 	}
 }
 
-bool Molecule::AccumulateDensity(bool include_segment_phi, std::span<Real> system_phitot, std::span<Real> mol_phitot) {
-	if (segment_path.empty()) return true;
+void Molecule::AccumulateDensity(bool include_segment_phi, std::span<Real> system_phitot, std::span<Real> mol_phitot) {
+	if (segment_path.empty()) return;
 	std::vector<Real> q_backward(lat->M, 1.0);
 	PropagateBackward(0, q_backward, include_segment_phi, system_phitot, mol_phitot);
-	return true;
 }

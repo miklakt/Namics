@@ -3,7 +3,6 @@
 Reaction::Reaction(const Input* In_,std::span<const std::unique_ptr<Segment>> Seg_, std::span<const std::unique_ptr<State>> Sta_, std::string name_) {
 	In=In_; name=name_;   Sta=Sta_; Seg=Seg_;
 }
-Reaction::~Reaction() = default;
 
 bool Reaction::CheckInput(int start) {
 NAMICS_DBG("CheckInput in Reaction " + name << std::endl);	bool success=true;
@@ -55,7 +54,17 @@ NAMICS_DBG("CheckInput in Reaction " + name << std::endl);	bool success=true;
 					for (int l=0; l<sub_l; l++) { 
 						std::vector<int>open;
 						std::vector<int>close;
-						In->EvenBrackets(sub_plus[l], open, close);
+						std::vector<char> stack;
+						for (size_t i = 0; i < sub_plus[l].size(); ++i) {
+							if (sub_plus[l][i] == '(') {
+								stack.push_back(sub_plus[l][i]);
+								open.push_back(static_cast<int>(i));
+							} else if (sub_plus[l][i] == ')') {
+								close.push_back(static_cast<int>(i));
+								if (stack.empty()) break;
+								stack.pop_back();
+							}
+						}
 						int length=open.size();
 						if (length !=1) {
 							std::cout <<" reaction : " << name << " equation " << equation << " has too many mon types in between '+' signs " << std::endl; 
@@ -69,7 +78,6 @@ NAMICS_DBG("CheckInput in Reaction " + name << std::endl);	bool success=true;
 								if (state_name == s_name) {
 									found = true; 
 									State_nr.push_back(i); 
-									Sta[i]->in_reaction=true;
 									Seg_nr.push_back(Sta[i]->mon_nr);
 									int state_length=Seg[Sta[i]->mon_nr]->state_name.size();
 									for (int k=0; k<state_length; k++) 
@@ -130,23 +138,19 @@ NAMICS_DBG("PushOutput in Reaction " + name << std::endl);
 	OUTPUT["pK"] = pK;
 }
 
-Real Reaction::ChemIntBulk(const State& sta) {
-	Real value=0;
-	
-	int mon_length=In->MonList.size();
-	int state_length=In->StateList.size();
-	for (int i=0; i<mon_length; i++) 
-		if (Seg[i]->ns<2) {value+=sta.chi[i]*Seg[i]->phibulk;}
-	for (int i=0; i<state_length; i++) {value+=sta.chi[mon_length+i]*Seg[Sta[i]->mon_nr]->state_phibulk[Sta[i]->state_nr];}
-	return value;
-}
-
-
 Real Reaction::pKeff() {
 	Real value=0;
 	int length=Sto.size();
 	for (int i=0; i<length; i++) {
-		value +=Sto[i]*ChemIntBulk(*Sta[i]);
+		const State& sta = *Sta[i];
+		Real chem_bulk = 0;
+		int mon_length = In->MonList.size();
+		int state_length = In->StateList.size();
+		for (int j=0; j<mon_length; j++)
+			if (Seg[j]->ns<2) chem_bulk += sta.chi[j]*Seg[j]->phibulk;
+		for (int j=0; j<state_length; j++)
+			chem_bulk += sta.chi[mon_length+j]*Seg[Sta[j]->mon_nr]->state_phibulk[Sta[j]->state_nr];
+		value += Sto[i]*chem_bulk;
 	}
 	return pK+value/std::log(10.0);
 }
@@ -166,8 +170,7 @@ Real Reaction::Residual_value() { //only working when chi are not state dependen
 	return -1.0+res_value/pKeff();
 }
 
-bool Reaction::PutAlpha(Real alpha) {
-	bool success=true;
+void Reaction::PutAlpha(Real alpha) {
 	int water=-1;
 	int other=-1;
 	int length=Sto.size();
@@ -178,8 +181,6 @@ bool Reaction::PutAlpha(Real alpha) {
 		if (Seg_nr[i]!=water) other =Seg_nr[i];
 	}
 	if (other>-1) Seg[other]->PutAlpha(alpha); else Seg[water]->PutAlpha(alpha);
-
-	return success; 
 }
 
 bool Reaction::GuessAlpha() {

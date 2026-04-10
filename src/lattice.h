@@ -3,7 +3,6 @@
 
 #include "namics.h"
 #include "input.h"
-#include "tools.h"
 
 struct LatticeSelection {
 	int gradients = 1;
@@ -76,7 +75,7 @@ public:
 	int P(int);
 	bool CheckInput(int);
 
-	bool PrepareForCalculations(void);
+	void PrepareForCalculations(void);
 
 protected:
 	bool AssignChoice(const std::string&, std::string&, std::initializer_list<const char*>, const char*) const;
@@ -91,14 +90,13 @@ protected:
 	virtual bool CheckLatticeInput(const ParameterStore&) = 0;
 
 public:
-	virtual void ComputeLambdas(void)=0;
+	virtual void ComputeLambdas(void) {}
 	virtual Real WeightedSum(Real*)=0;
 	virtual Real Moment(Real*,Real,int) =0;
-	virtual bool PutMask(Real* H_MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R)=0;
-	virtual bool PutM(void)=0;
+	virtual void PutM(void)=0;
 	virtual void propagate(Real*,Real*, int, int,int)=0;
 	virtual void Side(Real *, Real *, int) =0;
-	virtual void UpdateEE(Real*, Real*,Real*) =0;
+	virtual void UpdateEE(Real*, Real*) =0;
 	virtual void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool)=0;
 	virtual void UpdateQ(Real*,Real*,Real*,Real*,Real*,bool)=0;
 	virtual void remove_bounds(Real*)=0;
@@ -106,7 +104,7 @@ public:
 	virtual void remove_bounds(int*)=0;
 	virtual void set_bounds(int*)=0;
 	virtual void set_M_bounds(Real*)=0;
-	virtual Real ComputeGN(Real*, int)=0;
+	virtual Real ComputeGN(Real*)=0;
 	virtual void Initiate(Real*,Real*) =0;
 };
 

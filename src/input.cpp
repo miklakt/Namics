@@ -14,40 +14,24 @@ const std::vector<std::string>& ProblemKeys() {
 	return keys;
 }
 
-std::string NormalizeOutputPath(std::string path) {
-	if (path.empty()) return DEFAULT_OUTPUT_PATH;
-	if (path.back() != '/') path.push_back('/');
-	return path;
-}
-
-bool HasBalancedBrackets(
-	const std::string& expression,
-	char open_bracket,
-	char close_bracket,
-	std::vector<int>& open_positions,
-	std::vector<int>& close_positions) {
-	std::vector<char> stack;
-	for (size_t i = 0; i < expression.size(); ++i) {
-		if (expression[i] == open_bracket) {
-			stack.push_back(expression[i]);
-			open_positions.push_back(static_cast<int>(i));
-		} else if (expression[i] == close_bracket) {
-			close_positions.push_back(static_cast<int>(i));
-			if (stack.empty()) return false;
-			stack.pop_back();
-		}
-	}
-	return stack.empty();
-}
-
 bool NeedsGuessOutputFile(const nlohmann::ordered_json& sys) {
 	const auto write_guess = sys.find("write_initial_guess");
 	if (write_guess == sys.end() || !write_guess->is_boolean() || !write_guess->get<bool>()) return false;
 	const auto output_file = sys.find("guess_outputfile");
 	return output_file == sys.end() || !output_file->is_string() || output_file->get<std::string>().empty();
 }
-
 } // namespace
+
+std::vector<std::string>& Input::split(const std::string& s, char delim, std::vector<std::string>& elems) const {
+	std::stringstream ss(s);
+	std::string item;
+	while (std::getline(ss, item, delim)) {
+		item.erase(std::remove(item.begin(), item.end(), ' '), item.end());
+		const std::size_t pos = item.find("//");
+		elems.push_back(item.substr(0, pos));
+	}
+	return elems;
+}
 
 Input::Input(const std::string& json_name)
 	: json_path(json_name),
@@ -55,10 +39,9 @@ Input::Input(const std::string& json_name)
 	  output_path(DEFAULT_OUTPUT_PATH),
 	  starts(nlohmann::ordered_json::array()),
 	  active_start(0) {
-	const std::string load_name = json_path;
-	std::ifstream input(load_name.c_str());
+	std::ifstream input(json_path.c_str());
 	if (!input.is_open()) {
-		std::cout << "Inputfile " << load_name << " is not found. " << std::endl;
+		std::cout << "Inputfile " << json_path << " is not found. " << std::endl;
 		Input_error = true;
 		return;
 	}
@@ -67,7 +50,7 @@ Input::Input(const std::string& json_name)
 	try {
 		document = nlohmann::ordered_json::parse(input, nullptr, true, true);
 	} catch (const std::exception& error) {
-		std::cout << "Failed to parse JSON input file " << load_name << ": " << error.what() << std::endl;
+		std::cout << "Failed to parse JSON input file " << json_path << ": " << error.what() << std::endl;
 		Input_error = true;
 		return;
 	}
@@ -88,34 +71,20 @@ Input::Input(const std::string& json_name)
 		Input_error = true;
 		return;
 	}
-	UpdateOutputPath();
-	if (!CheckInput()) Input_error = true;
-}
-
-Input::~Input() {
-}
-
-bool Input::EvenSquareBrackets(const std::string& exp, std::vector<int>& open, std::vector<int>& close) const {
-	return HasBalancedBrackets(exp, '[', ']', open, close);
-}
-
-bool Input::EvenBrackets(const std::string& exp, std::vector<int>& open, std::vector<int>& close) const {
-	return HasBalancedBrackets(exp, '(', ')', open, close);
-}
-
-std::vector<std::string>& Input::split(const std::string& s, char delim, std::vector<std::string>& elems) const {
-	std::stringstream ss(s);
-	std::string item;
-	while (std::getline(ss, item, delim)) {
-		item.erase(std::remove(item.begin(), item.end(), ' '), item.end());
-		const std::size_t pos = item.find("//");
-		elems.push_back(item.substr(0, pos));
+	output_path = DEFAULT_OUTPUT_PATH;
+	for (const auto& problem : starts) {
+		if (!problem.is_object()) continue;
+		const auto out_info = problem.find(OUTPUT_INFO_KEY);
+		if (out_info == problem.end() || !out_info->is_object()) continue;
+		const auto folder = out_info->find("folder");
+		if (folder == out_info->end() || !folder->is_object()) continue;
+		const auto path = folder->find("path");
+		if (path == folder->end() || !path->is_string()) continue;
+		output_path = ResolvePath(path->get<std::string>());
+		if (output_path.empty()) output_path = DEFAULT_OUTPUT_PATH;
+		else if (output_path.back() != '/') output_path.push_back('/');
 	}
-	return elems;
-}
-
-int Input::GetNumStarts() const {
-	return starts.is_array() ? static_cast<int>(starts.size()) : 0;
+	if (!CheckInput()) Input_error = true;
 }
 
 const ParameterStore& Input::Parameters(const std::string& keyword, const std::string& name_, int start) const {
@@ -279,7 +248,7 @@ bool Input::CheckInput() {
 	}
 
 	if (success) success = MakeLists(1);
-	if (!OutputPathExists()) {
+	if (!std::filesystem::is_directory(output_path)) {
 		std::cout << "Cannot access output folder '" << output_path << "'" << std::endl;
 		success = false;
 	}
@@ -333,24 +302,6 @@ bool Input::MakeLists(int start) {
 	return success;
 }
 
-void Input::UpdateOutputPath() {
-	output_path = DEFAULT_OUTPUT_PATH;
-	for (const auto& problem : starts) {
-		if (!problem.is_object()) continue;
-		const auto out_info = problem.find(OUTPUT_INFO_KEY);
-		if (out_info == problem.end() || !out_info->is_object()) continue;
-		const auto folder = out_info->find("folder");
-		if (folder == out_info->end() || !folder->is_object()) continue;
-		const auto path = folder->find("path");
-		if (path == folder->end() || !path->is_string()) continue;
-		output_path = NormalizeOutputPath(ResolvePath(path->get<std::string>()));
-	}
-}
-
-const std::string& Input::GetOutputPath() const {
-	return output_path;
-}
-
 std::string Input::ResolvePath(const std::string& path) const {
 	if (path.empty()) return path;
 	const std::filesystem::path candidate(path);
@@ -358,10 +309,6 @@ std::string Input::ResolvePath(const std::string& path) const {
 	const std::filesystem::path base(json_path);
 	const std::filesystem::path parent = base.has_parent_path() ? base.parent_path() : std::filesystem::path(".");
 	return (parent / candidate).lexically_normal().string();
-}
-
-bool Input::OutputPathExists() const {
-	return std::filesystem::is_directory(output_path);
 }
 
 const ParameterStore& Input::operator[](const std::string& key) const {

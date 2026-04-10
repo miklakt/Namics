@@ -1,17 +1,12 @@
 #include "input_preprocessor.h"
+#include "input.h"
 #include "io_utils.h"
 
-#include <algorithm>
 #include <array>
 #include <cctype>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <limits>
-#include <nlohmann/json.hpp>
 #include <sstream>
-#include <string>
-#include <vector>
 
 namespace {
 
@@ -54,28 +49,6 @@ std::string ToLowerCopy(std::string value) {
 		return static_cast<char>(std::tolower(c));
 	});
 	return value;
-}
-
-template <typename T>
-bool ParseStrict(const std::string& s, T& value) {
-	if (s.empty()) return false;
-	std::istringstream stream(s);
-	stream >> std::noskipws >> value;
-	return !stream.fail() && stream.eof();
-}
-
-template <>
-bool ParseStrict<bool>(const std::string& s, bool& value) {
-	const std::string lowered = ToLowerCopy(s);
-	if (lowered == "true") {
-		value = true;
-		return true;
-	}
-	if (lowered == "false") {
-		value = false;
-		return true;
-	}
-	return false;
 }
 
 bool IsEmptyOrComment(const std::string& line) {
@@ -166,24 +139,6 @@ bool ReadLegacyEntries(const std::string& path, std::vector<std::string>& entrie
 	return true;
 }
 
-void AppendJsonSelector(json& problem, const std::string& section, const std::string& entry, const std::string& property) {
-	auto& selectors = problem["json"];
-	if (!selectors.is_object()) selectors = json::object();
-	auto& section_selectors = selectors[section];
-	if (!section_selectors.is_object()) section_selectors = json::object();
-	auto& properties = section_selectors[entry];
-	if (properties.is_null()) {
-		properties = property;
-		return;
-	}
-	if (properties.is_string()) {
-		properties = json::array({properties.get<std::string>(), property});
-		return;
-	}
-	if (!properties.is_array()) properties = json::array();
-	properties.push_back(property);
-}
-
 bool ConvertLegacyEntries(const std::vector<std::string>& entries, json& problems) {
 	json current = json::object();
 	for (const std::string& entry : entries) {
@@ -195,7 +150,21 @@ bool ConvertLegacyEntries(const std::vector<std::string>& entries, json& problem
 		if (parts.empty()) continue;
 		if (parts[0] == "json") {
 			if (parts.size() != 4) return false;
-			AppendJsonSelector(current, parts[1], parts[2], parts[3]);
+			auto& selectors = current["json"];
+			if (!selectors.is_object()) selectors = json::object();
+			auto& section_selectors = selectors[parts[1]];
+			if (!section_selectors.is_object()) section_selectors = json::object();
+			auto& properties = section_selectors[parts[2]];
+			if (properties.is_null()) {
+				properties = parts[3];
+				continue;
+			}
+			if (properties.is_string()) {
+				properties = json::array({properties.get<std::string>(), parts[3]});
+				continue;
+			}
+			if (!properties.is_array()) properties = json::array();
+			properties.push_back(parts[3]);
 			continue;
 		}
 		if (parts.size() != 4) return false;
@@ -204,36 +173,6 @@ bool ConvertLegacyEntries(const std::vector<std::string>& entries, json& problem
 		auto& object = section[parts[1]];
 		if (!object.is_object()) object = json::object();
 		object[parts[2]] = ParseLegacyValue(parts[3]);
-	}
-	return true;
-}
-
-std::filesystem::path EmittedJsonPath(const std::string& source_path) {
-	const std::filesystem::path source(source_path);
-	if (EndsWith(source.filename().string(), ".input.json")) return source;
-	const std::filesystem::path parent = source.has_parent_path() ? source.parent_path() : std::filesystem::path(".");
-	if (source.has_stem()) return parent / (source.stem().string() + ".input.json");
-	std::filesystem::path emitted = source.filename();
-	emitted += ".input.json";
-	return parent / emitted;
-}
-
-bool ReadSanitizedTextFile(const std::string& path, std::vector<std::string>& tokens) {
-	std::ifstream input(path.c_str());
-	if (!input.is_open()) {
-		std::cout << "Inputfile " << path << " is not found. " << std::endl;
-		return false;
-	}
-	tokens.clear();
-	std::string line;
-	while (std::getline(input, line)) {
-		NormalizeLegacyLine(line);
-		if (IsEmptyOrComment(line)) continue;
-		std::stringstream ss(line);
-		std::string token;
-		while (std::getline(ss, token, '#')) {
-			if (!token.empty()) tokens.push_back(token);
-		}
 	}
 	return true;
 }
@@ -260,59 +199,6 @@ bool ParseCoordinateList(const json& value, int dimensions, Coordinates& coordin
 		if (static_cast<int>(point.size()) == dimensions) continue;
 		coordinates.clear();
 		return false;
-	}
-	return true;
-}
-
-bool LoadProblemShape(const json& problem, ProblemShape& shape) {
-	const auto lat_section = problem.find("lat");
-	if (lat_section == problem.end() || !lat_section->is_object() || lat_section->empty()) return false;
-	const auto parameters_it = lat_section->begin();
-	if (!parameters_it.value().is_object()) return false;
-	const json& parameters = parameters_it.value();
-	try {
-		shape.gradients = parameters.value("gradients", 1);
-		if (shape.gradients < 1 || shape.gradients > 3) return false;
-		shape.layers[0] = shape.gradients == 1 ? parameters.value("n_layers", -1) : parameters.value("n_layers_x", -1);
-		shape.layers[1] = shape.gradients >= 2 ? parameters.value("n_layers_y", -1) : 1;
-		shape.layers[2] = shape.gradients >= 3 ? parameters.value("n_layers_z", -1) : 1;
-		if (shape.layers[0] < 1 || (shape.gradients >= 2 && shape.layers[1] < 1) || (shape.gradients >= 3 && shape.layers[2] < 1)) {
-			return false;
-		}
-		if (shape.gradients == 1) {
-			shape.bc[0] = parameters.value("lowerbound", std::string{"mirror"});
-			shape.bc[3] = parameters.value("upperbound", std::string{"mirror"});
-		} else {
-			shape.bc[0] = parameters.value("lowerbound_x", std::string{"mirror"});
-			shape.bc[3] = parameters.value("upperbound_x", std::string{"mirror"});
-			shape.bc[1] = parameters.value("lowerbound_y", std::string{"mirror"});
-			shape.bc[4] = parameters.value("upperbound_y", std::string{"mirror"});
-			if (shape.gradients == 3) {
-				shape.bc[2] = parameters.value("lowerbound_z", std::string{"mirror"});
-				shape.bc[5] = parameters.value("upperbound_z", std::string{"mirror"});
-			}
-		}
-	} catch (const json::exception&) {
-		return false;
-	}
-	return true;
-}
-
-bool ParseLegacyMaskFile(const std::string& path, const ProblemShape& shape, Coordinates& coordinates) {
-	std::vector<std::string> tokens;
-	if (!ReadSanitizedTextFile(path, tokens)) return false;
-	coordinates.clear();
-	for (const std::string& token : tokens) {
-		const std::vector<std::string> parts = SplitLegacy(token, ',');
-		if (static_cast<int>(parts.size()) != shape.gradients) return false;
-		std::vector<int> point;
-		point.reserve(static_cast<size_t>(shape.gradients));
-		for (const std::string& part : parts) {
-			int parsed = 0;
-			if (!ParseStrict(part, parsed)) return false;
-			point.push_back(parsed);
-		}
-		coordinates.push_back(std::move(point));
 	}
 	return true;
 }
@@ -444,7 +330,35 @@ bool ExtractMaskCoordinatesFromJsonFile(const std::string& path,
                                         const ProblemShape& shape,
                                         int var_pos,
                                         Coordinates& coordinates) {
-	if (!LooksLikeJsonInput(path)) return ParseLegacyMaskFile(path, shape, coordinates);
+	if (!LooksLikeJsonInput(path)) {
+		std::ifstream input(path.c_str());
+		if (!input.is_open()) {
+			std::cout << "Inputfile " << path << " is not found. " << std::endl;
+			return false;
+		}
+		coordinates.clear();
+		std::string line;
+		while (std::getline(input, line)) {
+			NormalizeLegacyLine(line);
+			if (IsEmptyOrComment(line)) continue;
+			std::stringstream ss(line);
+			std::string token;
+			while (std::getline(ss, token, '#')) {
+				if (token.empty()) continue;
+				const std::vector<std::string> parts = SplitLegacy(token, ',');
+				if (static_cast<int>(parts.size()) != shape.gradients) return false;
+				std::vector<int> point;
+				point.reserve(static_cast<size_t>(shape.gradients));
+				for (const std::string& part : parts) {
+					int parsed = 0;
+					if (!ParseStrict(part, parsed)) return false;
+					point.push_back(parsed);
+				}
+				coordinates.push_back(std::move(point));
+			}
+		}
+		return true;
+	}
 	json document;
 	if (!io::detail::ReadJsonFile(path, document)) return false;
 	if (document.is_object()) {
@@ -473,12 +387,6 @@ bool ExtractMaskCoordinates(const json& source,
 	if (const auto it = source.find(MASK_COORDINATES_KEY); it != source.end()) return ParseCoordinateList(*it, shape.gradients, coordinates);
 	if (const auto it = source.find(key); it != source.end()) return ExtractMaskCoordinates(*it, key, mon_name, shape, base_path, var_pos, coordinates);
 	return false;
-}
-
-json CanonicalMask(const Coordinates& coordinates) {
-	return {
-		{"coordinates", coordinates}
-	};
 }
 
 bool NormalizeMasks(json& problem, const ProblemShape& shape, const std::string& base_path) {
@@ -513,7 +421,7 @@ bool NormalizeMasks(json& problem, const ProblemShape& shape, const std::string&
 			if (it == mon.value().end()) return true;
 			Coordinates coordinates;
 			if (!ExtractMaskCoordinates(*it, key, mon.key(), shape, base_path, var_pos, coordinates)) return false;
-			mon.value()[key] = CanonicalMask(coordinates);
+			mon.value()[key] = json{{"coordinates", coordinates}};
 			return true;
 		};
 		for (const auto& keys : MASK_KEYS) {
@@ -521,21 +429,6 @@ bool NormalizeMasks(json& problem, const ProblemShape& shape, const std::string&
 		}
 	}
 	return true;
-}
-
-bool HasMaskSettings(const json& problem) {
-	const auto mon_section = problem.find("mon");
-	if (mon_section == problem.end() || !mon_section->is_object()) return false;
-	for (auto mon = mon_section->begin(); mon != mon_section->end(); ++mon) {
-		if (!mon.value().is_object()) continue;
-		if (mon.value().contains("pinned_range") ||
-		    mon.value().contains("pinned_filename") ||
-		    mon.value().contains("frozen_range") ||
-		    mon.value().contains("frozen_filename")) {
-			return true;
-		}
-	}
-	return false;
 }
 
 bool LoadInitialGuessSource(const json& source, const std::string& base_path, json& guess) {
@@ -594,9 +487,50 @@ bool NormalizeInitialGuess(json& problem, const std::string& base_path) {
 bool NormalizeProblems(json& document, const std::string& base_path) {
 	auto normalize_problem = [&](json& problem) {
 		if (!problem.is_object()) return true;
-		if (HasMaskSettings(problem)) {
+		bool has_mask_settings = false;
+		const auto mon_section = problem.find("mon");
+		if (mon_section != problem.end() && mon_section->is_object()) {
+			for (auto mon = mon_section->begin(); mon != mon_section->end(); ++mon) {
+				if (!mon.value().is_object()) continue;
+				if (mon.value().contains("pinned_range") ||
+				    mon.value().contains("pinned_filename") ||
+				    mon.value().contains("frozen_range") ||
+				    mon.value().contains("frozen_filename")) {
+					has_mask_settings = true;
+					break;
+				}
+			}
+		}
+		if (has_mask_settings) {
 			ProblemShape shape;
-			if (!LoadProblemShape(problem, shape)) return false;
+			const auto lat_section = problem.find("lat");
+			if (lat_section == problem.end() || !lat_section->is_object() || lat_section->empty()) return false;
+			const auto parameters_it = lat_section->begin();
+			if (!parameters_it.value().is_object()) return false;
+			const json& parameters = parameters_it.value();
+			try {
+				shape.gradients = parameters.value("gradients", 1);
+				if (shape.gradients < 1 || shape.gradients > 3) return false;
+				shape.layers[0] = shape.gradients == 1 ? parameters.value("n_layers", -1) : parameters.value("n_layers_x", -1);
+				shape.layers[1] = shape.gradients >= 2 ? parameters.value("n_layers_y", -1) : 1;
+				shape.layers[2] = shape.gradients >= 3 ? parameters.value("n_layers_z", -1) : 1;
+				if (shape.layers[0] < 1 || (shape.gradients >= 2 && shape.layers[1] < 1) || (shape.gradients >= 3 && shape.layers[2] < 1)) return false;
+				if (shape.gradients == 1) {
+					shape.bc[0] = parameters.value("lowerbound", std::string{"mirror"});
+					shape.bc[3] = parameters.value("upperbound", std::string{"mirror"});
+				} else {
+					shape.bc[0] = parameters.value("lowerbound_x", std::string{"mirror"});
+					shape.bc[3] = parameters.value("upperbound_x", std::string{"mirror"});
+					shape.bc[1] = parameters.value("lowerbound_y", std::string{"mirror"});
+					shape.bc[4] = parameters.value("upperbound_y", std::string{"mirror"});
+					if (shape.gradients == 3) {
+						shape.bc[2] = parameters.value("lowerbound_z", std::string{"mirror"});
+						shape.bc[5] = parameters.value("upperbound_z", std::string{"mirror"});
+					}
+				}
+			} catch (const json::exception&) {
+				return false;
+			}
 			if (!NormalizeMasks(problem, shape, base_path)) return false;
 		}
 		return NormalizeInitialGuess(problem, base_path);
@@ -635,7 +569,19 @@ bool PrepareInputFile(const std::string& requested_path, std::string& json_path)
 		};
 	}
 	if (!NormalizeProblems(document, requested_path)) return false;
-	const std::filesystem::path emitted = EmittedJsonPath(requested_path);
+	const std::filesystem::path source(requested_path);
+	std::filesystem::path emitted;
+	if (EndsWith(source.filename().string(), ".input.json")) {
+		emitted = source;
+	} else {
+		const std::filesystem::path parent = source.has_parent_path() ? source.parent_path() : std::filesystem::path(".");
+		if (source.has_stem()) emitted = parent / (source.stem().string() + ".input.json");
+		else {
+			emitted = source.filename();
+			emitted += ".input.json";
+			emitted = parent / emitted;
+		}
+	}
 	std::ofstream out(emitted.c_str(), std::ios::out | std::ios::trunc);
 	if (!out.is_open()) {
 		std::cout << "Failed to write preprocessed input file " << emitted.string() << std::endl;

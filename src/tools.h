@@ -1,11 +1,7 @@
 #ifndef TOOLS_H
 #define TOOLS_H
 #include "namics.h"
-#include <cassert>
-#include <initializer_list>
 #include <span>
-#include <algorithm>
-#include <utility>
 
 template<typename F>
 inline void for_each_x_face(int mmx, int My, int Mz, int bx1, int bxm, int jx, int jy, int by1, int bz1, bool corners, F&& apply) {
@@ -87,35 +83,6 @@ inline void RemoveBoundaries(std::span<T> P, int jx, int jy, int bx1, int bxm, i
 	});
 }
 
-template<typename F>
-inline void for_each_box_site(std::span<const int> Bx, std::span<const int> By, std::span<const int> Bz, int M, int n_box, int Mx, int My, int Mz, int MX, int MY, int MZ, int jx, int jy, int JX, int JY, F&& apply) {
-	assert(Bx.size() >= static_cast<size_t>(n_box));
-	assert(By.size() >= static_cast<size_t>(n_box));
-	assert(Bz.size() >= static_cast<size_t>(n_box));
-	auto project = [](int coord, int limit, int stride) {
-		return (coord > limit) ? (coord - limit) * stride : coord * stride;
-	};
-	for (int p=0; p<n_box; ++p) {
-		const int base = p * M;
-		const int Bxp = Bx[p];
-		const int Byp = By[p];
-		const int Bzp = Bz[p];
-		for (int i=1; i<=Mx; ++i) {
-			const int local_x = i * jx;
-			const int pos_x = project(Bxp + i, MX, JX);
-			for (int j=1; j<=My; ++j) {
-				const int local_y = j * jy;
-				const int pos_y = project(Byp + j, MY, JY);
-				for (int k=1; k<=Mz; ++k) {
-					const int local = base + local_x + local_y + k;
-					const int pos_z = project(Bzp + k, MZ, 1);
-					apply(p, local, pos_x + pos_y + pos_z);
-				}
-			}
-		}
-	}
-}
-
 template <typename T>
 inline void add_shifted(T* dst, const T* src, int n, T scale = T{1}) {
 	for (int i = 0; i < n; ++i) dst[i] += scale * src[i];
@@ -129,16 +96,6 @@ inline void add_weighted(T* dst, const T* src, const T* weights, int n, T scale 
 template <typename T>
 inline void scale_span(T* dst, int n, T scale) {
 	for (int i = 0; i < n; ++i) dst[i] *= scale;
-}
-
-template <typename T>
-inline void add_terms(T* dst, int n, std::initializer_list<std::pair<const T*, T>> terms) {
-	for (const auto& [src, scale] : terms) add_shifted(dst, src, n, scale);
-}
-
-template <typename T>
-inline void add_from_source(const T* src, int n, std::initializer_list<std::pair<T*, T>> targets) {
-	for (const auto& [dst, scale] : targets) add_shifted(dst, src, n, scale);
 }
 
 #endif

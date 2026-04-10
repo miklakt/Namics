@@ -1,10 +1,11 @@
 #include <Eigen/Dense>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <cmath>
-#include <iostream>
 #include <limits>
 #include <numeric>
 #include "sfnewton.h"
-#include "tools.h"
 
 
 SFNewton::SFNewton () : residual{0} {
@@ -52,58 +53,22 @@ C Copyright (2018) Wageningen University, NL.
 
  *NO PART OF THIS WORK MAY BE REPRODUCED, EITHER ELECTRONICALLY OF OTHERWISE*
 
-*/
+ */
        nbits = std::numeric_limits<Real>::digits;	//nbits=52;
-       linesearchlimit = iterations=lineiterations=numIterationsSinceHessian = trouble=resetiteration=0;
-       trouble = resetiteration = 0;
-	numReverseDirection =0;
-	trustregion =0.0;
+       iterations=lineiterations=numIterationsSinceHessian = trouble=resetiteration=0;
 	pseudohessian = samehessian = false;
+	trustfactor = 1.0;
 	e_info = s_info = false;
-	newtondirection  = false ;
-	ignore_newton_direction = true;
 	i_info=1;
 	max_accuracy_for_hessian_scaling = 0.1;
 	linesearchlimit = 20;
-	linetolerance = 9e-1;
-	epsilon = 0.1/std::pow(2.0,nbits/2);
 	minAccuracySoFar = 1e30;
-	reverseDirectionRange = 50;
 	resetHessianCriterion = 1e5;
 	reset_pseudohessian = false;
 	accuracy=1e30;
-	numIterationsSinceHessian=0;
-	maxFrReverseDirection=0.4;
-	numIterationsForHessian=100;
 	minAccuracyForHessian=0.1;
-	reverseDirection.assign(reverseDirectionRange, 0);
 
 }
-
-SFNewton::~SFNewton() {
-}
-
-
-void SFNewton::multiply(Real *v,Real alpha, Real *h, Real *w, int nvar) { //done
-NAMICS_DBG("multiply in Newton" << std::endl);
-	int i=0,i1=0,j=0;
-	Real sum=0;
-	std::vector<Real> x(nvar, 0);
-	for (i=0; i<nvar; i++) {
-		sum = 0;
-		i1 = i-1;
-		for (j=i+1; j<nvar; j++) {
-			sum += w[j] * h[i+nvar*j];
-		}
-		x[i] = (sum+w[i])*h[i+nvar*i];
-		sum = 0;
-		for (j=0; j<=i1; j++) {
-			sum += x[j] * h[i+nvar*j];
-		}
-		v[i] = alpha*(sum+x[i]);
-	}
-}
-
 
 Real SFNewton::norm2(Real*x, int nvar) { //done
 NAMICS_DBG("norm2 in Newton" << std::endl);
@@ -270,15 +235,12 @@ NAMICS_DBG("gausb in Newton " << std::endl);
 	}
 }
 
-Real SFNewton::residue(Real *g, Real *p, Real *x, int nvar, Real alpha) {
-	(void)alpha;
+Real SFNewton::residue(Real *g, Real *p, Real *x, int nvar) {
 NAMICS_DBG("residue in Newton " << std::endl);
 	return std::sqrt(norm2(p,nvar)*norm2(g,nvar)/(1+norm2(x,nvar)));
 }
 
-Real SFNewton::linecriterion(Real *g, Real *g0, Real *p, Real *p0, int nvar) {
-	(void)p0;
-	(void)p;
+Real SFNewton::linecriterion(Real *g, Real *g0, int nvar) {
 NAMICS_DBG("linecriterion in Newton " << std::endl);
 	Real normg,gg0;
 	normg = norm2(g0,nvar);
@@ -298,8 +260,7 @@ NAMICS_DBG("linecriterion in Newton " << std::endl);
 	}
 }
 
-Real SFNewton::newfunction(Real *g, Real *x, int nvar) {
-	(void)x;
+Real SFNewton::newfunction(Real *g, int nvar) {
 NAMICS_DBG("newfunction in Newton " << std::endl);
 	return std::pow(norm2(g,nvar),2);
 }
@@ -307,23 +268,12 @@ NAMICS_DBG("newfunction in Newton " << std::endl);
 void SFNewton::direction(Real *h, Real *p, Real *g, Real *g0, Real *x, int nvar, Real alpha, Real accuracy,bool filter){//done
 NAMICS_DBG("direction in Newton " << std::endl);
 
-	newtondirection = true;
 	newhessian(h,g,g0,x,p,nvar,accuracy,alpha,filter);
 	gausa(h,p,g,nvar);
 	gausb(h,p,nvar);
-	if (ignore_newton_direction) {
-		newtondirection = true;
-	} else {
-		newtondirection = signdeterminant(h,nvar)>0;
-	}
-	if ( !newtondirection ) {
-		std::transform(p, p + nvar, p, [](Real value) { return -value; });
-		if ( e_info && t_info) std::cout << "*";
-	}
 }
 
-void SFNewton::startderivatives(Real *h, Real *g, Real *x, int nvar){ //done
-	(void)x;
+void SFNewton::startderivatives(Real *h, Real *g, int nvar){ //done
 NAMICS_DBG("startderivatives in Newton" << std::endl);
 	Real diagonal = 1+norm2(g,nvar);
 	std::fill_n(h, nvar * nvar, 0);
@@ -332,10 +282,10 @@ NAMICS_DBG("startderivatives in Newton" << std::endl);
 	}
 }
 
-void SFNewton::resethessian(Real *h,Real *g,Real *x,int nvar){ //done
+void SFNewton::resethessian(Real *h,Real *g,int nvar){ //done
 NAMICS_DBG("resethessian in Newton" << std::endl);
 	trouble = 0;
-	startderivatives(h,g,x,nvar);
+	startderivatives(h,g,nvar);
 	resetiteration=iterations;
 }
 
@@ -357,11 +307,7 @@ NAMICS_DBG("newhessian in Newton" << std::endl);
 			gg = std::inner_product(g, g + nvar, g0, Real(0));
 			g2 = std::inner_product(g, g + nvar, g, Real(0));
 
-			if ( !newtondirection ) {
-				multiply(hp.data(),1,h,p,nvar);
-			} else {
-				std::transform(g0, g0 + nvar, hp.begin(), [](Real value) { return -value; });
-			}
+			std::transform(g0, g0 + nvar, hp.begin(), [](Real value) { return -value; });
 
 			php = std::inner_product(p, p + nvar, hp.begin(), Real(0));
 			theta = py/(10*dmin+ALPHA*php);
@@ -386,7 +332,7 @@ NAMICS_DBG("newhessian in Newton" << std::endl);
 
 				updatpos(h,y.data(),p,nvar,1.0/sum);
 				trouble -= signdeterminant(h,nvar);
-				if ( trouble<0 ) trouble = 0; else if ( trouble>=3 ) resethessian(h,g,x,nvar);
+				if ( trouble<0 ) trouble = 0; else if ( trouble>=3 ) resethessian(h,g,nvar);
 			} else if ( nvar>=1 && py>0 ) {
 				trouble = 0;
 				theta = py>0.2*ALPHA*php ? 1 : 0.8*ALPHA*php/(ALPHA*php-py);
@@ -399,7 +345,7 @@ NAMICS_DBG("newhessian in Newton" << std::endl);
 				updatpos(h,y.data(),y.data(),nvar,1.0/(ALPHA*py));
 				updateneg(h,hp.data(),nvar,-1.0/php);
 			}
-		} else if ( !samehessian ) resethessian(h,g,x,nvar);
+		} else if ( !samehessian ) resethessian(h,g,nvar);
 	}
 }
 
@@ -471,7 +417,7 @@ NAMICS_DBG("decomposition in Newton" << std::endl);
 void SFNewton::findhessian(Real *h, Real *g, Real *x,int nvar,bool filter) {//done
 NAMICS_DBG("findhessian in Newton" << std::endl);
 	if ( !samehessian ) {
-		if ( iterations==0 ) resethessian(h,g,x,nvar);
+		if ( iterations==0 ) resethessian(h,g,nvar);
 		numhessian(h,g,x,nvar,filter); // passes through residuals so check pseudohessian
 		if (!pseudohessian) {
 			decomposition(h,nvar,trouble);
@@ -484,7 +430,7 @@ Real SFNewton::newdirection(Real *h, Real *p, Real *p0, Real *g, Real *g0, Real 
 NAMICS_DBG("newdirection in Newton" << std::endl);
 
 	memcpy(p0, p, sizeof(*p0)*nvar);
-	Real accuracy=residue(g,p,x,nvar,ALPHA);
+	Real accuracy=residue(g,p,x,nvar);
 	direction(h,p,g,g0,x,nvar,ALPHA,accuracy,filter);
 	return accuracy;
 }
@@ -544,18 +490,18 @@ NAMICS_DBG("zero in Newton " << std::endl);
 				g[i] = 1;
 		}
 	}
-	minimum=newfunction(g,x,nvar);
+	minimum=newfunction(g,nvar);
 	return alpha;
 }
 
-Real SFNewton::stepchange(Real *g, Real *g0, Real *p, Real *p0, Real *x, Real *x0, int nvar, Real &alpha,bool filter){//done
+Real SFNewton::stepchange(Real *g, Real *g0, Real *p, Real *x, Real *x0, int nvar, Real &alpha,bool filter){//done
 NAMICS_DBG("stepchange in Newton" << std::endl);
 	Real change, crit;
-	change = crit = linecriterion(g,g0,p,p0,nvar);
+	change = crit = linecriterion(g,g0,nvar);
 	while ( crit<0.35 && lineiterations<linesearchlimit ) {
 		alpha /= 4;
 		zero(g,g0,p,x,x0,nvar,alpha,filter);
-		crit = linecriterion(g,g0,p,p0,nvar);
+		crit = linecriterion(g,g0,nvar);
 		change = 1;
 	}
 	return change;
@@ -678,11 +624,11 @@ NAMICS_DBG("iterate in SFNewton" << std::endl);
 	}
 
 	newhessian(h.data(),g.data(),g0.data(),x,p.data(),nvar,accuracy,ALPHA,filter);
-	minimum=newfunction(g.data(),x,nvar);
-	inneriteration(x,g.data(),h.data(),accuracy,delta_max,ALPHA,nvar);
+	minimum=newfunction(g.data(),nvar);
+	inneriteration(g.data(),h.data(),accuracy,delta_max,ALPHA,nvar);
 	accuracy=newdirection(h.data(),p.data(),p0.data(),g.data(),g0.data(),x,nvar,ALPHA,filter);
-	normg=std::sqrt(minimum);
-	accuracy=residue(g.data(),p.data(),x,nvar,ALPHA);
+	Real normg = std::sqrt(minimum);
+	accuracy=residue(g.data(),p.data(),x,nvar);
 
 	while ((tolerance < accuracy || tolerance*10<normg) && iterations<iterationlimit && accuracy == std::fabs(accuracy) ) {
 		if (e_info)
@@ -700,9 +646,9 @@ NAMICS_DBG("iterate in SFNewton" << std::endl);
 		std::copy_n(x, nvar, x0.begin());
 		std::copy_n(g.begin(), nvar, g0.begin());
 		ALPHA = linesearch(g.data(),g0.data(),p.data(),x,x0.data(),nvar,alphabound,filter);
-		trustfactor *= stepchange(g.data(),g0.data(),p.data(),p0.data(),x,x0.data(),nvar,ALPHA,filter);
+		trustfactor *= stepchange(g.data(),g0.data(),p.data(),x,x0.data(),nvar,ALPHA,filter);
 		trustfactor *= ALPHA/alphabound;
-		inneriteration(x,g.data(),h.data(),accuracy,delta_max,ALPHA,nvar);
+		inneriteration(g.data(),h.data(),accuracy,delta_max,ALPHA,nvar);
 		accuracy=newdirection(h.data(),p.data(),p0.data(),g.data(),g0.data(),x,nvar,ALPHA,filter);
 		normg=std::sqrt(minimum);
 	}
@@ -927,57 +873,5 @@ bool SFNewton::iterate_DIIS(Real*x,int nvar_, int m, int iterationlimit,Real tol
 			std::cerr << "Detected invalid DIIS coefficient normalization." << std::endl;
 		exit(1);
 	}
-	return success;
-}
-
-bool SFNewton::iterate_RF(Real*x, int nvar_,int iterationlimit,Real tolerance, Real delta_max, std::string s) {
-	(void)s;
-NAMICS_DBG("Iterate_RF in SFNewton " << std::endl);
-	int nvar=nvar_;
-	bool success;
-	std::vector<Real> x0(nvar, 0);
-	std::vector<Real> g(nvar, 0);
-	Real a=0, b=0, c=0, fa=0, fb=0, fc=0;
-	Real res=100.0;
-	int k=0,it=0;
-
-	while ((it<iterationlimit) && (std::abs(res)>tolerance)) {
-		if (it>0) {
-			it=0;
-			std::cout <<"restart regular falsi" << std::endl;
-		}
-		Real x_start=x[0];
-		residuals(x,g.data());
-		a=1;
-		fa=g[0];
-		x[0]=(a+delta_max)*x_start;
-
-		residuals(x,g.data());
-		b=x[0]/x_start;
-
-		fb=g[0];
-		if(fa==fb) std::cout << "WARNING: The Denominator in Regula Falsi is zero for finding the closest root."<<std::endl;
-		c = a - 0.5*((fa*(a-b))/(fa-fb));
-		x[0]=c*x_start;
-		residuals(x,g.data());
-		fc=g[0]; res=fc;
-		k=0;
-
-		while((k<iterationlimit/10) && (std::abs(res)>tolerance)){
-			c = a-0.5*((fa*(a-b))/(fa-fb)); x[0]=c*x_start;residuals(x,g.data());fc=g[0];
-			if(fc*fb<0){
-				b=c; x[0]=b*x_start; residuals(x,g.data()); fb=g[0]; res=fb;
-			} else {
-				a=c; x[0]=a*x_start; residuals(x,g.data()); fa=g[0]; res=fa;
-			}
-			k++; it++;
-			if(fa==fb) std::cout << "WARNING: The Denominator in Regula Falsi is zero for finding the closest root."<<std::endl;
-			if (e_info || it>49) {
-				if (it==1||it==2||it==4||it==8||it==16||it==32 || (it>50 &&it%10==0)) std::cout << "s_it = " << it << " g = " <<	res << std::endl;
-			}
-		}
-	}
-
-	success=Message(e_info,s_info,it,iterationlimit,residual,tolerance,"");
 	return success;
 }

@@ -7,51 +7,6 @@
 
 namespace {
 
-const std::vector<std::string>& LatticeKeys() {
-	static const std::vector<std::string> keys = {
-		"gradients", "n_layers", "offset_first_layer", "geometry",
-		"n_layers_x", "n_layers_y", "n_layers_z",
-		"lowerbound", "upperbound",
-		"lowerbound_x", "upperbound_x",
-		"lowerbound_y", "upperbound_y",
-		"lowerbound_z", "upperbound_z",
-		"bondlength", "ignore_site_fraction", "fcc_site_fraction",
-		"lattice_type", "stencil_full", "FJC_choices", "b/l"
-	};
-	return keys;
-}
-
-bool ParseSelection(const Input& in, const std::string& name, int start, LatticeSelection& selection) {
-	const auto& parameters = in.Parameters("lat", name, start);
-	bool success = true;
-	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
-		if (ContainsValue(LatticeKeys(), it.key())) continue;
-		success = false;
-		std::cout << "lat property '" << it.key() << "' is unknown. Select from: " << std::endl;
-		for (const std::string& item : LatticeKeys()) std::cout << item << std::endl;
-	}
-	if (!success) return false;
-
-	try {
-		selection.gradients = parameters.value("gradients", 1);
-		if (selection.gradients < 1 || selection.gradients > 3) {
-			std::cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << std::endl;
-			selection.gradients = 1;
-		}
-
-		selection.geometry = parameters.value("geometry", std::string{"planar"});
-		if (selection.geometry != "spherical" && selection.geometry != "cylindrical" && selection.geometry != "flat" && selection.geometry != "planar") {
-			std::cout << "In lattice input for 'geometry' not recognized." << std::endl;
-			return false;
-		}
-	} catch (const nlohmann::json::exception& error) {
-		std::cout << "Invalid json type in lat '" << name << "': " << error.what() << std::endl;
-		return false;
-	}
-	if (selection.geometry == "flat") selection.geometry = "planar";
-	return true;
-}
-
 template <typename VecFn1, typename VecFn2, typename VecFn3>
 void AssignBoundary(std::string_view bc,
                     int fjc,
@@ -108,7 +63,40 @@ namespace lattice_factory {
 
 std::unique_ptr<Lattice> CreateChecked(const Input& in, const std::string& name, int start) {
 	LatticeSelection selection;
-	if (!ParseSelection(in, name, start, selection)) return nullptr;
+	const auto& parameters = in.Parameters("lat", name, start);
+	const std::vector<std::string> keys = {
+		"gradients", "n_layers", "offset_first_layer", "geometry",
+		"n_layers_x", "n_layers_y", "n_layers_z",
+		"lowerbound", "upperbound",
+		"lowerbound_x", "upperbound_x",
+		"lowerbound_y", "upperbound_y",
+		"lowerbound_z", "upperbound_z",
+		"bondlength", "ignore_site_fraction", "fcc_site_fraction",
+		"lattice_type", "stencil_full", "FJC_choices", "b/l"
+	};
+	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
+		if (ContainsValue(keys, it.key())) continue;
+		std::cout << "lat property '" << it.key() << "' is unknown. Select from: " << std::endl;
+		for (const std::string& item : keys) std::cout << item << std::endl;
+		return nullptr;
+	}
+	try {
+		selection.gradients = parameters.value("gradients", 1);
+		if (selection.gradients < 1 || selection.gradients > 3) {
+			std::cout << "value of gradients out of bounds 1..3; default value '1' is used instead " << std::endl;
+			selection.gradients = 1;
+		}
+
+		selection.geometry = parameters.value("geometry", std::string{"planar"});
+		if (selection.geometry != "spherical" && selection.geometry != "cylindrical" && selection.geometry != "flat" && selection.geometry != "planar") {
+			std::cout << "In lattice input for 'geometry' not recognized." << std::endl;
+			return nullptr;
+		}
+	} catch (const nlohmann::json::exception& error) {
+		std::cout << "Invalid json type in lat '" << name << "': " << error.what() << std::endl;
+		return nullptr;
+	}
+	if (selection.geometry == "flat") selection.geometry = "planar";
 
 	if (auto lattice = TryCreate<LGrad1>(in, name, start, selection)) return lattice;
 	if (auto lattice = TryCreate<LGrad2>(in, name, start, selection)) return lattice;
@@ -405,9 +393,8 @@ NAMICS_DBG("CheckInput in lattice " << std::endl);	bool success=true;
 	return success;
 }
 
-bool Lattice::PrepareForCalculations(void) {
+void Lattice::PrepareForCalculations(void) {
 NAMICS_DBG("PrepareForCalculations in lattice" << std::endl);
-	return true;
 }
 
 std::span<Real> Lattice::GetPointer(int profile) {
@@ -475,6 +462,4 @@ NAMICS_DBG("PushOutput in lat " << std::endl);
 			break;
 	}
 }
-
-
 

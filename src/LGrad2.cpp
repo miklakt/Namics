@@ -1,12 +1,7 @@
-#include <iostream>
-#include <string>
 #include "LGrad2.h"
 #include "tools.h"
 
 LGrad2::LGrad2(const Input& In_,const std::string& name_): Lattice(In_,name_) {}
-
-LGrad2::~LGrad2() {
-NAMICS_DBG("LGrad2 destructor " << std::endl);}
 
 bool LGrad2::CheckLatticeInput(const ParameterStore& parameters) {
 	bool success = RejectScalarBoundsInMultiD(parameters);
@@ -104,8 +99,8 @@ void LGrad2:: ComputeLambdas() {
 	}
 }
 
-bool LGrad2::PutM() {
-NAMICS_DBG("PutM in LGrad2 " << std::endl);	bool success=true;
+void LGrad2::PutM() {
+NAMICS_DBG("PutM in LGrad2 " << std::endl);
 
 	if (geometry=="cylindrical")
 		volume = MY*PIE*(std::pow(MX+offset_first_layer,2)-std::pow(offset_first_layer,2));
@@ -113,7 +108,6 @@ NAMICS_DBG("PutM in LGrad2 " << std::endl);	bool success=true;
 	JX=MY+2*fjc; JY=1; JZ=0; M=(MX+2*fjc)*(MY+2*fjc);
 
 	Accesible_volume=volume;
-	return success;
 }
 
 Real LGrad2:: Moment(Real* X,Real Xb, int n) {
@@ -131,7 +125,6 @@ NAMICS_DBG("Moment in LGrad2 " << std::endl);	Real Result=0;
 			if (Nz>0) zz++;
 			if (zz>0) Result+= std::pow(zz,n)*Nz;
 		}
-	} else {
 	}
 	return Result/fjc;
 }
@@ -450,8 +443,7 @@ NAMICS_DBG(" propagate in LGrad2 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 }
 
 
-void LGrad2::UpdateEE(Real* EE, Real* psi, Real* E) {
-	(void)E;
+void LGrad2::UpdateEE(Real* EE, Real* psi) {
 	Real pf=0.5*eps0*bond_length/k_BT*(k_BT/e)*(k_BT/e); //(k_BT/e) is to convert dimensionless psi to real psi; 0.5 is needed in weighting factor.
 	if (geometry == "planar") {
 		set_M_bounds(psi);
@@ -877,61 +869,10 @@ NAMICS_DBG("set_bounds in LGrad2 " << std::endl);	int x,y;
 	}
 }
 
-Real LGrad2::ComputeGN(Real* G, int M){
+Real LGrad2::ComputeGN(Real* G){
 	return WeightedSum(G);
 }
 
 void LGrad2::Initiate(Real* G,Real* Gz){
 	std::copy_n(Gz, M, G);
-}
-
-bool LGrad2:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){
-	(void)pz;
-NAMICS_DBG("PutMask in LGrad2 " << std::endl);	//R*=fjc; //is already done in segment
-	if (geometry == "planar") {
-		(void)R;
-		(void)py;
-		(void)px;
-		(void)MASK;
-		bool success=false;
-		std::cout <<"PutMask does not make sense in planar 2 gradient system " << std::endl;
-		return success;
-	}
-	bool success=true;
-	int length =px.size();
-	int X,Y;
-	int dx,dy;
-	Real teller,noemer;
-	if (length > 1) {
-		std::cout <<"In two gradient system, we can have just one particle: we found " <<length <<"particles. " << std::endl;
-		return false;
-	}
-	for (int i =0; i<length; i++) {
-		int xx,yy;
-		xx=px[i]; yy=py[i];
-		if (xx !=0) {
-			std::cout <<"In two gradients system, we expect the particle at the central axis" << std::endl;
-			return false;
-		}
-		if (R>MX || R>MY) {std::cout <<" particle should be smaller than size of box in X or Y direction" << std::endl; return false;}
-		for (int x=1; x<R+2; x++)
-		for (int y=yy-R; y<yy+R+2; y++){
-			X=x; Y=y;
-			if (x*x+(yy-y)*(yy-y) <=(R+1)*(R+1)) {
-				if (x*x+(yy-y)*(yy-y) <=(R-1)*(R-1)) {
-					if (!(y<fjc || y>MY+fjc-1))  MASK[P(X,Y)]++;
-				} else {
-					teller=0; noemer=0;
-					for (dx=0; dx<10; dx++) {
-						for (dy=0; dy<10; dy++) {
-							noemer +=x+dx/10;
-							if ((x+dx)*(x+dx)+(yy-y-dy)*(yy-y-dy) <=R*R) teller +=x+dx/10;
-						}
-					}
-					if (!(y<fjc || y>MY+fjc-1))  MASK[P(X,Y)]=teller/noemer;
-				} //at the edge
-			} //else too large
-		}
-	}
-	return success;
 }

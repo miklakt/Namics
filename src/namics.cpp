@@ -1,4 +1,3 @@
-#include "tools.h"
 #include "input.h"
 #include "input_preprocessor.h"
 #include "io_utils.h"
@@ -10,7 +9,6 @@
 #include "state.h"
 #include "reaction.h"
 #include "system.h"
-#include "sfnewton.h"
 #include "solve_scf.h"
 #include <filesystem>
 #include <memory>
@@ -90,7 +88,7 @@ int main(int argc, char *argv[])
 	{
 		return 0;
 	}
-	n_starts = In->GetNumStarts();
+	n_starts = In->starts.is_array() ? static_cast<int>(In->starts.size()) : 0;
 	if (n_starts == 0)
 		n_starts++; // Default to 1 start..
 
@@ -113,7 +111,7 @@ int main(int argc, char *argv[])
 		Seg.clear();
 		Seg.reserve(n_seg);
 		for (int i = 0; i < n_seg; i++) {
-			Seg.push_back(std::make_unique<Segment>(In.get(), Lat.get(), In->MonList[i], i, n_seg));
+			Seg.push_back(std::make_unique<Segment>(In.get(), Lat.get(), In->MonList[i]));
 		}
 		//Create state class instance and check inputs
 		int n_stat = In->StateList.size();

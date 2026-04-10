@@ -4,7 +4,6 @@
 class LGrad1 : public Lattice
 {
 	public: LGrad1(const Input& In_,const std::string& name_);
-	virtual ~LGrad1();
 	static bool Matches(const LatticeSelection& selection) {
 		return selection.gradients == 1;
 	}
@@ -14,7 +13,7 @@ class LGrad1 : public Lattice
 
 	public:
 
-	bool PutM();
+	void PutM();
 	Real Moment(Real*,Real,int);
 	Real WeightedSum(Real*);
 	void remove_bounds(Real*);
@@ -25,13 +24,12 @@ class LGrad1 : public Lattice
 	void set_M_bounds(Real*);
 
 	virtual void ComputeLambdas(void);
-	virtual void UpdateEE(Real*, Real*,Real*);
+	virtual void UpdateEE(Real*, Real*);
 	virtual void UpdatePsi(Real*, Real*, Real* , Real*, Real*,bool,bool);
 	virtual void UpdateQ(Real*,Real*,Real*,Real*,Real*,bool);
 	virtual void Side(Real *, Real *, int);
 	virtual void propagate(Real*,Real*, int, int,int);
-	virtual Real ComputeGN(Real*, int);
+	virtual Real ComputeGN(Real*);
 	virtual void Initiate(Real*,Real*);
-	bool PutMask(Real* ,std::vector<int>,std::vector<int>,std::vector<int>,int);
 };
 #endif

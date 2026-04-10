@@ -1,13 +1,8 @@
-#include <iostream>
-#include <string>
 #include "LGrad1.h"
 #include "tools.h"
 
 LGrad1::LGrad1(const Input& In_,const std::string& name_): Lattice(In_,name_) {
 NAMICS_DBG("LGrad1 constructor " << std::endl);}
-
-LGrad1::~LGrad1() {
-NAMICS_DBG("LGrad1 destructor " << std::endl);}
 
 bool LGrad1::CheckLatticeInput(const ParameterStore& parameters) {
 	bool success = ReadScaledDimension(parameters, "n_layers", MX, 0, "In 'lat' the parameter 'n_layers' is required. Problem terminated", "n_layers out of bounds, currently: 0..1e6; Problem terminated");
@@ -186,15 +181,14 @@ NAMICS_DBG("LGrad1 computeLambda's " << std::endl);
 	}
 }
 
-bool LGrad1::PutM() {
-NAMICS_DBG("PutM in LGrad1 " << std::endl);	bool success=true;
+void LGrad1::PutM() {
+NAMICS_DBG("PutM in LGrad1 " << std::endl);
 	JX=1; JY=0; JZ=0; M=MX+2*fjc;
 	if (geometry=="planar") {volume = MX/fjc; }
 	if (geometry=="spherical") {volume = 4.0/3.0*PIE*(std::pow(MX+offset_first_layer,3)-std::pow(offset_first_layer,3))/fjc/fjc/fjc;}
 	if (geometry=="cylindrical") {volume = PIE*(std::pow(MX+offset_first_layer,2)-std::pow(offset_first_layer,2))/fjc/fjc;}
 
 	Accesible_volume=volume;
-	return success;
 }
 
 Real LGrad1:: Moment(Real* X,Real Xb, int n) {
@@ -287,8 +281,7 @@ NAMICS_DBG(" propagate in LGrad1 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 }
 
 
-void LGrad1::UpdateEE(Real* EE, Real* psi, Real* E) {
-	(void)E;
+void LGrad1::UpdateEE(Real* EE, Real* psi) {
 	Real pf=0.5*eps0*bond_length/k_BT*(k_BT/e)*(k_BT/e); //(k_BT/e) is to convert dimensionless psi to real psi; 0.5 is needed in weighting factor.
 	if (geometry == "planar") {
 		set_M_bounds(psi);
@@ -595,32 +588,10 @@ NAMICS_DBG("set_bounds in LGrad1 " << std::endl);	int k=0;
 	}
 }
 
-Real LGrad1::ComputeGN(Real* G, int M){
-	(void)M;
+Real LGrad1::ComputeGN(Real* G){
 	return WeightedSum(G);
 }
 
 void LGrad1::Initiate(Real* G,Real* Gz){
 	std::copy_n(Gz, M, G);
-}
-
-bool LGrad1:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){
-	if (geometry == "planar") {
-		(void)R;
-		(void)pz;
-		(void)py;
-		(void)px;
-		(void)MASK;
-		bool success=true;
-		std::cout <<"PutMask does not make sence in planar 1 gradient system " << std::endl;
-		return success;
-	}
-	(void)R;
-	(void)pz;
-	(void)py;
-	(void)px;
-	(void)MASK;
-	bool success=false;
-	std::cout <<"PutMask does not make sense in 1 gradient system " << std::endl;
-	return success;
 }

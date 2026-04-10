@@ -22,9 +22,6 @@ NAMICS_DBG("constructor in Output "<< std::endl);	In=In_; Seg=Seg_; Sta=Sta_; Re
 	lat=Lat_;
 }
 
-Output::~Output() {
-NAMICS_DBG("destructor in output " << std::endl);}
-
 bool Output::Load() {
 NAMICS_DBG("Load in output " << std::endl);
 	items = In->LoadItems(name);
@@ -132,7 +129,7 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		base_name = out_path.has_stem() ? out_path.stem().string() : out_path.filename().string();
 		if (base_name.size() > 6 && base_name.compare(base_name.size() - 6, 6, ".input") == 0) base_name.resize(base_name.size() - 6);
 		if (base_name.empty()) base_name = "output";
-		filename = In->GetOutputPath() + base_name + ".output.json";
+		filename = In->output_path + base_name + ".output.json";
 	}
 
 	json problem = {

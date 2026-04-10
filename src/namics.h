@@ -2,11 +2,8 @@
 #ifndef NAMICSxH
 #define NAMICSxH
 #include <cmath>
-#include <cstdio>
-#include <cstdlib>
 
 #include <iostream>
-#include <cstring>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -14,11 +11,9 @@
 #include <array>
 #include <iterator>
 #include <algorithm>
-#include <unordered_map>
 #include <span>
 #include <nlohmann/json.hpp>
 
-#include <iomanip>
 #include <memory>
 #include "debug_log.h"
 
@@ -42,8 +37,5 @@ extern Real k_B;
 extern Real k_BT;
 extern Real PIE;
 extern Real eps0;
-enum transfer {to_segment, to_bm, reset};
-enum EngineType {SCF};
 enum LatticeType {simple_cubic, hexagonal};
-enum CP{co_solvent_theta,co_solvent_phibulk,chi_C_D};
 #endif

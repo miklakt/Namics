@@ -4,7 +4,6 @@
 #include "input.h"
 #include "segment.h"
 #include "lattice.h"
-#include "tools.h"
 
 class Molecule {
 public:
@@ -21,7 +20,6 @@ public:
 	struct OutputRequest {
 		bool segment_density = false;
 		bool ranked_density = false;
-		bool any() const { return segment_density || ranked_density; }
 	};
 	using Topology = std::vector<Node>;
 
@@ -48,7 +46,6 @@ public:
 	std::vector<Real> phitot;
 	std::vector<Real> q_forward;
 	std::vector<Real> G_unity;
-	Real B = 1;
 	OutputRequest output_request;
 	ParameterStore OUTPUT;
 	std::span<const int> SegmentTypes() const noexcept { return segment_types; }
@@ -63,8 +60,8 @@ public:
 	bool IsCharged(void);
 	Real Charge(void);
 	void AllocateMemory(void);
-	bool PrepareForCalculations(std::span<const Real>);
-	bool ComputeGN();
+	void PrepareForCalculations(std::span<const Real>);
+	void ComputeGN();
 	void FinalizeOutputs();
 	Real fraction(int);
 	void AccumulateDensity(std::span<Real> system_phitot);
@@ -88,7 +85,7 @@ private:
 	void AddSegmentDensity(int, std::span<const Real>, bool, std::span<Real>, std::span<Real>);
 	void PropagateForward();
 	void PropagateBackward(int, std::span<const Real>, bool, std::span<Real>, std::span<Real>);
-	bool AccumulateDensity(bool, std::span<Real>, std::span<Real>);
+	void AccumulateDensity(bool, std::span<Real>, std::span<Real>);
 };
 
 namespace molecule_factory {

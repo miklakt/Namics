@@ -8,19 +8,15 @@
 #include "reaction.h"
 #include "lattice.h"
 #include "molecule.h"
-#include "tools.h"
 #include "sfnewton.h"
 #include <Eigen/Core>
 #include <LBFGS.h>
 typedef Eigen::Matrix<Real,Eigen::Dynamic,1> Vector;
-typedef Eigen::Matrix<Real,Eigen::Dynamic,Eigen::Dynamic> Matrix;
 using namespace LBFGSpp;
 
 
 class Solve_scf : public SFNewton {
 public:
-	Solve_scf() {};
-
 	Solve_scf(const Input*,Lattice*,std::span<const std::unique_ptr<Segment>>,std::span<const std::unique_ptr<State>>,std::span<const std::unique_ptr<Reaction>>,std::span<const std::unique_ptr<Molecule>>,System*,std::string);
 
 	~Solve_scf();
@@ -61,7 +57,7 @@ public:
 
 	bool CheckInput(int);
 	void Copy(std::span<Real>,std::span<const Real>,int,int,int,int);
-	bool Guess(std::span<const Real>,std::vector<std::string>,std::vector<std::string>,bool,int,int,int,int);
+	void Guess(std::span<const Real>,std::vector<std::string>,std::vector<std::string>,bool,int,int,int,int);
 
 	bool Solve(bool);
 
@@ -69,7 +65,7 @@ public:
 	void AllocateMemory();
 	void residuals(Real*,Real*);
 
-	void inneriteration(Real*,Real*,Real*,Real,Real&,Real,int);
+	void inneriteration(Real*,Real*,Real,Real&,Real,int);
 
 };
 #endif

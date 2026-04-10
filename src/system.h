@@ -38,7 +38,6 @@ public:
 	std::vector<Real> eps;
 	std::vector<Real> psi;
 	std::vector<Real> EE;
-	std::vector<Real> E;
 	std::vector<Real> psiMask;
 	bool fixedPsi0;
 	bool grad_epsilon;
@@ -64,22 +63,20 @@ public:
 	void DeAllocateMemory();
 	bool CheckInput(int);
 	bool CheckChi_values(int);
-	bool MakeItsLists();
+	void MakeItsLists();
 	bool IsUnique(int,int);
 	void AllocateMemory();
-	bool PrepareForCalculations(bool);
-	bool generate_mask();
-	bool ComputePhis();
-	void ComputePhis(std::span<const Real>,bool);
+	void PrepareForCalculations(bool);
+	void generate_mask();
+	void ComputePhis();
 	void FinalizeOutputs();
-	bool PutU(std::span<const Real>);
-	void Classical_residual(std::span<const Real>,std::span<Real>,Real,int);
+	void PutU(std::span<const Real>);
+	void Classical_residual(std::span<const Real>,std::span<Real>,int);
 
 	void DoElectrostatics(std::span<Real>,std::span<const Real>);
 	bool CheckResults(bool);
-	Real GetE(int,int);
 	Real GetFreeEnergy();
 	Real GetGrandPotential();
-	bool CreateMu(int);
+	void CreateMu(int);
 };
 #endif

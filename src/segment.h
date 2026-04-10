@@ -3,10 +3,9 @@
 #include "namics.h"
 #include "input.h"
 #include "lattice.h"
-#include "tools.h"
 class Segment {
 public:
-	Segment(const Input*,Lattice*,std::string,int,int);
+	Segment(const Input*,Lattice*,std::string);
 
 ~Segment();
 
@@ -15,8 +14,6 @@ public:
 	Lattice* lat;
 
 	std::vector<Real> chi;
-	int n_seg;
-	int seg_nr;
 	bool unique;
 	int seg_nr_of_copy;
 	int state_nr_of_copy;
@@ -57,19 +54,16 @@ public:
 	std::vector<Real> u_ext;
 
 	std::vector<Real> alpha;//fraction of segment in specfied state
-	std::vector<Real> ALPHA; //Lagrange parameter per segement for steady state
 	int ItState;
 
 	bool CheckInput(int);
-	Real PinnedVolume();
 	void DeAllocateMemory();
 	void AllocateMemory();
-	bool PrepareForCalculations(std::span<const Real>,bool);
+	void PrepareForCalculations(std::span<const Real>,bool);
 	bool ParseFreedoms();
 	void UpdateValence(Real*,std::span<Real>,std::span<Real>,std::span<Real>,bool);
 	int AddState(int,Real,Real,bool);
 	void SetPhiSide();
-	bool PutAlpha(Real);
-	bool CanBeReached(int, int, int, int);
+	void PutAlpha(Real);
 };
 #endif

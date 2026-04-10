@@ -1,5 +1,4 @@
 #include "solve_scf.h"
-#include <iostream>
 
 Solve_scf::Solve_scf(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_, std::span<const std::unique_ptr<State>> Sta_, std::span<const std::unique_ptr<Reaction>> Rea_, std::span<const std::unique_ptr<Molecule>> Mol_,System* Sys_,std::string name_) :
 	name{name_}, In{In_}, Sys{Sys_}, Seg{Seg_}, lat{Lat_}, Mol{Mol_}, Sta{Sta_}, Rea{Rea_}
@@ -45,7 +44,6 @@ NAMICS_DBG("AllocateMemeory in Solve " << std::endl);
 bool Solve_scf::CheckInput(int start_) { start=start_;
 NAMICS_DBG("CheckInput in Solve " << std::endl);
 	pseudohessian =false;
-	deltamin =0.1;
 	s_info=false;
 	e_info=false;
 	t_info=false;
@@ -64,8 +62,7 @@ NAMICS_DBG("CheckInput in Solve " << std::endl);
 		"method", "e_info", "s_info", "i_info", "t_info", "hs_info",
 		"iterationlimit", "tolerance", "stop_criterion", "deltamin", "deltamax",
 		"linesearchlimit", "max_accuracy_for_hessian_scaling", "n_iterations_for_hessian",
-		"small_alpha", "max_n_small_alpha", "min_accuracy_for_hessian",
-		"max_fr_reverse_direction", "m", "n_restart_DIIS"
+		"small_alpha", "max_n_small_alpha", "min_accuracy_for_hessian", "m", "n_restart_DIIS"
 	};
 	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
 		if (ContainsValue(keys, it.key())) continue;
@@ -90,8 +87,7 @@ NAMICS_DBG("CheckInput in Solve " << std::endl);
 		}
 		deltamax=parameters.value("deltamax",0.1);
 		if (deltamax < 0 || deltamax>100) {deltamax = 0.1;  std::cout << "Value of deltamax out of range 0..100, and value set to default value 0.1" <<std::endl; }
-		deltamin=0;
-		deltamin=parameters.value("deltamin",deltamin);
+		deltamin=parameters.value("deltamin",0.0);
 		if (deltamin < 0 || deltamin>100) {deltamin = deltamax/100000;  std::cout << "Value of deltamin out of range 0..100, and value set to default value deltamax/100000" <<std::endl; }
 		tolerance=parameters.value("tolerance",1e-7);
 		if (tolerance < 1e-16 ||tolerance>10) {tolerance = 1e-5;  std::cout << "Value of tolerance out of range 1e-12..10 Value set to default value 1e-5" <<std::endl; }
@@ -122,12 +118,6 @@ NAMICS_DBG("CheckInput in Solve " << std::endl);
 				std::cout <<"min_accuracy_for_hessian is out of range: 0...0.1; default value 0 is used instead (no hessian computation)" << std::endl;
 				minAccuracyForHessian=0;
 			}
-			maxFrReverseDirection =parameters.value("max_fr_reverse_direction",0.4);
-			if (maxFrReverseDirection <0.1 ||maxFrReverseDirection >0.5) {
-				std::cout <<"max_fr_reverse_direction is out of range: 0.1...0.5; default value 0.4 is used instead" << std::endl;
-				maxFrReverseDirection =0.4;
-			}
-
 			n_iterations_for_hessian=parameters.value("n_iterations_for_hessian",iterationlimit+100);
 			if (n_iterations_for_hessian<1 ) {
 				std::cout <<" n_iterations_for_hessian setting must be larger than unity; hessian evaluations will not be done " << std::endl;
@@ -153,7 +143,6 @@ NAMICS_DBG("CheckInput in Solve " << std::endl);
 			solver=diis;
 			m=parameters.value("m",10);
 			if (m < 0 ||m>100) {m=10;  std::cout << "Value of 'm' out of range 0..100, value set to default value 10" <<std::endl; }
-			restart_DIIS=iterationlimit;
 			restart_DIIS=parameters.value("n_restart_DIIS",iterationlimit);
 			if (restart_DIIS < 0 || restart_DIIS > iterationlimit*10) {
 				restart_DIIS=iterationlimit; std::cout <<"Value of 'n_restart_DIIS' out of range 0 .. iterationlimit; value set to iterationlimit" << std::endl;
@@ -292,10 +281,9 @@ void Solve_scf::Copy(std::span<Real> x, std::span<const Real> X, int MX, int MY,
 	}
 }
 
-bool Solve_scf::Guess(std::span<const Real> X, std::vector<std::string> MONLIST, std::vector<std::string> STATELIST, bool CHARGED, int MX, int MY, int MZ,int fjc_old){
+void Solve_scf::Guess(std::span<const Real> X, std::vector<std::string> MONLIST, std::vector<std::string> STATELIST, bool CHARGED, int MX, int MY, int MZ,int fjc_old){
 	NAMICS_DBG( "Guess in Solve" << std::endl);
 	int M=lat->M;
-	bool success=true;
 	int m;
 	if (MZ>0) {m=(MX+2)*(MY+2)*(MZ+2); } else { if (MY>0) { m=(MX+2*fjc_old)*(MY+2*fjc_old); } else {  m=(MX+2*fjc_old);}}
 
@@ -328,35 +316,24 @@ bool Solve_scf::Guess(std::span<const Real> X, std::vector<std::string> MONLIST,
 		     X.subspan(static_cast<size_t>((length_old_mon + length_old_state) * m), static_cast<size_t>(m)),
 		     MX,MY,MZ,fjc_old);
 	}
-	return success;
 }
 
 class SCF_LBFGS
 {
 private:
-    const Input* In;
-    Lattice* Lat;
-    std::span<const std::unique_ptr<Segment>> Seg;
-    std::span<const std::unique_ptr<State>> Sta;
-    std::span<const std::unique_ptr<Reaction>> Rea;
-    std::span<const std::unique_ptr<Molecule>> Mol;
     System* Sys;
     int iterations =0;
-    Real residual=1;
 public:
-    SCF_LBFGS(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_,std::span<const std::unique_ptr<State>> Sta_,std::span<const std::unique_ptr<Reaction>> Rea_,std::span<const std::unique_ptr<Molecule>> Mol_,System* Sys_) :
-      In(In_),Lat(Lat_),Seg(Seg_),Sta(Sta_),Rea(Rea_),Mol(Mol_),Sys(Sys_) {}
+    explicit SCF_LBFGS(System* Sys_) : Sys(Sys_) {}
 
-    Real operator()(Vector& x_, Vector& g_)
+	Real operator()(Vector& x_, Vector& g_)
     {
 	int iv=x_.size();
 	Sys->Classical_residual(std::span<const Real>(x_.data(), static_cast<size_t>(iv)),
 	                        std::span<Real>(g_.data(), static_cast<size_t>(iv)),
-	                        residual,
 	                        iterations);
 	iterations++;
-	residual=g_.norm();
-	return residual;
+	return g_.norm();
 	    }
 };
 
@@ -402,7 +379,7 @@ NAMICS_DBG("Solve in  Solve_scf " << std::endl);
 		case LBFGS:
 			success = true;
 			{
-				SCF_LBFGS fun(In,lat,Seg,Sta,Rea,Mol,Sys);
+				SCF_LBFGS fun(Sys);
 				LBFGSParam<Real> param;
 				param.epsilon = tolerance;
 				param.m = m;
@@ -451,13 +428,12 @@ void Solve_scf::residuals(Real* x, Real* g){
 			NAMICS_DBG("Residuals in scf mode in Solve_scf " << std::endl);
 			Sys->Classical_residual(std::span<const Real>(x, static_cast<size_t>(iv)),
 			                        std::span<Real>(g, static_cast<size_t>(iv)),
-			                        residual,
 			                        iterations);
 		break;
 	}
 }
 
-void Solve_scf::inneriteration(Real* x, Real* g, Real* h, Real accuracy, Real& deltamax, Real ALPHA, int nvar) {
+void Solve_scf::inneriteration(Real* g, Real* h, Real accuracy, Real& deltamax, Real ALPHA, int nvar) {
 NAMICS_DBG("inneriteration in Solve_scf " << std::endl);
 	residual=accuracy; // track the reported residual alongside the active solver accuracy.
 	switch(control) {
@@ -480,7 +456,7 @@ NAMICS_DBG("inneriteration in Solve_scf " << std::endl);
 					std::cout << accuracy << '\t' << minAccuracySoFar << '\t' << resetHessianCriterion << std::endl;
 					std::cout << "walking backwards: newton reset" << std::endl;
 				}
-				resethessian(h,g,x,nvar);
+				resethessian(h,g,nvar);
 				minAccuracySoFar *=1.5;
 
 				if (deltamax >0.005) deltamax *=0.9;
@@ -494,30 +470,13 @@ NAMICS_DBG("inneriteration in Solve_scf " << std::endl);
 				if (s_info) {
 					std::cout << "too many small alphas: newton reset" << std::endl;
 				}
-				resethessian(h,g,x,nvar);
+				resethessian(h,g,nvar);
 				if (deltamax >0.005) deltamax *=0.9;
 				numIterationsSinceHessian = 0;
 			}
 
-			if (!newtondirection && pseudohessian) {
-				reverseDirection[iterations%reverseDirectionRange] = 1;
-			} else {
-				reverseDirection[iterations%reverseDirectionRange] = 0;
-			}
-
-			numReverseDirection = 0;
-			for (int i=0; i<reverseDirectionRange; i++) {
-				if (reverseDirection[i] == 1)
-					numReverseDirection++;
-			}
-
 			numIterationsSinceHessian++;
-			Real frReverseDirection = Real(numReverseDirection)/reverseDirectionRange;
-			if ((frReverseDirection > maxFrReverseDirection && pseudohessian && accuracy < minAccuracyForHessian)) {
-				if (s_info && e_info) std::cout <<"Bad convergence (reverse direction), computing full hessian..." << std::endl; else std::cout <<"!";
-				pseudohessian = false; reset_pseudohessian =true;
-				numIterationsSinceHessian = 0;
-			} else if ((numIterationsSinceHessian >= n_iterations_for_hessian &&
+			if ((numIterationsSinceHessian >= n_iterations_for_hessian &&
 						iterations > 0 && accuracy < minAccuracyForHessian && minimum < minAccuracyForHessian)) {
 				if (s_info && e_info)
 					std::cout << "Still no solution, computing full hessian..." << std::endl;

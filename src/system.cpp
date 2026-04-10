@@ -37,7 +37,6 @@ void System:: DeAllocateMemory(void){
 	KSAM.clear();
 	CHI.clear();
 	EE.clear();
-	E.clear();
 	psiMask.clear();
 	eps.clear();
 	all_system=false;
@@ -57,7 +56,6 @@ void System::AllocateMemory()
 		psi.assign(M, 0);
 		eps.assign(M, 0);
 		EE.assign(M, 0);
-		E.assign(M, 0);
 		psiMask.assign(M, 0);
 	}
 
@@ -75,12 +73,11 @@ void System::AllocateMemory()
 	all_system=true;
 }
 
-bool System::generate_mask()
+void System::generate_mask()
 {
 	NAMICS_DBG( "generate_mask in system " << std::endl);
 	int M = lat->M;
 	auto& ksam = KSAM;
-	bool success = true;
 	FrozenList.clear();
 	int length = In->MonList.size();
 	for (int i = 0; i < length; i++)
@@ -115,31 +112,28 @@ bool System::generate_mask()
 	}
 
 	lat->Accesible_volume=accessible_volume;
-
-	return success;
 }
 
-bool System::PrepareForCalculations(bool first_time)
+void System::PrepareForCalculations(bool first_time)
 {
 	NAMICS_DBG( "PrepareForCalculations in System " << std::endl);
 
-	bool success = true;
 	int M = lat->M;
 	auto& ksam = KSAM;
 	auto& psi_mask = psiMask;
-		success = generate_mask();
+	generate_mask();
 
 	n_mol = In->MolList.size();
-	success = lat->PrepareForCalculations();
+	lat->PrepareForCalculations();
 	int n_mon = In->MonList.size();
 
 	for (int i = 0; i < n_mon; i++)
 	{
-		success = Seg[i]->PrepareForCalculations(ksam,first_time);
+		Seg[i]->PrepareForCalculations(ksam,first_time);
 	}
 	for (int i = 0; i < n_mol; i++)
 	{
-		success = Mol[i]->PrepareForCalculations(ksam);
+		Mol[i]->PrepareForCalculations(ksam);
 	}
 	if (first_time) {
   		if (charged) {
@@ -159,19 +153,14 @@ bool System::PrepareForCalculations(bool first_time)
   		}
 	}
 
-  return success;
 }
 
-bool System::MakeItsLists(void) {
-	bool changed=false;
-	int length = In->MonList.size();
+void System::MakeItsLists(void) {
 	SysMonList.clear();
-	int ItMonListLength=ItMonList.size();
 	ItMonList.clear();
-	int ItStateListLength=ItStateList.size();
 	ItStateList.clear();
 
-	length = In->MolList.size();
+	int length = In->MolList.size();
 	int statelength = In->StateList.size();
 	int i = 0;
 	while (i < length)
@@ -193,10 +182,6 @@ bool System::MakeItsLists(void) {
 			ItStateList.push_back(j);
 		}
 	}
-
-	if ((ItMonListLength-ItMonList.size()==0 && ItStateListLength-ItStateList.size()==0) || ItMonListLength+ItStateListLength==0) changed = false; else changed = true;
-
-	return changed;
 }
 
 bool System::CheckInput(int start_)
@@ -592,7 +577,11 @@ void System::PushOutput()
 		int length= In->MonList.size();
 		for (int i=0; i<length; i++)
 		for (int j=i+1; j<length; j++) {
-			Real Eij=GetE(i,j);
+			Real Eij = 0;
+			const auto& L = lat->L;
+			const auto& phi = Seg[i]->phi;
+			const auto& side = Seg[j]->phi_side;
+			for (int __i = 0; __i < lat->M; ++__i) Eij += L[__i] * phi[__i] * side[__i];
 			OUTPUT["I_" + Seg[i]->name + "_" + Seg[j]->name] = Eij;
 			OUTPUT["I_" + Seg[j]->name + "_" + Seg[i]->name] = Eij;
 			sumE+=Eij*Seg[i]->chi[j];
@@ -846,14 +835,7 @@ void System::DoElectrostatics(std::span<Real> g, std::span<const Real> x)
 	}
 }
 
-void System:: ComputePhis(std::span<const Real> x,bool first_time) {
-NAMICS_DBG("ComputPhis in  system " << std::endl);
-	PutU(x);
-	PrepareForCalculations(first_time);
-	ComputePhis();
-}
-
-bool System:: PutU(std::span<const Real> xx) {
+void System:: PutU(std::span<const Real> xx) {
 NAMICS_DBG("PutU in  Solve " << std::endl);
 	int M=lat->M;
 	auto& psi = this->psi;
@@ -864,9 +846,8 @@ NAMICS_DBG("PutU in  Solve " << std::endl);
 	int statelistlength=In->StateList.size();
 	int k=0;
 
-	int itpos=(itmonlistlength+itstatelistlength)*M;
+	const int itpos=(itmonlistlength+itstatelistlength)*M;
 	Real valence;
-	bool success=true;
 	const auto add_segment_contributions = [&](std::span<Real> field, const Segment& seg, Real segment_valence) {
 		for (int __i = 0; __i < M; ++__i) field[__i] += seg.u_ext[__i];
 		if (charged){
@@ -880,7 +861,7 @@ NAMICS_DBG("PutU in  Solve " << std::endl);
 	if (charged) {
 		auto psi_input = xx.subspan(static_cast<size_t>(itpos), static_cast<size_t>(M));
 		std::copy(psi_input.begin(), psi_input.end(), psi.begin());
-		lat->UpdateEE(ee.data(),psi.data(),E.data());
+		lat->UpdateEE(ee.data(),psi.data());
 	}
 
 
@@ -926,12 +907,9 @@ NAMICS_DBG("PutU in  Solve " << std::endl);
 		}
 		k++;
 	}
-	if (charged) itpos +=M;
-
-	return success;
 }
 
-void System::Classical_residual(std::span<const Real> x,std::span<Real> g,Real residual, int iterations){
+void System::Classical_residual(std::span<const Real> x,std::span<Real> g,int iterations){
 NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 	int M=lat->M;
 	auto& phitot = this->phitot;
@@ -950,7 +928,9 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 	int itstatelistlength=ItStateList.size();
 
 	std::copy(x.begin(), x.end(), g.begin());
-	ComputePhis(x,iterations==0);
+	PutU(x);
+	PrepareForCalculations(iterations==0);
+	ComputePhis();
  	std::fill(alpha.begin(), alpha.end(), 0.0);
 
 	for (i=0; i<itmonlistlength; i++) {
@@ -1030,12 +1010,11 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 }
 
 
-bool System::ComputePhis(){
+void System::ComputePhis(){
 NAMICS_DBG("ComputePhis in system" << std::endl);
 	int M= lat->M;
 	auto& phitot = this->phitot;
 	Real A=0, B=0; //A should contain sum_phi*charge; B should contain sum_phi
-	bool success=true;
 	std::fill(phitot.begin(), phitot.end(), 0.0);
 
 	int length=FrozenList.size();
@@ -1044,7 +1023,7 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 	}
 
 	for (int i=0; i<n_mol; i++) {
-		success = Mol[i]->ComputeGN() && success;
+		Mol[i]->ComputeGN();
 	}
 
 	for (int i = 0; i < n_mol; i++) {
@@ -1141,7 +1120,6 @@ NAMICS_DBG("ComputePhis in system" << std::endl);
 	for (int i = 0; i < n_seg; i++) {
 		Seg[i]->SetPhiSide();
 	}
-	return success;
 }
 
 void System::FinalizeOutputs() {
@@ -1230,22 +1208,6 @@ bool System::CheckResults(bool e_info_)
 	first_pass=false;
 
 	return success;
-}
-
-Real System::GetE(int Seg1, int Seg2)
-{
-	Real E=0;
-	int M=lat->M;
-	std::vector<Real> temp(M, 0);
-	const auto& L = lat->L;
-	const auto& phi = Seg[Seg1]->phi;
-	const auto& side = Seg[Seg2]->phi_side;
-	if (Seg1!=Seg2) {
-		for (int __i = 0; __i < M; ++__i) temp[__i] = L[__i] * phi[__i];
-		for (int __i = 0; __i < M; ++__i) temp[__i] *= side[__i];
-		(E) = 0; for (int __i = 0; __i < M; ++__i) (E) += temp[__i];
-	}
-	return E;//only the contacts
 }
 
 Real System::GetFreeEnergy(void)
@@ -1584,11 +1546,10 @@ if (charged) {
 
 }
 
-bool System::CreateMu(int pos)
+void System::CreateMu(int pos)
 {
 	NAMICS_DBG( "CreateMu for system " << std::endl);
 	int M=lat->M;
-	bool success = true;
 	Real constant;
 	Real n;
 	Real GN;
@@ -1671,5 +1632,4 @@ bool System::CreateMu(int pos)
 
 		Mol[i]->Mu = Mu;
 	}
-	return success;
 }

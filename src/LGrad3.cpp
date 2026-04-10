@@ -1,15 +1,7 @@
-#include <iostream>
-#include <string>
 #include "LGrad3.h"
 #include "tools.h"
 
 LGrad3::LGrad3(const Input& In_,const std::string& name_): Lattice(In_,name_) {}
-
-LGrad3::~LGrad3() {
-NAMICS_DBG("LGrad3 destructor " << std::endl);}
-
-void LGrad3::ComputeLambdas() {
-}
 
 bool LGrad3::CheckLatticeInput(const ParameterStore& parameters) {
 	bool success = RejectScalarBoundsInMultiD(parameters);
@@ -28,21 +20,17 @@ bool LGrad3::CheckLatticeInput(const ParameterStore& parameters) {
 	return success;
 }
 
-bool LGrad3::PutM() {
-NAMICS_DBG("PutM in LGrad3 " << std::endl);	bool success=true;
+void LGrad3::PutM() {
+NAMICS_DBG("PutM in LGrad3 " << std::endl);
 	volume = MX*MY*MZ;
 	JX=(MZ+2*fjc)*(MY+2*fjc); JY=MZ+2*fjc; JZ=1; M = (MX+2*fjc)*(MY+2*fjc)*(MZ+2*fjc);
 
 	Accesible_volume=volume;
-	return success;
 }
 
-Real LGrad3:: Moment(Real* X,Real Xb, int n) {
-	(void)n;
-	(void)Xb;
-	(void)X;
-NAMICS_DBG("Moment in LGrad3 " << std::endl);	Real Result=0;
-	return Result/fjc;
+Real LGrad3:: Moment(Real*,Real, int) {
+NAMICS_DBG("Moment in LGrad3 " << std::endl);
+	return 0;
 }
 
 Real LGrad3::WeightedSum(Real* X){
@@ -289,8 +277,7 @@ NAMICS_DBG(" propagate in LGrad3 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 	}
 }
 
-void LGrad3::UpdateEE(Real* EE, Real* psi, Real* E) {
-	(void)E;
+void LGrad3::UpdateEE(Real* EE, Real* psi) {
 	Real pf=0.5*eps0*bond_length/k_BT*(k_BT/e)*(k_BT/e); //(k_BT/e) is to convert dimensionless psi to real psi; 0.5 is needed in weighting factor.
 	set_M_bounds(psi);
 
@@ -304,8 +291,7 @@ void LGrad3::UpdateEE(Real* EE, Real* psi, Real* E) {
 }
 
 
-void LGrad3::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool grad_epsilon, bool fixedPsi0) { //not only update psi but also g (from newton).
-	(void)grad_epsilon;
+void LGrad3::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool, bool fixedPsi0) { //not only update psi but also g (from newton).
 	int x, y, z;
 
 	Real epsZplus, epsZmin, epsXplus, epsXmin, epsYplus, epsYmin;
@@ -406,8 +392,7 @@ void LGrad3::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 }
 
 
-void LGrad3::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool grad_epsilon) {//Not only update q (charge), but also g (from newton).
-	(void)grad_epsilon;
+void LGrad3::UpdateQ(Real* g, Real* psi, Real* q, Real* eps, Real* Mask,bool) {//Not only update q (charge), but also g (from newton).
 	int z, x, y;
 	Real epsXplus,epsXmin,epsYplus,epsYmin,epsZplus,epsZmin;
 
@@ -789,38 +774,10 @@ void LGrad3::set_bounds(int* X){
 	}
 }
 
-Real LGrad3::ComputeGN(Real* G, int M){
+Real LGrad3::ComputeGN(Real* G){
 	return WeightedSum(G);
 }
 
 void LGrad3::Initiate(Real* G,Real* Gz){
 	std::copy_n(Gz, M, G);
-}
-
-bool LGrad3:: PutMask(Real* MASK,std::vector<int>px,std::vector<int>py,std::vector<int>pz,int R){
-	bool success=true;
-	int length =px.size();
-	int X,Y,Z;
-	std::fill_n(MASK, M, 0);
-
-	for (int i =0; i<length; i++) {
-		int xx,yy,zz;
-		xx=px[i]; yy=py[i]; zz=pz[i];
-		for (int x=xx-R; x<xx+R+1; x++)
-		for (int y=yy-R; y<yy+R+1; y++)
-		for (int z=zz-R; z<zz+R+1; z++) {
-			if ((xx-x)*(xx-x)+(yy-y)*(yy-y)+(zz-z)*(zz-z) <=R*R) {
-				X=x; Y=y; Z=z;
-				if (x<1) {if (BX1==1) X=0; else X+=MX;}
-				if (y<1) {if (BY1==1) Y=0; else Y+=MY;}
-				if (z<1) {if (BZ1==1) Z=0; else Z+=MZ;}
-				if (x>MX) {if (BXM==MX) X=MX; else X-=MX;}
-				if (y>MY) {if (BYM==MY) Y=MY; else Y-=MY;}
-				if (z>MZ) {if (BZM==MZ) Z=MZ; else Z-=MZ;}
-				MASK[P(X,Y,Z)]=1;
-			}
-		}
-	}
-
-	return success;
 }

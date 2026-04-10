@@ -15,8 +15,6 @@ class Output {
 public:
 	Output(const Input*,Lattice*,std::span<const std::unique_ptr<Segment>>,std::span<const std::unique_ptr<State>>,std::span<const std::unique_ptr<Reaction>>,std::span<const std::unique_ptr<Molecule>>,System*,Solve_scf*,std::string);
 
-~Output();
-
 	std::string name;
 	const Input* In;
 	Lattice* lat;

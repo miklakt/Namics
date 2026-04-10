@@ -1,32 +1,8 @@
 #include "segment.h"
 #include "io_utils.h"
 
-namespace {
-
-bool ParseMaskCoordinates(const ParameterStore& spec, int gradients, const std::string& mon_name, const std::string& key, std::vector<std::vector<int>>& coordinates) {
-	const auto values = spec.find("coordinates");
-	if (!spec.is_object() || values == spec.end() || !values->is_array()) {
-		std::cout << "mon " << mon_name << " expects '" << key << "' as an object with a 'coordinates' array." << std::endl;
-		return false;
-	}
-	try {
-		coordinates = values->get<std::vector<std::vector<int>>>();
-	} catch (const nlohmann::json::exception& error) {
-		std::cout << "Invalid json type in mon '" << mon_name << "' for '" << key << "': " << error.what() << std::endl;
-		return false;
-	}
-	for (const auto& point : coordinates) {
-		if (static_cast<int>(point.size()) == gradients) continue;
-		std::cout << "mon " << mon_name << " has an invalid coordinate in '" << key << "'." << std::endl;
-		return false;
-	}
-	return true;
-}
-
-} // namespace
-
-Segment::Segment(const Input* In_,Lattice* Lat_, std::string name_,int segnr,int N_seg) {
-	In=In_; name=name_; n_seg=N_seg; seg_nr=segnr;
+Segment::Segment(const Input* In_,Lattice* Lat_, std::string name_) {
+	In=In_; name=name_;
 NAMICS_DBG("Segment constructor" + name << std::endl);
 	lat=Lat_;
 	var_pos=0;
@@ -48,7 +24,6 @@ if (!all_segment) return;
 	phi.clear();
 	MASK.clear();
 	alpha.clear();
-	ALPHA.clear();
 	phi_state.clear();
 	G1.clear();
 	phi_side.clear();
@@ -65,19 +40,16 @@ NAMICS_DBG("Allocate Memory in Segment " + name << std::endl);
 	phi.assign(M, 0);
 	MASK.assign(M, 0);
 	alpha.assign(M * ns, 0);
-	ALPHA.assign(M * ns, 0);
 	phi_state.assign(M * ns, 0);
 	G1.assign(M, 0);
 	phi_side.assign(M * ns, 0);
-	bool success=ParseFreedoms();
-	if (!success) std::cout <<"errors occurred.... progress uncertain...." << std::endl;
+	if (!ParseFreedoms()) std::cout <<"errors occurred.... progress uncertain...." << std::endl;
 
 	all_segment=true;
 }
 
 bool Segment::ParseFreedoms() {
 NAMICS_DBG("ParseFreedoms " << std::endl);
-	bool success=true;
 	const auto& parameters = In->Parameters("mon", name, start);
 	MASK.assign(lat->M, 0);
 	phibulk = 0;
@@ -101,7 +73,23 @@ NAMICS_DBG("ParseFreedoms " << std::endl);
 	const int ny = lat->gradients >= 2 ? lat->MY / lat->fjc : 1;
 	const int nz = lat->gradients >= 3 ? lat->MZ / lat->fjc : 1;
 	std::vector<std::vector<int>> coordinates;
-	if (!ParseMaskCoordinates(spec.value(), lat->gradients, name, key, coordinates)) return false;
+	const auto& spec_value = spec.value();
+	const auto values = spec_value.find("coordinates");
+	if (!spec_value.is_object() || values == spec_value.end() || !values->is_array()) {
+		std::cout << "mon " << name << " expects '" << key << "' as an object with a 'coordinates' array." << std::endl;
+		return false;
+	}
+	try {
+		coordinates = values->get<std::vector<std::vector<int>>>();
+	} catch (const nlohmann::json::exception& error) {
+		std::cout << "Invalid json type in mon '" << name << "' for '" << key << "': " << error.what() << std::endl;
+		return false;
+	}
+	for (const auto& point : coordinates) {
+		if (static_cast<int>(point.size()) == lat->gradients) continue;
+		std::cout << "mon " << name << " has an invalid coordinate in '" << key << "'." << std::endl;
+		return false;
+	}
 	for (const auto& point : coordinates) {
 		const int x = point[0];
 		const int y = lat->gradients >= 2 ? point[1] : 0;
@@ -153,20 +141,7 @@ NAMICS_DBG("ParseFreedoms " << std::endl);
 				return false;
 		}
 	}
-	return success;
-}
-
-Real Segment::PinnedVolume() {
-	int M=lat->M;
-	Real volume=0;
-	Real VOLUME=0;
-	if (freedom !="pinned") return volume;
-	if (lat->geometry=="planar") {
-		(VOLUME) = 0; for (int __i = 0; __i < (M); ++__i) (VOLUME) += (MASK)[__i]; volume=1.0*VOLUME;
-	} else {
-		for (int i=0;i<M; i++) volume += MASK[i]*lat->L[i];
-	}
-	return volume/lat->fjc;
+	return true;
 }
 
 bool Segment::LoadExternalPotential() {
@@ -204,13 +179,11 @@ bool Segment::LoadExternalPotential() {
 	return true;
 }
 
-bool Segment::PrepareForCalculations(std::span<const Real> KSAM, bool first_time) {
+void Segment::PrepareForCalculations(std::span<const Real> KSAM, bool first_time) {
 NAMICS_DBG("PrepareForCalcualtions in Segment " +name << std::endl);
 
 	int M=lat->M;
 	const auto& parameters = In->Parameters("mon", name, start);
-
-	bool success=true;
 	phibulk=0;
 	if (freedom=="frozen") {
 		std::copy_n(MASK.begin(), M, phi.begin());
@@ -219,8 +192,7 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << std::endl);
 	}
 
 	if (!parameters.value("external_potential_filename", std::string{}).empty() && first_time) {
-		success=LoadExternalPotential();
-		if (!success) return false;
+		if (!LoadExternalPotential()) return;
 		if (ns==1) {
 			for (int __i = 0; __i < (M); ++__i) (u)[__i] += (u_ext)[__i];
 		} else {
@@ -246,7 +218,6 @@ NAMICS_DBG("PrepareForCalcualtions in Segment " +name << std::endl);
 
 	if (freedom=="pinned") for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * (MASK)[__i];
 	if (freedom != "frozen") for (int __i = 0; __i < (M); ++__i) (G1)[__i] = (G1)[__i] * KSAM[__i];
-	return success;
 }
 
 bool Segment::CheckInput(int start_) {
@@ -589,17 +560,12 @@ NAMICS_DBG("AddState " << id_ <<" to seg " << name << std::endl);
 
 
 
-bool Segment::PutAlpha(Real alpha) { //expected to replace other method with same name.
-	bool success=true;
-	Real fixed_value=0;
+void Segment::PutAlpha(Real alpha) { //expected to replace other method with same name.
 	Real sum_alpha=0;
 	int n_s;
 	if (ns==1) n_s=0; else n_s=ns;
-	if (n_s==0) return false;
+	if (n_s==0) return;
 
-
-	for (int i=0; i<n_s; i++) {
-		if (!state_change[i]) fixed_value+=state_alphabulk[i];}
 	for (int i=0; i<n_s; i++) {
 		if (ItState !=i && state_change[i]) state_alphabulk[i]=0;
 	}
@@ -612,36 +578,6 @@ bool Segment::PutAlpha(Real alpha) { //expected to replace other method with sam
 	}
 	for (int i=0; i<n_s; i++) {
 		if (state_alphabulk[i]==0) state_alphabulk[i]=1.0-sum_alpha;
-		if (state_alphabulk[i]<0 || state_alphabulk[i]>1) {
-			success=false; std::cout <<"In Segment::PutAlpha, alphabulk out of bounds " << std::endl;
-		}
+		if (state_alphabulk[i]<0 || state_alphabulk[i]>1) std::cout <<"In Segment::PutAlpha, alphabulk out of bounds " << std::endl;
 	}
-
-
-	return success;
-}
-
-bool Segment::CanBeReached(int x0, int y0, int z0, int Ds) {
-	int gradients=lat->gradients;
-	int MX = lat->MX;
-	int MY = lat->MY;
-	int MZ = lat->MZ;
-	int JX = lat->JX;
-	int JY = lat->JY;
-	int JZ = lat->JZ;
-	int x=0,y=0,z=0;
-	switch (gradients) {
-		case 3:
-			for (z=1; z<MZ+1; z++)
-		case 2:
-			for (y=1; y<MY+1; y++)
-		case 1:
-			for (x=1; x<MX+1; x++){
-				if (MASK[x*JX+y*JY+z*JZ]==1) {
-					if (std::abs(x-x0)+std::abs(y-y0)+std::abs(z-z0) < Ds) return true;
-				}
-
-			}
-	}
-	return false;
 }

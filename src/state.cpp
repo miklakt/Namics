@@ -3,12 +3,10 @@
 State::State(const Input* In_,std::span<const std::unique_ptr<Segment>> Seg_, std::string name_) {
 	In=In_; name=name_;  Seg=Seg_;
 }
-State::~State() = default;
 
 bool State::CheckInput(int start) {
 NAMICS_DBG("CheckInput in State " + name << std::endl);	bool success=true;
 	fixed=false;
-	in_reaction =false;
 	alphabulk =-1;
 	valence=0;
 	mon_nr=-1;
@@ -29,7 +27,6 @@ NAMICS_DBG("CheckInput in State " + name << std::endl);	bool success=true;
 	const auto& parameters = In->Parameters("state", name, start);
 	static const std::vector<std::string> keys = {"alphabulk", "valence", "mon"};
 	chi.clear();
-	success = true;
 	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
 		if (ContainsValue(keys, it.key())) continue;
 		if (it.key().rfind("chi_", 0) == 0) {
