@@ -30,19 +30,27 @@ void LGrad2:: ComputeLambdas() {
 	Real r, VL, LS;
 	Real rlow, rhigh;
 
+	if (geometry == "planar") {
+		if (fjc == 1) {
+			std::fill(L.begin(), L.end(), Real{1});
+		} else {
+			std::fill(L.begin(), L.end(), Real{1.0 / fjc});
+		}
+		return;
+	}
 
 	//	}
-		if (fjc==1) {
-			for (int x=1; x<MX+1; x++)
-			for (int y=1; y<MY+1; y++) {
-				r=offset_first_layer + 1.0*x;
-				lambda1[P(x,y)]=2.0*PIE*r/L[P(x,y)]*lambda;
-				lambda_1[P(x,y)]=2.0*PIE*(r-1)/L[P(x,y)]*lambda;
-				lambda0[P(x,y)]=1.0-2.0*lambda;
-				if (fcc_sites) {
-				}
+	if (fjc==1) {
+		for (int x=1; x<MX+1; x++)
+		for (int y=1; y<MY+1; y++) {
+			r=offset_first_layer + 1.0*x;
+			lambda1[P(x,y)]=2.0*PIE*r/L[P(x,y)]*lambda;
+			lambda_1[P(x,y)]=2.0*PIE*(r-1)/L[P(x,y)]*lambda;
+			lambda0[P(x,y)]=1.0-2.0*lambda;
+			if (fcc_sites) {
 			}
 		}
+	}
 	if (fjc>1) {
 		for (int y=fjc; y<MY+fjc; y++) {
 			for (int x = fjc; x < MX+fjc; x++) {
@@ -146,6 +154,95 @@ NAMICS_DBG(" Side in LGrad2 " << std::endl);	if (ignore_sites) {
 	Real* LAMBDA = this->LAMBDA.data();
 	std::fill_n(X_side, M, 0);//set_bounds(X);
 
+	if (geometry == "planar") {
+		set_bounds(X);
+		if (fcc_sites) {
+			add_shifted(X_side, X, M);
+			add_shifted(X_side + 1, X, M - 1);
+			add_shifted(X_side, X + 1, M - 1);
+			add_shifted(X_side + JX, X, M - JX);
+			add_shifted(X_side, X + JX, M - JX);
+			add_shifted(X_side + JX + 1, X, M - JX - 1);
+			add_shifted(X_side + JX, X + 1, M - JX - 1);
+			add_shifted(X_side + 1, X + JX, M - JX - 1);
+			add_shifted(X_side, X + JX + 1, M - JX - 1);
+			scale_span(X_side, M, 1.0 / 9.0);
+			return;
+		}
+		if (fjc == 1) {
+			if (!stencil_full) {
+				if (lattice_type == simple_cubic) {
+					add_shifted(X_side + JX, X, M - JX);
+					add_shifted(X_side, X + JX, M - JX);
+					add_shifted(X_side + 1, X, M - 1);
+					add_shifted(X_side, X + 1, M - 1);
+					scale_span(X_side, M, 0.5);
+					add_shifted(X_side, X, M);
+					scale_span(X_side, M, 1.0 / 3.0);
+				} else {
+					add_shifted(X_side + JX, X, M - JX);
+					add_shifted(X_side, X + JX, M - JX);
+					add_shifted(X_side + JY, X, M - JY);
+					add_shifted(X_side, X + JY, M - JY);
+					add_shifted(X_side, X, M);
+					scale_span(X_side, M, 2.0);
+
+					remove_bounds(X);
+					set_bounds_x(X, -1);
+					add_shifted(X_side + JX, X + JY, M - JX - JY);
+					add_shifted(X_side + JY, X + JX, M - JX - JY);
+
+					scale_span(X_side, M, 1.0 / 12.0);
+				}
+			} else {
+				if (lattice_type == simple_cubic) {
+					add_shifted(X_side, X, M, 16.0 / 36.0);
+					add_shifted(X_side + 1, X, M - 1, 4.0 / 36.0);
+					add_shifted(X_side, X + 1, M - 1, 4.0 / 36.0);
+					add_shifted(X_side + JX, X, M - JX, 4.0 / 36.0);
+					add_shifted(X_side, X + JX, M - JX, 4.0 / 36.0);
+					add_shifted(X_side + JX + 1, X, M - JX - 1, 1.0 / 36.0);
+					add_shifted(X_side + JX, X + 1, M - JX - 1, 1.0 / 36.0);
+					add_shifted(X_side + 1, X + JX, M - JX - 1, 1.0 / 36.0);
+					add_shifted(X_side, X + JX + 1, M - JX - 1, 1.0 / 36.0);
+				} else {
+					add_shifted(X_side, X, M, 2.0);
+					add_shifted(X_side + JX, X, M - JX);
+					add_shifted(X_side, X + JX, M - JX);
+					add_shifted(X_side + JY, X, M - JY);
+					add_shifted(X_side, X + JY, M - JY);
+					scale_span(X_side, M, 2.0);
+					add_shifted(X_side + JX + JY, X, M - JX - JY);
+					add_shifted(X_side, X + JX + JY, M - JX - JY);
+					add_shifted(X_side + JX, X + JY, M - JX - JY);
+					add_shifted(X_side + JY, X + JX, M - JX - JY);
+					scale_span(X_side, M, 1.0 / 16.0);
+				}
+			}
+		} else {
+			for (int block = 0; block < 3; block++) {
+				int a, b, bk;
+				for (int x = -fjc; x < fjc + 1; x++) {
+					for (int y = -fjc; y < fjc + 1; y++) {
+						bk = 0;
+						a = 0;
+						b = 0;
+						if (x == -fjc || x == fjc) bk++;
+						if (y == -fjc || y == fjc) bk++;
+						if (bk == block) {
+							if (x < 0) a = -x * JX; else b = x * JX;
+							if (y < 0) a -= y * JY; else b += y * JY;
+							add_shifted(X_side + a, X + b, M - a - b);
+						}
+					}
+				}
+				if (block != 2) scale_span(X_side, M, 2.0);
+				else scale_span(X_side, M, 1.0 / (4.0 * (FJC - 2) * FJC + 1));
+			}
+		}
+		return;
+	}
+
 	if (fcc_sites) {
 		Real C1 = 1.0 / 3.0;
 		add_shifted(X_side, X, M, C1);
@@ -219,6 +316,79 @@ NAMICS_DBG(" propagate in LGrad2 " << std::endl); Real *gs = G+M*(s_to), *gs_1 =
 	Real* lambda1 = this->lambda1.data();
 	Real* LAMBDA = this->LAMBDA.data();
 	std::fill_n(gs, M, 0); set_bounds(gs_1);
+	if (geometry == "planar") {
+		if (fjc == 1) {
+			if (!stencil_full) {
+				if (lattice_type == simple_cubic) {
+					add_shifted(gs + JX, gs_1, M - JX);
+					add_shifted(gs, gs_1 + JX, M - JX);
+					add_shifted(gs + JY, gs_1, M - JY);
+					add_shifted(gs, gs_1 + JY, M - JY);
+					scale_span(gs, M, 0.5);
+					add_shifted(gs, gs_1, M);
+					scale_span(gs, M, 1.0 / 3.0);
+				} else {
+					add_shifted(gs + JX, gs_1, M - JX);
+					add_shifted(gs, gs_1 + JX, M - JX);
+					add_shifted(gs + JY, gs_1, M - JY);
+					add_shifted(gs, gs_1 + JY, M - JY);
+					add_shifted(gs, gs_1, M);
+					scale_span(gs, M, 2.0);
+					remove_bounds(gs_1);
+					set_bounds_x(gs_1, -1);
+					add_shifted(gs + JX, gs_1 + JY, M - JX - JY);
+					add_shifted(gs + JY, gs_1 + JX, M - JX - JY);
+					scale_span(gs, M, 1.0 / 12.0);
+				}
+			} else {
+				if (lattice_type == simple_cubic) {
+					add_shifted(gs, gs_1, M, 16.0 / 36.0);
+					add_shifted(gs + 1, gs_1, M - 1, 4.0 / 36.0);
+					add_shifted(gs, gs_1 + 1, M - 1, 4.0 / 36.0);
+					add_shifted(gs + JX, gs_1, M - JX, 4.0 / 36.0);
+					add_shifted(gs, gs_1 + JX, M - JX, 4.0 / 36.0);
+					add_shifted(gs + JX + 1, gs_1, M - JX - 1, 1.0 / 36.0);
+					add_shifted(gs + JX, gs_1 + 1, M - JX - 1, 1.0 / 36.0);
+					add_shifted(gs + 1, gs_1 + JX, M - JX - 1, 1.0 / 36.0);
+					add_shifted(gs, gs_1 + JX + 1, M - JX - 1, 1.0 / 36.0);
+				} else {
+					add_shifted(gs, gs_1, M, 2.0);
+					add_shifted(gs + JX, gs_1, M - JX);
+					add_shifted(gs, gs_1 + JX, M - JX);
+					add_shifted(gs + JY, gs_1, M - JY);
+					add_shifted(gs, gs_1 + JY, M - JY);
+					scale_span(gs, M, 2.0);
+					add_shifted(gs + JX + JY, gs_1, M - JX - JY);
+					add_shifted(gs, gs_1 + JX + JY, M - JX - JY);
+					add_shifted(gs + JX, gs_1 + JY, M - JX - JY);
+					add_shifted(gs + JY, gs_1 + JX, M - JX - JY);
+					scale_span(gs, M, 1.0 / 16.0);
+				}
+			}
+		} else {
+			for (int block = 0; block < 3; block++) {
+				int a, b, bk;
+				for (int x = -fjc; x < fjc + 1; x++) {
+					for (int y = -fjc; y < fjc + 1; y++) {
+						bk = 0;
+						a = 0;
+						b = 0;
+						if (x == -fjc || x == fjc) bk++;
+						if (y == -fjc || y == fjc) bk++;
+						if (bk == block) {
+							if (x < 0) a = -x * JX; else b = x * JX;
+							if (y < 0) a -= y * JY; else b += y * JY;
+							add_shifted(gs + a, gs_1 + b, M - a - b);
+						}
+					}
+				}
+				if (block != 2) scale_span(gs, M, 2.0);
+				else scale_span(gs, M, 1.0 / (4.0 * (FJC - 2) * FJC + 1));
+			}
+		}
+		std::transform(gs, gs + M, G1, gs, [](auto a, auto b) { return a * b; });
+		return;
+	}
 	if (fjc==1) {
 		if (lattice_type==simple_cubic) {
 			Real C1=4.0/6.0;
