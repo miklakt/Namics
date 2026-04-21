@@ -44,10 +44,14 @@ void LGrad2:: ComputeLambdas() {
 		for (int x=1; x<MX+1; x++)
 		for (int y=1; y<MY+1; y++) {
 			r=offset_first_layer + 1.0*x;
+			L[P(x,y)] = PIE * (std::pow(r, 2) - std::pow(r - 1, 2));
 			lambda1[P(x,y)]=2.0*PIE*r/L[P(x,y)]*lambda;
 			lambda_1[P(x,y)]=2.0*PIE*(r-1)/L[P(x,y)]*lambda;
 			lambda0[P(x,y)]=1.0-2.0*lambda;
 			if (fcc_sites) {
+				fcc_lambda1[P(x,y)] = 2.0 * PIE * r / L[P(x,y)] / 3.0;
+				fcc_lambda_1[P(x,y)] = 2.0 * PIE * (r - 1) / L[P(x,y)] / 3.0;
+				fcc_lambda0[P(x,y)] = 1.0 - 2.0 / 3.0;
 			}
 		}
 	}
