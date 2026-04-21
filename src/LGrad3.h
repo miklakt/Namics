@@ -29,12 +29,6 @@ class LGrad3 : public Lattice
 	void set_bounds(int*);
 	Real ComputeGN(Real*,int);
 	void Initiate(Real*,Real*);
-	void set_bounds_x(Real*,Real*,int,int);
-	void set_bounds_y(Real*,Real*,int,int);
-	void set_bounds_z(Real*,Real*,int,int);
-	void set_bounds_x(Real*,int,int);
-	void set_bounds_y(Real*,int,int);
-	void set_bounds_z(Real*,int,int);
 	bool PutMask(Real* ,std::vector<int>,std::vector<int>,std::vector<int>,int);
 };
 #endif

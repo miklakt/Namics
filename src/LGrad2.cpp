@@ -707,59 +707,6 @@ NAMICS_DBG("remove_bounds in LGrad2 " << std::endl);	int x,y;
 	}
 }
 
-void LGrad2::set_bounds_x(Real* X, Real*Y, int shifty){
-NAMICS_DBG("set_bounds_x XY in LGrad2 " << std::endl);
-	if (BX1>BXM)  {
-		//set_bounds_x(X,0); set_bounds_x(Y,0);
-		set_bounds_x(X,shifty); set_bounds_x(Y,shifty);
-	} else  {
-		if (fjc==1) {
-			for (int y=1; y<MY+1; y++) {
-				X[0        +y]= Y[BX1*JX+(y+shifty)];
-				X[(MX+1)*JX+y]= Y[BXM*JX+(y-shifty)];
-				Y[0        +y]= X[BX1*JX+(y+shifty)];
-				Y[(MX+1)*JX+y]= X[BXM*JX+(y-shifty)];
-			}
-		} else {
-			std::cout <<"set_bounds_x error" << std::endl;
-			for (int y=0; y<MY+2*fjc; y++) { //this will also set the corners...fingers crossed ; this might go wrong when reflecting and periodic b.c. are mixed...
-				for (int k=0; k<fjc; k++) {
-					X[k*JX+y]=Y[B_X1[k]*JX+(y+shifty)];
-					X[(MX+fjc+k)*JX+y]=Y[B_XM[k]*JX+(y-shifty)];
-					Y[k*JX+y]=X[B_X1[k]*JX+(y+shifty)];
-					Y[(MX+fjc+k)*JX+y]=X[B_XM[k]*JX+(y-shifty)];
-				}
-			}
-		}
-	}
-}
-
-void LGrad2::set_bounds_y(Real* X, Real*Y, int shiftx){
-NAMICS_DBG("set_bounds_y XY in LGrad2 " << std::endl);
-	if (BY1>BYM) {
-		//set_bounds_y(X,0); set_bounds_y(Y,0);
-		set_bounds_y(X,shiftx); set_bounds_y(Y,shiftx);
-	} else {
-		if (fjc==1) {
-			for (int x=1; x<MX+1; x++) {
-				X[x*JX+0   ] =Y[(x+shiftx)*JX+BY1];
-				X[x*JX+MY+1] =Y[(x-shiftx)*JX+BYM];
-				Y[x*JX+0   ] =X[(x+shiftx)*JX+BY1];
-				Y[x*JX+MY+1] =X[(x-shiftx)*JX+BYM];
-			}
-		} else {
-			for (int x=fjc; x<MX+fjc; x++) {
-				for (int k=0; k<fjc; k++) {
-					X[x*JX+k]=Y[(x+shiftx)*JX+B_Y1[k]];
-					X[x*JX+MY+fjc+k]=Y[(x-shiftx)*JX+B_YM[k]];
-					Y[x*JX+k]=X[(x+shiftx)*JX+B_Y1[k]];
-					Y[x*JX+MY+fjc+k]=X[(x-shiftx)*JX+B_YM[k]];
-				}
-			}
-		}
-	}
-}
-
 void LGrad2::set_bounds_x(Real* X,int shifty){
 NAMICS_DBG("set_bounds_x X in LGrad2 " << std::endl);	int y;
 	int k=0;
@@ -774,25 +721,6 @@ NAMICS_DBG("set_bounds_x X in LGrad2 " << std::endl);	int y;
 			for (k=0; k<fjc; k++) {
 				X[k*JX+y]=X[B_X1[k]*JX+(y+shifty)];
 				X[(MX+fjc+k)*JX+y]=X[B_XM[k]*JX+(y-shifty)];
-			}
-		}
-	}
-}
-
-void LGrad2::set_bounds_y(Real* X,int shiftx){
-NAMICS_DBG("set_bounds_y X in LGrad2 " << std::endl);	int x;
-	int k=0;
-
-	if (fjc==1) {
-		for (x=1; x<MX+1; x++) {
-			X[x*JX+0   ]= X[(x+shiftx)*JX+BY1];
-			X[x*JX+MY+1]= X[(x-shiftx)*JX+BYM];
-		}
-	} else {
-		for (x=fjc; x<MX+fjc; x++) {
-			for (k=0; k<fjc; k++) {
-				X[x*JX+k]=X[(x+shiftx)*JX+B_Y1[k]];
-				X[x*JX+MY+fjc+k]=X[(x-shiftx)*JX+B_YM[k]];
 			}
 		}
 	}
