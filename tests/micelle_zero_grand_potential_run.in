@@ -1,4 +1,4 @@
-//here is the file to perform search iterationm until the value of interes become zero
+//here is the file to perform search iteration until the value of interest become zero
 lat : sphere : n_layers : 300
 lat : sphere : lattice_type : hexagonal
 lat : sphere : geometry : spherical

@@ -16,17 +16,40 @@ namespace detail {
 
 using json = nlohmann::ordered_json;
 
+inline void SplitJsonSubpath(const std::string& path, std::string& filename, std::string& pointer) {
+	const std::string marker = ".json/";
+	const size_t pos = path.rfind(marker);
+	if (pos == std::string::npos) {
+		filename = path;
+		pointer.clear();
+		return;
+	}
+	filename = path.substr(0, pos + 5);
+	pointer = path.substr(pos + 5);
+}
+
 inline bool ReadJsonFile(const std::string& filename, json& document) {
-	std::ifstream input(filename.c_str());
+	std::string json_filename;
+	std::string json_pointer;
+	SplitJsonSubpath(filename, json_filename, json_pointer);
+	std::ifstream input(json_filename.c_str());
 	if (!input.is_open()) {
-		std::cout << "Inputfile " << filename << " is not found. " << std::endl;
+		std::cout << "Inputfile " << json_filename << " is not found. " << std::endl;
 		return false;
 	}
 	try {
 		document = json::parse(input, nullptr, true, true);
 	} catch (const std::exception& error) {
-		std::cout << "Failed to parse JSON file " << filename << ": " << error.what() << std::endl;
+		std::cout << "Failed to parse JSON file " << json_filename << ": " << error.what() << std::endl;
 		return false;
+	}
+	if (!json_pointer.empty()) {
+		try {
+			document = document.at(json::json_pointer(json_pointer));
+		} catch (const std::exception& error) {
+			std::cout << "Failed to select JSON subtree '" << json_pointer << "' in " << json_filename << ": " << error.what() << std::endl;
+			return false;
+		}
 	}
 	return true;
 }
