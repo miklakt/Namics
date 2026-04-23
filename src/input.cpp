@@ -40,6 +40,13 @@ bool HasBalancedBrackets(
 	return stack.empty();
 }
 
+bool NeedsGuessOutputFile(const nlohmann::ordered_json& sys) {
+	const auto write_guess = sys.find("write_initial_guess");
+	if (write_guess == sys.end() || !write_guess->is_boolean() || !write_guess->get<bool>()) return false;
+	const auto output_file = sys.find("guess_outputfile");
+	return output_file == sys.end() || !output_file->is_string() || output_file->get<std::string>().empty();
+}
+
 } // namespace
 
 Input::Input(const std::string& json_name)
@@ -241,6 +248,20 @@ bool Input::CheckInput() {
 			if (!it.value().is_object()) {
 				std::cout << "'" << it.key() << "' in problem " << i + 1 << " must be an object." << std::endl;
 				success = false;
+				continue;
+			}
+			if (it.key() == "sys") {
+				for (auto sys_it = it.value().begin(); sys_it != it.value().end(); ++sys_it) {
+					if (!sys_it.value().is_object()) {
+						std::cout << "sys." << sys_it.key() << " in problem " << i + 1 << " must be an object." << std::endl;
+						success = false;
+						continue;
+					}
+					if (!NeedsGuessOutputFile(sys_it.value())) continue;
+					std::cout << "When 'write_initial_guess' is true in problem " << i + 1
+					          << ", provide 'guess_outputfile'." << std::endl;
+					success = false;
+				}
 				continue;
 			}
 			if (it.key() != "output") continue;

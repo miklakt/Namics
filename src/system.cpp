@@ -208,7 +208,7 @@ bool System::CheckInput(int start_)
 	solvent = -1; //value -1 means no solvent defined.
 	Real phibulktot = 0;
 	const auto& parameters = In->Parameters("sys", name, start);
-	static const std::vector<std::string> keys = {"initial_guess", "guess_inputfile", "write_initial_guess", "X", "E"};
+	static const std::vector<std::string> keys = {"initial_guess", "guess_inputfile", "guess_outputfile", "write_initial_guess", "X", "E"};
 	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
 		if (ContainsValue(keys, it.key())) continue;
 		success = false;
@@ -309,7 +309,8 @@ bool System::CheckInput(int start_)
 				initial_guess = "file";
 				guess_inputfile = In->json_path;
 			}
-		write_initial_guess = parameters.value("write_initial_guess", false);
+			write_initial_guess = parameters.value("write_initial_guess", false);
+			guess_outputfile = write_initial_guess ? In->ResolvePath(parameters.at("guess_outputfile").get<std::string>()) : std::string{};
 		} catch (const nlohmann::json::exception& error) {
 			std::cout << "Invalid json type in system '" << name << "': " << error.what() << std::endl;
 			success = false;

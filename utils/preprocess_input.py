@@ -604,12 +604,12 @@ def normalize_masks(
 
 
 def find_initial_guess_object(document: Any) -> dict[str, Any] | None:
-    if isinstance(document, dict) and isinstance(document.get("profiles"), dict):
+    if isinstance(document, dict) and isinstance(document.get("u"), dict):
         return document
     if not isinstance(document, dict):
         return None
     initial_guess = document.get("initial_guess")
-    if isinstance(initial_guess, dict):
+    if isinstance(initial_guess, dict) and isinstance(initial_guess.get("u"), dict):
         return initial_guess
     problem = find_last_problem_object(document)
     return find_initial_guess_object(problem) if problem is not None else None

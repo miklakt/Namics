@@ -2,7 +2,20 @@
 #include "io_utils.h"
 
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <nlohmann/json.hpp>
+
+namespace {
+
+bool WriteInitialGuessFile(const std::string& filename, const nlohmann::ordered_json& initial_guess) {
+	std::ofstream out(filename.c_str(), std::ios::out | std::ios::trunc);
+	if (!out.is_open()) return false;
+	out << std::setw(2) << nlohmann::ordered_json{{"initial_guess", initial_guess}} << '\n';
+	return static_cast<bool>(out);
+}
+
+} // namespace
 
 Output::Output(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_,std::span<const std::unique_ptr<State>> Sta_, std::span<const std::unique_ptr<Reaction>> Rea_, std::span<const std::unique_ptr<Molecule>> Mol_,System* Sys_,Solve_scf* New_,std::string name_) {
 NAMICS_DBG("constructor in Output "<< std::endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; New=New_;
@@ -272,8 +285,10 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		statelist.reserve(Sys->ItStateList.size());
 		for (const int mon_index : Sys->ItMonList) monlist.push_back(Seg[mon_index]->name);
 		for (const int state_index : Sys->ItStateList) statelist.push_back(Sta[state_index]->name);
-		if (io::detail::WriteInitialGuessProfiles(initial_guess, values, monlist, statelist, Sys->charged, lat->M)) {
-			problem["initial_guess"] = std::move(initial_guess);
+		if (io::detail::WriteInitialGuessU(initial_guess, values, monlist, statelist, Sys->charged, lat->M)) {
+			if (!WriteInitialGuessFile(Sys->guess_outputfile, initial_guess)) {
+				std::cout << "Failed to write initial guess file " << Sys->guess_outputfile << std::endl;
+			}
 		}
 	}
 

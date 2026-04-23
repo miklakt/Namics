@@ -54,6 +54,7 @@ public:
 	bool charged;
 	std::string initial_guess;
 	std::string guess_inputfile;
+	std::string guess_outputfile;
 	bool write_initial_guess;
 	int start;
 	ParameterStore OUTPUT;

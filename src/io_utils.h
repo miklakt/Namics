@@ -81,7 +81,7 @@ inline const json* FindInitialGuessObject(const json& document) {
 	}
 	if (!document.is_object()) return nullptr;
 	if (const auto guess = document.find("initial_guess"); guess != document.end() && guess->is_object()) return &*guess;
-	if (const auto profiles = document.find("profiles"); profiles != document.end() && profiles->is_object()) return &document;
+	if (const auto u = document.find("u"); u != document.end() && u->is_object()) return &document;
 	if (const auto* problem = FindLastProblemObject(document)) return FindInitialGuessObject(*problem);
 	return nullptr;
 }
@@ -179,58 +179,83 @@ inline bool ReadOutputProfileArray(const json& node, int profile_size, std::vect
 }
 
 template <typename RealT>
-inline bool WriteInitialGuessProfiles(json& guess,
-                                     std::span<const RealT> values,
-                                     const std::vector<std::string>& monlist,
-                                     const std::vector<std::string>& statelist,
-                                     bool charged,
-                                     int profile_size) {
+inline bool WriteInitialGuessU(json& guess,
+                               std::span<const RealT> values,
+                               const std::vector<std::string>& monlist,
+                               const std::vector<std::string>& statelist,
+                               bool charged,
+                               int profile_size) {
 	const int count = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
 	if (static_cast<int>(values.size()) != count * profile_size) return false;
 	guess = json::object();
-	guess["profiles"] = json::object();
+	guess["u"] = json::object();
 	size_t offset = 0;
-	const auto write_profile = [&](const std::string& key) {
-		guess["profiles"][key] = std::vector<RealT>(
+	const auto write_profile = [&](const std::string& group, const std::string& key) {
+		guess["u"][group][key] = std::vector<RealT>(
 			values.begin() + static_cast<std::ptrdiff_t>(offset * static_cast<size_t>(profile_size)),
 			values.begin() + static_cast<std::ptrdiff_t>((offset + 1) * static_cast<size_t>(profile_size)));
 		++offset;
 	};
-	for (const std::string& mon_name : monlist) write_profile("mon:" + mon_name);
-	for (const std::string& state_name : statelist) write_profile("state:" + state_name);
-	if (charged) write_profile("psi");
+	for (const std::string& mon_name : monlist) write_profile("mon", mon_name);
+	for (const std::string& state_name : statelist) write_profile("state", state_name);
+	if (charged) guess["u"]["psi"] = std::vector<RealT>(
+		values.begin() + static_cast<std::ptrdiff_t>(offset * static_cast<size_t>(profile_size)),
+		values.begin() + static_cast<std::ptrdiff_t>((offset + 1) * static_cast<size_t>(profile_size)));
 	return true;
 }
 
-template <typename RealT>
-inline bool ReadInitialGuessProfiles(const json& guess,
-                                     std::span<RealT> x,
-                                     const std::vector<std::string>& monlist,
-                                     const std::vector<std::string>& statelist,
-                                     bool charged,
-                                     int profile_size) {
-	const auto profiles = guess.find("profiles");
-	if (profiles == guess.end() || !profiles->is_object()) return false;
+template <typename RealT, typename PadProfileFn, typename EquivalentProfileFn>
+inline bool ReadInitialGuessU(const json& guess,
+                              std::span<RealT> x,
+                              const std::vector<std::string>& monlist,
+                              const std::vector<std::string>& statelist,
+                              bool charged,
+                              int profile_size,
+                              PadProfileFn&& pad_profile,
+                              EquivalentProfileFn&& equivalent_profile) {
+	const auto u = guess.find("u");
+	if (u == guess.end() || !u->is_object()) return false;
 	const int count = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
 	if (static_cast<int>(x.size()) != count * profile_size) return false;
 	std::vector<RealT> values;
 	size_t offset = 0;
-	for (const std::string& mon_name : monlist) {
-		const auto profile = profiles->find("mon:" + mon_name);
-		if (profile == profiles->end() || !ReadProfileArray(*profile, profile_size, values)) return false;
+	const auto field_node = [&](const std::string& group, const std::string& name) -> const json* {
+		const auto group_it = u->find(group);
+		if (group_it != u->end() && group_it->is_object()) {
+			const auto field = group_it->find(name);
+			if (field != group_it->end()) return &*field;
+			for (auto candidate = group_it->begin(); candidate != group_it->end(); ++candidate) {
+				if (equivalent_profile(group, name, candidate.key())) return &*candidate;
+			}
+		}
+		return nullptr;
+	};
+	const auto read_field = [&](const json* field, const std::string& label) {
+		if (field == nullptr) {
+			std::cout << "Initial guess is missing u field '" << label << "'." << std::endl;
+			return false;
+		}
+		if (!ReadProfileArray(*field, profile_size, values)) {
+			values.clear();
+			if (!FlattenProfileArray(*field, values) || !pad_profile(values)) {
+				std::cout << "Initial guess u field '" << label << "' has invalid shape or size; expected "
+				          << profile_size << " values." << std::endl;
+				return false;
+			}
+		}
 		std::copy(values.begin(), values.end(), x.begin() + static_cast<std::ptrdiff_t>(offset));
 		offset += static_cast<size_t>(profile_size);
+		return true;
+	};
+	for (const std::string& mon_name : monlist) {
+		if (!read_field(field_node("mon", mon_name), "mon." + mon_name)) return false;
 	}
 	for (const std::string& state_name : statelist) {
-		const auto profile = profiles->find("state:" + state_name);
-		if (profile == profiles->end() || !ReadProfileArray(*profile, profile_size, values)) return false;
-		std::copy(values.begin(), values.end(), x.begin() + static_cast<std::ptrdiff_t>(offset));
-		offset += static_cast<size_t>(profile_size);
+		if (!read_field(field_node("state", state_name), "state." + state_name)) return false;
 	}
 	if (charged) {
-		const auto profile = profiles->find("psi");
-		if (profile == profiles->end() || !ReadProfileArray(*profile, profile_size, values)) return false;
-		std::copy(values.begin(), values.end(), x.begin() + static_cast<std::ptrdiff_t>(offset));
+		const auto psi = u->find("psi");
+		if (!read_field(psi != u->end() ? &*psi : nullptr, "psi")) return false;
 	}
 	return true;
 }
@@ -247,13 +272,15 @@ inline bool ReadExternalPotentialJson(const std::string& filename, std::vector<R
 	return false;
 }
 
-template <typename RealT, typename ResolveProfileFn>
+template <typename RealT, typename ResolveProfileFn, typename PadProfileFn, typename EquivalentProfileFn>
 inline bool ReadInitialGuess(const std::string& filename,
                              std::span<RealT> x,
                              const std::vector<std::string>& monlist,
                              const std::vector<std::string>& statelist,
                              bool charged,
-                             ResolveProfileFn&& resolve_profile) {
+                             ResolveProfileFn&& resolve_profile,
+                             PadProfileFn&& pad_profile,
+                             EquivalentProfileFn&& equivalent_profile) {
 	const int count = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
 	detail::json document;
 	if (!detail::ReadJsonFile(filename, document)) {
@@ -263,35 +290,35 @@ inline bool ReadInitialGuess(const std::string& filename,
 	if (const auto* guess = detail::FindInitialGuessObject(document); guess != nullptr) {
 		if (count == 0) return x.empty();
 		if (static_cast<int>(x.size()) % count != 0) return false;
-		return detail::ReadInitialGuessProfiles(*guess, x, monlist, statelist, charged, static_cast<int>(x.size()) / count);
+		return detail::ReadInitialGuessU(*guess, x, monlist, statelist, charged, static_cast<int>(x.size()) / count, pad_profile, equivalent_profile);
 	}
 	if (count == 0) return x.empty();
 
 	detail::json guess;
-	guess["profiles"] = detail::json::object();
+	guess["u"] = detail::json::object();
 	std::vector<RealT> values;
 	for (const std::string& mon_name : monlist) {
 		if (!resolve_profile(document, "mon:" + mon_name, values)) {
 			std::cout << "No initial_guess found in " << filename << ". Read guess for initial guess failed" << std::endl;
 			return false;
 		}
-		guess["profiles"]["mon:" + mon_name] = values;
+		guess["u"]["mon"][mon_name] = values;
 	}
 	for (const std::string& state_name : statelist) {
 		if (!resolve_profile(document, "state:" + state_name, values)) {
 			std::cout << "No initial_guess found in " << filename << ". Read guess for initial guess failed" << std::endl;
 			return false;
 		}
-		guess["profiles"]["state:" + state_name] = values;
+		guess["u"]["state"][state_name] = values;
 	}
 	if (charged) {
 		if (!resolve_profile(document, "psi", values)) {
 			std::cout << "No initial_guess found in " << filename << ". Read guess for initial guess failed" << std::endl;
 			return false;
 		}
-		guess["profiles"]["psi"] = values;
+		guess["u"]["psi"] = values;
 	}
-	return detail::ReadInitialGuessProfiles(guess, x, monlist, statelist, charged, static_cast<int>(x.size()) / count);
+	return detail::ReadInitialGuessU(guess, x, monlist, statelist, charged, static_cast<int>(x.size()) / count, pad_profile, equivalent_profile);
 }
 
 } // namespace io

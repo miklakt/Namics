@@ -234,7 +234,20 @@ int main(int argc, char *argv[])
 				}
 				return profile != nullptr && io::detail::ReadOutputProfileArray(*profile, Lat->M, values, pad_profile);
 			};
-			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>(X), MONLIST, STATELIST, CHARGED, resolve_profile)) {
+			auto equivalent_profile = [&](const std::string& group, const std::string& wanted, const std::string& candidate) {
+				auto mon_chi = [&](const std::string& name) -> const std::vector<Real>* {
+					for (const auto& seg : Seg) if (seg->name == name) return &seg->chi;
+					return nullptr;
+				};
+				auto state_chi = [&](const std::string& name) -> const std::vector<Real>* {
+					for (const auto& state : Sta) if (state->name == name) return &state->chi;
+					return nullptr;
+				};
+				const auto* wanted_chi = group == "mon" ? mon_chi(wanted) : group == "state" ? state_chi(wanted) : nullptr;
+				const auto* candidate_chi = group == "mon" ? mon_chi(candidate) : group == "state" ? state_chi(candidate) : nullptr;
+				return wanted_chi != nullptr && candidate_chi != nullptr && *wanted_chi == *candidate_chi;
+			};
+			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>(X), MONLIST, STATELIST, CHARGED, resolve_profile, pad_profile, equivalent_profile)) {
 				return 1;
 			}
 		}
