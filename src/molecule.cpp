@@ -153,6 +153,13 @@ NAMICS_DBG("BuildComposition for Mol " + mol.name << std::endl);
 	};
 	if (!append_chain(append_chain, mol.topology, 0, -1)) return false;
 	mol.chainlength = static_cast<int>(mol.segment_path.size());
+	mol.linear_topology = true;
+	for (const auto& occurrence : mol.segment_path) {
+		if (occurrence.children.size() > 1) {
+			mol.linear_topology = false;
+			break;
+		}
+	}
 	return mol.chainlength > 0;
 }
 
@@ -170,6 +177,7 @@ void Molecule:: AllocateMemory() {
 	phi_ranked.clear();
 	phitot.assign(M, 0);
 	q_forward.assign(static_cast<size_t>(M) * static_cast<size_t>(chainlength), 0);
+	q_backward.assign(2 * static_cast<size_t>(M), 0);
 	G_unity.assign(M, 0);
 }
 
@@ -457,6 +465,17 @@ void Molecule::AddSegmentDensity(int segment_index, std::span<const Real> q_back
 void Molecule::PropagateForward() {
 NAMICS_DBG("PropagateForward for Molecule " + name << std::endl);
 	const int M = lat->M;
+	if (linear_topology) {
+		if (chainlength == 0) return;
+		const int last = chainlength - 1;
+		const auto& leaf = segment_path[last];
+		lat->Initiate(q_forward.data() + static_cast<size_t>(last) * M, Seg[leaf.segment]->G1.data());
+		for (int segment_index = last - 1; segment_index >= 0; --segment_index) {
+			const auto& current = segment_path[segment_index];
+			lat->propagate(q_forward.data(), Seg[current.segment]->G1.data(), current.children.front(), segment_index, M);
+		}
+		return;
+	}
 	std::vector<Real> work(2 * M);
 	auto q_values = std::span<Real>(q_forward);
 	for (int segment_index = chainlength - 1; segment_index >= 0; --segment_index) {
@@ -490,6 +509,113 @@ NAMICS_DBG("fraction for Molecule " + name << std::endl); // Default for a monom
 		if (segnr == node.segment) ++Nseg;
 	});
 	return static_cast<Real>(Nseg)/chainlength;
+}
+
+void Molecule::AccumulateDensityLinear(bool include_segment_phi, std::span<Real> system_phitot, std::span<Real> mol_phitot) {
+	enum class LinearDensityMode {
+		system_segment_molecule,
+		profile_only,
+		profile_and_ranked,
+		generic,
+	};
+
+	const int M = lat->M;
+	Real* backward_pair = q_backward.data();
+	std::fill_n(backward_pair, M, 1.0);
+	const Real scale = norm > 0 ? norm : Real(1.0);
+	const bool scaled = norm > 0;
+	Real* system_ptr = system_phitot.empty() ? nullptr : system_phitot.data();
+	Real* mol_ptr = mol_phitot.empty() ? nullptr : mol_phitot.data();
+	Real* phi_ptr = phi.empty() ? nullptr : phi.data();
+	Real* ranked_ptr = phi_ranked.empty() ? nullptr : phi_ranked.data();
+	const LinearDensityMode mode =
+		include_segment_phi && system_ptr != nullptr && mol_ptr != nullptr && phi_ptr == nullptr && ranked_ptr == nullptr
+			? LinearDensityMode::system_segment_molecule
+			: (!include_segment_phi && system_ptr == nullptr && mol_ptr == nullptr && phi_ptr != nullptr && ranked_ptr == nullptr
+				   ? LinearDensityMode::profile_only
+				   : (!include_segment_phi && system_ptr == nullptr && mol_ptr == nullptr && phi_ptr != nullptr && ranked_ptr != nullptr
+						  ? LinearDensityMode::profile_and_ranked
+						  : LinearDensityMode::generic));
+	int current_slot = 0;
+
+	for (int current_index = 0; current_index < chainlength; ++current_index) {
+		const auto& current = segment_path[current_index];
+		const int seg = current.segment;
+		const Real* qf = q_forward.data() + static_cast<size_t>(current_index) * M;
+		const Real* qb = backward_pair + static_cast<size_t>(current_slot) * M;
+
+		switch (mode) {
+			case LinearDensityMode::system_segment_molecule:
+				if (scaled) {
+					for (int i = 0; i < M; ++i) {
+						const Real value = scale * qf[i] * qb[i];
+						Seg[seg]->phi[i] += value;
+						system_ptr[i] += value;
+						mol_ptr[i] += value;
+					}
+				} else {
+					for (int i = 0; i < M; ++i) {
+						const Real value = qf[i] * qb[i];
+						Seg[seg]->phi[i] += value;
+						system_ptr[i] += value;
+						mol_ptr[i] += value;
+					}
+				}
+			break;
+			case LinearDensityMode::profile_only:
+			{
+				Real* const mol_phi_block = phi_ptr + static_cast<size_t>(current.segment_type_index) * M;
+				if (scaled) {
+					for (int i = 0; i < M; ++i) mol_phi_block[i] += scale * qf[i] * qb[i];
+				} else {
+					for (int i = 0; i < M; ++i) mol_phi_block[i] += qf[i] * qb[i];
+				}
+			}
+			break;
+			case LinearDensityMode::profile_and_ranked:
+			{
+				Real* const mol_phi_block = phi_ptr + static_cast<size_t>(current.segment_type_index) * M;
+				Real* const ranked_block = ranked_ptr + static_cast<size_t>(current_index) * M;
+				if (scaled) {
+					for (int i = 0; i < M; ++i) {
+						const Real value = scale * qf[i] * qb[i];
+						mol_phi_block[i] += value;
+						ranked_block[i] += value;
+					}
+				} else {
+					for (int i = 0; i < M; ++i) {
+						const Real value = qf[i] * qb[i];
+						mol_phi_block[i] += value;
+						ranked_block[i] += value;
+					}
+				}
+			}
+			break;
+			case LinearDensityMode::generic:
+			{
+				Real* const seg_ptr = include_segment_phi ? Seg[seg]->phi.data() : nullptr;
+				Real* const mol_phi_block = phi_ptr ? phi_ptr + static_cast<size_t>(current.segment_type_index) * M : nullptr;
+				Real* const ranked_block = ranked_ptr ? ranked_ptr + static_cast<size_t>(current_index) * M : nullptr;
+				for (int i = 0; i < M; ++i) {
+					Real value = qf[i] * qb[i];
+					if (scaled) value *= scale;
+					if (seg_ptr != nullptr) seg_ptr[i] += value;
+					if (system_ptr != nullptr) system_ptr[i] += value;
+					if (mol_ptr != nullptr) mol_ptr[i] += value;
+					if (mol_phi_block != nullptr) mol_phi_block[i] += value;
+					if (ranked_block != nullptr) ranked_block[i] += value;
+				}
+			}
+			break;
+		}
+
+		if (current_index + 1 == chainlength) return;
+		Real* current_backward = backward_pair + static_cast<size_t>(current_slot) * M;
+		const auto& g1 = Seg[seg]->G1;
+		for (int i = 0; i < M; ++i) current_backward[i] *= g1[i];
+		lat->propagate(backward_pair, G_unity.data(), current_slot, 1 - current_slot, M);
+		current_slot = 1 - current_slot;
+	}
 }
 
 void Molecule::PropagateBackward(int segment_index, std::span<const Real> q_backward, bool include_segment_phi, std::span<Real> system_phitot, std::span<Real> mol_phitot) {
@@ -543,6 +669,10 @@ void Molecule::PropagateBackward(int segment_index, std::span<const Real> q_back
 
 void Molecule::AccumulateDensity(bool include_segment_phi, std::span<Real> system_phitot, std::span<Real> mol_phitot) {
 	if (segment_path.empty()) return;
+	if (linear_topology) {
+		AccumulateDensityLinear(include_segment_phi, system_phitot, mol_phitot);
+		return;
+	}
 	std::vector<Real> q_backward(lat->M, 1.0);
 	PropagateBackward(0, q_backward, include_segment_phi, system_phitot, mol_phitot);
 }

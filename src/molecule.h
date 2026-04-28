@@ -45,7 +45,9 @@ public:
 	std::vector<Real> phi_ranked;
 	std::vector<Real> phitot;
 	std::vector<Real> q_forward;
+	std::vector<Real> q_backward;
 	std::vector<Real> G_unity;
+	bool linear_topology = true;
 	OutputRequest output_request;
 	ParameterStore OUTPUT;
 	std::span<const int> SegmentTypes() const noexcept { return segment_types; }
@@ -83,6 +85,7 @@ private:
 	}
 
 	void AddSegmentDensity(int, std::span<const Real>, bool, std::span<Real>, std::span<Real>);
+	void AccumulateDensityLinear(bool, std::span<Real>, std::span<Real>);
 	void PropagateForward();
 	void PropagateBackward(int, std::span<const Real>, bool, std::span<Real>, std::span<Real>);
 	void AccumulateDensity(bool, std::span<Real>, std::span<Real>);
