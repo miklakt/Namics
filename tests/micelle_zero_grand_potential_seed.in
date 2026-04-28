@@ -31,6 +31,6 @@ json : mon : W : u //THIS EMMITS U-PROFILE FOR INITIAL GUESS
 json : mon : B : u //THIS EMMITS U-PROFILE FOR INITIAL GUESS
 json : mon : A : u //THIS EMMITS U-PROFILE FOR INITIAL GUESS
 json : sys : noname : grand_potential //THIS IS WHAT WE MEASURE, LET US CALL IT F(X)
-sys : noname : write_initial_guess : true
+//sys : noname : write_initial_guess : true
 
 start

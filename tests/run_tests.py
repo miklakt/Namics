@@ -75,6 +75,14 @@ def last_problem(path: Path) -> dict:
 def solver_artifacts(path: Path) -> list[Path]:
     return [path, path.with_suffix(".input.json"), path.with_suffix(".output.json")]
 
+def expect_initial_guess(path: Path) -> str:
+    if not path.is_file() or not path.stat().st_size:
+        raise TestError(f"ERROR: expected initial guess file was not created: {path}")
+    initial_guess = json.loads(path.read_text(encoding="utf-8")).get("initial_guess")
+    if not isinstance(initial_guess, dict) or set(initial_guess) != {"u"} or not initial_guess["u"]:
+        raise TestError(f"ERROR: initial_guess is missing u data: {path}")
+    return "standalone initial_guess generated"
+
 def elapsed_ms(metrics: CommandMetrics) -> int:
     return int(round(metrics.wall_s * 1000.0))
 
@@ -231,8 +239,8 @@ def _run_solver(
         raise TestError(f"ERROR: expected JSON output file was not created for {label}: {output_path}")
     if require_initial_guess:
         initial_guess = last_problem(output_path)["initial_guess"]
-        if not isinstance(initial_guess, dict) or set(initial_guess) != {"profiles"} or not initial_guess["profiles"]:
-            raise TestError(f"ERROR: initial_guess is missing profile data: {output_path}")
+        if not isinstance(initial_guess, dict) or set(initial_guess) != {"u"} or not initial_guess["u"]:
+            raise TestError(f"ERROR: initial_guess is missing u data: {output_path}")
     return metrics, output_path
 
 
@@ -506,9 +514,10 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
     generate_input = ctx.tests_dir / "micelle_guess_generate.in"
     use_input = ctx.tests_dir / "micelle_guess_use.in"
     reference_file = ctx.reference_dir / "micelle_guess_use.json.ref"
+    initial_guess_file = ctx.output_dir / "micelle_initial_guess.json"
     runtime_generate = ctx.output_dir / generate_input.name
     runtime_use = ctx.output_dir / use_input.name
-    cleanup_targets = [*solver_artifacts(runtime_generate), *solver_artifacts(runtime_use)]
+    cleanup_targets = [*solver_artifacts(runtime_generate), *solver_artifacts(runtime_use), initial_guess_file]
 
     require_file(ctx.binary, executable=True)
     require_file(generate_input)
@@ -518,6 +527,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
 
     try:
         pseudo_gen = add_child(generate_group, "pseudohessian")
+        initial_guess_file.unlink(missing_ok=True)
         pseudo_output, _ = _run_leaf(
             ctx,
             pseudo_gen,
@@ -525,9 +535,14 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
             runtime_input=runtime_generate,
             solver_method="pseudohessian",
             label="micelle guess generate, mode=pseudohessian",
-            detail="embedded initial_guess generated in output JSON",
-            require_initial_guess=True,
+            require_initial_guess=False,
         )
+        if pseudo_output is not None:
+            try:
+                pseudo_gen.details = expect_initial_guess(initial_guess_file)
+            except Exception as exc:
+                pseudo_output = None
+                _set_failure(pseudo_gen, exc)
 
         pseudo_use = add_child(use_group, "pseudohessian")
         if not pseudo_output:
@@ -544,6 +559,7 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
             )
 
         diis_gen = add_child(generate_group, "DIIS")
+        initial_guess_file.unlink(missing_ok=True)
         diis_generate_output, _ = _run_leaf(
             ctx,
             diis_gen,
@@ -551,9 +567,14 @@ def test_micelle_self_assembly(ctx: Context) -> ReportNode:
             runtime_input=runtime_generate,
             solver_method="DIIS",
             label="micelle guess generate, mode=DIIS",
-            detail="embedded initial_guess generated in output JSON",
-            require_initial_guess=True,
+            require_initial_guess=False,
         )
+        if diis_generate_output is not None:
+            try:
+                diis_gen.details = expect_initial_guess(initial_guess_file)
+            except Exception as exc:
+                diis_generate_output = None
+                _set_failure(diis_gen, exc)
 
         diis_use = add_child(use_group, "DIIS")
         if not diis_generate_output:

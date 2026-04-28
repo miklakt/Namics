@@ -79,5 +79,6 @@ newton : isaac : tolerance : 1e-10
 newton : isaac : method : DIIS
 
 sys : noname : write_initial_guess : true
+sys : noname : guess_outputfile : ../output/polE_initial_guess.json
 
 start

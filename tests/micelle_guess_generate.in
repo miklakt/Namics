@@ -36,3 +36,4 @@ start
 
 mon : A : freedom : free
 sys : noname : write_initial_guess : true
+sys : noname : guess_outputfile : ../output/micelle_initial_guess.json
