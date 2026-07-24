@@ -9,7 +9,7 @@ constexpr const char* DEFAULT_OUTPUT_PATH = "./output/";
 
 const std::vector<std::string>& ProblemKeys() {
 	static const std::vector<std::string> keys = {
-		"sys", "mol", "mon", "lat", "newton", "output", OUTPUT_INFO_KEY, "state", "reaction", "json", "initial_guess"
+		"sys", "mol", "mon", "lat", "newton", "output", OUTPUT_INFO_KEY, "state", "reaction", "sample", "json", "initial_guess"
 	};
 	return keys;
 }

@@ -8,6 +8,7 @@
 #include "segment.h"
 #include "state.h"
 #include "reaction.h"
+#include "sample_configuration.h"
 #include "system.h"
 #include "solve_scf.h"
 #include <filesystem>
@@ -77,6 +78,7 @@ int main(int argc, char *argv[])
 	std::vector<std::unique_ptr<Segment>> Seg;
 	std::vector<std::unique_ptr<State>> Sta;
 	std::vector<std::unique_ptr<Reaction>> Rea;
+	std::vector<SampleConfiguration> Samples;
 
 	std::string json_input_path;
 	if (!io::input::PrepareInputFile(filename.string(), json_input_path)) {
@@ -153,6 +155,8 @@ int main(int argc, char *argv[])
 			if (!molecule) return 0;
 			Mol.push_back(std::move(molecule));
 		}
+		Samples.clear();
+		if (!sample_configuration::Load(*In, Lat.get(), Mol, start, Samples)) return 0;
 
 		Sys = std::make_unique<System>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, In->SysList[0]);
 		if (!Sys->CheckInput(start)) return 0;
@@ -255,7 +259,7 @@ int main(int argc, char *argv[])
 		if (In->OutputList.empty()) {
 			std::cout << "Warning: no output defined!" << std::endl;
 		} else {
-			Out = std::make_unique<Output>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Sys.get(), New.get(), "json");
+			Out = std::make_unique<Output>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Samples, Sys.get(), New.get(), "json");
 			if (!Out->CheckInput(start)) {
 				std::cout << "input_error in output " << std::endl;
 				return 0;
@@ -278,6 +282,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (!New->Solve(true)) return 1;
+		for (auto& sample : Samples) if (!sample.Generate()) return 1;
 		New->PushOutput();
 
 		if (Out) Out->WriteOutput(0);

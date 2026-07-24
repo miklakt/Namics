@@ -17,9 +17,9 @@ bool WriteInitialGuessFile(const std::string& filename, const nlohmann::ordered_
 
 } // namespace
 
-Output::Output(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_,std::span<const std::unique_ptr<State>> Sta_, std::span<const std::unique_ptr<Reaction>> Rea_, std::span<const std::unique_ptr<Molecule>> Mol_,System* Sys_,Solve_scf* New_,std::string name_) {
+Output::Output(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_,std::span<const std::unique_ptr<State>> Sta_, std::span<const std::unique_ptr<Reaction>> Rea_, std::span<const std::unique_ptr<Molecule>> Mol_,std::span<const SampleConfiguration> Samples_,System* Sys_,Solve_scf* New_,std::string name_) {
 NAMICS_DBG("constructor in Output "<< std::endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; New=New_;
-	lat=Lat_;
+	lat=Lat_; Samples=Samples_;
 }
 
 bool Output::Load() {
@@ -136,6 +136,11 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		{"problem", start},
 		{"name", base_name}
 	};
+	for (const auto& sample : Samples) {
+		problem["sample"][sample.name]["seed"] = sample.seed;
+		problem["sample"][sample.name]["size"] = sample.size;
+		problem["sample"][sample.name][sample.molecule_name]["xyz"] = sample.xyz;
+	}
 	const int a = write_bounds ? 0 : lat->fjc;
 	auto write_ranked_profile = [&](const Molecule& mol) {
 		const int M = lat->M;
