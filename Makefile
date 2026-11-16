@@ -142,25 +142,12 @@ $(BUILDDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
 
 
 #Non-File Targets
-test-homopolymer-adsorption:
-	@python3 ./tests/run_tests.py homopolymer-adsorption
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 
-benchmark-homopolymer-adsorption:
-	@python3 ./tests/run_tests.py homopolymer-adsorption-benchmark
+test:
+	@$(PYTHON) ./tests/run_tests.py
 
-test-frozen-range-input-file:
-	@python3 ./tests/run_tests.py frozen-range-input-file
+test-%:
+	@$(PYTHON) ./tests/run_tests.py $*
 
-test-micelle-self-assembly:
-	@python3 ./tests/run_tests.py micelle-self-assembly
-
-test-micelle-grand-canonical-search:
-	@python3 ./tests/run_tests.py micelle-grand-canonical-search
-
-test-particle-in-cyl-coordinates:
-	@python3 ./tests/run_tests.py particle-in-cyl-coordinates
-
-test-all:
-	@python3 ./tests/run_tests.py
-
-.PHONY: all remake clean cleaner resources test-homopolymer-adsorption benchmark-homopolymer-adsorption test-frozen-range-input-file test-micelle-self-assembly test-micelle-grand-canonical-search test-particle-in-cyl-coordinates test-all
+.PHONY: all remake clean cleaner resources test

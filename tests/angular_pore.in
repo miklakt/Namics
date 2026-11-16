@@ -1,0 +1,247 @@
+// Circular pore cut from a flat 2D lattice, wall from a frozen mask, one chain grafted per contour site.
+// Generated with scf_pore_angular/builder_impl (make_builder_run + write_input_files), scaled down:
+// pore_radius=6 chainlength=40 grafting_density=0.05 chi_polymer_solvent=0.9 chi_polymer_wall=0
+lat:flat:geometry:flat
+lat:flat:gradients:2
+lat:flat:lattice_type:simple_cubic
+lat:flat:n_layers_x:14
+lat:flat:n_layers_y:14
+mon:S:freedom:free
+mol:SOLVENT:composition:(S)1
+mol:SOLVENT:freedom:solvent
+mon:W:freedom:frozen
+mon:W:frozen_filename:angular_pore.frozen
+mon:P:freedom:free
+mon:P0:freedom:pinned
+mon:P0:pinned_range:13,7;13,7 // grafting chain to the 0 grafting site
+mol:POLYMER0:composition:(P0)1(P)39
+mol:POLYMER0:freedom:restricted
+mol:POLYMER0:theta:2.356194490192345
+mon:P1:freedom:pinned
+mon:P1:pinned_range:13,8;13,8 // grafting chain to the 1 grafting site
+mol:POLYMER1:composition:(P1)1(P)39
+mol:POLYMER1:freedom:restricted
+mol:POLYMER1:theta:2.356194490192345
+mon:P2:freedom:pinned
+mon:P2:pinned_range:13,9;13,9 // grafting chain to the 2 grafting site
+mol:POLYMER2:composition:(P2)1(P)39
+mol:POLYMER2:freedom:restricted
+mol:POLYMER2:theta:2.356194490192345
+mon:P3:freedom:pinned
+mon:P3:pinned_range:12,10;12,10 // grafting chain to the 3 grafting site
+mol:POLYMER3:composition:(P3)1(P)39
+mol:POLYMER3:freedom:restricted
+mol:POLYMER3:theta:2.356194490192345
+mon:P4:freedom:pinned
+mon:P4:pinned_range:12,11;12,11 // grafting chain to the 4 grafting site
+mol:POLYMER4:composition:(P4)1(P)39
+mol:POLYMER4:freedom:restricted
+mol:POLYMER4:theta:2.356194490192345
+mon:P5:freedom:pinned
+mon:P5:pinned_range:11,12;11,12 // grafting chain to the 5 grafting site
+mol:POLYMER5:composition:(P5)1(P)39
+mol:POLYMER5:freedom:restricted
+mol:POLYMER5:theta:2.356194490192345
+mon:P6:freedom:pinned
+mon:P6:pinned_range:10,12;10,12 // grafting chain to the 6 grafting site
+mol:POLYMER6:composition:(P6)1(P)39
+mol:POLYMER6:freedom:restricted
+mol:POLYMER6:theta:2.356194490192345
+mon:P7:freedom:pinned
+mon:P7:pinned_range:9,13;9,13 // grafting chain to the 7 grafting site
+mol:POLYMER7:composition:(P7)1(P)39
+mol:POLYMER7:freedom:restricted
+mol:POLYMER7:theta:2.356194490192345
+mon:P8:freedom:pinned
+mon:P8:pinned_range:8,13;8,13 // grafting chain to the 8 grafting site
+mol:POLYMER8:composition:(P8)1(P)39
+mol:POLYMER8:freedom:restricted
+mol:POLYMER8:theta:2.356194490192345
+mon:P9:freedom:pinned
+mon:P9:pinned_range:7,13;7,13 // grafting chain to the 9 grafting site
+mol:POLYMER9:composition:(P9)1(P)39
+mol:POLYMER9:freedom:restricted
+mol:POLYMER9:theta:2.356194490192345
+mon:P10:freedom:pinned
+mon:P10:pinned_range:6,13;6,13 // grafting chain to the 10 grafting site
+mol:POLYMER10:composition:(P10)1(P)39
+mol:POLYMER10:freedom:restricted
+mol:POLYMER10:theta:2.356194490192345
+mon:P11:freedom:pinned
+mon:P11:pinned_range:5,12;5,12 // grafting chain to the 11 grafting site
+mol:POLYMER11:composition:(P11)1(P)39
+mol:POLYMER11:freedom:restricted
+mol:POLYMER11:theta:2.356194490192345
+mon:P12:freedom:pinned
+mon:P12:pinned_range:4,12;4,12 // grafting chain to the 12 grafting site
+mol:POLYMER12:composition:(P12)1(P)39
+mol:POLYMER12:freedom:restricted
+mol:POLYMER12:theta:2.356194490192345
+mon:P13:freedom:pinned
+mon:P13:pinned_range:3,11;3,11 // grafting chain to the 13 grafting site
+mol:POLYMER13:composition:(P13)1(P)39
+mol:POLYMER13:freedom:restricted
+mol:POLYMER13:theta:2.356194490192345
+mon:P14:freedom:pinned
+mon:P14:pinned_range:3,10;3,10 // grafting chain to the 14 grafting site
+mol:POLYMER14:composition:(P14)1(P)39
+mol:POLYMER14:freedom:restricted
+mol:POLYMER14:theta:2.356194490192345
+mon:P15:freedom:pinned
+mon:P15:pinned_range:2,9;2,9 // grafting chain to the 15 grafting site
+mol:POLYMER15:composition:(P15)1(P)39
+mol:POLYMER15:freedom:restricted
+mol:POLYMER15:theta:2.356194490192345
+mon:P16:freedom:pinned
+mon:P16:pinned_range:2,8;2,8 // grafting chain to the 16 grafting site
+mol:POLYMER16:composition:(P16)1(P)39
+mol:POLYMER16:freedom:restricted
+mol:POLYMER16:theta:2.356194490192345
+mon:P17:freedom:pinned
+mon:P17:pinned_range:2,7;2,7 // grafting chain to the 17 grafting site
+mol:POLYMER17:composition:(P17)1(P)39
+mol:POLYMER17:freedom:restricted
+mol:POLYMER17:theta:2.356194490192345
+mon:P18:freedom:pinned
+mon:P18:pinned_range:2,6;2,6 // grafting chain to the 18 grafting site
+mol:POLYMER18:composition:(P18)1(P)39
+mol:POLYMER18:freedom:restricted
+mol:POLYMER18:theta:2.356194490192345
+mon:P19:freedom:pinned
+mon:P19:pinned_range:3,5;3,5 // grafting chain to the 19 grafting site
+mol:POLYMER19:composition:(P19)1(P)39
+mol:POLYMER19:freedom:restricted
+mol:POLYMER19:theta:2.356194490192345
+mon:P20:freedom:pinned
+mon:P20:pinned_range:3,4;3,4 // grafting chain to the 20 grafting site
+mol:POLYMER20:composition:(P20)1(P)39
+mol:POLYMER20:freedom:restricted
+mol:POLYMER20:theta:2.356194490192345
+mon:P21:freedom:pinned
+mon:P21:pinned_range:4,3;4,3 // grafting chain to the 21 grafting site
+mol:POLYMER21:composition:(P21)1(P)39
+mol:POLYMER21:freedom:restricted
+mol:POLYMER21:theta:2.356194490192345
+mon:P22:freedom:pinned
+mon:P22:pinned_range:5,3;5,3 // grafting chain to the 22 grafting site
+mol:POLYMER22:composition:(P22)1(P)39
+mol:POLYMER22:freedom:restricted
+mol:POLYMER22:theta:2.356194490192345
+mon:P23:freedom:pinned
+mon:P23:pinned_range:6,2;6,2 // grafting chain to the 23 grafting site
+mol:POLYMER23:composition:(P23)1(P)39
+mol:POLYMER23:freedom:restricted
+mol:POLYMER23:theta:2.356194490192345
+mon:P24:freedom:pinned
+mon:P24:pinned_range:7,2;7,2 // grafting chain to the 24 grafting site
+mol:POLYMER24:composition:(P24)1(P)39
+mol:POLYMER24:freedom:restricted
+mol:POLYMER24:theta:2.356194490192345
+mon:P25:freedom:pinned
+mon:P25:pinned_range:8,2;8,2 // grafting chain to the 25 grafting site
+mol:POLYMER25:composition:(P25)1(P)39
+mol:POLYMER25:freedom:restricted
+mol:POLYMER25:theta:2.356194490192345
+mon:P26:freedom:pinned
+mon:P26:pinned_range:9,2;9,2 // grafting chain to the 26 grafting site
+mol:POLYMER26:composition:(P26)1(P)39
+mol:POLYMER26:freedom:restricted
+mol:POLYMER26:theta:2.356194490192345
+mon:P27:freedom:pinned
+mon:P27:pinned_range:10,3;10,3 // grafting chain to the 27 grafting site
+mol:POLYMER27:composition:(P27)1(P)39
+mol:POLYMER27:freedom:restricted
+mol:POLYMER27:theta:2.356194490192345
+mon:P28:freedom:pinned
+mon:P28:pinned_range:11,3;11,3 // grafting chain to the 28 grafting site
+mol:POLYMER28:composition:(P28)1(P)39
+mol:POLYMER28:freedom:restricted
+mol:POLYMER28:theta:2.356194490192345
+mon:P29:freedom:pinned
+mon:P29:pinned_range:12,4;12,4 // grafting chain to the 29 grafting site
+mol:POLYMER29:composition:(P29)1(P)39
+mol:POLYMER29:freedom:restricted
+mol:POLYMER29:theta:2.356194490192345
+mon:P30:freedom:pinned
+mon:P30:pinned_range:12,5;12,5 // grafting chain to the 30 grafting site
+mol:POLYMER30:composition:(P30)1(P)39
+mol:POLYMER30:freedom:restricted
+mol:POLYMER30:theta:2.356194490192345
+mon:P31:freedom:pinned
+mon:P31:pinned_range:13,6;13,6 // grafting chain to the 31 grafting site
+mol:POLYMER31:composition:(P31)1(P)39
+mol:POLYMER31:freedom:restricted
+mol:POLYMER31:theta:2.356194490192345
+mon:P:chi_S:0.9
+mon:P0:chi_S:0.9
+mon:P1:chi_S:0.9
+mon:P2:chi_S:0.9
+mon:P3:chi_S:0.9
+mon:P4:chi_S:0.9
+mon:P5:chi_S:0.9
+mon:P6:chi_S:0.9
+mon:P7:chi_S:0.9
+mon:P8:chi_S:0.9
+mon:P9:chi_S:0.9
+mon:P10:chi_S:0.9
+mon:P11:chi_S:0.9
+mon:P12:chi_S:0.9
+mon:P13:chi_S:0.9
+mon:P14:chi_S:0.9
+mon:P15:chi_S:0.9
+mon:P16:chi_S:0.9
+mon:P17:chi_S:0.9
+mon:P18:chi_S:0.9
+mon:P19:chi_S:0.9
+mon:P20:chi_S:0.9
+mon:P21:chi_S:0.9
+mon:P22:chi_S:0.9
+mon:P23:chi_S:0.9
+mon:P24:chi_S:0.9
+mon:P25:chi_S:0.9
+mon:P26:chi_S:0.9
+mon:P27:chi_S:0.9
+mon:P28:chi_S:0.9
+mon:P29:chi_S:0.9
+mon:P30:chi_S:0.9
+mon:P31:chi_S:0.9
+mon:P:chi_W:0.0
+mon:P0:chi_W:0.0
+mon:P1:chi_W:0.0
+mon:P2:chi_W:0.0
+mon:P3:chi_W:0.0
+mon:P4:chi_W:0.0
+mon:P5:chi_W:0.0
+mon:P6:chi_W:0.0
+mon:P7:chi_W:0.0
+mon:P8:chi_W:0.0
+mon:P9:chi_W:0.0
+mon:P10:chi_W:0.0
+mon:P11:chi_W:0.0
+mon:P12:chi_W:0.0
+mon:P13:chi_W:0.0
+mon:P14:chi_W:0.0
+mon:P15:chi_W:0.0
+mon:P16:chi_W:0.0
+mon:P17:chi_W:0.0
+mon:P18:chi_W:0.0
+mon:P19:chi_W:0.0
+mon:P20:chi_W:0.0
+mon:P21:chi_W:0.0
+mon:P22:chi_W:0.0
+mon:P23:chi_W:0.0
+mon:P24:chi_W:0.0
+mon:P25:chi_W:0.0
+mon:P26:chi_W:0.0
+mon:P27:chi_W:0.0
+mon:P28:chi_W:0.0
+mon:P29:chi_W:0.0
+mon:P30:chi_W:0.0
+mon:P31:chi_W:0.0
+newton:isaac:method:pseudohessian
+newton:isaac:tolerance:1e-10
+
+output : json : append : false
+json : mon : W : phi
+json : mon : P : phi
+json : mol : SOLVENT : phi

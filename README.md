@@ -36,17 +36,8 @@ A JSON input has one shape; paths inside it resolve relative to the input file:
 ## Tests
 
 ```bash
-make test-all
-make test-homopolymer-adsorption
-make benchmark-homopolymer-adsorption
-make test-frozen-range-input-file
-make test-micelle-self-assembly
-make test-particle-in-cyl-coordinates
-
-# optional variants / maintenance
-python3 tests/run_tests.py homopolymer-adsorption-benchmark
-python3 tests/run_tests.py homopolymer-adsorption --with-save-memory
-python3 tests/run_tests.py --keep-artifacts
+make test             # all cases
+make test-charged     # cases whose name contains "charged"
 ```
 
-Reference files are stored packed in `tests/reference/reference_files.tar.gz` and are temporarily unpacked during test runs.
+Every case is compared numerically against a stored reference; see `tests/README.md`.
