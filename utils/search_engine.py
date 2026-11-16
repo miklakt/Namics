@@ -112,12 +112,8 @@ def solve(
     created_paths.discard(run_source)
     seed_payload, run_payload = json.loads(seed_source.read_text(encoding="utf-8")), json.loads(run_source.read_text(encoding="utf-8"))
     for payload, source in ((seed_payload, seed_source_raw), (run_payload, run_source_raw)):
-        for problem in payload.get("problems", []):
-            if not isinstance(problem, dict):
-                continue
-            json_section = problem.get("output", {}).get("json")
-            if isinstance(json_section, dict) and json_section.pop("filename", None) is not None:
-                print(f"[search] warning: ignoring output:json:filename in {source}", file=sys.stderr, flush=True)
+        if payload.get("output", {}).pop("file", None) is not None:
+            print(f"[search] warning: ignoring output.file in {source}", file=sys.stderr, flush=True)
     seed_problem = seed_payload["problems"][-1]
 
     if X0 is not None:
@@ -169,19 +165,16 @@ def solve(
         ensure_x_in_bounds(x, phase)
         run_dir = Path(tempfile.mkdtemp(prefix=f"{phase}_{evaluations + 1:04d}_", dir=workdir))
         created_paths.add(run_dir)
-        (run_dir / "output").mkdir(exist_ok=True)
         input_path = run_dir / template_source.name
         created_paths.add(input_path)
-        output_section = payload["problems"][-1].get("json", {})
-        if isinstance(output_section, dict):
-            sys_outputs = output_section.get("sys")
-            if isinstance(sys_outputs, dict):
-                sys_section = payload["problems"][-1].get("sys")
-                if not isinstance(sys_section, dict):
-                    sys_section = {}
-                    payload["problems"][-1]["sys"] = sys_section
-                for sys_name in sys_outputs:
-                    sys_section.setdefault(sys_name, {})
+        sys_outputs = payload.get("output", {}).get("select", {}).get("sys")
+        if isinstance(sys_outputs, dict):
+            sys_section = payload["problems"][-1].get("sys")
+            if not isinstance(sys_section, dict):
+                sys_section = {}
+                payload["problems"][-1]["sys"] = sys_section
+            for sys_name in sys_outputs:
+                sys_section.setdefault(sys_name, {})
         if callable(x_key):
             x_key(payload["problems"][-1], x)
         else:
@@ -196,7 +189,7 @@ def solve(
                 sys_value["initial_guess"] = "file"
                 sys_value["guess_inputfile"] = str(last_output_json.resolve())
         base_name = input_path.name[: -len(".input.json")] if input_path.name.endswith(".input.json") else input_path.stem
-        output_json = run_dir / "output" / f"{base_name}.output.json"
+        output_json = run_dir / f"{base_name}.output.json"
         input_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         proc = subprocess.run(
             [str(binary.resolve()), str(input_path.resolve())],

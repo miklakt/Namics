@@ -139,8 +139,10 @@ bool ReadLegacyEntries(const std::string& path, std::vector<std::string>& entrie
 	return true;
 }
 
-bool ConvertLegacyEntries(const std::vector<std::string>& entries, json& problems) {
+bool ConvertLegacyEntries(const std::vector<std::string>& entries, json& document) {
 	json current = json::object();
+	json output = json::object();
+	json problems = json::array();
 	for (const std::string& entry : entries) {
 		if (entry == "start") {
 			problems.push_back(current);
@@ -148,32 +150,21 @@ bool ConvertLegacyEntries(const std::vector<std::string>& entries, json& problem
 		}
 		const std::vector<std::string> parts = SplitLegacy(entry, ':');
 		if (parts.empty()) continue;
-		if (parts[0] == "json") {
-			if (parts.size() != 4) return false;
-			auto& selectors = current["json"];
-			if (!selectors.is_object()) selectors = json::object();
-			auto& section_selectors = selectors[parts[1]];
-			if (!section_selectors.is_object()) section_selectors = json::object();
-			auto& properties = section_selectors[parts[2]];
-			if (properties.is_null()) {
-				properties = parts[3];
-				continue;
-			}
-			if (properties.is_string()) {
-				properties = json::array({properties.get<std::string>(), parts[3]});
-				continue;
-			}
-			if (!properties.is_array()) properties = json::array();
-			properties.push_back(parts[3]);
+		if (parts.size() != 4) return false;
+		if (parts[0] == "output") {
+			output[parts[2]] = ParseLegacyValue(parts[3]);
 			continue;
 		}
-		if (parts.size() != 4) return false;
-		auto& section = current[parts[0]];
-		if (!section.is_object()) section = json::object();
-		auto& object = section[parts[1]];
-		if (!object.is_object()) object = json::object();
-		object[parts[2]] = ParseLegacyValue(parts[3]);
+		if (parts[0] == "json") {
+			json& properties = output["select"][parts[1]][parts[2]];
+			if (properties.is_null()) properties = parts[3];
+			else if (properties.is_string()) properties = json::array({properties.get<std::string>(), parts[3]});
+			else properties.push_back(parts[3]);
+			continue;
+		}
+		current[parts[0]][parts[1]][parts[2]] = ParseLegacyValue(parts[3]);
 	}
+	document = {{"output", std::move(output)}, {"problems", std::move(problems)}};
 	return true;
 }
 
@@ -535,16 +526,6 @@ bool NormalizeProblems(json& document, const std::string& base_path) {
 		}
 		return NormalizeInitialGuess(problem, base_path);
 	};
-	if (document.is_array()) {
-		for (auto& problem : document) {
-			if (!normalize_problem(problem)) return false;
-		}
-		return true;
-	}
-	if (!document.is_object()) return true;
-	const auto problems = document.find("problems");
-	if (problems == document.end()) return normalize_problem(document);
-	if (!problems->is_array()) return normalize_problem(document["problems"]);
 	for (auto& problem : document["problems"]) {
 		if (!normalize_problem(problem)) return false;
 	}
@@ -555,40 +536,31 @@ bool NormalizeProblems(json& document, const std::string& base_path) {
 
 namespace io::input {
 
-bool PrepareInputFile(const std::string& requested_path, std::string& json_path) {
-	json document;
-	if (LooksLikeJsonInput(requested_path)) {
-		if (!io::detail::ReadJsonFile(requested_path, document)) return false;
-	} else {
+bool PrepareInput(const std::string& path, json& document) {
+	const bool legacy = !LooksLikeJsonInput(path);
+	if (legacy) {
 		std::vector<std::string> entries;
-		if (!ReadLegacyEntries(requested_path, entries)) return false;
-		json problems = json::array();
-		if (!ConvertLegacyEntries(entries, problems)) return false;
-		document = {
-			{"problems", std::move(problems)}
-		};
-	}
-	if (!NormalizeProblems(document, requested_path)) return false;
-	const std::filesystem::path source(requested_path);
-	std::filesystem::path emitted;
-	if (EndsWith(source.filename().string(), ".input.json")) {
-		emitted = source;
-	} else {
-		const std::filesystem::path parent = source.has_parent_path() ? source.parent_path() : std::filesystem::path(".");
-		if (source.has_stem()) emitted = parent / (source.stem().string() + ".input.json");
-		else {
-			emitted = source.filename();
-			emitted += ".input.json";
-			emitted = parent / emitted;
+		if (!ReadLegacyEntries(path, entries)) return false;
+		if (!ConvertLegacyEntries(entries, document)) {
+			std::cout << "Malformed legacy input line in " << path << "; expected 'section : name : key : value'." << std::endl;
+			return false;
 		}
+	} else if (!io::detail::ReadJsonFile(path, document)) {
+		return false;
 	}
-	std::ofstream out(emitted.c_str(), std::ios::out | std::ios::trunc);
-	if (!out.is_open()) {
-		std::cout << "Failed to write preprocessed input file " << emitted.string() << std::endl;
+	if (!document.is_object() || !document.contains("problems") || !document["problems"].is_array()) {
+		std::cout << "Input " << path << " must be an object with a 'problems' array." << std::endl;
+		return false;
+	}
+	if (!NormalizeProblems(document, path)) return false;
+	if (!legacy) return true;
+	const std::filesystem::path emitted = std::filesystem::path(path).replace_extension(".input.json");
+	std::ofstream out(emitted);
+	if (!out) {
+		std::cout << "Failed to write converted input file " << emitted.string() << std::endl;
 		return false;
 	}
 	out << document.dump(2) << std::endl;
-	json_path = emitted.string();
 	return true;
 }
 

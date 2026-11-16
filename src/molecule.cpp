@@ -318,34 +318,13 @@ std::unique_ptr<Molecule> CreateChecked(const Input& input, Lattice* lat, std::s
 			return nullptr;
 		}
 	}
-	const auto& problem = input.Start(start);
-	if (problem.is_object()) {
-		const auto json_it = problem.find("json");
-		if (json_it != problem.end() && json_it->is_object()) {
-			const auto mol_it = json_it->find("mol");
-			if (mol_it != json_it->end() && mol_it->is_object()) {
-				const auto has_property = [&](const std::string& property) {
-					const auto matches = [&](ParameterStore::const_iterator it) {
-						if (it == mol_it->end()) return false;
-						const auto& value = it.value();
-						if (value.is_string()) return value.get<std::string>() == property;
-						if (value.is_array()) {
-							for (const auto& entry : value) {
-								if (entry.is_string() && entry.get<std::string>() == property) return true;
-							}
-						}
-						return false;
-					};
-					return matches(mol_it->find(molecule->name)) || matches(mol_it->find("*"));
-				};
-				molecule->output_request.ranked_density = has_property("phi_ranked");
-				for (int seg : molecule->SegmentTypes()) {
-					if (has_property("phi_" + molecule->Seg[seg]->name)) {
-						molecule->output_request.segment_density = true;
-						break;
-					}
-				}
-			}
+	for (const auto& item : input.Selectors()) {
+		if (item.value("key", "") != "mol" || item.value("name", "") != molecule->name) continue;
+		const std::string prop = item.value("prop", "");
+		if (prop == "phi_ranked") molecule->output_request.ranked_density = true;
+		if (prop == "phi_*") molecule->output_request.segment_density = true;
+		for (int seg : molecule->SegmentTypes()) {
+			if (prop == "phi_" + molecule->Seg[seg]->name) molecule->output_request.segment_density = true;
 		}
 	}
 	return molecule;

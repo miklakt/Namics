@@ -8,23 +8,50 @@
 
 namespace {
 
-bool WriteInitialGuessFile(const std::string& filename, const nlohmann::ordered_json& initial_guess) {
+using json = nlohmann::ordered_json;
+
+bool WriteJsonFile(const std::string& filename, const json& document) {
+	const std::filesystem::path parent = std::filesystem::path(filename).parent_path();
+	std::error_code error;
+	if (!parent.empty()) std::filesystem::create_directories(parent, error);
 	std::ofstream out(filename.c_str(), std::ios::out | std::ios::trunc);
 	if (!out.is_open()) return false;
-	out << std::setw(2) << nlohmann::ordered_json{{"initial_guess", initial_guess}} << '\n';
+	out << std::setw(2) << document << '\n';
 	return static_cast<bool>(out);
+}
+
+// Adds a problem to {"input", "problems": [...]}; a fresh document is started unless an existing one is extended.
+bool WriteProblem(const std::string& filename, const std::string& input, json problem, bool extend) {
+	json document;
+	if (extend) {
+		std::ifstream in(filename.c_str());
+		if (in.is_open()) {
+			try {
+				in >> document;
+			} catch (const json::exception&) {
+				document = nullptr;
+			}
+			if (!document.is_object() || !document.contains("problems") || !document["problems"].is_array()) {
+				std::cout << "Warning: existing " << filename << " is not a namics output file; it is replaced." << std::endl;
+				document = nullptr;
+			}
+		}
+	}
+	if (document.is_null()) document = {{"input", input}, {"problems", json::array()}};
+	document["problems"].push_back(std::move(problem));
+	return WriteJsonFile(filename, document);
 }
 
 } // namespace
 
-Output::Output(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_,std::span<const std::unique_ptr<State>> Sta_, std::span<const std::unique_ptr<Reaction>> Rea_, std::span<const std::unique_ptr<Molecule>> Mol_,std::span<const SampleConfiguration> Samples_,System* Sys_,Solve_scf* New_,std::string name_) {
-NAMICS_DBG("constructor in Output "<< std::endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; name=name_; New=New_;
+Output::Output(const Input* In_,Lattice* Lat_,std::span<const std::unique_ptr<Segment>> Seg_,std::span<const std::unique_ptr<State>> Sta_, std::span<const std::unique_ptr<Reaction>> Rea_, std::span<const std::unique_ptr<Molecule>> Mol_,std::span<const SampleConfiguration> Samples_,System* Sys_,Solve_scf* New_) {
+NAMICS_DBG("constructor in Output "<< std::endl);	In=In_; Seg=Seg_; Sta=Sta_; Rea=Rea_; Mol=Mol_; Sys=Sys_; New=New_;
 	lat=Lat_; Samples=Samples_;
 }
 
 bool Output::Load() {
 NAMICS_DBG("Load in output " << std::endl);
-	items = In->LoadItems(name);
+	items = In->Selectors();
 	if (!items.is_array()) return false;
 	nlohmann::ordered_json expanded = nlohmann::ordered_json::array();
 	for (const auto& item : items) {
@@ -65,77 +92,16 @@ NAMICS_DBG("Load in output " << std::endl);
 
 bool Output::CheckInput(int start_) {
 NAMICS_DBG("CheckInput in output " << std::endl);	start=start_;
-	bool success=true;
-	const auto& parameters = In->Parameters("output", name, start);
-	static const std::vector<std::string> keys = {"write_bounds", "append", "write", "header_separator", "filename"};
-	for (auto it = parameters.begin(); it != parameters.end(); ++it) {
-		if (ContainsValue(keys, it.key())) continue;
-		success = false;
-		std::cout << "output property '" << it.key() << "' is unknown. Select from: " << std::endl;
-		for (const std::string& item : keys) std::cout << item << std::endl;
-	}
-	if (success) {
-		try {
-			append = parameters.value("append", false);
-			write_bounds = parameters.value("write_bounds",false);
-			write  = parameters.value("write",true);
-			if (parameters.contains("filename")) (void)parameters.at("filename").get<std::string>();
-
-			const std::string header_separator = parameters.value("header_separator", std::string{});
-			if (!header_separator.empty()) {
-				sep=header_separator;
-				if (sep=="classic") {
-					sep = ":";
-				} else if (sep.length()>1) {
-					std::cout <<"For output entry 'header_separator', expected to find the keyword 'classic' (meaning ':') or a single character." << std::endl;
-					std::cout <<"header_separator set to the default value '_'" << std::endl;
-					sep="_";
-				}
-			} else {
-				sep = "_";
-			}
-		} catch (const nlohmann::json::exception& error) {
-			std::cout << "Invalid json type in output '" << name << "': " << error.what() << std::endl;
-			success = false;
-		}
-
-		if (success && !Load()) {
-			std::cout <<"Error in Load() in output" << std::endl;
-			success=false;
-		}
-	}
-	return success;
+	append = In->output.value("append", false);
+	write_bounds = In->output.value("write_bounds", false);
+	if (Load()) return true;
+	std::cout << "Error in output.select" << std::endl;
+	return false;
 }
 
 void Output::WriteOutput(int subl) {
-NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
-	if (!write) return;
-	using json = nlohmann::ordered_json;
-	std::string filename;
-	std::string base_name;
-	const auto& output_config = In->Parameters("output", name, start);
-	const std::string configured_filename = output_config.value("filename", std::string{});
-	if (configured_filename.size() > 0) {
-		std::filesystem::path configured_path = In->ResolvePath(configured_filename);
-		const std::string name = configured_path.filename().string();
-		if (name.size() < 12 || name.compare(name.size() - 12, 12, ".output.json") != 0) {
-			configured_path.replace_extension(".output.json");
-		}
-		filename = configured_path.string();
-		base_name = configured_path.has_stem() ? configured_path.stem().string() : configured_path.filename().string();
-	} else {
-		std::filesystem::path out_path(In->json_path);
-		out_path = out_path.filename();
-		base_name = out_path.has_stem() ? out_path.stem().string() : out_path.filename().string();
-		if (base_name.size() > 6 && base_name.compare(base_name.size() - 6, 6, ".input") == 0) base_name.resize(base_name.size() - 6);
-		if (base_name.empty()) base_name = "output";
-		filename = In->output_path + base_name + ".output.json";
-	}
-
-	json problem = {
-		{"problem", start},
-		{"name", base_name}
-	};
+NAMICS_DBG("WriteOutput in output " << std::endl);	lat->subl=subl;
+	json problem = json::object();
 	for (const auto& sample : Samples) {
 		problem["sample"][sample.name]["seed"] = sample.seed;
 		problem["sample"][sample.name]["size"] = sample.size;
@@ -183,12 +149,10 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		const std::string key = item.value("key", "");
 		const std::string item_name = item.value("name", "");
 		const std::string item_prop = item.value("prop", "");
-		std::string label = key;
-		label.append(sep).append(item_name).append(sep).append(item_prop);
+		const std::string label = key + "." + item_name + "." + item_prop;
 
 		const ParameterStore* source = nullptr;
 		int source_index = -1;
-		if (key == "output") source = &output_config;
 		if (key == "sys") source = &Sys->OUTPUT;
 		if (key == "newton") source = &New->OUTPUT;
 		if (key == "lat") source = &lat->OUTPUT;
@@ -288,7 +252,7 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		for (const int mon_index : Sys->ItMonList) monlist.push_back(Seg[mon_index]->name);
 		for (const int state_index : Sys->ItStateList) statelist.push_back(Sta[state_index]->name);
 		if (io::detail::WriteInitialGuessU(initial_guess, values, monlist, statelist, Sys->charged, lat->M)) {
-			if (!WriteInitialGuessFile(Sys->guess_outputfile, initial_guess)) {
+			if (!WriteJsonFile(Sys->guess_outputfile, json{{"initial_guess", initial_guess}})) {
 				std::cout << "Failed to write initial guess file " << Sys->guess_outputfile << std::endl;
 			}
 		}
@@ -330,12 +294,9 @@ NAMICS_DBG("WriteOutput in output " + name << std::endl);	lat->subl=subl;
 		if (lat->gradients >= 3) problem["z"] = std::move(z_values);
 	}
 
-	json metadata = {
-		{"name", In->json_path}
-	};
-
 	const bool first_problem_of_run = (start == 1 && subl == 0);
-	if (!json_writer.WriteProblem(filename, problem, metadata, append, first_problem_of_run)) {
-		std::cout << "Failed to write json output file " << filename << std::endl;
+	if (first_problem_of_run) std::cout << "Writing output to " << In->output_file << std::endl;
+	if (!WriteProblem(In->output_file, In->path, std::move(problem), append || !first_problem_of_run)) {
+		std::cout << "Failed to write json output file " << In->output_file << std::endl;
 	}
 }

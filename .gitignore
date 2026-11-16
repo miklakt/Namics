@@ -11,6 +11,12 @@ run/
 *.log
 *.csv
 
+# Run artifacts: converted legacy inputs, results, generated guesses/inputs
+*.input.json
+*.output.json
+generated_inputs/
+initial_guess/
+
 # Python cache and tooling
 __pycache__/
 *.py[cod]

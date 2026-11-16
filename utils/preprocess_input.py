@@ -210,20 +210,8 @@ def read_legacy_entries(path: Path) -> list[str]:
     return entries
 
 
-def append_json_selector(problem: dict[str, Any], section: str, entry: str, prop: str) -> None:
-    existing = problem.setdefault("json", {}).setdefault(section, {}).get(entry)
-    if existing is None:
-        problem["json"][section][entry] = prop
-        return
-    if isinstance(existing, str):
-        problem["json"][section][entry] = [existing, prop]
-        return
-    if not isinstance(existing, list):
-        existing = problem["json"][section][entry] = []
-    existing.append(prop)
-
-
-def convert_legacy_entries(entries: list[str]) -> list[dict[str, Any]]:
+def convert_legacy_entries(entries: list[str]) -> dict[str, Any]:
+    output: dict[str, Any] = {}
     problems: list[dict[str, Any]] = []
     current: dict[str, Any] = {}
     for entry in entries:
@@ -233,20 +221,25 @@ def convert_legacy_entries(entries: list[str]) -> list[dict[str, Any]]:
         parts = split_legacy(entry, ":")
         if not parts:
             continue
-        if parts[0] == "json":
-            if len(parts) != 4:
-                raise PreprocessError(f"Malformed legacy json selector: {entry}")
-            append_json_selector(current, parts[1], parts[2], parts[3])
-            continue
         if len(parts) != 4:
             raise PreprocessError(f"Malformed legacy entry: {entry}")
-        current.setdefault(parts[0], {}).setdefault(parts[1], {})[parts[2]] = parse_legacy_value(parts[3])
-    return problems
+        if parts[0] == "output":
+            output[parts[2]] = parse_legacy_value(parts[3])
+        elif parts[0] == "json":
+            selectors = output.setdefault("select", {}).setdefault(parts[1], {})
+            existing = selectors.get(parts[2])
+            if existing is None:
+                selectors[parts[2]] = parts[3]
+            elif isinstance(existing, str):
+                selectors[parts[2]] = [existing, parts[3]]
+            else:
+                existing.append(parts[3])
+        else:
+            current.setdefault(parts[0], {}).setdefault(parts[1], {})[parts[2]] = parse_legacy_value(parts[3])
+    return {"output": output, "problems": problems}
 
 
 def emitted_json_path(source_path: Path) -> Path:
-    if source_path.name.endswith(".input.json"):
-        return source_path
     return source_path.with_name(f"{source_path.stem or source_path.name}.input.json")
 
 
@@ -493,11 +486,9 @@ def find_last_problem_object(document: Any) -> dict[str, Any] | None:
     if not isinstance(document, dict):
         return None
     problems = document.get("problems")
-    if isinstance(problems, dict):
-        return problems
-    if not isinstance(problems, list):
+    if not isinstance(problems, list) or not problems or not isinstance(problems[-1], dict):
         return None
-    return next((problem for problem in reversed(problems) if isinstance(problem, dict)), None)
+    return problems[-1]
 
 
 def find_external_potential_node(document: Any) -> list[float | int] | None:
@@ -666,21 +657,14 @@ def normalize_initial_guess(
         problem["sys"][sys_name]["initial_guess"] = "file"
 
 
-def iter_problems(document: Any) -> list[tuple[int, Any]]:
-    if isinstance(document, list):
-        return list(enumerate(document, start=1))
-    if not isinstance(document, dict):
-        return []
-    problems = document.get("problems", document)
-    return list(enumerate(problems if isinstance(problems, list) else [problems], start=1))
-
-
 def prepare_input_document(requested_path: Path, options: NormalizeOptions) -> Any:
     if looks_like_json_input(requested_path):
         document = read_json_file(requested_path)
     else:
-        document = {"problems": convert_legacy_entries(read_legacy_entries(requested_path))}
-    for index, problem in iter_problems(document):
+        document = convert_legacy_entries(read_legacy_entries(requested_path))
+    if not isinstance(document, dict) or not isinstance(document.get("problems"), list):
+        raise PreprocessError(f"Input {requested_path} must be an object with a 'problems' array.")
+    for index, problem in enumerate(document["problems"], start=1):
         if not isinstance(problem, dict):
             continue
         normalize_external_potentials(problem, requested_path, options, index)

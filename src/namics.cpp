@@ -80,19 +80,17 @@ int main(int argc, char *argv[])
 	std::vector<std::unique_ptr<Reaction>> Rea;
 	std::vector<SampleConfiguration> Samples;
 
-	std::string json_input_path;
-	if (!io::input::PrepareInputFile(filename.string(), json_input_path)) {
+	ParameterStore document;
+	if (!io::input::PrepareInput(filename.string(), document)) {
 		return 0;
 	}
 
-	In = std::make_unique<Input>(json_input_path);
+	In = std::make_unique<Input>(filename.string(), std::move(document));
 	if (In->Input_error)
 	{
 		return 0;
 	}
-	n_starts = In->starts.is_array() ? static_cast<int>(In->starts.size()) : 0;
-	if (n_starts == 0)
-		n_starts++; // Default to 1 start..
+	n_starts = static_cast<int>(In->starts.size());
 
 	/******** This while loop basically contains the rest of main, initializes all classes and performs  ********/
 	/******** calculations for a given number (start) of cycles ********/
@@ -249,22 +247,16 @@ int main(int argc, char *argv[])
 				const auto* candidate_chi = group == "mon" ? mon_chi(candidate) : group == "state" ? state_chi(candidate) : nullptr;
 				return wanted_chi != nullptr && candidate_chi != nullptr && *wanted_chi == *candidate_chi;
 			};
-			if (!io::ReadInitialGuess(Sys->guess_inputfile, std::span<Real>(X), MONLIST, STATELIST, CHARGED, resolve_profile, pad_profile, equivalent_profile)) {
+			io::detail::json guess_document = In->Start(start);
+			const std::string guess_source = Sys->guess_inputfile.empty() ? In->path : Sys->guess_inputfile;
+			if (!Sys->guess_inputfile.empty() && !io::detail::ReadJsonFile(Sys->guess_inputfile, guess_document)) return 1;
+			if (!io::ReadInitialGuess(guess_document, guess_source, std::span<Real>(X), MONLIST, STATELIST, CHARGED, resolve_profile, pad_profile, equivalent_profile)) {
 				return 1;
 			}
 		}
 
-		// Prepare and create output class instance.
-		Out.reset();
-		if (In->OutputList.empty()) {
-			std::cout << "Warning: no output defined!" << std::endl;
-		} else {
-			Out = std::make_unique<Output>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Samples, Sys.get(), New.get(), "json");
-			if (!Out->CheckInput(start)) {
-				std::cout << "input_error in output " << std::endl;
-				return 0;
-			}
-		}
+		Out = std::make_unique<Output>(In.get(), Lat.get(), Seg, Sta, Rea, Mol, Samples, Sys.get(), New.get());
+		if (!Out->CheckInput(start)) return 0;
 
 		Sys->MakeItsLists();
 		New->AllocateMemory();
@@ -285,7 +277,7 @@ int main(int argc, char *argv[])
 		for (auto& sample : Samples) if (!sample.Generate()) return 1;
 		New->PushOutput();
 
-		if (Out) Out->WriteOutput(0);
+		Out->WriteOutput(0);
 
 		if (Sys->initial_guess == "previous_result")
 		{

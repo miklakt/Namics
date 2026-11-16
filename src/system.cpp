@@ -283,16 +283,15 @@ bool System::CheckInput(int start_)
 					success = false;
 				}
 			}
+			const bool embedded_guess = In->Start(start).contains("initial_guess");
 			if (initial_guess == "file") {
 				if (parameters.contains("guess_inputfile")) guess_inputfile = In->ResolvePath(parameters.at("guess_inputfile").get<std::string>());
-				else if (In->Start(start).contains("initial_guess")) guess_inputfile = In->json_path;
-				else {
+				else if (!embedded_guess) {
 					success = false;
 					std::cout << "When 'initial_guess' is set to 'file', provide either 'guess_inputfile' or an embedded 'initial_guess' object." << std::endl;
 				}
-			} else if (initial_guess == "previous_result" && In->Start(start).contains("initial_guess")) {
+			} else if (initial_guess == "previous_result" && embedded_guess) {
 				initial_guess = "file";
-				guess_inputfile = In->json_path;
 			}
 			write_initial_guess = parameters.value("write_initial_guess", false);
 			guess_outputfile = write_initial_guess ? In->ResolvePath(parameters.at("guess_outputfile").get<std::string>()) : std::string{};

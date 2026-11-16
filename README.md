@@ -19,6 +19,20 @@ make
 ./bin/namics <input-file>
 ```
 
+A JSON input has one shape; paths inside it resolve relative to the input file:
+
+```json
+{
+  "output": { "file": "results/run1", "append": false, "write_bounds": false,
+              "select": { "mol": { "pol": "phi" }, "mon": { "*": ["phi", "u"] }, "sys": { "*": "grand_potential" } } },
+  "problems": [ { "lat": {...}, "mon": {...}, "mol": {...}, "newton": {...} } ]
+}
+```
+
+- Results go to `<input dir>/<stem>.output.json` (`foo.in`, `foo.json` and `foo.input.json` all give `foo.output.json`), or to `output.file` with `.output.json` appended if missing. Missing directories are created.
+- The output is `{"input": <source path>, "problems": [...]}`; `append: true` extends `problems` of an existing file.
+- JSON inputs are never rewritten. A legacy `.in` file is converted (`output : json : key : value` → `output.key`, `json : sec : name : prop` → `output.select`) and the result is saved as `<stem>.input.json`.
+
 ## Tests
 
 ```bash

@@ -55,30 +55,13 @@ inline bool ReadJsonFile(const std::string& filename, json& document) {
 }
 
 inline const json* FindLastProblemObject(const json& document) {
-	if (document.is_array()) {
-		for (auto it = document.rbegin(); it != document.rend(); ++it) {
-			if (it->is_object()) return &*it;
-		}
-		return nullptr;
-	}
 	if (!document.is_object()) return nullptr;
 	const auto problems = document.find("problems");
-	if (problems == document.end()) return nullptr;
-	if (problems->is_object()) return &*problems;
-	if (!problems->is_array()) return nullptr;
-	for (auto it = problems->rbegin(); it != problems->rend(); ++it) {
-		if (it->is_object()) return &*it;
-	}
-	return nullptr;
+	if (problems == document.end() || !problems->is_array() || problems->empty() || !problems->back().is_object()) return nullptr;
+	return &problems->back();
 }
 
 inline const json* FindInitialGuessObject(const json& document) {
-	if (document.is_array()) {
-		for (auto it = document.rbegin(); it != document.rend(); ++it) {
-			if (const auto* guess = FindInitialGuessObject(*it)) return guess;
-		}
-		return nullptr;
-	}
 	if (!document.is_object()) return nullptr;
 	if (const auto guess = document.find("initial_guess"); guess != document.end() && guess->is_object()) return &*guess;
 	if (const auto u = document.find("u"); u != document.end() && u->is_object()) return &document;
@@ -273,7 +256,8 @@ inline bool ReadExternalPotentialJson(const std::string& filename, std::vector<R
 }
 
 template <typename RealT, typename ResolveProfileFn, typename PadProfileFn, typename EquivalentProfileFn>
-inline bool ReadInitialGuess(const std::string& filename,
+inline bool ReadInitialGuess(const detail::json& document,
+                             const std::string& filename,
                              std::span<RealT> x,
                              const std::vector<std::string>& monlist,
                              const std::vector<std::string>& statelist,
@@ -282,11 +266,6 @@ inline bool ReadInitialGuess(const std::string& filename,
                              PadProfileFn&& pad_profile,
                              EquivalentProfileFn&& equivalent_profile) {
 	const int count = static_cast<int>(monlist.size() + statelist.size() + (charged ? 1 : 0));
-	detail::json document;
-	if (!detail::ReadJsonFile(filename, document)) {
-		std::cout << "Read guess for initial guess failed" << std::endl;
-		return false;
-	}
 	if (const auto* guess = detail::FindInitialGuessObject(document); guess != nullptr) {
 		if (count == 0) return x.empty();
 		if (static_cast<int>(x.size()) % count != 0) return false;

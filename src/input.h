@@ -44,13 +44,12 @@ inline int ParseInt(const std::string& s, int fallback) {
 
 class Input {
 public:
-	Input(const std::string&);
+	Input(const std::string&, ParameterStore);
 
-	~Input() = default;
-
-	std::string json_path;
+	std::string path;
+	std::string output_file;
 	bool Input_error;
-	std::string output_path;
+	ParameterStore output;
 	ParameterStore starts;
 	int active_start;
 
@@ -59,14 +58,12 @@ public:
 	std::vector<std::string> MonList;
 	std::vector<std::string> LatList;
 	std::vector<std::string> NewtonList;
-	std::vector<std::string> OutputList;
 	std::vector<std::string> StateList;
 	std::vector<std::string> ReactionList;
 
-
 	std::vector<std::string>& split(const std::string&, char, std::vector<std::string>&) const;
 	const ParameterStore& Parameters(const std::string&, const std::string&, int) const;
-	ParameterStore LoadItems(const std::string&) const;
+	ParameterStore Selectors() const;
 	bool CheckInput(void);
 	bool MakeLists(int);
 	std::string ResolvePath(const std::string&) const;

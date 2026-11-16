@@ -4,12 +4,9 @@
 
 namespace {
 
-constexpr const char* OUTPUT_INFO_KEY = "out_info";
-constexpr const char* DEFAULT_OUTPUT_PATH = "./output/";
-
 const std::vector<std::string>& ProblemKeys() {
 	static const std::vector<std::string> keys = {
-		"sys", "mol", "mon", "lat", "newton", "output", OUTPUT_INFO_KEY, "state", "reaction", "sample", "json", "initial_guess"
+		"sys", "mol", "mon", "lat", "newton", "state", "reaction", "sample", "initial_guess"
 	};
 	return keys;
 }
@@ -19,6 +16,22 @@ bool NeedsGuessOutputFile(const nlohmann::ordered_json& sys) {
 	if (write_guess == sys.end() || !write_guess->is_boolean() || !write_guess->get<bool>()) return false;
 	const auto output_file = sys.find("guess_outputfile");
 	return output_file == sys.end() || !output_file->is_string() || output_file->get<std::string>().empty();
+}
+
+std::string OutputFile(const std::string& input_path, const std::string& configured) {
+	const std::string suffix = ".output.json";
+	std::string file = configured;
+	if (file.empty()) {
+		file = input_path;
+		for (const std::string ext : {".input.json", ".json", ".in"}) {
+			if (file.size() > ext.size() && file.compare(file.size() - ext.size(), ext.size(), ext) == 0) {
+				file.resize(file.size() - ext.size());
+				break;
+			}
+		}
+	}
+	if (file.size() < suffix.size() || file.compare(file.size() - suffix.size(), suffix.size(), suffix) != 0) file += suffix;
+	return file;
 }
 } // namespace
 
@@ -33,56 +46,20 @@ std::vector<std::string>& Input::split(const std::string& s, char delim, std::ve
 	return elems;
 }
 
-Input::Input(const std::string& json_name)
-	: json_path(json_name),
+Input::Input(const std::string& path_, ParameterStore document)
+	: path(path_),
 	  Input_error(false),
-	  output_path(DEFAULT_OUTPUT_PATH),
-	  starts(nlohmann::ordered_json::array()),
+	  output(nlohmann::ordered_json::object()),
+	  starts(std::move(document["problems"])),
 	  active_start(0) {
-	std::ifstream input(json_path.c_str());
-	if (!input.is_open()) {
-		std::cout << "Inputfile " << json_path << " is not found. " << std::endl;
-		Input_error = true;
-		return;
-	}
-
-	nlohmann::ordered_json document;
-	try {
-		document = nlohmann::ordered_json::parse(input, nullptr, true, true);
-	} catch (const std::exception& error) {
-		std::cout << "Failed to parse JSON input file " << json_path << ": " << error.what() << std::endl;
-		Input_error = true;
-		return;
-	}
-
-	if (document.is_array()) {
-		starts = std::move(document);
-	} else if (document.is_object()) {
-		const auto problems = document.find("problems");
-		if (problems == document.end()) {
-			starts = nlohmann::ordered_json::array({std::move(document)});
-		} else if (problems->is_array()) {
-			starts = *problems;
-		} else {
-			starts = nlohmann::ordered_json::array({*problems});
+	for (auto it = document.begin(); it != document.end(); ++it) {
+		if (it.key() == "problems") continue;
+		if (it.key() == "output" && it.value().is_object()) {
+			output = std::move(it.value());
+			continue;
 		}
-	} else {
-		std::cout << "JSON input root must be a problem object, a problem array, or an object containing 'problems'." << std::endl;
+		std::cout << "Input root key '" << it.key() << "' is not allowed; expected 'output' (object) and 'problems'." << std::endl;
 		Input_error = true;
-		return;
-	}
-	output_path = DEFAULT_OUTPUT_PATH;
-	for (const auto& problem : starts) {
-		if (!problem.is_object()) continue;
-		const auto out_info = problem.find(OUTPUT_INFO_KEY);
-		if (out_info == problem.end() || !out_info->is_object()) continue;
-		const auto folder = out_info->find("folder");
-		if (folder == out_info->end() || !folder->is_object()) continue;
-		const auto path = folder->find("path");
-		if (path == folder->end() || !path->is_string()) continue;
-		output_path = ResolvePath(path->get<std::string>());
-		if (output_path.empty()) output_path = DEFAULT_OUTPUT_PATH;
-		else if (output_path.back() != '/') output_path.push_back('/');
 	}
 	if (!CheckInput()) Input_error = true;
 }
@@ -98,79 +75,72 @@ const ParameterStore& Input::Parameters(const std::string& keyword, const std::s
 	return name_it.value();
 }
 
-ParameterStore Input::LoadItems(const std::string& template_) const {
-NAMICS_DBG("LoadItems in Input " << std::endl);
+ParameterStore Input::Selectors() const {
 	ParameterStore out = nlohmann::ordered_json::array();
-	const auto& sections = (*this)[template_];
-	if (!sections.is_object()) return out;
+	const auto sections = output.find("select");
+	if (sections == output.end()) return out;
+	if (!sections->is_object()) {
+		std::cout << "output.select must be an object." << std::endl;
+		return nlohmann::ordered_json();
+	}
 
 	auto fail = []() -> ParameterStore { return nlohmann::ordered_json(); };
-	auto unknown_name = [](const std::string& name, const std::vector<std::string>& list) {
-		std::cout << "Name '" << name << "' not recognised. Select from: " << std::endl;
-		for (const std::string& item : list) std::cout << item << " ; ";
-	};
-
 	std::vector<std::string> names;
 	std::vector<std::string> props;
-	for (auto section_it = sections.begin(); section_it != sections.end(); ++section_it) {
+	for (auto section_it = sections->begin(); section_it != sections->end(); ++section_it) {
 		if (!section_it.value().is_object()) {
-			std::cout << "json selector section '" << section_it.key() << "' must be an object." << std::endl;
+			std::cout << "output.select." << section_it.key() << " must be an object." << std::endl;
+			return fail();
+		}
+		const std::vector<std::string>* list = nullptr;
+		bool singleton = false;
+		if (section_it.key() == "sys") { list = &SysList; singleton = true; }
+		else if (section_it.key() == "mol") list = &MolList;
+		else if (section_it.key() == "mon") list = &MonList;
+		else if (section_it.key() == "lat") { list = &LatList; singleton = true; }
+		else if (section_it.key() == "newton") { list = &NewtonList; singleton = true; }
+		else if (section_it.key() == "state") list = &StateList;
+		else if (section_it.key() == "reaction") list = &ReactionList;
+		else {
+			std::cout << "The selector section '" << section_it.key() << "' is not recognized." << std::endl;
 			return fail();
 		}
 		for (auto entry_it = section_it.value().begin(); entry_it != section_it.value().end(); ++entry_it) {
+			const std::string label = "output.select." + section_it.key() + "." + entry_it.key();
 			props.clear();
 			if (entry_it.value().is_string()) props.push_back(entry_it.value().get<std::string>());
 			else if (entry_it.value().is_array() && !entry_it.value().empty()) {
 				for (const auto& prop : entry_it.value()) {
 					if (!prop.is_string()) {
-						std::cout << "json selector '" << section_it.key() << "." << entry_it.key()
-						          << "' must only contain string properties." << std::endl;
+						std::cout << label << " must only contain string properties." << std::endl;
 						return fail();
 					}
 					props.push_back(prop.get<std::string>());
 				}
 			} else {
-				std::cout << "json selector '" << section_it.key() << "." << entry_it.key()
-				          << "' must be a string or a non-empty array of strings." << std::endl;
+				std::cout << label << " must be a string or a non-empty array of strings." << std::endl;
 				return fail();
 			}
 
-			const std::vector<std::string>* list = nullptr;
-			bool singleton = false;
-			bool wildcard = false;
-			if (section_it.key() == "sys") { list = &SysList; singleton = true; }
-			else if (section_it.key() == "mol") { list = &MolList; wildcard = true; }
-			else if (section_it.key() == "mon") { list = &MonList; wildcard = true; }
-			else if (section_it.key() == "lat") { list = &LatList; singleton = true; }
-			else if (section_it.key() == "newton") { list = &NewtonList; singleton = true; }
-			else if (section_it.key() == "output") list = &OutputList;
-			else if (section_it.key() == OUTPUT_INFO_KEY) names = {entry_it.key()};
-			else if (section_it.key() == "state") list = &StateList;
-			else if (section_it.key() == "reaction") list = &ReactionList;
+			names.clear();
+			const std::string& name_ = entry_it.key();
+			if (singleton) names.push_back((*list)[0]);
+			else if (name_ == "*") names = *list;
+			else if (ContainsValue(*list, name_)) names.push_back(name_);
 			else {
-				std::cout << "The selector section '" << section_it.key() << "' is not recognized." << std::endl;
+				std::cout << "Name '" << name_ << "' in " << label << " not recognised. Select from: " << std::endl;
+				for (const std::string& item : *list) std::cout << item << " ; ";
+				std::cout << std::endl;
 				return fail();
 			}
 
-			if (section_it.key() != OUTPUT_INFO_KEY) {
-				names.clear();
-				std::string name_ = entry_it.key();
-				if (singleton && name_ == "*" && !list->empty()) name_ = (*list)[0];
-				if (wildcard && name_ == "*") names = *list;
-				else if (ContainsValue(*list, name_)) names.push_back(name_);
-				else {
-					unknown_name(entry_it.key(), *list);
-					return fail();
-				}
-			}
-
-			for (const std::string& name_ : names) {
+			for (const std::string& name : names) {
 				for (const std::string& prop : props) {
 					if (prop.find('(') != std::string::npos || prop.find(')') != std::string::npos) {
 						std::cout << "Indexed json output selectors like '" << prop << "' are no longer supported." << std::endl;
 						return fail();
 					}
-					out.push_back({{"key", section_it.key()}, {"name", name_}, {"prop", prop}});
+					out.push_back({{"key", section_it.key()}, {"name", name}, {"prop", prop}});
 				}
 			}
 		}
@@ -200,59 +170,42 @@ bool Input::CheckInput() {
 				success = false;
 				continue;
 			}
-			if (it.key() == "json") {
-				if (!it.value().is_object()) {
-					std::cout << "'json' in problem " << i + 1 << " must be an object." << std::endl;
-					success = false;
-				}
-				continue;
-			}
-			if (it.key() == "initial_guess") {
-				if (!it.value().is_object()) {
-					std::cout << "'initial_guess' in problem " << i + 1 << " must be an object." << std::endl;
-					success = false;
-				}
-				continue;
-			}
 			if (!it.value().is_object()) {
 				std::cout << "'" << it.key() << "' in problem " << i + 1 << " must be an object." << std::endl;
 				success = false;
 				continue;
 			}
-			if (it.key() == "sys") {
-				for (auto sys_it = it.value().begin(); sys_it != it.value().end(); ++sys_it) {
-					if (!sys_it.value().is_object()) {
-						std::cout << "sys." << sys_it.key() << " in problem " << i + 1 << " must be an object." << std::endl;
-						success = false;
-						continue;
-					}
-					if (!NeedsGuessOutputFile(sys_it.value())) continue;
-					std::cout << "When 'write_initial_guess' is true in problem " << i + 1
-					          << ", provide 'guess_outputfile'." << std::endl;
+			if (it.key() != "sys") continue;
+			for (auto sys_it = it.value().begin(); sys_it != it.value().end(); ++sys_it) {
+				if (!sys_it.value().is_object()) {
+					std::cout << "sys." << sys_it.key() << " in problem " << i + 1 << " must be an object." << std::endl;
 					success = false;
+					continue;
 				}
-				continue;
-			}
-			if (it.key() != "output") continue;
-			for (auto output_it = it.value().begin(); output_it != it.value().end(); ++output_it) {
-				if (output_it.key() != "json") {
-					std::cout << "Value for output extension '" << output_it.key() << "' not allowed. Only 'json' is supported." << std::endl;
-					success = false;
-				}
-				if (!output_it.value().is_object()) {
-					std::cout << "output." << output_it.key() << " in problem " << i + 1 << " must be an object." << std::endl;
-					success = false;
-				}
+				if (!NeedsGuessOutputFile(sys_it.value())) continue;
+				std::cout << "When 'write_initial_guess' is true in problem " << i + 1
+				          << ", provide 'guess_outputfile'." << std::endl;
+				success = false;
 			}
 		}
 	}
 
-	if (success) success = MakeLists(1);
-	if (!std::filesystem::is_directory(output_path)) {
-		std::cout << "Cannot access output folder '" << output_path << "'" << std::endl;
+	static const std::vector<std::string> output_keys = {"file", "append", "write_bounds", "select"};
+	for (auto it = output.begin(); it != output.end(); ++it) {
+		if (ContainsValue(output_keys, it.key())) continue;
+		std::cout << "output property '" << it.key() << "' is unknown. Select from: file, append, write_bounds, select" << std::endl;
 		success = false;
 	}
-	return success;
+	try {
+		output_file = OutputFile(path, ResolvePath(output.value("file", std::string{})));
+		(void)output.value("append", false);
+		(void)output.value("write_bounds", false);
+	} catch (const nlohmann::json::exception& error) {
+		std::cout << "Invalid json type in output: " << error.what() << std::endl;
+		success = false;
+	}
+
+	return success && MakeLists(1);
 }
 
 bool Input::MakeLists(int start) {
@@ -263,7 +216,6 @@ bool Input::MakeLists(int start) {
 	NewtonList.clear();
 	MonList.clear();
 	MolList.clear();
-	OutputList.clear();
 	StateList.clear();
 	ReactionList.clear();
 
@@ -278,15 +230,13 @@ bool Input::MakeLists(int start) {
 	collect_names("newton", NewtonList);
 	collect_names("mon", MonList);
 	collect_names("mol", MolList);
-	collect_names("output", OutputList);
 	collect_names("state", StateList);
 	collect_names("reaction", ReactionList);
 
-	auto test_count = [&](std::vector<std::string>& list, int low, int high, const std::string& error, bool fail_on_error = true) {
-		const bool ok = static_cast<int>(list.size()) >= low && static_cast<int>(list.size()) <= high;
-		if (!ok && !error.empty()) std::cout << error << std::endl;
-		if (!ok && fail_on_error) success = false;
-		return ok;
+	auto test_count = [&](std::vector<std::string>& list, int low, int high, const std::string& error) {
+		if (static_cast<int>(list.size()) >= low && static_cast<int>(list.size()) <= high) return;
+		std::cout << error << std::endl;
+		success = false;
 	};
 
 	test_count(SysList, 0, 1, "There can be no more than 1 'sys name' in the input");
@@ -298,15 +248,14 @@ bool Input::MakeLists(int start) {
 	test_count(StateList, 0, 1000, "There can not be more than 1000 'state name's in input");
 	test_count(ReactionList, 0, 1000, "There can not be more than 1000 reaction name's in input");
 	test_count(MolList, 1, 1000, "There must be at least one 'mol name' in input");
-	test_count(OutputList, 1, 1000, "No output defined! ", false);
 	return success;
 }
 
-std::string Input::ResolvePath(const std::string& path) const {
-	if (path.empty()) return path;
-	const std::filesystem::path candidate(path);
+std::string Input::ResolvePath(const std::string& relative) const {
+	if (relative.empty()) return relative;
+	const std::filesystem::path candidate(relative);
 	if (candidate.is_absolute()) return candidate.lexically_normal().string();
-	const std::filesystem::path base(json_path);
+	const std::filesystem::path base(path);
 	const std::filesystem::path parent = base.has_parent_path() ? base.parent_path() : std::filesystem::path(".");
 	return (parent / candidate).lexically_normal().string();
 }
