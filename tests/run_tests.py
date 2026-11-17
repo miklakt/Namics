@@ -53,6 +53,7 @@ CASES = [
     Case("charged_pore_salt", "charged_pore_salt.in"),
     Case("charged_pore_particle", "charged_pore_particle.in"),
     Case("angular_pore", "angular_pore.in", files=("angular_pore.frozen",)),
+    Case("charged_sphere_brush", "charged_sphere_brush.in"),
     Case("sfb_empty_pore", "sfb_empty_pore.in"),
 ]
 

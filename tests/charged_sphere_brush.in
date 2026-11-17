@@ -1,0 +1,43 @@
+// Polyelectrolyte brush grafted to the wall of a spherical cavity, with salt (1 gradient, radial).
+// Charged counterpart of the pore brushes: grafting density 0.05 on the outer shell (n = 0.05 * 4/3 pi (30^3 - 29^3)).
+lat : cavity : n_layers : 30
+lat : cavity : geometry : spherical
+lat : cavity : lattice_type : simple_cubic
+lat : cavity : gradients : 1
+lat : cavity : upperbound : surface
+lat : cavity : bondlength : 3e-10
+
+mon : W : freedom : frozen
+mon : W : frozen_range : upperbound
+mon : S : freedom : free
+mon : S : epsilon : 80
+mon : na : freedom : free
+mon : na : valence : 1
+mon : cl : freedom : free
+mon : cl : valence : -1
+mon : X : freedom : pinned
+mon : X : pinned_range : 30;30
+mon : X : valence : -0.5
+mon : P : freedom : free
+mon : P : valence : -0.5
+
+mol : water : composition : (S)1
+mol : water : freedom : solvent
+mol : Na : composition : (na)1
+mol : Na : freedom : neutralizer
+mol : Cl : composition : (cl)1
+mol : Cl : freedom : free
+mol : Cl : phibulk : 0.01
+mol : brush : composition : (X)1(P)19
+mol : brush : freedom : restricted
+mol : brush : n : 546.8
+
+newton : isaac : method : pseudohessian
+newton : isaac : tolerance : 1e-10
+
+output : json : append : false
+json : mon : P : phi
+json : mon : na : phi
+json : mon : cl : phi
+json : mol : water : phi
+json : sys : NN : psi

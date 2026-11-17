@@ -404,6 +404,7 @@ void LGrad1::UpdatePsi(Real* g, Real* psi ,Real* q, Real* eps, Real* Mask, bool 
 			r++;
 			epsXplus=r*r*(eps[x]+eps[x+1]);
 			a=b; b=c; c=psi[x+1];
+			X[x]=(epsXmin*a + C*q[x]*L[x] + epsXplus*c)/(epsXmin+epsXplus);
 		 }
 	}
 	std::transform(g, g + M, X.data(), g, [](auto a, auto b) { return a - b; });
