@@ -687,7 +687,7 @@ NAMICS_DBG("Ax in  SFNewton (own svdcmp) " << std::endl);
 	Eigen::VectorXd coeff = Eigen::VectorXd::Zero(N);
 	for (int i = 0; i < N; ++i) {
 		const double sigma = s(i);
-		if (std::abs(sigma) > 1e-14) coeff(i) = u_proj(i) / sigma;
+		if (std::abs(sigma) > 1e-12 * s(0)) coeff(i) = u_proj(i) / sigma;
 	}
 	Eigen::VectorXd result = svd.matrixV() * coeff;
 	if (!result.allFinite()) throw -3;
