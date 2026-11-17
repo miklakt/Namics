@@ -1,0 +1,45 @@
+diff --git a/src/system.cpp b/src/system.cpp
+index 4fd9f2d..3abf0e5 100755
+--- a/src/system.cpp
++++ b/src/system.cpp
+@@ -252,6 +252,15 @@ bool System::generate_mask()
+ 
+ 
+ 	Invert(KSAM, KSAM, M);
++	{ // every boundary-layer site of a 'surface' boundary is wall, corners included
++		int core[3] = {lat->MX, lat->MY, lat->MZ}, fjc = lat->fjc, g = lat->gradients;
++		int n[3] = {lat->MX + 2 * fjc, g > 1 ? lat->MY + 2 * fjc : 1, g > 2 ? lat->MZ + 2 * fjc : 1};
++		for (int x = 0; x < n[0]; ++x) for (int y = 0; y < n[1]; ++y) for (int z = 0; z < n[2]; ++z) {
++			int c[3] = {x, y, z}; bool wall = false;
++			for (int a = 0; a < g; ++a) wall = wall || (lat->BC[a] == "surface" && c[a] < fjc) || (lat->BC[a + 3] == "surface" && c[a] >= core[a] + fjc);
++			if (wall) KSAM[g == 1 ? lat->P(x) : g == 2 ? lat->P(x, y) : lat->P(x, y, z)] = 0;
++		}
++	}
+ 
+ 	if (lat->gradients < 3)
+ 	{
+@@ -1957,6 +1966,7 @@ void System::DoElectrostatics(Real *g, Real *x)
+ 	int n_seg = In[0]->MonList.size();
+ 	Zero(q, M);
+ 	Zero(eps, M);
++	std::vector<Real> eps_den(M, 0.0); // average eps over the bounded profiles, as the numerator
+ 	for (int i = 0; i < n_seg; i++)
+ 	{
+ 		if (Seg[i]->ns < 2)
+@@ -1966,6 +1976,7 @@ void System::DoElectrostatics(Real *g, Real *x)
+ 		}
+ 		lat->set_bounds(Seg[i]->phi);
+ 		YplusisCtimesX(eps, Seg[i]->phi, Seg[i]->epsilon, M);
++		for (int k = 0; k < M; k++) eps_den[k] += Seg[i]->phi[k];
+ 	}
+ 	int statelistlength = In[0]->StateList.size();
+ 	for (int i = 0; i < statelistlength; i++)
+@@ -1975,7 +1986,7 @@ void System::DoElectrostatics(Real *g, Real *x)
+ 	}
+ 
+ 	Div(q, phitot, M);
+-	Div(eps, phitot, M);
++	for (int k = 0; k < M; k++) eps[k] = eps_den[k] != 0 ? eps[k] / eps_den[k] : 0;
+ 	Cp(psi,x,M); Cp(g,psi,M);
+ 	lat->set_M_bounds(psi);
+ 	if (fixedPsi0) {

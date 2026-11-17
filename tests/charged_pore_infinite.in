@@ -1,0 +1,46 @@
+// Polyelectrolyte brush on the wall of an infinitely long cylindrical pore: 2 gradients (r, z) with reflecting
+// z ends, salt, neutralizer. Unlike charged_pore_*, the z boundaries are mirrors, so the permittivity in the z
+// boundary layers comes from the averaged profiles there (it was arbitrary before the fix in System::DoElectrostatics).
+lat : pore : n_layers_x : 12
+lat : pore : n_layers_y : 10
+lat : pore : geometry : cylindrical
+lat : pore : lattice_type : simple_cubic
+lat : pore : gradients : 2
+lat : pore : upperbound_x : surface
+lat : pore : bondlength : 3e-10
+
+mon : W : freedom : frozen
+mon : W : frozen_range : upperbound_x
+mon : S : freedom : free
+mon : S : epsilon : 80
+mon : na : freedom : free
+mon : na : valence : 1
+mon : cl : freedom : free
+mon : cl : valence : -1
+mon : X : freedom : pinned
+mon : X : pinned_range : 12,1;12,10
+mon : X : valence : -0.5
+mon : P : freedom : free
+mon : P : valence : -0.5
+
+mol : water : composition : (S)1
+mol : water : freedom : solvent
+mol : Na : composition : (na)1
+mol : Na : freedom : neutralizer
+mol : Cl : composition : (cl)1
+mol : Cl : freedom : free
+mol : Cl : phibulk : 0.01
+mol : brush : composition : (X)1(P)19
+mol : brush : freedom : restricted
+mol : brush : n : 0.5
+
+newton : isaac : method : pseudohessian
+newton : isaac : tolerance : 1e-10
+newton : isaac : iterationlimit : 20000
+
+output : json : append : false
+json : mon : P : phi
+json : mon : na : phi
+json : mon : cl : phi
+json : mol : water : phi
+json : sys : NN : psi

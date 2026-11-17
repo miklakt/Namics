@@ -69,6 +69,7 @@ public:
 	void AllocateMemory(void);
 	void PushOutput();
 	ParameterStore FormatProfile(std::span<const Real>, bool);
+	void MaskSurfaceLayers(std::span<Real>);
 	std::span<Real> GetPointer(int);
 	int P(int,int,int);
 	int P(int,int);

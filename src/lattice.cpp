@@ -403,6 +403,24 @@ NAMICS_DBG("GetPointer for lattice " + name << std::endl);
 	return {};
 }
 
+// Zero MASK on every boundary-layer site of a 'surface' boundary, the corners shared with another boundary included.
+// These sites are wall; frozen ranges cover a surface layer only between the other boundaries, so without this a chain
+// could step into an uncovered corner, which also makes the propagator depend on which chain end it starts from.
+void Lattice::MaskSurfaceLayers(std::span<Real> mask) {
+	const int core[3] = {MX, MY, MZ};
+	const int n[3] = {MX + 2 * fjc, gradients > 1 ? MY + 2 * fjc : 1, gradients > 2 ? MZ + 2 * fjc : 1};
+	for (int x = 0; x < n[0]; ++x)
+	for (int y = 0; y < n[1]; ++y)
+	for (int z = 0; z < n[2]; ++z) {
+		const int c[3] = {x, y, z};
+		bool wall = false;
+		for (int a = 0; a < gradients; ++a) {
+			wall = wall || (BC[a] == "surface" && c[a] < fjc) || (BC[a + 3] == "surface" && c[a] >= core[a] + fjc);
+		}
+		if (wall) mask[gradients == 1 ? P(x) : gradients == 2 ? P(x, y) : P(x, y, z)] = 0;
+	}
+}
+
 ParameterStore Lattice::FormatProfile(std::span<const Real> profile, bool write_bounds) {
 	const int a = write_bounds ? 0 : fjc;
 	ParameterStore out = ParameterStore::array();

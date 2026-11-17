@@ -27,6 +27,17 @@ The `.npz` files hold flat float64 arrays named `key:name:prop` (`x`, `y`, `z` f
   states are involved (4.6e-6 in the ion profiles). Check: the same system as a cylinder of radius R, whose code is
   unchanged since the fork, converges to the current planar result as 1/R (2.7e-7 at R = 1e7, 2.7e-8 at R = 1e8)
   and stays 4.6e-6 away from the fork point's.
+- `charged_pore_*` come from the fork point with `fork_point_fixes.patch` applied (`git -C /tmp/namics-1563590
+  apply $PWD/tests/fork_point_fixes.patch` before building). It fixes two errors the fork point shares with later
+  builds, fixed here in `src/` as well:
+  - Corner sites where two `surface` boundaries meet belong to no frozen range, so chains could step into them.
+    That made the chain partition function depend on the end it is computed from (1.85e-5 apart in
+    `charged_pore_salt`), and the results on the propagation order. Now every boundary-layer site of a surface
+    boundary is masked; both ends then agree to 2e-16.
+  - The permittivity was the bounded sum of eps*phi divided by the unbounded phitot, which left arbitrary values
+    (up to 5e8) in mirror boundary layers. These enter the Poisson update of the adjacent layer and made
+    `charged_pore_infinite` depend on where the solver started.
+  With the patch, the fork point and the current build agree to 1e-10 or better on all three cases.
 
 Case origins: `poor_solvent_brush_*` are identical to records in `pore_poor_solvent/data` and also agree with
 them to 1e-7; `charged_pore_*`, `angular_pore` and `sfb_empty_pore` are scaled-down inputs built with the

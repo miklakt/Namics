@@ -97,6 +97,7 @@ void System::generate_mask()
 	}
 
 	for (int __i = 0; __i < M; ++__i) ksam[__i] = ksam[__i] == 0 ? 1 : 0;
+	lat->MaskSurfaceLayers(ksam);
 
 	Real accessible_volume = 0;
 	if (lat->gradients < 3)
@@ -804,6 +805,9 @@ void System::DoElectrostatics(std::span<Real> g, std::span<const Real> x)
 	auto& psi = this->psi;
 	std::fill(q.begin(), q.end(), 0.0);
 	std::fill(eps.begin(), eps.end(), 0.0);
+	// eps is the volume-fraction average of the segment permittivities. It is taken over the bounded profiles, also
+	// in the denominator: phitot carries no boundary values, and dividing by it left arbitrary eps in ghost layers.
+	std::vector<Real> phi_bounded(M, 0.0);
 	for (int i = 0; i < n_seg; i++)
 	{
 		if (Seg[i]->ns < 2)
@@ -812,6 +816,7 @@ void System::DoElectrostatics(std::span<Real> g, std::span<const Real> x)
 		}
 		lat->set_bounds(Seg[i]->phi.data());
 		for (int __i = 0; __i < M; ++__i) eps[__i] += Seg[i]->epsilon * Seg[i]->phi[__i];
+		for (int __i = 0; __i < M; ++__i) phi_bounded[__i] += Seg[i]->phi[__i];
 	}
 	int statelistlength = In->StateList.size();
 	for (int i = 0; i < statelistlength; i++)
@@ -822,7 +827,7 @@ void System::DoElectrostatics(std::span<Real> g, std::span<const Real> x)
 	}
 
 	for (int __i = 0; __i < M; ++__i) q[__i] = phitot[__i] != 0 ? q[__i] / phitot[__i] : 0;
-	for (int __i = 0; __i < M; ++__i) eps[__i] = phitot[__i] != 0 ? eps[__i] / phitot[__i] : 0;
+	for (int __i = 0; __i < M; ++__i) eps[__i] = phi_bounded[__i] != 0 ? eps[__i] / phi_bounded[__i] : 0;
 	std::copy(x.begin(), x.end(), psi.begin());
 	std::copy(psi.begin(), psi.end(), g.begin());
 	lat->set_M_bounds(psi.data());
