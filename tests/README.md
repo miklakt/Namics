@@ -22,10 +22,16 @@ The `.npz` files hold flat float64 arrays named `key:name:prop` (`x`, `y`, `z` f
   ```
 - `external_potential_*` (feature added after the fork) and `micelle_guess_use` (needs the initial guess, which the
   fork point cannot read) keep the references of their original tests, from the builds of March 2026.
+- `polE` comes from a current build (`make_reference.py --json`), because the fork point is wrong there: its planar
+  lattice gave the boundary ghost sites nonzero neighbour weights, which leaks into the solution once surface
+  states are involved (4.6e-6 in the ion profiles). Check: the same system as a cylinder of radius R, whose code is
+  unchanged since the fork, converges to the current planar result as 1/R (2.7e-7 at R = 1e7, 2.7e-8 at R = 1e8)
+  and stays 4.6e-6 away from the fork point's.
 
 Case origins: `poor_solvent_brush_*` are identical to records in `pore_poor_solvent/data` and also agree with
 them to 1e-7; `charged_pore_*`, `angular_pore` and `sfb_empty_pore` are scaled-down inputs built with the
-generators of `charged_pore`, `scf_pore_angular` and `sfb_empty_pore` (see the header of each input).
+generators of `charged_pore`, `scf_pore_angular` and `sfb_empty_pore` (see the header of each input);
+`charged_sphere_brush` covers spherical electrostatics.
 
 ## Adding a case
 
