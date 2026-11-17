@@ -38,7 +38,6 @@ json : mon : A : phi
 json : mon : T : phi
 json : mon : U : phi
 json : mol : brush : phi
-json : mol : brush : phi_ranked
 json : mol : water : phi
 
 start
