@@ -939,7 +939,6 @@ NAMICS_DBG("Classical_residuals in scf mode in system " << std::endl);
 
 	for (i=0; i<itmonlistlength; i++) {
 		auto g_mon = g.subspan(static_cast<size_t>(i * M), static_cast<size_t>(M));
-		for (int __i = 0; __i < M; ++__i) g_mon[__i] += Seg[ItMonList[i]]->u_ext[__i];
 		for (k=0; k<mon_length; k++) {
 			if (Seg[k]->ns<2) {
 				chi =Seg[ItMonList[i]]->chi[k];
